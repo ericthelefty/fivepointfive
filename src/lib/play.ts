@@ -89,6 +89,8 @@ export interface Weapon {
   properties: string;
   mastery: string;
   category: string; // "Simple Melee Weapons" etc.
+  weight?: string;
+  cost?: string;
 }
 
 export function weaponTable(entries: Entry[]): Weapon[] {
@@ -103,7 +105,7 @@ export function weaponTable(entries: Entry[]): Weapon[] {
         category = r[0];
         continue;
       }
-      out.push({ name: r[0], damage: r[1], properties: r[2], mastery: r[3], category });
+      out.push({ name: r[0], damage: r[1], properties: r[2], mastery: r[3], category, weight: r[4], cost: r[5] });
     }
   }
   return out;

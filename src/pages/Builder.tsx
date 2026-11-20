@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { weaponTable } from "../lib/play.ts";
+import { catalog, inventoryOf } from "../lib/inventory.ts";
 import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
 import { Md, MdInline } from "../lib/md.tsx";
@@ -546,7 +548,10 @@ function EquipmentStep({ c, update }: StepProps) {
   const cls = byId(c.classId);
   const bg = byId(c.backgroundId);
   const armor = useMemo(() => armorTable(entries), [entries]);
-  const d = derive(c, { cls, background: bg, species: byId(c.speciesId), armor });
+  const weapons = useMemo(() => weaponTable(entries), [entries]);
+  const cat = useMemo(() => catalog(entries, weapons, armor), [entries, weapons, armor]);
+  const inv = inventoryOf(c, cls, bg, cat);
+  const d = derive(c, { cls, background: bg, species: byId(c.speciesId), armor, items: inv.items });
   const Group = ({ title, opts, value, onPick }: { title: string; opts: { key: string; text: string }[]; value?: string; onPick: (k: string) => void }) => (
     <div className="panel">
       <h2 style={{ marginBottom: 10 }}>{title}</h2>
@@ -565,6 +570,14 @@ function EquipmentStep({ c, update }: StepProps) {
   return (
     <div className="row">
       <div className="grow stack" style={{ gap: 18 }}>
+        {!inv.fromStart && (
+          <div className="inset" role="status">
+            This character’s inventory has been edited on the sheet, so changing these choices won’t change it.{" "}
+            <button className="linkish" onClick={() => { if (confirm("Replace the inventory and coins with the starting equipment chosen here?")) update({ inventory: undefined, coins: undefined, play: { ...(c.play || {}), gear: "" } }); }}>
+              Replace it with this starting equipment
+            </button>
+          </div>
+        )}
         <Group title={`${cls?.name || "Class"} starting equipment`} opts={equipmentOptions(cls?.fields["starting equipment"])} value={c.equipClass} onPick={(k) => update({ equipClass: k })} />
         <Group title={`${bg?.name || "Background"} equipment`} opts={equipmentOptions(bg?.fields["equipment"])} value={c.equipBackground} onPick={(k) => update({ equipBackground: k })} />
       </div>
@@ -572,7 +585,9 @@ function EquipmentStep({ c, update }: StepProps) {
         <div className="eyebrow">Armor Class</div>
         <div style={{ fontFamily: "var(--serif)", fontSize: 44, fontWeight: 600 }}>{d.ac}</div>
         <div className="faint">{d.acNote}</div>
-        <p className="faint" style={{ marginTop: 14 }}>Worked out from the armor and shield in your chosen equipment.</p>
+        <p className="faint" style={{ marginTop: 14 }}>
+          Worked out from the armor and shield {inv.fromStart ? "in your chosen equipment" : "equipped in your inventory"}. You’ll start with {inv.items.length} item{inv.items.length === 1 ? "" : "s"} and {inv.coins.gp} GP; manage them in the sheet’s Inventory tab.
+        </p>
       </aside>
     </div>
   );

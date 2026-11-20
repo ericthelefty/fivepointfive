@@ -43,6 +43,9 @@ export interface Character {
   notes: string;
   updated: number;
   play?: Partial<import("./play.ts").PlayState>;
+  /** Set once the inventory has been edited; until then it comes from starting equipment. */
+  inventory?: import("./inventory.ts").Item[];
+  coins?: import("./inventory.ts").Coins;
 }
 
 export function newCharacter(): Character {
@@ -239,7 +242,7 @@ export function speedOf(sp?: Entry): number {
   return m ? +m[1] : 30;
 }
 
-export interface ArmorRow { name: string; ac: string; category: string; stealth: string; strength: string }
+export interface ArmorRow { name: string; ac: string; category: string; stealth: string; strength: string; weight?: string; cost?: string }
 
 export function armorTable(rulesEntries: Entry[]): ArmorRow[] {
   const e = rulesEntries.find((x) => x.name === "Armor" && x.type === "Rule");
@@ -253,7 +256,7 @@ export function armorTable(rulesEntries: Entry[]): ArmorRow[] {
       category = r[0].replace(/\s*\(.*$/, "");
       continue;
     }
-    out.push({ name: r[0], ac: r[1], strength: r[2], stealth: r[3], category });
+    out.push({ name: r[0], ac: r[1], strength: r[2], stealth: r[3], category, weight: r[4], cost: r[5] });
   }
   return out;
 }
@@ -281,7 +284,7 @@ export function finalScores(c: Character): Scores {
 
 export function derive(
   c: Character,
-  lib: { cls?: Entry; species?: Entry; background?: Entry; armor: ArmorRow[] },
+  lib: { cls?: Entry; species?: Entry; background?: Entry; armor: ArmorRow[]; items?: import("./inventory.ts").Item[] },
 ): Derived {
   const scores = finalScores(c);
   const mods = Object.fromEntries(ABILITIES.map((a) => [a, mod(scores[a])]));
@@ -298,14 +301,28 @@ export function derive(
   const hd = hitDie(lib.cls);
   const hp = Math.max(1, hd + mods.Constitution + (c.level - 1) * (hd / 2 + 1 + mods.Constitution));
 
-  // AC: armor from starting equipment, else class Unarmored Defense, else 10 + Dex
+  // AC: equipped armor and shield, else class Unarmored Defense, else 10 + Dex.
+  // Without an inventory (older callers), armor is found in the starting equipment text.
   const gear = [
     equipmentOptions(lib.cls?.fields["starting equipment"]).find((o) => o.key === (c.equipClass || "A"))?.text || "",
     equipmentOptions(lib.background?.fields["equipment"]).find((o) => o.key === (c.equipBackground || "A"))?.text || "",
   ].join(", ");
-  const shield = /\bShield\b/.test(gear) ? 2 : 0;
   const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const worn = lib.armor.find((a) => !/shield/i.test(a.category) && new RegExp(`\\b${esc(a.name)}\\b`).test(gear));
+  const isShieldRow = (a: ArmorRow) => /shield/i.test(a.category);
+  let shield = 0;
+  let worn: ArmorRow | undefined;
+  let wornLabel = "";
+  if (lib.items) {
+    const on = lib.items.filter((i) => i.equipped && i.qty > 0 && i.base);
+    const bodyItem = on.find((i) => lib.armor.some((a) => a.name === i.base && !isShieldRow(a)));
+    worn = bodyItem && lib.armor.find((a) => a.name === bodyItem.base);
+    wornLabel = bodyItem ? bodyItem.name : "";
+    shield = on.some((i) => lib.armor.some((a) => a.name === i.base && isShieldRow(a))) ? 2 : 0;
+  } else {
+    shield = /\bShield\b/.test(gear) ? 2 : 0;
+    worn = lib.armor.find((a) => !isShieldRow(a) && new RegExp(`\\b${esc(a.name)}\\b`).test(gear));
+    wornLabel = worn?.name || "";
+  }
   let ac = 10 + mods.Dexterity;
   let acNote = "10 + Dex";
   const feats = lib.cls ? features(lib.cls).filter((f) => f.level <= c.level).map((f) => f.name) : [];
@@ -313,7 +330,7 @@ export function derive(
     const base = +(worn.ac.match(/^(\d+)/)?.[1] || 10);
     const dex = /Dex modifier \(max 2\)/.test(worn.ac) ? Math.min(2, mods.Dexterity) : /Dex/.test(worn.ac) ? mods.Dexterity : 0;
     ac = base + dex;
-    acNote = worn.name;
+    acNote = wornLabel || worn.name;
   } else if (feats.includes("Unarmored Defense") && lib.cls?.name === "Barbarian") {
     ac = 10 + mods.Dexterity + mods.Constitution;
     acNote = "Unarmored Defense (10 + Dex + Con)";

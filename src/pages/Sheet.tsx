@@ -13,12 +13,14 @@ import {
 } from "../lib/rules.ts";
 import { combineModes, d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import {
-  CONDITION_EFFECTS, attackFor, carriedGear, castingAbility, classResources, conditionMods, esc, playOf, slotTotals,
-  spellDamage, spellRoll, timeNow, unarmedStrike, weaponTable, weaponsCarried, type Attack, type LogEntry,
+  CONDITION_EFFECTS, attackFor, castingAbility, classResources, conditionMods, esc, playOf, slotTotals,
+  spellDamage, spellRoll, timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
   type PlayState, type RollContext,
 } from "../lib/play.ts";
+import { catalog, inventoryOf, magicInfo, type Coins, type Item } from "../lib/inventory.ts";
+import InventoryPanel from "./InventoryPanel.tsx";
 
-type Tab = "actions" | "spells" | "features" | "conditions" | "notes";
+type Tab = "actions" | "spells" | "features" | "conditions" | "inventory" | "notes";
 type CardAction = { label: string; run: () => void };
 
 export default function Sheet() {
@@ -57,7 +59,7 @@ export default function Sheet() {
   const bg = content.byId(c?.backgroundId);
   const caster = casterInfo(cls, c?.level || 1);
   useEffect(() => {
-    content.ensure("rules", ...(caster ? (["spells"] as const) : []));
+    content.ensure("rules", "items", ...(caster ? (["spells"] as const) : []));
   }, [!!caster]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -81,6 +83,21 @@ export default function Sheet() {
 
   const armor = useMemo(() => armorTable(content.entries), [content.entries]);
   const weapons = useMemo(() => weaponTable(content.entries), [content.entries]);
+  const itemCatalog = useMemo(() => catalog(content.entries, weapons, armor), [content.entries, weapons, armor]);
+  const inv = useMemo(
+    () => (c ? inventoryOf(c, cls, bg, itemCatalog) : { items: [] as Item[], coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }, fromStart: true }),
+    [c?.inventory, c?.coins, c?.equipClass, c?.equipBackground, c?.play?.gear, cls, bg, itemCatalog], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const infoCache = useMemo(() => new Map<string, ReturnType<typeof magicInfo>>(), [content.entries, weapons, armor]);
+  const infoOf = (it: Item) => {
+    if (it.kind !== "magic" || !it.ref) return undefined;
+    if (!infoCache.has(it.ref)) {
+      const e = content.byId(it.ref);
+      if (!e) return undefined;
+      infoCache.set(it.ref, magicInfo(e, weapons, armor));
+    }
+    return infoCache.get(it.ref);
+  };
   const conditionEntries = useMemo(
     () => content.byType("Rule").filter((e) => e.tags.includes("Condition")).sort((a, b) => a.name.localeCompare(b.name)),
     [content],
@@ -89,7 +106,7 @@ export default function Sheet() {
   if (!c) return chars.ready ? <div className="panel">Character not found. <Link to="/">Back to characters</Link></div> : <p className="muted">Loading…</p>;
 
   const p = playOf(c);
-  const d = derive(c, { cls, background: bg, species: sp, armor });
+  const d = derive(c, { cls, background: bg, species: sp, armor, items: inv.items });
   const hpMax = d.hp;
   const hpCur = Math.min(hpMax, p.hpCur ?? hpMax);
   const speed = p.conditions.some((k) => CONDITION_EFFECTS[k]?.speed0) ? 0 : d.speed;
@@ -99,8 +116,22 @@ export default function Sheet() {
   const spellAtk = d.pb + castMod;
   const slots = slotTotals(c, cls);
   const resources = classResources(c, cls);
-  const gear = carriedGear(c, cls, bg);
-  const attacks: Attack[] = [...weaponsCarried(gear, weapons).map((w) => attackFor(w, d, cls)), unarmedStrike(d)];
+  // attacks: weapons that are equipped (magic weapons use their base weapon)
+  const attacks: Attack[] = [
+    ...inv.items.flatMap((it) => {
+      const w = it.equipped && it.qty > 0 && it.base ? weapons.find((x) => x.name === it.base) : undefined;
+      return w ? [attackFor({ ...w, name: it.name }, d, cls)] : [];
+    }),
+    unarmedStrike(d),
+  ];
+  const setInventory = (items: Item[], coins: Coins) => {
+    dirty.current = true;
+    setC((prev) => (prev ? { ...prev, inventory: items, coins } : prev));
+  };
+  const resetInventory = () => {
+    dirty.current = true;
+    setC((prev) => (prev ? { ...prev, inventory: undefined, coins: undefined, play: { ...playOf(prev), gear: "" } } : prev));
+  };
 
   // ------------------------------------------------------------ state io
   const setPlay = (patch: Partial<PlayState> | ((p: PlayState) => Partial<PlayState>)) =>
@@ -455,7 +486,7 @@ export default function Sheet() {
 
             <div>
               <nav className="stabs">
-                {([["actions", "Actions"], ["spells", "Spells"], ["features", "Features & Feats"], ["conditions", "Conditions"], ["notes", "Notes & Gear"]] as [Tab, string][])
+                {([["actions", "Actions"], ["spells", "Spells"], ["features", "Features & Feats"], ["conditions", "Conditions"], ["inventory", "Inventory"], ["notes", "Notes"]] as [Tab, string][])
                   .filter(([k]) => k !== "spells" || caster)
                   .map(([k, l]) => (
                     <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
@@ -469,8 +500,8 @@ export default function Sheet() {
                   <table className="atks">
                     <thead><tr><th>Attack</th><th>To hit</th><th>Damage</th><th></th></tr></thead>
                     <tbody>
-                      {attacks.map((a) => (
-                        <tr key={a.name}>
+                      {attacks.map((a, i) => (
+                        <tr key={`${a.name}-${i}`}>
                           <td><b>{a.name}</b><div className="note">{a.note}</div></td>
                           <td>{fmt(a.toHit)}</td>
                           <td>{a.damage} {a.type}{a.versatile ? <div className="note">two hands {a.versatile}</div> : null}</td>
@@ -485,7 +516,7 @@ export default function Sheet() {
                       ))}
                     </tbody>
                   </table>
-                  <p className="note" style={{ marginTop: 10 }}>Weapons come from your starting equipment and anything you add under Notes &amp; Gear.</p>
+                  <p className="note" style={{ marginTop: 10 }}>Attacks come from the weapons equipped in your <button className="linkish" onClick={() => setTab("inventory")}>Inventory</button>.</p>
                 </div>
               )}
 
@@ -563,15 +594,27 @@ export default function Sheet() {
                 </div>
               )}
 
+              {tab === "inventory" && (
+                <InventoryPanel
+                  items={inv.items}
+                  coins={inv.coins}
+                  fromStart={inv.fromStart}
+                  editable={editable}
+                  catalog={itemCatalog}
+                  byId={content.byId}
+                  infoOf={infoOf}
+                  weapons={weapons}
+                  armor={armor}
+                  strength={d.scores.Strength}
+                  size={(sp?.fields["size"] || "Medium").split(/[\s(]/)[0]}
+                  onChange={setInventory}
+                  onReset={resetInventory}
+                />
+              )}
+
               {tab === "notes" && (
                 <div className="spanel">
-                  <h3>Equipment</h3>
-                  <p style={{ marginTop: 0 }}>{gear || "No equipment chosen."}</p>
-                  <label className="field">
-                    Add gear (comma separated; weapons named here show up under Actions)
-                    <input type="text" value={p.gear} onChange={(e) => setPlay({ gear: e.target.value })} placeholder="e.g. Longsword, Potion of Healing" />
-                  </label>
-                  <h3 style={{ marginTop: 16 }}>Notes</h3>
+                  <h3>Notes</h3>
                   <textarea value={c.notes} onChange={(e) => { dirty.current = true; const v = e.target.value; setC((prev) => (prev ? { ...prev, notes: v } : prev)); }} />
                 </div>
               )}

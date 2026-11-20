@@ -168,3 +168,41 @@
   .sheetv { grid-template-columns: 1fr; }
   .sheetv .side { display: none; }
 }
+
+/* ---------------------------------------------------------------- inventory */
+.sheetv .inv .invhead { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; margin-bottom: 12px; }
+.sheetv .invstat { background: var(--s-well2); border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; display: flex; align-items: baseline; gap: 6px; font-size: 13px; }
+.sheetv .invstat b { font-size: 16px; color: var(--ink, #f1e9dc); }
+.sheetv .invstat.full b { color: var(--s-gold); }
+.sheetv .invstat.over { border-color: var(--s-red); }
+.sheetv .invstat .warn, .sheetv .warnline { color: var(--s-red); }
+.sheetv .coins { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.sheetv .coin { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--s-mut); }
+.sheetv .coin input { width: 64px; text-align: center; padding: 5px 6px; min-height: 34px; }
+.sheetv .invwrap { overflow-x: auto; }
+.sheetv .invt { width: 100%; }
+.sheetv .invt th, .sheetv .invt td { padding-left: 4px; padding-right: 4px; }
+.sheetv .invt td:first-child { width: 100%; min-width: 150px; }
+.sheetv .invt td { vertical-align: top; }
+.sheetv .invt td:nth-child(n+2) { white-space: nowrap; }
+.sheetv .invt input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--s-gold); margin-top: 6px; }
+.sheetv .iname { background: none; border: 0; padding: 0; text-align: left; font: inherit; color: inherit; }
+.sheetv .iname:hover b { color: var(--s-gold); }
+.sheetv .tagx { display: inline-block; margin-left: 6px; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--s-mut); vertical-align: 1px; }
+.sheetv .tagx.on { border-color: #3f8a4f; color: var(--s-adv-tx); background: var(--s-adv-bg); }
+.sheetv .tagx.warn { border-color: var(--s-gold2); color: var(--s-gold); }
+.sheetv .qty { display: flex; align-items: center; gap: 4px; }
+.sheetv .qty span { min-width: 22px; text-align: center; font-weight: 600; }
+.sheetv .qty .sbtn { min-width: 26px; padding: 2px 4px; }
+.sheetv .wt { width: 54px; padding: 5px 6px; min-height: 32px; }
+.sheetv .idet { margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--s-well2); white-space: normal; }
+.sheetv .irow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.sheetv .irow .field { flex: 1 1 160px; }
+.sheetv .itext { font-size: 13.5px; max-height: 260px; overflow: auto; }
+.sheetv .iadd { margin-top: 12px; }
+.sheetv .imatches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sheetv .imatches .note { margin-left: 4px; }
+@media (max-width: 720px) {
+  .sheetv .coins { margin-left: 0; }
+  .sheetv .invt th:nth-child(3), .sheetv .invt td:nth-child(3) { display: none; }
+}
