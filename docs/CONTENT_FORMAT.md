@@ -1,8 +1,10 @@
-# Content Format Guide (draft v0.4)
+# Content Format Guide (draft v0.5)
 
 Every piece of game content in this app — the bundled SRD, your homebrew, or material from books you own — is written as plain **Markdown** files. No YAML, no JSON, no code. If you can write a rulebook entry in Notepad, you can write content for this app.
 
 The app reads a small set of conventions (headings, bold labels, a few fixed phrases). Anything it doesn't recognize is **kept as rules text**, never thrown away — so a file always imports; it's just less automated.
+
+This guide marks what each convention does. **Used** means the builder or play sheet acts on it (works out HP, offers a choice, adds a roll button). **Shown** means it's displayed in the Library and builder for players to read and apply themselves.
 
 ---
 
@@ -11,7 +13,7 @@ The app reads a small set of conventions (headings, bold labels, a few fixed phr
 ### Files and packs
 
 - Files are UTF-8 text with the `.md` extension. **Only `.md` files are accepted**; anything else (images, .txt, .zip) is skipped with a note in the import preview.
-- A **pack** is a set of `.md` files imported together. An optional `pack.md` (`**Type:** Pack`) names the collection and gives credit; without one, files go into a default pack called **My Homebrew**.
+- A **pack** is a set of `.md` files imported together. An optional `pack.md` (`**Type:** Pack`) names the collection and gives credit (see section 2); without one, the pack is called whatever you type in the Pack name box, or **My Homebrew**.
 - One file can hold **one entry or many**. Each entry starts with a level-1 heading (`# Name`).
 
 ### Anatomy of an entry
@@ -35,39 +37,43 @@ Rules text paragraphs, exactly as written.  ← 4. body
 
 1. **Heading** — `# Name` begins an entry. The entry runs until the next `#` heading.
 2. **Field lines** — `**Label:** value`, one per line, directly under the heading. `**Type:**` is required; see section 3 for the labels each type understands. Unknown labels are kept and displayed, not rejected.
-3. **Tagline** — a single line in *italics* right under the heading, the way books print "*Level 3 Evocation (Sorcerer, Wizard)*" under a spell name. The app reads known patterns from it (spell level/school/classes, item category/rarity/attunement, creature size/type/alignment).
+3. **Tagline** — a single line in *italics* in the same block as the field lines, the way books print "*Level 3 Evocation (Sorcerer, Wizard)*" under a spell name.
 4. **Body** — everything else is rules text, shown to players as written. Use normal Markdown: paragraphs, `- bullets`, `**bold**`, `*italic*`.
 5. **Sub-sections** — `## Heading` inside an entry. Class features use `## Level 3: Feature Name`; creatures use `## Actions`, `## Reactions`, etc.
-6. **Tables** — standard Markdown pipe tables. A table's title is the `##`/`###` heading just above it.
+6. **Tables** — standard Markdown pipe tables, with a header row and a `|---|---|` line under it.
+
+**Keep the field block together.** The heading, field lines and tagline must have no blank lines between them: the first blank line ends the block, and any field after it is read as body text. The importer removes stray blank lines between field lines for you and says so.
 
 ### Common fields (any type)
 
 | Field | Use |
 |---|---|
-| `**Source:** SRD 5.2.1, p. 131` | Where the entry comes from. Shown on the sheet; handy for checking rules. |
-| `**Tags:** defense, homebrew` | Free labels for filtering. |
+| `**Source:** SRD 5.2.1, p. 131` | Where the entry comes from. **Shown** in the Library and builder; without it, the pack name is shown. |
+| `**Tags:** defense, homebrew` | Free labels, comma-separated. **Shown** in the Library, and the Library search finds entries by tag. |
 
-A heading may end with a bracketed tag, as the rules glossary does: `# Blinded [Condition]`. The app reads the name as "Blinded" and adds the tag "Condition".
+A heading may end with a bracketed tag, as the rules glossary does: `# Blinded [Condition]`. The app reads the name as "Blinded" and adds the tag "Condition". The `Condition` tag is special: see Rule in section 3.
 
 ### Rules for writing labels
 
-- Labels are case-insensitive and the colon goes **inside** the bold: `**Casting Time:** Action`. The colon is optional — creature stat blocks print labels without one (`**AC** 16`), and both forms are read the same way.
-- Lists inside a value are comma-separated: `**Classes:** Bard, Wizard`.
-- Use the same words the rules use. `Level 4+` and `Constitution 13+` are understood in prerequisites.
+- Labels are case-insensitive and the colon goes **inside** the bold: `**Casting Time:** Action`. The colon is optional — creature stat blocks print labels without one (`**AC** 16`), and both forms are read the same way. If you write the colon outside the bold (`**Range**: 60 feet`), the importer moves it for you.
+- Use the same words the rules use. Several fields are read by their wording (section 3 says which), so copying the SRD's phrasing is the safest choice.
+- Prerequisites such as `Level 4+` or `Strength 13+` are **shown**, not checked: the app doesn't stop a character from taking a feat they don't qualify for.
 
 ---
 
 ## 2. IDs, packs, and overriding content
 
-Every entry gets an ID automatically: `pack-id:type/slug-of-name`, e.g. `srd:spell/fireball`. You only write an ID when you need to:
+Every entry gets an ID automatically: `pack-id:type/slug-of-name`, e.g. `srd:spell/fireball`. The Library shows each entry's ID at the bottom of its page. You only write an ID when you need to:
 
 | Field | Use |
 |---|---|
-| `**ID:** my-fireball` | Give the entry a fixed slug (useful if you might rename it). |
-| `**Replaces:** srd:spell/fireball` | Swap out an existing entry with yours (a house-ruled version). |
-| `**Parent:** srd:class/fighter` | Attach to another entry (subclasses, sub-species, item variants). Plain names work too: `**Parent:** Fighter`. |
+| `**ID:** my-fireball` | Give the entry a fixed slug, so its ID stays the same if you rename it. Characters remember their class, subclass, species and background by ID. |
+| `**Replaces:** srd:spell/fireball` | Swap out an existing entry with yours (a house-ruled version). The original is hidden everywhere, and characters that used it get yours instead. Use the exact ID from the Library. |
+| `**Parent:** Fighter` | **Used** by subclasses: the class name the subclass belongs to. An ID such as `srd:class/fighter` works too. |
 
-Two packs can both contain "Fireball" — IDs keep them apart, and the app asks which to use only if you pick both.
+If two packs both contain an entry called "Fireball", both appear, and the Library and builder show which pack each comes from. Use `**Replaces:**` when you want only one.
+
+Re-importing a pack with the same name or ID adds a second copy rather than updating the first. To update a pack, remove the old one on the Content packs page, then import the new files.
 
 ### `pack.md`
 
@@ -83,50 +89,85 @@ Two packs can both contain "Fireball" — IDs keep them apart, and the app asks 
 Optional description and any attribution text the license requires.
 ```
 
+The heading becomes the pack's name, and `**ID:**` becomes the pack ID used in every entry ID (`ericbrew:spell/…`). **Author** and **License** are shown on the Content packs page. **Version**, **System** and the description stay in the file for anyone who downloads the pack.
+
 **Who sees your packs.** On a shared instance, packs you upload are visible to every member of that instance, and only you or the admin can remove them. In local-only mode, packs stay in your browser. Either way, only upload content you have the right to share with that group.
 
 ---
 
 ## 3. Entry types
 
-Each type lists the fields the app understands. Only `**Type:**` is required; every other field is optional, and an entry without it still imports as text. The Format guide page in the app has a copyable template for each type.
+Each type lists the fields the app understands. Only `**Type:**` is required. Every other field is optional: an entry that leaves fields out still imports, and players just read the text. The Format guide page in the app has a copyable template for each type.
 
 ### Class
 `**Type:** Class` · Primary Ability · Hit Point Die · Saving Throw Proficiencies · Skill Proficiencies · Weapon Proficiencies · Tool Proficiencies · Armor Training · Starting Equipment
 
-- The class fields go in a sub-section named `## Core <Class> Traits` (mirroring the book's table), one field per line. Write them the way the SRD does, because the builder reads the wording: `Choose 2: Athletics, History, or Survival` for skills, `D10 per Fighter level` for the Hit Point Die, and `Choose A or B: (A) …; or (B) 50 GP` for equipment.
+- The class fields go in a sub-section named `## Core <Class> Traits` (mirroring the book's table), one field per line.
+- **Used**, so write them the way the SRD does:
+  - Hit Point Die: `D10 per Fighter level` (HP on the sheet).
+  - Saving Throw Proficiencies: `Strength and Constitution`.
+  - Skill Proficiencies: `Choose 2: Athletics, History, or Survival`, or `Choose any 3 skills` (a choice in the builder). Skill names must be spelled as in the rules.
+  - Weapon Proficiencies: `Simple weapons`, `Simple and Martial weapons`, or `Simple weapons and Martial weapons that have the Light property` (decides which attacks add your Proficiency Bonus).
+  - Starting Equipment: `Choose A or B: (A) …; or (B) 50 GP` (a choice in the builder).
+- **Shown:** Primary Ability, Tool Proficiencies, Armor Training.
 - Features are any heading of the form `Level N: Feature Name`, at any depth (the SRD nests them under `## <Class> Class Features`).
-- The progression table is a Markdown table whose first column is `Level`, with one row per level from 1 to 20. Extra columns (Rages, Second Wind, Cantrips…) become values the app can look up by column name, for example in Effects.
-- **Spellcasting classes** add the columns `Cantrips`, `Prepared Spells` and `Spell Slots per Spell Level 1` through `Spell Slots per Spell Level 9` (use `—` where there are no slots), and say "Intelligence is your spellcasting ability" (or Wisdom, or Charisma) in their Spellcasting feature. The class's spells go under `## <Class> Spell List`, with one sub-section per level (`### Cantrips (Level 0 <Class> Spells)`, `### Level 1 <Class> Spells`, …) each holding a `Spell | School | Special` table. Spell names must match spell entries.
+- The progression table is a Markdown table whose first column is `Level`, with one row per level from 1 to 20.
+- **Trackers on the play sheet:** any other column with a plain number (Rages, Second Wind, Channel Divinity…) becomes a resource players can tick off, named after the feature whose name starts with the same word. The feature's text decides how it comes back: "regain all expended uses when you finish a Short or Long Rest" means a Short Rest restores all of them, and "regain one expended use when you finish a Short Rest" means one; anything else comes back on a Long Rest. Columns with dice or words (Martial Arts `1d6`, Sneak Attack `2d6`) are shown in the table only.
+- **Spellcasting classes** add the columns `Cantrips`, `Prepared Spells` and `Spell Slots per Spell Level 1` through `Spell Slots per Spell Level 9` (use `—` where there are no slots), and their Spellcasting feature says "Intelligence is your spellcasting ability" (or Wisdom, or Charisma). The class's spells go under `## <Class> Spell List`, with one sub-section per level (`### Cantrips (Level 0 <Class> Spells)`, `### Level 1 <Class> Spells`, …), each holding a `Spell | School | Special` table. Spell names must match spell entries. Without a spell list, the class gets every spell whose tagline names it.
 
 ### Subclass
-`**Type:** Subclass` · **Parent** (the class) · optional tagline (the subclass motto) · features as `Level N: Feature Name` headings.
+`**Type:** Subclass` · **Parent** (the class name) · optional tagline (the subclass motto) · features as `Level N: Feature Name` headings. Players choose a subclass at level 3, so features start at level 3.
 
 ### Species
-`**Type:** Species` · Creature Type · Size · Speed · traits as `***Trait Name.***` run-ins (or `## Trait Name` sub-sections).
+`**Type:** Species` · Creature Type · Size · Speed
+
+- **Used:** Speed (`30 feet`) on the sheet. Size is shown in the builder.
+- **Shown:** Creature Type.
+- **Traits must be run-ins:** `***Trait Name.*** What it does.` Each one becomes a trait in the builder and on the sheet. Text under a `##` heading is kept but isn't listed as a trait.
+- A table with options (like the Dragonborn's Draconic Ancestry table) becomes a choice in the builder. Put it under a `##` heading: the first such table with more than one row is used, so put other tables after it.
 
 ### Background
 `**Type:** Background` · Ability Scores · Feat · Skill Proficiencies · Tool Proficiency · Equipment
 
+- **Used:**
+  - Ability Scores: three abilities, `Strength, Dexterity, Constitution` (the scores players can raise).
+  - Feat: the name of a feat entry, such as `Magic Initiate (Cleric)`. Text in parentheses is ignored when matching, so this links to Magic Initiate.
+  - Skill Proficiencies: `Athletics and Survival`.
+  - Equipment: `Choose A or B: (A) …; or (B) 50 GP`.
+- **Shown:** Tool Proficiency.
+
 ### Feat
-`**Type:** Feat` · tagline gives the category (`*Origin Feat*`, `*General Feat (Prerequisite: Level 4+)*`, `*Fighting Style Feat*`, `*Epic Boon Feat*`) · Repeatable · benefits as `***Name.***` run-ins.
+`**Type:** Feat` · tagline gives the category (`*Origin Feat*`, `*General Feat (Prerequisite: Level 4+)*`, `*Fighting Style Feat*`, `*Epic Boon Feat*`) · Repeatable · benefits as `***Name.***` run-ins. Shown in the Library, and on the sheet when a background grants it.
 
 ### Spell
-`**Type:** Spell` · tagline `*Level N School (Class, Class)*` or `*School Cantrip (Class)*` · Casting Time · Range · Components · Duration. Upcasting text goes in a `***Using a Higher-Level Spell Slot.***` run-in; cantrip scaling in `***Cantrip Upgrade.***`.
+`**Type:** Spell` · tagline `*Level N School (Class, Class)*` or `*School Cantrip (Class)*` · Casting Time · Range · Components · Duration
 
-### Equipment (Weapon, Armor, Gear, Tool, Mount, Vehicle…)
-One entry per item: `**Type:** Gear`, `Tool`, `Weapon`, `Armor`… with fields such as Cost, Weight, Damage, Properties and Mastery. Tools also use the fields Ability, Utilize, Craft and Variants.
+- **Used:** the tagline gives the spell's level, school and classes. Naming a class there adds the spell to that class's list, including SRD classes, so a homebrew spell tagged `(Wizard)` shows up for Wizards.
+- **Used:** a Duration that starts with `Concentration` marks the spell as Concentration on the sheet.
+- **Roll buttons** on the sheet come from the spell's wording, so phrase it like the SRD:
+  - damage: `takes 8d6 Fire damage` (dice, then damage type, then "damage")
+  - saving throw: `a Dexterity saving throw`
+  - attack: `make a ranged spell attack` (or melee)
+  - healing: `regains Hit Points equal to 2d8`
+  - upcasting: in a `***Using a Higher-Level Spell Slot.***` run-in, `the damage increases by 1d6 for each spell slot level above 3`
+  - cantrip scaling: a `***Cantrip Upgrade.***` run-in adds a die at levels 5, 11 and 17.
+- **Shown:** Casting Time, Range, Components.
 
-For now, attack rolls and Armor Class on the play sheet come from the SRD's Weapons and Armor tables only. A custom weapon or armor entry shows up in the Library and on the sheet as text, but it won't get an attack button or change AC yet.
+### Equipment (Gear, Tool, Weapon, Armor)
+One entry per item: `**Type:** Gear`, `Tool`, `Weapon` or `Armor`, with fields such as Cost, Weight, Damage, Properties and Mastery. Tools also use the fields Ability, Utilize, Craft and Variants. Use `Gear` for anything else, such as mounts and vehicles. All of these are **shown**.
+
+For now, attack rolls and Armor Class on the play sheet come from the SRD's Weapons and Armor tables only. A custom weapon or armor entry shows up in the Library as text, but it won't get an attack button or change AC yet.
 
 ### Magic Item
-`**Type:** Magic Item` · tagline `*Category, Rarity (Requires Attunement)*`.
+`**Type:** Magic Item` · tagline `*Category, Rarity (Requires Attunement)*`. **Shown** in the Library.
 
 ### Creature
-`**Type:** Creature` · Group (for families like "Red Dragons") · tagline `*Size Type, Alignment*` · AC · Initiative · HP · Speed · an ability table (`| | Score | Mod | Save |` rows for Str…Cha) · Skills · Resistances · Immunities · Gear · Senses · Languages · CR · sections `## Traits`, `## Actions`, `## Bonus Actions`, `## Reactions`, `## Legendary Actions`.
+`**Type:** Creature` · Group (for families like "Red Dragons") · tagline `*Size Type, Alignment*` · AC · Initiative · HP · Speed · an ability table (`| | Score | Mod | Save |` rows for Str…Cha) · Skills · Resistances · Immunities · Gear · Senses · Languages · CR · sections `## Traits`, `## Actions`, `## Bonus Actions`, `## Reactions`, `## Legendary Actions`. **Shown** as a stat block in the Library. Fields such as Senses and CR can come after the ability table, as long as they're before the first `##` section.
 
 ### Rule
-`**Type:** Rule` — any rules text that isn't one of the above: glossary terms, conditions (tagline `*Condition*`), chapters of the rules. Sub-sections nest with `##`, `###`, etc.
+`**Type:** Rule` — any rules text that isn't one of the above: glossary terms, conditions, chapters of the rules. Sub-sections nest with `##`, `###`, etc.
+
+**Conditions:** put `[Condition]` at the end of the heading, as in `# Dazed [Condition]` (or add `**Tags:** Condition`). That's what adds it to the Conditions tab on the play sheet. Conditions with the same names as the SRD's (Blinded, Poisoned, Prone…) apply their effects to rolls automatically; new conditions can be marked on the sheet, and players apply their text by hand.
 
 ---
 
@@ -185,6 +226,6 @@ The rules text is what players read; the Effects lines say the same thing in phr
 
 1. Splits files into entries at each `# ` heading.
 2. Reads field lines and the tagline; checks the Type.
-3. Fixes small formatting slips automatically (a missing space after `#`, the colon outside the bold) and tells you what it changed.
+3. Fixes small formatting slips automatically (a missing space after `#`, the colon outside the bold, blank lines inside the field block, a missing Type it can work out from the fields) and tells you what it changed.
 4. Shows a preview: the entries found, plus plain-language suggestions with line numbers for anything it couldn't understand, such as an unknown type or a misspelled stat.
 5. Nothing that is a `.md` file is rejected: anything the app doesn't understand is kept as text.

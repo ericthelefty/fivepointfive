@@ -15,7 +15,9 @@ export default function Content() {
   const [saved, setSaved] = useState("");
   const classes = content.byType("Class").map((c) => c.name);
   const known = { classes };
-  const draftId = useMemo(() => packIdFor(packName || "My Homebrew", content.packs.map((p) => p.id)), [packName, content.packs]);
+  // pack.md's **ID:** wins; otherwise the ID comes from the pack name
+  const [packMdId, setPackMdId] = useState("");
+  const draftId = useMemo(() => packIdFor(packMdId || packName || "My Homebrew", content.packs.map((p) => p.id)), [packMdId, packName, content.packs]);
 
   const addFiles = async (files: FileList | File[]) => {
     setSaved("");
@@ -29,6 +31,7 @@ export default function Content() {
     // a pack.md names the collection
     const packEntry = merged.flatMap((r) => r.entries).find((e) => e.type === "Pack");
     if (packEntry && !packName) setPackName(packEntry.name);
+    if (packEntry?.fields["id"]) setPackMdId(packEntry.fields["id"]);
   };
 
   const ok = reports.filter((r) => !r.rejected);
@@ -48,6 +51,7 @@ export default function Content() {
     setSaved(`Imported ${entries.length} entries into “${p.name}”.`);
     setReports([]);
     setPackName("");
+    setPackMdId("");
   };
 
   const download = (r: FileReport) => {
@@ -81,7 +85,7 @@ export default function Content() {
                   <button className="btn small" onClick={() => confirm(cloud ? `Remove “${p.name}” for everyone in this group?` : `Remove “${p.name}” from this browser?`) && content.deleteUserPack(p.id).catch((e) => setSaved(String(e.message || e)))}>Remove</button>
                 ) : null}
               </div>
-              <div className="faint">{p.entries} entries · id <code>{p.id}</code>{p.license ? ` · ${p.license}` : ""}{cloud && !p.builtIn ? ` · uploaded by ${p.owner === session.user?.id ? "you" : session.nameOf(p.owner)}` : ""}</div>
+              <div className="faint">{p.entries} entries · id <code>{p.id}</code>{p.author ? ` · by ${p.author}` : ""}{p.license ? ` · ${p.license}` : ""}{cloud && !p.builtIn ? ` · uploaded by ${p.owner === session.user?.id ? "you" : session.nameOf(p.owner)}` : ""}</div>
               {!p.builtIn && (
                 <button className="btn small" style={{ marginTop: 8 }} onClick={() => {
                   const up = content.userPacks.find((u) => u.id === p.id)!;
@@ -191,7 +195,7 @@ export default function Content() {
                 </div>
               ))}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
-                <button className="btn" onClick={() => setReports([])}>Cancel</button>
+                <button className="btn" onClick={() => { setReports([]); setPackMdId(""); }}>Cancel</button>
                 <button className="btn primary" disabled={entries.length === 0} onClick={save}>Import {entries.length} entries</button>
               </div>
             </div>

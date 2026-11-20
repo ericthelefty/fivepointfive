@@ -167,11 +167,12 @@ export function classSpells(cls: Entry, spells: Entry[]): Map<number, Entry[]> {
       add(lvl, byName.get(r[0].toLowerCase()));
     }
   }
-  if (!found) {
-    for (const sp of spells) {
-      const info = spellInfo(sp);
-      if (info && info.classes.includes(cls.name)) add(info.level, sp);
-    }
+  // Spells name their classes in the tagline. Without a spell list table that's
+  // the whole list; with one, it still adds spells from other packs (homebrew).
+  for (const sp of spells) {
+    if (found && sp.pack === cls.pack) continue;
+    const info = spellInfo(sp);
+    if (info && info.classes.some((c) => c.toLowerCase() === cls.name.toLowerCase())) add(info.level, sp);
   }
   return out;
 }

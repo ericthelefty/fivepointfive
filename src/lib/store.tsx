@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { get as idbGet, set as idbSet } from "idb-keyval";
-import { parseFile, slug, type Entry } from "./parse.ts";
+import { parseFile, slug, stripMd, type Entry } from "./parse.ts";
 import type { Character } from "./rules.ts";
 import { cloud, supabase } from "./backend.ts";
 import { useSession } from "./session.tsx";
@@ -46,6 +46,27 @@ interface Manifest { id: string; name: string; entries: number; files: Record<st
 
 export function entriesForUserPack(p: UserPack): Entry[] {
   return p.files.flatMap((f) => parseFile(f.text, p.id, f.file)).filter((e) => e.type !== "Pack");
+}
+
+/** The pack.md entry of a user pack, if it has one (author, license, description). */
+export function packMeta(p: UserPack): Entry | undefined {
+  return p.files.flatMap((f) => parseFile(f.text, p.id, f.file)).find((e) => e.type === "Pack");
+}
+
+/**
+ * Apply **Replaces:** lines: a user entry that replaces another entry hides it,
+ * and lookups of the old ID (for example a character's class) get the new entry.
+ */
+export function applyReplacements(all: Entry[]): { visible: Entry[]; index: Map<string, Entry> } {
+  const replacedBy = new Map<string, Entry>();
+  for (const e of all) {
+    const r = stripMd(e.fields["replaces"] || "").trim().toLowerCase();
+    if (r && r !== e.id) replacedBy.set(r, e);
+  }
+  const visible = all.filter((e) => !replacedBy.has(e.id));
+  const index = new Map(visible.map((e) => [e.id, e]));
+  for (const [old, e] of replacedBy) index.set(old, e);
+  return { visible, index };
 }
 
 export function ContentProvider({ children }: { children: ReactNode }) {
@@ -104,8 +125,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   );
 
   const userEntries = useMemo(() => userPacks.flatMap(entriesForUserPack), [userPacks]);
-  const entries = useMemo(() => [...Object.values(chunks).flat(), ...userEntries], [chunks, userEntries]);
-  const index = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
+  const { visible: entries, index } = useMemo(() => applyReplacements([...Object.values(chunks).flat(), ...userEntries]), [chunks, userEntries]);
   const typeIndex = useMemo(() => {
     const m = new Map<string, Entry[]>();
     for (const e of entries) (m.get(e.type) || m.set(e.type, []).get(e.type)!).push(e);
@@ -115,7 +135,10 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const packs: PackInfo[] = useMemo(
     () => [
       ...manifest.map((p) => ({ id: p.id, name: p.name, builtIn: true, entries: p.entries, license: "CC-BY-4.0", author: "Wizards of the Coast LLC" })),
-      ...userPacks.map((p) => ({ id: p.id, name: p.name, builtIn: false, entries: entriesForUserPack(p).length, owner: p.owner })),
+      ...userPacks.map((p) => {
+        const meta = packMeta(p);
+        return { id: p.id, name: p.name, builtIn: false, entries: entriesForUserPack(p).length, owner: p.owner, license: meta?.fields["license"], author: meta?.fields["author"] };
+      }),
     ],
     [manifest, userPacks],
   );

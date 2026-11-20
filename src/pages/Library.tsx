@@ -32,7 +32,7 @@ export default function Library() {
     const needle = q.trim().toLowerCase();
     return content
       .byType(type)
-      .filter((e) => !needle || e.name.toLowerCase().includes(needle) || (e.tagline || "").toLowerCase().includes(needle))
+      .filter((e) => !needle || e.name.toLowerCase().includes(needle) || (e.tagline || "").toLowerCase().includes(needle) || e.tags.some((t) => t.toLowerCase().includes(needle)))
       .slice(0, 400);
   }, [content, type, q]);
   const e = content.byId(sel);
