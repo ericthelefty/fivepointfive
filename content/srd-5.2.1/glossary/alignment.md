@@ -1,0 +1,5 @@
+# Alignment
+**Type:** Rule
+**Source:** SRD 5.2.1, p. 176
+
+A creature’s alignment broadly describes its ethical attitudes and ideals. Alignment is a combination of two factors: one identifies morality (good, evil, or neutral), and the other describes attitudes toward order (lawful, chaotic, or neutral). These factors allow for nine possible combinations, such as Lawful Good and Neutral Evil. *See also* “Character Creation” (“Create Your Character”).

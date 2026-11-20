@@ -1,0 +1,8 @@
+# Alchemist’s Supplies
+**Type:** Tool
+**Cost:** 50 GP
+**Source:** SRD 5.2.1, p. 93
+**Ability:** Intelligence
+**Weight:** 8 lb.
+**Utilize:** Identify a substance (DC 15), or start a fire (DC 15)
+**Craft:** Acid, Alchemist’s Fire, Component Pouch, Oil, Paper, Perfume
