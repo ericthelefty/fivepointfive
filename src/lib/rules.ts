@@ -42,6 +42,7 @@ export interface Character {
   spells: string[];
   notes: string;
   updated: number;
+  play?: Partial<import("./play.ts").PlayState>;
 }
 
 export function newCharacter(): Character {

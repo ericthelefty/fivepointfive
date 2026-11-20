@@ -1,7 +1,7 @@
 :root {
-  --bg: #141114;
+  --bg: #120f13;
   --bar: #1b171c;
-  --panel: #1e1a20;
+  --panel: #1d191f;
   --panel-2: #18151a;
   --chip: #2f2932;
   --line: #3a333d;
@@ -11,7 +11,7 @@
   --ink-2: #e6ddd3;
   --muted: #c9bfb6;
   --faint: #a99ea6;
-  --accent: #e3b45a;
+  --accent: #e3b25e;
   --accent-ink: #f2cd85;
   --accent-bg: #2f2618;
   --choice-bg: #241e16;
@@ -23,15 +23,15 @@
   --warn-bg: #3a2a14;
   --warn-line: #6b5228;
   --bad: #f0a3a3;
-  --serif: Spectral, Georgia, serif;
+  --serif: Cinzel, Georgia, serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 Inter, system-ui, sans-serif; }
+html, body { margin: 0; background: radial-gradient(1100px 520px at 15% -8%, #2c1e2a 0, transparent 60%), radial-gradient(900px 500px at 100% 0, #1f2030 0, transparent 55%), var(--bg); color: var(--ink); font: 14px/1.5 Inter, system-ui, sans-serif; }
 a { color: var(--accent); }
 a:hover { color: var(--accent-ink); }
 button, input, select, textarea { font: inherit; color: inherit; }
-h1, h2, h3 { font-family: var(--serif); font-weight: 600; margin: 0; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: .03em; margin: 0; }
 h1 { font-size: 30px; }
 h2 { font-size: 22px; }
 h3 { font-size: 18px; }
