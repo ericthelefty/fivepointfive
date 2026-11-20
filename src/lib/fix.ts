@@ -242,7 +242,7 @@ export function checkFile(
           replacement: guess ? l.replace(stat[1], guess) : undefined,
         });
       } else if (!ok) {
-        suggestions.push({ id: `s${sid++}`, line: i + 1, text: l, message: "Not a phrase the app can automate yet, so it stays as text. See “Automating rules” in the guide." });
+        suggestions.push({ id: `s${sid++}`, line: i + 1, text: l, message: "Not a phrase the app can automate yet, so it stays as text. See “Automating rules (Effects)” in the Format guide." });
       }
     }
     // duplicate names within the file

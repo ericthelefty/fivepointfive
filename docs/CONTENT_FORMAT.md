@@ -1,4 +1,4 @@
-# Content Format Guide (draft v0.3)
+# Content Format Guide (draft v0.4)
 
 Every piece of game content in this app — the bundled SRD, your homebrew, or material from books you own — is written as plain **Markdown** files. No YAML, no JSON, no code. If you can write a rulebook entry in Notepad, you can write content for this app.
 
@@ -83,21 +83,21 @@ Two packs can both contain "Fireball" — IDs keep them apart, and the app asks 
 Optional description and any attribution text the license requires.
 ```
 
-**Your packs stay on your device.** Uploaded packs are stored in your browser only; the app never sends them anywhere. Only share content you have the right to share.
+**Who sees your packs.** On a shared instance, packs you upload are visible to every member of that instance, and only you or the admin can remove them. In local-only mode, packs stay in your browser. Either way, only upload content you have the right to share with that group.
 
 ---
 
 ## 3. Entry types
 
-Each type lists the fields the app understands. **Bold** fields are required.
+Each type lists the fields the app understands. Only `**Type:**` is required; every other field is optional, and an entry without it still imports as text. The Format guide page in the app has a copyable template for each type.
 
 ### Class
 `**Type:** Class` · Primary Ability · Hit Point Die · Saving Throw Proficiencies · Skill Proficiencies · Weapon Proficiencies · Tool Proficiencies · Armor Training · Starting Equipment
 
-- The class fields go in a sub-section named `## Core <Class> Traits` (mirroring the book's table), one field per line.
+- The class fields go in a sub-section named `## Core <Class> Traits` (mirroring the book's table), one field per line. Write them the way the SRD does, because the builder reads the wording: `Choose 2: Athletics, History, or Survival` for skills, `D10 per Fighter level` for the Hit Point Die, and `Choose A or B: (A) …; or (B) 50 GP` for equipment.
 - Features are any heading of the form `Level N: Feature Name`, at any depth (the SRD nests them under `## <Class> Class Features`).
-- The progression table is a Markdown table under a heading `<Class> Features`; its first column must be `Level`. Extra columns (Rages, Cantrips, spell slots…) become values the app can reference by column name.
-- Spell lists go under `## <Class> Spell List`, as one table per level (`Spell | School | Special`).
+- The progression table is a Markdown table whose first column is `Level`, with one row per level from 1 to 20. Extra columns (Rages, Second Wind, Cantrips…) become values the app can look up by column name, for example in Effects.
+- **Spellcasting classes** add the columns `Cantrips`, `Prepared Spells` and `Spell Slots per Spell Level 1` through `Spell Slots per Spell Level 9` (use `—` where there are no slots), and say "Intelligence is your spellcasting ability" (or Wisdom, or Charisma) in their Spellcasting feature. The class's spells go under `## <Class> Spell List`, with one sub-section per level (`### Cantrips (Level 0 <Class> Spells)`, `### Level 1 <Class> Spells`, …) each holding a `Spell | School | Special` table. Spell names must match spell entries.
 
 ### Subclass
 `**Type:** Subclass` · **Parent** (the class) · optional tagline (the subclass motto) · features as `Level N: Feature Name` headings.
@@ -115,7 +115,9 @@ Each type lists the fields the app understands. **Bold** fields are required.
 `**Type:** Spell` · tagline `*Level N School (Class, Class)*` or `*School Cantrip (Class)*` · Casting Time · Range · Components · Duration. Upcasting text goes in a `***Using a Higher-Level Spell Slot.***` run-in; cantrip scaling in `***Cantrip Upgrade.***`.
 
 ### Equipment (Weapon, Armor, Gear, Tool, Mount, Vehicle…)
-Either one entry per item (`**Type:** Gear`, `Tool`, `Weapon`, `Armor`… with fields such as Cost, Weight, Damage, Properties, Mastery), **or** a table under a heading — the app reads rows of known tables (Weapons, Armor, Ammunition…) by their column names. Tools also use the fields Ability, Weight, Utilize, Craft and Variants.
+One entry per item: `**Type:** Gear`, `Tool`, `Weapon`, `Armor`… with fields such as Cost, Weight, Damage, Properties and Mastery. Tools also use the fields Ability, Utilize, Craft and Variants.
+
+For now, attack rolls and Armor Class on the play sheet come from the SRD's Weapons and Armor tables only. A custom weapon or armor entry shows up in the Library and on the sheet as text, but it won't get an attack button or change AC yet.
 
 ### Magic Item
 `**Type:** Magic Item` · tagline `*Category, Rarity (Requires Attunement)*`.
@@ -128,9 +130,13 @@ Either one entry per item (`**Type:** Gear`, `Tool`, `Weapon`, `Armor`… with f
 
 ---
 
-## 4. Effects (automation) — optional
+## 4. Automating rules (Effects) — optional
 
-An entry works without automation; players apply text-only rules by hand. To let the app do the math, add an `## Effects` list using these phrases (one per line). Lines the app doesn't recognize stay as text and are flagged in the import preview.
+Every entry works without this section: players read the rules text and apply it by hand. An `## Effects` section restates the rules in short, fixed phrases the app can understand, so a future version can do the math for you.
+
+**What happens today:** when you import, the app checks each Effects line and flags any it can't understand, so your files are ready. It doesn't apply effects to the character sheet yet. The phrasebook may still grow and change as it's used on real files.
+
+Write each effect as a bullet (`- `) under `## Effects`, using these phrases:
 
 | Phrase | Example |
 |---|---|
@@ -140,13 +146,38 @@ An entry works without automation; players apply text-only rules by hand. To let
 | `advantage on <roll>` / `disadvantage on <roll>` | `advantage on Initiative` |
 | `resistance to <damage type>` | `resistance to Fire damage` |
 | `AC = <formula>` | `AC = 10 + Dex + Con` |
-| `<resource>: N uses per <rest>` | `Rage: Rages uses per Long Rest` (column names from the class table are allowed) |
+| `<resource>: N uses per <rest>` | `Rage: 2 uses per Long Rest`, or `Rage: Rages uses per Long Rest` (see below) |
 | `choose N <thing> from <list>` | `choose 2 skills from Arcana, History, Religion` |
 | `grant <entry>` | `grant Magic Initiate (Cleric)` |
 
 Any phrase can end with a condition: `while not wearing armor`, `while raging`, `at level 5`.
 
-*(The phrasebook is a draft and will grow based on real files.)*
+**Using a class table column instead of a number.** Where a number changes with level, you can write the name of a column from the class's progression table. The Barbarian table has a column called **Rages** (2 at level 1, 3 at level 3, and so on), so `Rage: Rages uses per Long Rest` means "as many uses as the Rages column shows for your level."
+
+### A worked example
+
+A homebrew feat with its rules text and the matching Effects:
+
+```markdown
+# Barkskin Hide
+**Type:** Feat
+*General Feat (Prerequisite: Level 4+)*
+
+Your skin hardens like old bark.
+
+***Ability Score Increase.*** Increase your Constitution score by 1, to a maximum of 20.
+
+***Bark Armor.*** While you aren't wearing armor, your base Armor Class equals 10 plus your Dexterity and Constitution modifiers.
+
+***Rooted.*** You have Advantage on saving throws to avoid being knocked Prone.
+
+## Effects
+- +1 Constitution (max 20)
+- AC = 10 + Dex + Con while not wearing armor
+- advantage on saving throws against Prone
+```
+
+The rules text is what players read; the Effects lines say the same thing in phrasebook form. If the two disagree, the rules text is what counts.
 
 ---
 
@@ -154,5 +185,6 @@ Any phrase can end with a condition: `while not wearing armor`, `while raging`, 
 
 1. Splits files into entries at each `# ` heading.
 2. Reads field lines and the tagline; checks the Type.
-3. Shows a preview: entries found, which are automated vs. text-only, and plain-language warnings with line numbers.
-4. Nothing is rejected — unknown things become text.
+3. Fixes small formatting slips automatically (a missing space after `#`, the colon outside the bold) and tells you what it changed.
+4. Shows a preview: the entries found, plus plain-language suggestions with line numbers for anything it couldn't understand, such as an unknown type or a misspelled stat.
+5. Nothing that is a `.md` file is rejected: anything the app doesn't understand is kept as text.
