@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { loadCharacters, saveCharacter, useContent } from "../lib/store.tsx";
+import { useContent } from "../lib/store.tsx";
+import { useCharacters } from "../lib/characters.tsx";
 import { Md, MdInline } from "../lib/md.tsx";
 import { features, stripMd, type Entry } from "../lib/parse.ts";
 import {
@@ -15,16 +16,25 @@ export default function Builder() {
   const { id } = useParams();
   const nav = useNavigate();
   const content = useContent();
-  const [c, setC] = useState<Character | undefined>(() => loadCharacters().find((x) => x.id === id));
+  const chars = useCharacters();
+  const row = chars.get(id);
+  const [c, setC] = useState<Character | undefined>(row?.c);
   const [step, setStep] = useState(0);
+  const dirty = useRef(false);
+  useEffect(() => {
+    if (row && (!c || c.id !== row.c.id)) setC(row.c);
+  }, [row]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (c && dirty.current) {
+      dirty.current = false;
+      chars.save(c);
+    }
+  }, [c]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const update = (patch: Partial<Character>) =>
-    setC((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...patch };
-      saveCharacter(next);
-      return next;
-    });
+  const update = (patch: Partial<Character>) => {
+    dirty.current = true;
+    setC((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
 
   const cls = content.byId(c?.classId);
   const caster = casterInfo(cls, c?.level || 1);
@@ -32,7 +42,9 @@ export default function Builder() {
     if (caster) content.ensure("spells");
   }, [!!caster]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!c) return <div className="panel">Character not found. <Link to="/">Back to characters</Link></div>;
+  if (!c) return chars.ready ? <div className="panel">Character not found. <Link to="/">Back to characters</Link></div> : <p className="muted">Loading…</p>;
+  if (!chars.canEdit(c.id))
+    return <div className="panel">Only this character’s player or an admin can edit it. <Link to={`/sheet/${c.id}`}>View the sheet</Link> or make your own copy from the Characters page.</div>;
 
   const done = [
     !!c.classId,

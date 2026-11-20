@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { get as idbGet, set as idbSet } from "idb-keyval";
 import { parseFile, slug, type Entry } from "./parse.ts";
 import type { Character } from "./rules.ts";
+import { cloud, supabase } from "./backend.ts";
+import { useSession } from "./session.tsx";
 
 export interface PackInfo {
   id: string;
@@ -10,6 +12,7 @@ export interface PackInfo {
   entries: number;
   license?: string;
   author?: string;
+  owner?: string;
 }
 
 export interface UserPack {
@@ -17,6 +20,7 @@ export interface UserPack {
   name: string;
   files: { file: string; text: string }[];
   created: number;
+  owner?: string;
 }
 
 type Chunk = "core" | "spells" | "items" | "creatures" | "rules";
@@ -45,6 +49,7 @@ export function entriesForUserPack(p: UserPack): Entry[] {
 }
 
 export function ContentProvider({ children }: { children: ReactNode }) {
+  const session = useSession();
   const [manifest, setManifest] = useState<Manifest[]>([]);
   const [chunks, setChunks] = useState<Record<string, Entry[]>>({});
   const [userPacks, setUserPacks] = useState<UserPack[]>([]);
@@ -71,12 +76,24 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         const m: Manifest[] = await (await fetch("/data/manifest.json")).json();
         setManifest(m);
         await load(m, ["core"]);
-        setUserPacks((await idbGet<UserPack[]>(USER_KEY)) || []);
+        if (!cloud) setUserPacks((await idbGet<UserPack[]>(USER_KEY)) || []);
       } catch (e) {
         setError(String(e));
       }
     })();
   }, [load]);
+
+  // instance packs: shared with every member
+  const loadCloudPacks = useCallback(async () => {
+    if (!supabase) return;
+    const { data, error: e } = await supabase.from("packs").select("id, owner, name, files, updated_at").order("name");
+    if (e) return;
+    setUserPacks((data || []).map((r) => ({ id: r.id, name: r.name, files: r.files || [], created: Date.parse(r.updated_at), owner: r.owner })));
+  }, []);
+  useEffect(() => {
+    if (cloud && session.status === "ready") loadCloudPacks();
+    if (cloud && session.status !== "ready") setUserPacks([]);
+  }, [session.status, loadCloudPacks]);
 
   const ensure = useCallback(
     async (...want: Chunk[]) => {
@@ -98,22 +115,34 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const packs: PackInfo[] = useMemo(
     () => [
       ...manifest.map((p) => ({ id: p.id, name: p.name, builtIn: true, entries: p.entries, license: "CC-BY-4.0", author: "Wizards of the Coast LLC" })),
-      ...userPacks.map((p) => ({ id: p.id, name: p.name, builtIn: false, entries: entriesForUserPack(p).length })),
+      ...userPacks.map((p) => ({ id: p.id, name: p.name, builtIn: false, entries: entriesForUserPack(p).length, owner: p.owner })),
     ],
     [manifest, userPacks],
   );
 
   const saveUserPack = useCallback(async (p: UserPack) => {
+    if (supabase) {
+      const { error: e } = await supabase.from("packs").upsert({ id: p.id, name: p.name, files: p.files, updated_at: new Date().toISOString() });
+      if (e) throw new Error(e.message);
+      await loadCloudPacks();
+      return;
+    }
     const all = ((await idbGet<UserPack[]>(USER_KEY)) || []).filter((x) => x.id !== p.id);
     all.push(p);
     await idbSet(USER_KEY, all);
     setUserPacks(all);
-  }, []);
+  }, [loadCloudPacks]);
   const deleteUserPack = useCallback(async (id: string) => {
+    if (supabase) {
+      const { error: e } = await supabase.from("packs").delete().eq("id", id);
+      if (e) throw new Error(e.message);
+      await loadCloudPacks();
+      return;
+    }
     const all = ((await idbGet<UserPack[]>(USER_KEY)) || []).filter((x) => x.id !== id);
     await idbSet(USER_KEY, all);
     setUserPacks(all);
-  }, []);
+  }, [loadCloudPacks]);
 
   const value: ContentState = {
     ready: loaded.has("core"),

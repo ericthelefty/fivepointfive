@@ -2,10 +2,13 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { packIdFor, useContent, type UserPack } from "../lib/store.tsx";
 import { applySuggestion, checkFile, type FileReport } from "../lib/fix.ts";
+import { useSession } from "../lib/session.tsx";
+import { cloud } from "../lib/backend.ts";
 
 
 export default function Content() {
   const content = useContent();
+  const session = useSession();
   const [reports, setReports] = useState<FileReport[]>([]);
   const [packName, setPackName] = useState("");
   const [over, setOver] = useState(false);
@@ -36,7 +39,12 @@ export default function Content() {
   const save = async () => {
     const id = draftId;
     const p: UserPack = { id, name: packName || "My Homebrew", files: ok.map((r) => ({ file: r.file, text: r.fixed })), created: Date.now() };
-    await content.saveUserPack(p);
+    try {
+      await content.saveUserPack(p);
+    } catch (e) {
+      setSaved(`Couldn’t save the pack: ${(e as Error).message}`);
+      return;
+    }
     setSaved(`Imported ${entries.length} entries into “${p.name}”.`);
     setReports([]);
     setPackName("");
@@ -55,7 +63,9 @@ export default function Content() {
         <div>
           <h1>Content packs</h1>
           <p className="muted" style={{ margin: "6px 0 0", maxWidth: 680 }}>
-            Add homebrew or material from books you own as Markdown (.md) files. Imported content is stored in this browser.
+            {cloud
+              ? "Add homebrew or material from books you own as Markdown (.md) files. Packs you import are shared with everyone in this group."
+              : "Add homebrew or material from books you own as Markdown (.md) files. Imported content is stored in this browser."}
           </p>
         </div>
         <Link className="btn primary" to="/guide">How to format .md files</Link>
@@ -67,11 +77,11 @@ export default function Content() {
             <div key={p.id} className="panel" style={{ padding: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
                 <strong>{p.name}</strong>
-                {p.builtIn ? <span className="tag ok">Built in</span> : (
-                  <button className="btn small" onClick={() => confirm(`Remove “${p.name}” from this browser?`) && content.deleteUserPack(p.id)}>Remove</button>
-                )}
+                {p.builtIn ? <span className="tag ok">Built in</span> : (!cloud || p.owner === session.user?.id || session.isAdmin) ? (
+                  <button className="btn small" onClick={() => confirm(cloud ? `Remove “${p.name}” for everyone in this group?` : `Remove “${p.name}” from this browser?`) && content.deleteUserPack(p.id).catch((e) => setSaved(String(e.message || e)))}>Remove</button>
+                ) : null}
               </div>
-              <div className="faint">{p.entries} entries · id <code>{p.id}</code>{p.license ? ` · ${p.license}` : ""}</div>
+              <div className="faint">{p.entries} entries · id <code>{p.id}</code>{p.license ? ` · ${p.license}` : ""}{cloud && !p.builtIn ? ` · uploaded by ${p.owner === session.user?.id ? "you" : session.nameOf(p.owner)}` : ""}</div>
               {!p.builtIn && (
                 <button className="btn small" style={{ marginTop: 8 }} onClick={() => {
                   const up = content.userPacks.find((u) => u.id === p.id)!;

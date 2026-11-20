@@ -3,6 +3,11 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, NavLink, Link, Route, Routes } from "react-router-dom";
 import "./styles.css";
 import { ContentProvider, useContent } from "./lib/store.tsx";
+import { SessionProvider, useSession } from "./lib/session.tsx";
+import { CharactersProvider } from "./lib/characters.tsx";
+import { cloud } from "./lib/backend.ts";
+import { Join, SignIn } from "./pages/Auth.tsx";
+import Admin from "./pages/Admin.tsx";
 import Home from "./pages/Home.tsx";
 import Builder from "./pages/Builder.tsx";
 import Sheet from "./pages/Sheet.tsx";
@@ -13,8 +18,17 @@ import Guide from "./pages/Guide.tsx";
 export const ATTRIBUTION =
   "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.";
 
+function Gate({ children }: { children: React.ReactNode }) {
+  const session = useSession();
+  if (session.status === "loading") return <div className="muted">Connecting…</div>;
+  if (session.status === "signedOut") return <SignIn />;
+  if (session.status === "empty" || session.status === "needsInvite") return <Join />;
+  return <>{children}</>;
+}
+
 function Shell() {
   const { ready, error } = useContent();
+  const session = useSession();
   return (
     <div className="app">
       <header className="topbar">
@@ -31,6 +45,8 @@ function Shell() {
           <NavLink to="/library">Library</NavLink>
           <NavLink to="/content">Content packs</NavLink>
           <NavLink to="/guide">Format guide</NavLink>
+          {cloud && session.status === "ready" && <NavLink to="/settings">{session.isAdmin ? "Settings" : "Account"}</NavLink>}
+          {cloud && session.user && <button className="btn small" style={{ alignSelf: "center" }} onClick={session.signOut}>Sign out</button>}
         </nav>
       </header>
       <main className="page">
@@ -39,6 +55,7 @@ function Shell() {
         ) : !ready ? (
           <div className="muted">Loading content…</div>
         ) : (
+          <Gate>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/build/:id" element={<Builder />} />
@@ -46,8 +63,10 @@ function Shell() {
             <Route path="/library" element={<Library />} />
             <Route path="/content" element={<Content />} />
             <Route path="/guide" element={<Guide />} />
+            <Route path="/settings" element={cloud ? <Admin /> : <div className="panel">This copy of fivepointfive runs in local-only mode: everything is saved in this browser. See the README to set up a shared instance.</div>} />
             <Route path="*" element={<div className="panel">Page not found. <Link to="/">Go home</Link></div>} />
           </Routes>
+          </Gate>
         )}
       </main>
       <footer className="attrib">
@@ -61,9 +80,13 @@ function Shell() {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <ContentProvider>
-        <Shell />
-      </ContentProvider>
+      <SessionProvider>
+        <ContentProvider>
+          <CharactersProvider>
+            <Shell />
+          </CharactersProvider>
+        </ContentProvider>
+      </SessionProvider>
     </BrowserRouter>
   </StrictMode>,
 );

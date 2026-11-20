@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import "../sheet.css";
-import { loadCharacters, saveCharacter, useContent } from "../lib/store.tsx";
+import { useContent } from "../lib/store.tsx";
+import { useCharacters } from "../lib/characters.tsx";
+import { useSession } from "../lib/session.tsx";
+import { cloud, supabase } from "../lib/backend.ts";
 import { Md } from "../lib/md.tsx";
 import { features, spellInfo, stripMd, type Entry } from "../lib/parse.ts";
 import {
@@ -21,7 +24,24 @@ type CardAction = { label: string; run: () => void };
 export default function Sheet() {
   const { id } = useParams();
   const content = useContent();
-  const [c, setC] = useState<Character | undefined>(() => loadCharacters().find((x) => x.id === id));
+  const chars = useCharacters();
+  const session = useSession();
+  const row = chars.get(id);
+  const [c, setC] = useState<Character | undefined>(row?.c);
+  const dirty = useRef(false);
+  const editable = chars.canEdit(id);
+  useEffect(() => {
+    if (row && (!c || c.id !== row.c.id)) setC(row.c);
+  }, [row]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (c && dirty.current) {
+      dirty.current = false;
+      if (editable) chars.save(c);
+    }
+  }, [c]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sharedLog = cloud && session.settings.shared_log;
+  const [logView, setLogView] = useState<"mine" | "table">("mine");
+  const [tableLog, setTableLog] = useState<(LogEntry & { who: string })[]>([]);
   const [mode, setMode] = useState<Mode>("normal");
   const [nextBonus, setNextBonus] = useState("");
   const [tab, setTab] = useState<Tab>("actions");
@@ -40,6 +60,25 @@ export default function Sheet() {
     content.ensure("rules", ...(caster ? (["spells"] as const) : []));
   }, [!!caster]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!sharedLog || !supabase) return;
+    let alive = true;
+    const toCard = (r: { id: number; entry: LogEntry & { who?: string } }) => ({ ...r.entry, id: `t${r.id}`, who: r.entry.who || "" });
+    supabase.from("log").select("id, entry").order("id", { ascending: false }).limit(100).then(({ data }) => {
+      if (alive) setTableLog((data || []).map(toCard));
+    });
+    const ch = supabase
+      .channel("table-log")
+      .on("postgres_changes", { event: "INSERT", schema: "fivepointfive", table: "log" }, (payload) => {
+        setTableLog((prev) => [toCard(payload.new as { id: number; entry: LogEntry }), ...prev].slice(0, 150));
+      })
+      .subscribe();
+    return () => {
+      alive = false;
+      supabase!.removeChannel(ch);
+    };
+  }, [sharedLog]);
+
   const armor = useMemo(() => armorTable(content.entries), [content.entries]);
   const weapons = useMemo(() => weaponTable(content.entries), [content.entries]);
   const conditionEntries = useMemo(
@@ -47,7 +86,7 @@ export default function Sheet() {
     [content],
   );
 
-  if (!c) return <div className="panel">Character not found. <Link to="/">Back to characters</Link></div>;
+  if (!c) return chars.ready ? <div className="panel">Character not found. <Link to="/">Back to characters</Link></div> : <p className="muted">Loading…</p>;
 
   const p = playOf(c);
   const d = derive(c, { cls, background: bg, species: sp, armor });
@@ -65,19 +104,23 @@ export default function Sheet() {
 
   // ------------------------------------------------------------ state io
   const setPlay = (patch: Partial<PlayState> | ((p: PlayState) => Partial<PlayState>)) =>
-    setC((prev) => {
-      if (!prev) return prev;
-      const cur = playOf(prev);
-      const next = { ...prev, play: { ...cur, ...(typeof patch === "function" ? patch(cur) : patch) } };
-      saveCharacter(next);
-      return next;
-    });
+    {
+      dirty.current = true;
+      setC((prev) => {
+        if (!prev) return prev;
+        const cur = playOf(prev);
+        return { ...prev, play: { ...cur, ...(typeof patch === "function" ? patch(cur) : patch) } };
+      });
+    };
 
   const log = (e: Omit<LogEntry, "id" | "t">, acts?: CardAction[]) => {
     const entry: LogEntry = { ...e, id: Math.random().toString(36).slice(2, 9), t: timeNow() };
     if (acts?.length) actions.current[entry.id] = acts;
     setPlay((cur) => ({ log: [entry, ...cur.log].slice(0, 150) }));
     setFlash(entry.id);
+    if (sharedLog && supabase && editable) {
+      supabase.from("log").insert({ character_id: c.id, entry: { ...entry, who: c.name || "Unnamed" } }).then(() => undefined);
+    }
   };
 
   // --------------------------------------------------------------- rolls
@@ -293,10 +336,15 @@ export default function Sheet() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <Link className="sbtn ghost sm" to={`/build/${c.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Edit in builder</Link>
+              {editable && <Link className="sbtn ghost sm" to={`/build/${c.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Edit in builder</Link>}
               <button className="sbtn ghost sm" onClick={() => window.print()}>Print</button>
             </div>
           </div>
+          {!editable && (
+            <div className="schip conc" style={{ display: "inline-block", marginTop: 8 }}>
+              Viewing {session.nameOf(row?.owner)}’s character. Rolls work but changes aren’t saved.
+            </div>
+          )}
           <div className="chips">
             {p.conditions.map((k) => (
               <button key={k} className="schip bad" title="Click to remove" onClick={() => setPlay({ conditions: p.conditions.filter((x) => x !== k) })}>{k} ✕</button>
@@ -524,7 +572,7 @@ export default function Sheet() {
                     <input type="text" value={p.gear} onChange={(e) => setPlay({ gear: e.target.value })} placeholder="e.g. Longsword, Potion of Healing" />
                   </label>
                   <h3 style={{ marginTop: 16 }}>Notes</h3>
-                  <textarea value={c.notes} onChange={(e) => setC((prev) => { if (!prev) return prev; const n = { ...prev, notes: e.target.value }; saveCharacter(n); return n; })} />
+                  <textarea value={c.notes} onChange={(e) => { dirty.current = true; const v = e.target.value; setC((prev) => (prev ? { ...prev, notes: v } : prev)); }} />
                 </div>
               )}
             </div>
@@ -554,9 +602,15 @@ export default function Sheet() {
 
         <aside className={`log ${logOpen ? "open" : ""}`}>
           <div className="logh">
-            <span className="disp">Game Log</span>
+            <span className="disp">{logView === "table" ? "Table Log" : "Game Log"}</span>
+            {sharedLog && (
+              <span className="seg" role="group" aria-label="Log view">
+                <button className={logView === "mine" ? "on" : ""} onClick={() => setLogView("mine")}>Character</button>
+                <button className={logView === "table" ? "on" : ""} onClick={() => setLogView("table")}>Table</button>
+              </span>
+            )}
             <button className="sbtn sm ghost" onClick={() => setLogOpen(!logOpen)}>{logOpen ? "Collapse" : "Expand"}</button>
-            <button className="sbtn sm ghost" onClick={() => { if (confirm("Clear the game log?")) setPlay({ log: [] }); }}>Clear</button>
+            {logView === "mine" && <button className="sbtn sm ghost" onClick={() => { if (confirm("Clear this character’s game log?")) setPlay({ log: [] }); }}>Clear</button>}
           </div>
           <div className="tray">
             <div className="dbtns">
@@ -578,7 +632,17 @@ export default function Sheet() {
             </form>
           </div>
           <div className="cards" aria-live="polite">
-            {p.log.length === 0 ? (
+            {logView === "table" ? (
+              tableLog.length === 0 ? <div className="empty">Rolls from everyone in the group show up here live.</div> : tableLog.map((e, i) => (
+                <div key={e.id} className={`lc ${e.cls} ${i > 0 ? "old" : ""}`}>
+                  <div className="ch"><span className="ct">{e.who}: {e.title}</span><span className="tm">{e.t}</span></div>
+                  <div className="cb">
+                    {e.total !== "" && <div className="big">{e.total}</div>}
+                    <div className="det" dangerouslySetInnerHTML={{ __html: e.detail }} />
+                  </div>
+                </div>
+              ))
+            ) : p.log.length === 0 ? (
               <div className="empty">Rolls, damage, healing, conditions and rests are recorded here for this character. Click any ability, save, skill, attack or the dice above to roll.</div>
             ) : (
               p.log.map((e, i) => (

@@ -2,7 +2,12 @@
 
 An open-source character builder and sheet for fifth edition (2024 rules) tabletop roleplaying games, built on the System Reference Document 5.2.1. Players can add their own content as plain Markdown files.
 
-> **Status:** v0.1. The builder works: characters are saved in your browser, and you can import your own `.md` content. Accounts and sharing come next.
+> **Status:** v0.2. Builder, play sheet with game log and dice, `.md` content imports, and shared instances: one admin invites their group, and everyone sees and plays the same characters and content.
+
+## Two ways to run it
+
+- **Local-only:** no setup. Everything is saved in your browser.
+- **Shared instance:** one person sets it up with a free Supabase project and invites their group. Everyone in the instance sees all characters and content packs; members edit their own, the admin can edit anything. See [`docs/SELF_HOSTING.md`](docs/SELF_HOSTING.md).
 
 ## Run it locally
 
@@ -27,8 +32,8 @@ npm run build    # production build in dist/ (what Vercel runs)
 ## Planned
 
 1. **Builder** (v0.1, done): step-by-step character creation from SRD content, a character sheet, a content library, and import of `.md` files with a preview that auto-fixes simple formatting problems and suggests fixes for the rest.
-2. **Accounts and sharing:** friends can view each other's characters and make their own copies.
-3. **Pack sharing:** share uploaded content packs with friends or groups.
+2. **Play sheet** (done): clickable rolls, Advantage/Disadvantage, HP and death saves, spell slots, class resources, conditions, rests, and a game log with a dice tray.
+3. **Shared instances** (done): admin and invites, shared characters and content packs, optional live table log.
 
 ## Adding your own content
 
