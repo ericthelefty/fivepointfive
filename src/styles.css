@@ -84,7 +84,7 @@ footer.attrib { padding: 14px 28px; border-top: 1px solid var(--line-2); font-si
 .tag.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-line); }
 .tag.plain { background: #2a2329; color: var(--muted); border: 1px solid var(--line-3); }
 
-input[type="text"], input[type="search"], input[type="number"], select, textarea {
+input[type="text"], input[type="search"], input[type="number"], input[type="password"], input[type="email"], select, textarea {
   background: var(--bg); border: 1px solid var(--line-3); border-radius: 8px; padding: 9px 11px; min-height: 40px;
 }
 textarea { width: 100%; min-height: 120px; }
@@ -124,3 +124,7 @@ table.data td { padding: 9px 10px; border-bottom: 1px solid var(--line-2); verti
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 details summary { cursor: pointer; }
 @media print { .topbar, .steps, footer.attrib, .noprint { display: none !important; } body { background: #fff; color: #000; } .panel, .inset { border-color: #999; background: #fff; } }
+
+/* Text-style button, for small secondary actions like "Forgot your password?" */
+.linkish { background: none; border: 0; padding: 4px 0; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.linkish:hover { filter: brightness(1.15); }

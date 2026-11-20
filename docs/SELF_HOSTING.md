@@ -17,9 +17,9 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
 fivepointfive uses email and password accounts. Supabase's built-in email service only sends to members of your Supabase team, so pick one:
 
 - **Simplest:** in **Authentication → Sign In / Providers → Email**, turn off **Confirm email**. People can sign up without a confirmation email. That's reasonably safe here, because an account alone can't see anything: only the first person (the admin) and people with an invite link can join.
-- **With email:** set up a free email service (Resend, Brevo, Postmark…) under **Authentication → Emails → SMTP Settings** and keep **Confirm email** on. This also enables password reset emails.
+- **With email:** set up a free email service (Resend, Brevo, Postmark…) under **Authentication → Emails → SMTP Settings** and keep **Confirm email** on. This also makes **Forgot your password?** work on the sign-in page. Without an email service, the admin can reset a member's password from the Supabase dashboard (**Authentication → Users**).
 
-Then in **Authentication → URL Configuration**, set **Site URL** to your site's address (for example `https://fivepointfive.example.com`) and add it under **Redirect URLs**.
+Then in **Authentication → URL Configuration**, set **Site URL** to your site's address (for example `https://fivepointfive.example.com`) and add it under **Redirect URLs** with `/**` on the end (for example `https://fivepointfive.example.com/**`), so confirmation and password reset links can return to any page.
 
 ## 3. Deploy the site
 

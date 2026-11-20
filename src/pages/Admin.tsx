@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/backend.ts";
 import { useSession, type Member } from "../lib/session.tsx";
+import { NewPasswordForm } from "./Auth.tsx";
 
 interface Invite {
   id: string;
@@ -75,6 +76,13 @@ export default function Admin() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input type="text" value={myName} onChange={(e) => setMyName(e.target.value)} aria-label="Your display name" />
           <button className="btn small" onClick={saveName}>Save</button>
+        </div>
+      </section>
+
+      <section className="panel stack">
+        <h2>Change password</h2>
+        <div style={{ maxWidth: 360 }}>
+          <NewPasswordForm submitLabel="Change password" />
         </div>
       </section>
 

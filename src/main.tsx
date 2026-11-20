@@ -1,12 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, NavLink, Link, Route, Routes } from "react-router-dom";
+import { BrowserRouter, NavLink, Link, Route, Routes, useLocation } from "react-router-dom";
 import "./styles.css";
 import { ContentProvider, useContent } from "./lib/store.tsx";
 import { SessionProvider, useSession } from "./lib/session.tsx";
 import { CharactersProvider } from "./lib/characters.tsx";
 import { cloud, configError } from "./lib/backend.ts";
-import { Join, SignIn } from "./pages/Auth.tsx";
+import { Join, ResetPassword, RESET_PATH, SignIn } from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
 import Home from "./pages/Home.tsx";
 import Builder from "./pages/Builder.tsx";
@@ -20,6 +20,8 @@ export const ATTRIBUTION =
 
 function Gate({ children }: { children: React.ReactNode }) {
   const session = useSession();
+  const location = useLocation();
+  if (cloud && location.pathname === RESET_PATH) return <ResetPassword />;
   if (session.status === "loading") return <div className="muted">Connecting…</div>;
   if (session.status === "signedOut") return <SignIn />;
   if (session.status === "empty" || session.status === "needsInvite") return <Join />;
