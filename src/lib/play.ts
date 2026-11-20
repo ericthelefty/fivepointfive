@@ -18,6 +18,8 @@ export interface PlayState {
   hpCur?: number; // undefined = full
   hpTemp: number;
   hdUsed: number;
+  /** Hit Dice spent, by die size (multiclass characters can have several). */
+  hdUsedBy?: Record<string, number>;
   deathS: number;
   deathF: number;
   slotsUsed: Record<string, number>;
@@ -181,9 +183,9 @@ export interface Resource {
 const SKIP_COLS = /^(level|proficiency bonus|class features|cantrips|prepared spells|spell slots|slot level|.*spell level \d+|.*die|martial arts|sneak attack|unarmored movement|eldritch invocations|weapon mastery|favored enemy)$/i;
 
 /** Class resources from numeric columns in the class table (Rages, Second Wind, ...). */
-export function classResources(c: Character, cls?: Entry): Resource[] {
+export function classResources(c: Character, cls?: Entry, level = c.level): Resource[] {
   if (!cls) return [];
-  const row = tableRow(classTable(cls), c.level);
+  const row = tableRow(classTable(cls), level);
   const feats = features(cls);
   const out: Resource[] = [];
   for (const [col, v] of Object.entries(row)) {

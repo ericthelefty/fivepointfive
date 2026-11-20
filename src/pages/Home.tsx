@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { classInfos, classLabel } from "../lib/multiclass.ts";
 import { useContent } from "../lib/store.tsx";
 import { newId, useCharacters } from "../lib/characters.tsx";
 import { useSession } from "../lib/session.tsx";
@@ -90,7 +91,7 @@ export default function Home() {
               <div key={c.id} className="panel" style={{ padding: 16 }}>
                 <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600 }}>{c.name || "Unnamed character"}</div>
                 <div className="muted" style={{ fontSize: 13 }}>
-                  {[sp?.name, cls ? `${cls.name} ${c.level}` : null].filter(Boolean).join(" · ") || "Not started"}
+                  {[sp?.name, cls ? classLabel(classInfos(c, byId)) : null].filter(Boolean).join(" · ") || "Not started"}
                 </div>
                 {cloud && <div className="faint">Player: {owner === session.user?.id ? "you" : session.nameOf(owner)}</div>}
                 <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>

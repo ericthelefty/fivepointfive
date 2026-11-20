@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { weaponTable } from "../lib/play.ts";
 import { catalog, inventoryOf } from "../lib/inventory.ts";
+import {
+  MAX_LEVEL, SUBCLASS_LEVEL, addClass, casterKind, classInfos, extraClasses, multiclassGrants, patchClass, prerequisiteProblems, removeClass, startingLevel,
+} from "../lib/multiclass.ts";
 import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
 import { Md, MdInline } from "../lib/md.tsx";
@@ -39,10 +42,10 @@ export default function Builder() {
   };
 
   const cls = content.byId(c?.classId);
-  const caster = casterInfo(cls, c?.level || 1);
+  const anyCaster = !!c && classInfos(c, content.byId).some((i) => casterKind(i.cls));
   useEffect(() => {
-    if (caster) content.ensure("spells");
-  }, [!!caster]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (anyCaster) content.ensure("spells");
+  }, [anyCaster]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!c) return chars.ready ? <div className="panel">Character not found. <Link to="/">Back to characters</Link></div> : <p className="muted">Loading…</p>;
   if (!chars.canEdit(c.id))
@@ -116,17 +119,19 @@ function ClassStep({ c, update }: StepProps) {
   const cls = byId(c.classId);
   const subclasses = byType("Subclass").filter((s) => cls && stripMd(s.fields["parent"] || "").replace(/^[\w-]+:class\//, "").toLowerCase() === cls.name.toLowerCase());
   const sub = byId(c.subclassId);
-  const feats = cls ? features(cls).filter((f) => f.level <= c.level) : [];
-  const subFeats = sub && c.level >= 3 ? features(sub).filter((f) => f.level <= c.level) : [];
+  const lvl = startingLevel(c);
+  const multi = extraClasses(c).length > 0;
+  const feats = cls ? features(cls).filter((f) => f.level <= lvl) : [];
+  const subFeats = sub && lvl >= SUBCLASS_LEVEL ? features(sub).filter((f) => f.level <= lvl) : [];
   return (
     <div className="row">
       <section className="grow">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
           <h2>Choose a class</h2>
           <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            Level
-            <select value={c.level} onChange={(e) => update({ level: +e.target.value })}>
-              {Array.from({ length: 20 }, (_, i) => <option key={i + 1}>{i + 1}</option>)}
+            {multi ? `${cls?.name || "Starting class"} level` : "Level"}
+            <select value={lvl} onChange={(e) => update(patchClass(c, 0, { level: +e.target.value }))}>
+              {Array.from({ length: MAX_LEVEL - (c.level - lvl) }, (_, i) => <option key={i + 1}>{i + 1}</option>)}
             </select>
           </label>
         </div>
@@ -134,7 +139,7 @@ function ClassStep({ c, update }: StepProps) {
           <Picker
             items={classes}
             selected={c.classId}
-            onPick={(e) => update({ classId: e.id, subclassId: undefined, classSkills: [], equipClass: undefined, cantrips: [], spells: [] })}
+            onPick={(e) => update({ classId: e.id, subclassId: undefined, classSkills: [], equipClass: undefined, cantrips: [], spells: [], multiclass: extraClasses(c).filter((x) => x.classId !== e.id) })}
             render={(e) => (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
@@ -146,6 +151,7 @@ function ClassStep({ c, update }: StepProps) {
             )}
           />
         </div>
+        {cls && <MulticlassPanel c={c} update={update} />}
       </section>
       <aside className="side panel">
         {!cls ? (
@@ -162,7 +168,7 @@ function ClassStep({ c, update }: StepProps) {
                 </div>
               ))}
             </dl>
-            {c.level >= 3 && subclasses.length > 0 && (
+            {lvl >= SUBCLASS_LEVEL && subclasses.length > 0 && (
               <div className="choice">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                   <strong>Subclass</strong>
@@ -178,7 +184,7 @@ function ClassStep({ c, update }: StepProps) {
                 </div>
               </div>
             )}
-            <div className="eyebrow" style={{ marginTop: 6 }}>Features through level {c.level}</div>
+            <div className="eyebrow" style={{ marginTop: 6 }}>Features through {cls.name} level {lvl}</div>
             {[...feats.map((f) => ({ ...f, src: cls.name })), ...subFeats.map((f) => ({ ...f, src: sub!.name }))]
               .sort((a, b) => a.level - b.level)
               .map((f, i) => (
@@ -196,6 +202,91 @@ function ClassStep({ c, update }: StepProps) {
 }
 
 // ---------------------------------------------------------------- species
+// ------------------------------------------------------------- multiclass
+function MulticlassPanel({ c, update }: StepProps) {
+  const { byType, byId } = useContent();
+  const classes = byType("Class");
+  const infos = classInfos(c, byId);
+  const extras = extraClasses(c);
+  const problems = prerequisiteProblems(infos.map((i) => i.cls), finalScores(c));
+  const taken = new Set([c.classId, ...extras.map((x) => x.classId)]);
+  const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);
+  return (
+    <div className="panel" style={{ marginTop: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
+        <h2>Multiclass</h2>
+        <span className="faint">Total level {c.level} of {MAX_LEVEL}</span>
+      </div>
+      <p className="faint" style={{ marginTop: 4 }}>
+        Take levels in other classes. You need 13 or higher in the primary ability of every class you have, and you get only some of a new class’s proficiencies.
+      </p>
+      {problems.length > 0 && (
+        <div className="inset" role="status" style={{ borderColor: "var(--warn)" }}>
+          <strong>Doesn’t meet the multiclass prerequisites:</strong>
+          <ul style={{ margin: "6px 0 0 18px" }}>{problems.map((p) => <li key={p}>{p}</li>)}</ul>
+          <div className="faint" style={{ marginTop: 4 }}>You can keep it if your DM allows.</div>
+        </div>
+      )}
+      <div className="stack" style={{ gap: 10, marginTop: 10 }}>
+        {extras.map((x, k) => {
+          const index = k + 1;
+          const xc = byId(x.classId);
+          if (!xc) return <div key={k} className="inset">Unknown class {x.classId}. <button className="linkish" onClick={() => update(removeClass(c, index))}>Remove</button></div>;
+          const grants = multiclassGrants(xc);
+          const subs = byType("Subclass").filter((s) => stripMd(s.fields["parent"] || "").replace(/^[\w-]+:class\//, "").toLowerCase() === xc.name.toLowerCase());
+          const room = MAX_LEVEL - (c.level - x.level);
+          const skills = x.skills || [];
+          return (
+            <div key={k} className="inset">
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <strong style={{ fontSize: 17 }}>{xc.name}</strong>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    Level
+                    <select value={x.level} onChange={(e) => update(patchClass(c, index, { level: +e.target.value }))}>
+                      {Array.from({ length: room }, (_, i) => <option key={i + 1}>{i + 1}</option>)}
+                    </select>
+                  </label>
+                  <button className="btn small" onClick={() => update(removeClass(c, index))}>Remove</button>
+                </div>
+              </div>
+              <div className="faint" style={{ marginTop: 4 }}><MdInline md={grants.text || "Gain the Hit Point Die and level 1 features."} /></div>
+              {grants.skill && (
+                <div style={{ marginTop: 8 }}>
+                  <div className="faint">Choose {grants.skill.count} skill{grants.skill.count > 1 ? "s" : ""} ({skills.length}/{grants.skill.count})</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                    {grants.skill.from.map((s) => (
+                      <button key={s} className="pill" aria-pressed={skills.includes(s)} onClick={() => update(patchClass(c, index, { skills: toggle(skills, s, grants.skill!.count) }))}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {x.level >= SUBCLASS_LEVEL && subs.length > 0 && (
+                <label className="field" style={{ marginTop: 8 }}>
+                  {xc.name} subclass
+                  <select value={x.subclassId || ""} onChange={(e) => update(patchClass(c, index, { subclassId: e.target.value || undefined }))}>
+                    <option value="">Choose…</option>
+                    {subs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {c.level < MAX_LEVEL && (
+        <label className="field" style={{ marginTop: 12, maxWidth: 320 }}>
+          Add a class
+          <select value="" onChange={(e) => e.target.value && update(addClass(c, e.target.value))}>
+            <option value="">Choose a class…</option>
+            {classes.filter((k) => !taken.has(k.id)).map((k) => <option key={k.id} value={k.id}>{k.name} (primary: {stripMd(k.fields["primary ability"] || "—")})</option>)}
+          </select>
+        </label>
+      )}
+    </div>
+  );
+}
+
 function skillTraitChoice(sp?: Entry): { count: number; from: string[] } | null {
   for (const t of traits(sp)) {
     const any = t.md.match(/proficiency in one skill of your choice/i);
@@ -463,8 +554,7 @@ function SkillsStep({ c, update }: StepProps) {
   const bg = content.byId(c.backgroundId);
   const pick = skillChoice(cls?.fields["skill proficiencies"]);
   const fromBg = listOf(bg?.fields["skill proficiencies"] || "");
-  const caster = casterInfo(cls, c.level);
-  const spellsByLevel = useMemo(() => (cls && caster ? classSpells(cls, content.byType("Spell")) : new Map()), [cls, caster, content]);
+  const casting = classInfos(c, content.byId).filter((i) => casterKind(i.cls));
   const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);
 
   return (
@@ -489,27 +579,40 @@ function SkillsStep({ c, update }: StepProps) {
           </>
         )}
       </div>
-      {caster && (
-        <div className="panel">
-          <h2>Spells</h2>
-          {!content.loaded.has("spells") ? (
-            <p className="muted">Loading spells…</p>
-          ) : (
-            <>
-              <p className="faint">
-                Level {c.level} {cls!.name}: {caster.cantrips ? `${caster.cantrips} cantrips, ` : ""}{caster.prepared} prepared spells of level {caster.maxSpellLevel} or lower.
-                Slots: {caster.slots.map((s) => `${s.count}× level ${s.level}`).join(", ")}.
-              </p>
-              {caster.cantrips > 0 && (
-                <SpellGroup title={`Cantrips (${c.cantrips.length}/${caster.cantrips})`} spells={spellsByLevel.get(0) || []} chosen={c.cantrips} onToggle={(n) => update({ cantrips: toggle(c.cantrips, n, caster.cantrips) })} />
-              )}
-              {Array.from({ length: caster.maxSpellLevel }, (_, i) => i + 1).map((lvl) => (
-                <SpellGroup key={lvl} title={`Level ${lvl}`} spells={spellsByLevel.get(lvl) || []} chosen={c.spells} onToggle={(n) => update({ spells: toggle(c.spells, n, caster.prepared) })} />
-              ))}
-              <p className="faint">Prepared: {c.spells.length} / {caster.prepared}</p>
-            </>
+      {casting.map((i) => (
+        <ClassSpells key={i.index} c={c} update={update} index={i.index} />
+      ))}
+    </div>
+  );
+}
+
+function ClassSpells({ c, update, index }: StepProps & { index: number }) {
+  const content = useContent();
+  const info = classInfos(c, content.byId).find((i) => i.index === index)!;
+  const caster = casterInfo(info.cls, info.level);
+  const spellsByLevel = useMemo(() => classSpells(info.cls, content.byType("Spell")), [info.cls, content]);
+  const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);
+  const multi = extraClasses(c).length > 0;
+  if (!caster) return null;
+  return (
+    <div className="panel">
+      <h2>{multi ? `${info.cls.name} spells` : "Spells"}</h2>
+      {!content.loaded.has("spells") ? (
+        <p className="muted">Loading spells…</p>
+      ) : (
+        <>
+          <p className="faint">
+            Level {info.level} {info.cls.name}: {caster.cantrips ? `${caster.cantrips} cantrips, ` : ""}{caster.prepared} prepared spells of level {caster.maxSpellLevel} or lower.
+            {multi ? " Spell slots for all your classes together are shown on the sheet." : ` Slots: ${caster.slots.map((s) => `${s.count}× level ${s.level}`).join(", ")}.`}
+          </p>
+          {caster.cantrips > 0 && (
+            <SpellGroup title={`Cantrips (${info.cantrips.length}/${caster.cantrips})`} spells={spellsByLevel.get(0) || []} chosen={info.cantrips} onToggle={(n) => update(patchClass(c, index, { cantrips: toggle(info.cantrips, n, caster.cantrips) }))} />
           )}
-        </div>
+          {Array.from({ length: caster.maxSpellLevel }, (_, i) => i + 1).map((lvl) => (
+            <SpellGroup key={lvl} title={`Level ${lvl}`} spells={spellsByLevel.get(lvl) || []} chosen={info.spells} onToggle={(n) => update(patchClass(c, index, { spells: toggle(info.spells, n, caster.prepared) }))} />
+          ))}
+          <p className="faint">Prepared: {info.spells.length} / {caster.prepared}</p>
+        </>
       )}
     </div>
   );

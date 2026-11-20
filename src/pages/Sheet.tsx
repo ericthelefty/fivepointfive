@@ -13,12 +13,13 @@ import {
 } from "../lib/rules.ts";
 import { combineModes, d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import {
-  CONDITION_EFFECTS, attackFor, castingAbility, classResources, conditionMods, esc, playOf, slotTotals,
+  CONDITION_EFFECTS, attackFor, castingAbility, classResources, conditionMods, esc, playOf,
   spellDamage, spellRoll, timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
   type PlayState, type RollContext,
 } from "../lib/play.ts";
 import { catalog, inventoryOf, magicInfo, type Coins, type Item } from "../lib/inventory.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
+import { casterKind, classFeatures, classInfos, classLabel, hitDicePools, spellSlots, weaponProficiencyEntry, type ClassInfo, type Slot } from "../lib/multiclass.ts";
 
 type Tab = "actions" | "spells" | "features" | "conditions" | "inventory" | "notes";
 type CardAction = { label: string; run: () => void };
@@ -57,10 +58,11 @@ export default function Sheet() {
   const sub = content.byId(c?.subclassId);
   const sp = content.byId(c?.speciesId);
   const bg = content.byId(c?.backgroundId);
-  const caster = casterInfo(cls, c?.level || 1);
+  const infos: ClassInfo[] = c ? classInfos(c, content.byId) : [];
+  const anyCaster = infos.some((i) => casterKind(i.cls));
   useEffect(() => {
-    content.ensure("rules", "items", ...(caster ? (["spells"] as const) : []));
-  }, [!!caster]); // eslint-disable-line react-hooks/exhaustive-deps
+    content.ensure("rules", "items", ...(anyCaster ? (["spells"] as const) : []));
+  }, [anyCaster]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!sharedLog || !supabase) return;
@@ -106,21 +108,34 @@ export default function Sheet() {
   if (!c) return chars.ready ? <div className="panel">Character not found. <Link to="/">Back to characters</Link></div> : <p className="muted">Loading…</p>;
 
   const p = playOf(c);
-  const d = derive(c, { cls, background: bg, species: sp, armor, items: inv.items });
+  const d = derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos });
   const hpMax = d.hp;
   const hpCur = Math.min(hpMax, p.hpCur ?? hpMax);
   const speed = p.conditions.some((k) => CONDITION_EFFECTS[k]?.speed0) ? 0 : d.speed;
-  const castAb = castingAbility(cls);
-  const castMod = castAb ? d.mods[castAb] : 0;
-  const spellDC = 8 + d.pb + castMod;
-  const spellAtk = d.pb + castMod;
-  const slots = slotTotals(c, cls);
-  const resources = classResources(c, cls);
+  // spellcasting: each class keeps its own ability, DC and attack
+  const casters = infos
+    .filter((i) => casterKind(i.cls))
+    .map((i) => {
+      const ab = castingAbility(i.cls);
+      const m = ab ? d.mods[ab] : 0;
+      return { info: i, ab, mod: m, dc: 8 + d.pb + m, atk: d.pb + m, ci: casterInfo(i.cls, i.level) };
+    });
+  type Caster = (typeof casters)[number];
+  const castAb = casters[0]?.ab;
+  const spellDC = casters[0]?.dc ?? 0;
+  const spellAtk = casters[0]?.atk ?? 0;
+  const slots: Slot[] = spellSlots(infos, content.entries);
+  const slotKey = (s: Slot) => (s.pact ? `p${s.level}` : String(s.level));
+  const resources = infos.flatMap((i) => classResources(c, i.cls, i.level).map((r) => (i.starting ? r : { ...r, key: `${i.cls.name}:${r.key}` })));
+  // Hit Dice, pooled by die size (older characters stored one count)
+  const pools = hitDicePools(infos);
+  const hdUsedOf = (die: number) => (p.hdUsedBy ? p.hdUsedBy[die] || 0 : die === pools[0]?.die ? p.hdUsed : 0);
+  const hdLeft = pools.reduce((n, pl) => n + pl.count - hdUsedOf(pl.die), 0);
   // attacks: weapons that are equipped (magic weapons use their base weapon)
   const attacks: Attack[] = [
     ...inv.items.flatMap((it) => {
       const w = it.equipped && it.qty > 0 && it.base ? weapons.find((x) => x.name === it.base) : undefined;
-      return w ? [attackFor({ ...w, name: it.name }, d, cls)] : [];
+      return w ? [attackFor({ ...w, name: it.name }, d, weaponProficiencyEntry(infos) || cls)] : [];
     }),
     unarmedStrike(d),
   ];
@@ -256,13 +271,16 @@ export default function Sheet() {
     log({ title: "Temporary HP", total: String(t), cls: "info", detail: n <= p.hpTemp ? "Temporary HP don’t stack: you keep the higher amount." : `Set to ${t}.` });
     setHpAmt("");
   };
-  const spendHitDie = () => {
-    if (p.hdUsed >= c.level) return;
-    const r = roll(`1d${d.hitDie}${d.mods.Constitution >= 0 ? "+" : ""}${d.mods.Constitution}`)!;
+  const spendHitDie = (want?: number) => {
+    const pool = pools.find((pl) => (want === undefined || pl.die === want) && hdUsedOf(pl.die) < pl.count);
+    if (!pool) return;
+    const r = roll(`1d${pool.die}${d.mods.Constitution >= 0 ? "+" : ""}${d.mods.Constitution}`)!;
     const gain = Math.max(0, r.total);
     const cur = Math.min(hpMax, hpCur + gain);
-    setPlay({ hdUsed: p.hdUsed + 1, hpCur: cur });
-    log({ title: "Spent a Hit Die", total: `+${cur - hpCur}`, cls: "heal", detail: `${esc(describeRolled(r))} · HP ${hpCur} → ${cur}` });
+    const by = Object.fromEntries(pools.map((pl) => [pl.die, hdUsedOf(pl.die)]));
+    by[pool.die] += 1;
+    setPlay({ hdUsedBy: by, hdUsed: Object.values(by).reduce((a, b) => a + b, 0), hpCur: cur });
+    log({ title: `Spent a Hit Die (d${pool.die})`, total: `+${cur - hpCur}`, cls: "heal", detail: `${esc(describeRolled(r))} · HP ${hpCur} → ${cur}` });
   };
   const deathSave = () => {
     const extra = takeBonus();
@@ -290,29 +308,35 @@ export default function Sheet() {
       if (r.recover === "shortOne") { resUsed[r.key] -= 1; back.push(`1 ${r.name}`); }
     }
     const slotsUsed = { ...p.slotsUsed };
-    if (slots.some((s) => s.pact)) { for (const s of slots) slotsUsed[s.level] = 0; back.push("Pact Magic slots"); }
+    if (slots.some((s) => s.pact)) { for (const s of slots) if (s.pact) slotsUsed[slotKey(s)] = 0; back.push("Pact Magic slots"); }
     setPlay({ resUsed, slotsUsed });
-    log({ title: "Short rest", total: "", cls: "event", detail: `${back.length ? `Regained ${esc(back.join(", "))}.` : "Nothing to regain."} Spend Hit Dice to heal (${c.level - p.hdUsed} left).` },
-      p.hdUsed < c.level ? [{ label: `Spend a Hit Die (d${d.hitDie})`, run: spendHitDie }] : undefined);
+    log({ title: "Short rest", total: "", cls: "event", detail: `${back.length ? `Regained ${esc(back.join(", "))}.` : "Nothing to regain."} Spend Hit Dice to heal (${hdLeft} left).` },
+      hdLeft > 0 ? [{ label: "Spend a Hit Die", run: () => spendHitDie() }] : undefined);
   };
   const longRest = () => {
-    setPlay({ hpCur: hpMax, hpTemp: 0, hdUsed: 0, deathS: 0, deathF: 0, slotsUsed: {}, resUsed: {}, exhaustion: Math.max(0, p.exhaustion - 1), concentration: undefined });
+    setPlay({ hpCur: hpMax, hpTemp: 0, hdUsed: 0, hdUsedBy: {}, deathS: 0, deathF: 0, slotsUsed: {}, resUsed: {}, exhaustion: Math.max(0, p.exhaustion - 1), concentration: undefined });
     log({ title: "Long rest", total: "", cls: "event", detail: `HP restored to ${hpMax}. All Hit Dice, spell slots and class resources regained.${p.exhaustion ? " Exhaustion reduced by 1." : ""}` });
   };
 
   // -------------------------------------------------------------- spells
   const spells = content.byType("Spell");
-  const known = [...c.cantrips, ...c.spells].map((n) => spells.find((s) => s.name === n)).filter(Boolean) as Entry[];
-  const slotLeft = (lvl: number) => {
-    const s = slots.find((x) => x.level === lvl);
-    return s ? s.max - (p.slotsUsed[lvl] || 0) : 0;
-  };
-  const castSpell = (s: Entry, slot: number) => {
+  const knownBy = casters.map((k) => ({
+    k,
+    list: [...k.info.cantrips, ...k.info.spells].map((n) => spells.find((s) => s.name === n)).filter(Boolean) as Entry[],
+  }));
+  // regular and Pact Magic slots of the same level both count; regular ones are used first
+  const slotLeft = (lvl: number) => slots.filter((x) => x.level === lvl).reduce((n, x) => n + x.max - (p.slotsUsed[slotKey(x)] || 0), 0);
+  const castSpell = (s: Entry, slot: number, k: Caster) => {
     const info = spellInfo(s);
     const r = spellRoll(s);
+    const spellAtk = k.atk;
+    const spellDC = k.dc;
+    const castMod = k.mod;
     if (info && info.level > 0) {
-      if (slotLeft(slot) <= 0) return;
-      setPlay((cur) => ({ slotsUsed: { ...cur.slotsUsed, [slot]: (cur.slotsUsed[slot] || 0) + 1 }, ...(r.concentration ? { concentration: s.name } : {}) }));
+      const use = [...slots].sort((a, b) => Number(a.pact) - Number(b.pact)).find((x) => x.level === slot && x.max - (p.slotsUsed[slotKey(x)] || 0) > 0);
+      if (!use) return;
+      const key = slotKey(use);
+      setPlay((cur) => ({ slotsUsed: { ...cur.slotsUsed, [key]: (cur.slotsUsed[key] || 0) + 1 }, ...(r.concentration ? { concentration: s.name } : {}) }));
     } else if (r.concentration) setPlay({ concentration: s.name });
     const acts: CardAction[] = [];
     const dmgExpr = r.damage ? spellDamage(s, r.damage, slot, c.level) : undefined;
@@ -328,8 +352,7 @@ export default function Sheet() {
   };
 
   // ------------------------------------------------------------ features
-  const classFeats = cls ? features(cls).filter((f) => f.level <= c.level).map((f) => ({ ...f, src: cls.name })) : [];
-  const subFeats = sub && c.level >= 3 ? features(sub).filter((f) => f.level <= c.level).map((f) => ({ ...f, src: sub.name })) : [];
+  const allFeats = classFeatures(infos);
   const feat = bg ? content.byType("Feat").find((f) => f.name.toLowerCase() === featName(bg.fields["feat"]).replace(/\s*\(.*\)$/, "").toLowerCase()) : undefined;
   const choice = speciesChoice(sp);
   const choiceRow = choice?.table.rows.find((r) => r[0] === c.speciesChoice);
@@ -363,7 +386,9 @@ export default function Sheet() {
             <div>
               <h1 className="disp">{c.name || "Unnamed character"}</h1>
               <div className="sub">
-                Level {c.level} {sp?.name}{c.speciesChoice ? ` (${c.speciesChoice})` : ""} {cls?.name}{sub ? ` · ${sub.name}` : ""}{bg ? ` · ${bg.name}` : ""}
+                Level {c.level} {sp?.name}{c.speciesChoice ? ` (${c.speciesChoice})` : ""}{" "}
+                {infos.length > 1 ? classLabel(infos) : cls?.name}
+                {infos.filter((i) => i.sub).map((i) => ` · ${i.sub!.name}`).join("")}{bg ? ` · ${bg.name}` : ""}
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
@@ -398,7 +423,8 @@ export default function Sheet() {
           <div className="stat"><div className="sl">Passive Perception</div><div className="sv2">{d.passivePerception}</div><div className="ss" /></div>
           {castAb && (
             <button className="stat" onClick={() => attack({ name: "Spell", toHit: spellAtk, damage: "0", type: "", note: "" })}>
-              <div className="sl">Spell Save DC</div><div className="sv2">{spellDC}</div><div className="ss">atk {fmt(spellAtk)} · {ABBR[castAb]}</div>
+              <div className="sl">Spell Save DC</div><div className="sv2">{casters.length > 1 && new Set(casters.map((k) => k.dc)).size > 1 ? casters.map((k) => k.dc).join(" / ") : spellDC}</div>
+              <div className="ss">{casters.length > 1 ? casters.map((k) => `${k.ab ? ABBR[k.ab] : ""} atk ${fmt(k.atk)}`).join(" · ") : `atk ${fmt(spellAtk)} · ${ABBR[castAb]}`}</div>
             </button>
           )}
         </section>
@@ -448,8 +474,12 @@ export default function Sheet() {
                 <button className="sbtn ghost" onClick={addTemp}>Temp</button>
               </div>
               <div className="hpx">
-                <span>Hit Dice: <b>{c.level - p.hdUsed}</b>/{c.level} d{d.hitDie}</span>
-                <button className="sbtn sm ghost" disabled={p.hdUsed >= c.level || hpCur >= hpMax} onClick={spendHitDie}>Spend Hit Die</button>
+                <span>Hit Dice: {pools.map((pl, i) => <span key={pl.die}>{i ? " · " : ""}<b>{pl.count - hdUsedOf(pl.die)}</b>/{pl.count} d{pl.die}</span>)}</span>
+                {pools.length > 1 ? pools.map((pl) => (
+                  <button key={pl.die} className="sbtn sm ghost" disabled={hdUsedOf(pl.die) >= pl.count || hpCur >= hpMax} onClick={() => spendHitDie(pl.die)}>Spend d{pl.die}</button>
+                )) : (
+                  <button className="sbtn sm ghost" disabled={hdLeft <= 0 || hpCur >= hpMax} onClick={() => spendHitDie()}>Spend Hit Die</button>
+                )}
                 {hpCur === 0 && (
                   <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     Death saves: ✓ <Marks n={3} count={p.deathS} label="success" onSet={(v) => setPlay({ deathS: v })} />
@@ -464,14 +494,17 @@ export default function Sheet() {
               <section className="spanel slotbar">
                 {slots.length > 0 && (
                   <>
-                    <span className="sl">{slots[0].pact ? "Pact Magic" : "Spell Slots"}</span>
+                    <span className="sl">{slots.every((s) => s.pact) ? "Pact Magic" : "Spell Slots"}</span>
                     <div className="slots">
-                      {slots.map((s) => (
-                        <div key={s.level} className="slot">
-                          <span className="sl">L{s.level}</span>
-                          <Pips n={s.max} used={p.slotsUsed[s.level] || 0} onToggle={(i) => setPlay((cur) => ({ slotsUsed: { ...cur.slotsUsed, [s.level]: i < (cur.slotsUsed[s.level] || 0) ? i : i + 1 } }))} />
-                        </div>
-                      ))}
+                      {slots.map((s) => {
+                        const key = slotKey(s);
+                        return (
+                          <div key={key} className="slot" title={s.pact ? "Pact Magic: comes back on a Short or Long Rest" : undefined}>
+                            <span className="sl">{s.pact && slots.some((x) => !x.pact) ? "Pact " : ""}L{s.level}</span>
+                            <Pips n={s.max} used={p.slotsUsed[key] || 0} onToggle={(i) => setPlay((cur) => ({ slotsUsed: { ...cur.slotsUsed, [key]: i < (cur.slotsUsed[key] || 0) ? i : i + 1 } }))} />
+                          </div>
+                        );
+                      })}
                     </div>
                   </>
                 )}
@@ -487,7 +520,7 @@ export default function Sheet() {
             <div>
               <nav className="stabs">
                 {([["actions", "Actions"], ["spells", "Spells"], ["features", "Features & Feats"], ["conditions", "Conditions"], ["inventory", "Inventory"], ["notes", "Notes"]] as [Tab, string][])
-                  .filter(([k]) => k !== "spells" || caster)
+                  .filter(([k]) => k !== "spells" || anyCaster)
                   .map(([k, l]) => (
                     <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
                       {l}{k === "conditions" && p.conditions.length + (p.exhaustion ? 1 : 0) > 0 && <span className="badge">{p.conditions.length + (p.exhaustion ? 1 : 0)}</span>}
@@ -520,25 +553,31 @@ export default function Sheet() {
                 </div>
               )}
 
-              {tab === "spells" && caster && (
+              {tab === "spells" && anyCaster && (
                 <div className="spanel">
-                  <p className="note" style={{ marginTop: 0 }}>
-                    {castAb} · save DC <b>{spellDC}</b> · spell attack <b>{fmt(spellAtk)}</b> · {caster.cantrips ? `${c.cantrips.length}/${caster.cantrips} cantrips, ` : ""}{c.spells.length}/{caster.prepared} prepared.{" "}
-                    <Link to={`/build/${c.id}`}>Change spells</Link>
-                  </p>
-                  {!content.loaded.has("spells") ? <p className="note">Loading spells…</p> : known.length === 0 ? <p className="note">No spells chosen yet.</p> : (
-                    known
-                      .sort((a, b) => (spellInfo(a)?.level || 0) - (spellInfo(b)?.level || 0))
-                      .map((s) => <SpellRow key={s.id} s={s} slots={slots} slotLeft={slotLeft} onCast={castSpell} />)
-                  )}
+                  {!content.loaded.has("spells") ? <p className="note">Loading spells…</p> : knownBy.map(({ k, list }) => (
+                    <div key={k.info.index} style={{ marginBottom: 14 }}>
+                      {casters.length > 1 && <h3>{k.info.cls.name} spells</h3>}
+                      <p className="note" style={{ marginTop: 0 }}>
+                        {k.ab} · save DC <b>{k.dc}</b> · spell attack <b>{fmt(k.atk)}</b>
+                        {k.ci ? ` · ${k.ci.cantrips ? `${k.info.cantrips.length}/${k.ci.cantrips} cantrips, ` : ""}${k.info.spells.length}/${k.ci.prepared} prepared` : ""}.{" "}
+                        {editable && <Link to={`/build/${c.id}`}>Change spells</Link>}
+                      </p>
+                      {list.length === 0 ? <p className="note">No spells chosen yet.</p> : (
+                        list
+                          .sort((a, b) => (spellInfo(a)?.level || 0) - (spellInfo(b)?.level || 0))
+                          .map((s) => <SpellRow key={`${k.info.index}-${s.id}`} s={s} slots={slots} slotLeft={slotLeft} onCast={(sp, lvl) => castSpell(sp, lvl, k)} />)
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 
               {tab === "features" && (
                 <div>
-                  {[...classFeats, ...subFeats].sort((a, b) => a.level - b.level).map((f, i) => (
+                  {allFeats.map((f, i) => (
                     <details key={`f${i}`} className="feat">
-                      <summary>{f.name} <span className="mut">· {f.src} {f.level}</span></summary>
+                      <summary>{f.name} <span className="mut">· {f.src === f.classLevel.replace(/ \d+$/, "") ? f.classLevel : `${f.src} · ${f.classLevel}`}</span></summary>
                       <Md md={f.md} />
                     </details>
                   ))}

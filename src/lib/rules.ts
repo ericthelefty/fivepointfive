@@ -43,6 +43,8 @@ export interface Character {
   notes: string;
   updated: number;
   play?: Partial<import("./play.ts").PlayState>;
+  /** Classes after the starting one (see multiclass.ts). `level` is the total character level. */
+  multiclass?: import("./multiclass.ts").ClassLevel[];
   /** Set once the inventory has been edited; until then it comes from starting equipment. */
   inventory?: import("./inventory.ts").Item[];
   coins?: import("./inventory.ts").Coins;
@@ -284,7 +286,12 @@ export function finalScores(c: Character): Scores {
 
 export function derive(
   c: Character,
-  lib: { cls?: Entry; species?: Entry; background?: Entry; armor: ArmorRow[]; items?: import("./inventory.ts").Item[] },
+  lib: {
+    cls?: Entry; species?: Entry; background?: Entry; armor: ArmorRow[];
+    items?: import("./inventory.ts").Item[];
+    /** All classes with their levels (from multiclass.classInfos); defaults to the one class. */
+    classes?: { cls: Entry; level: number; starting: boolean; skills: string[] }[];
+  },
 ): Derived {
   const scores = finalScores(c);
   const mods = Object.fromEntries(ABILITIES.map((a) => [a, mod(scores[a])]));
@@ -294,12 +301,20 @@ export function derive(
     ABILITIES.map((a) => [a, { prof: saveProf.includes(a), value: mods[a] + (saveProf.includes(a) ? pb : 0) }]),
   );
   const bgSkills = listOf(lib.background?.fields["skill proficiencies"] || "").filter((s) => SKILLS.includes(s));
-  const prof = new Set([...bgSkills, ...c.classSkills, ...c.extraSkills]);
+  const classes = lib.classes?.length ? lib.classes : lib.cls ? [{ cls: lib.cls, level: c.level, starting: true, skills: c.classSkills }] : [];
+  const prof = new Set([...bgSkills, ...c.classSkills, ...c.extraSkills, ...classes.filter((k) => !k.starting).flatMap((k) => k.skills)]);
   const skills = Object.fromEntries(
     SKILLS.map((s) => [s, { prof: prof.has(s), value: mods[SKILL_ABILITY[s]] + (prof.has(s) ? pb : 0) }]),
   );
+  // HP: the starting class's full die at level 1, then each class's average per level
   const hd = hitDie(lib.cls);
-  const hp = Math.max(1, hd + mods.Constitution + (c.level - 1) * (hd / 2 + 1 + mods.Constitution));
+  const hp = classes.length
+    ? Math.max(1, classes.reduce((n, k) => {
+        const d = hitDie(k.cls);
+        const avg = d / 2 + 1 + mods.Constitution;
+        return n + (k.starting ? d + mods.Constitution + (k.level - 1) * avg : k.level * avg);
+      }, 0))
+    : Math.max(1, hd + mods.Constitution + (c.level - 1) * (hd / 2 + 1 + mods.Constitution));
 
   // AC: equipped armor and shield, else class Unarmored Defense, else 10 + Dex.
   // Without an inventory (older callers), armor is found in the starting equipment text.
@@ -325,16 +340,18 @@ export function derive(
   }
   let ac = 10 + mods.Dexterity;
   let acNote = "10 + Dex";
-  const feats = lib.cls ? features(lib.cls).filter((f) => f.level <= c.level).map((f) => f.name) : [];
+  // Unarmored Defense from whichever class has it (only one way to calculate AC applies)
+  const hasFeature = (className: string, feature: string) =>
+    classes.some((k) => k.cls.name === className && features(k.cls).some((f) => f.name === feature && f.level <= k.level));
   if (worn) {
     const base = +(worn.ac.match(/^(\d+)/)?.[1] || 10);
     const dex = /Dex modifier \(max 2\)/.test(worn.ac) ? Math.min(2, mods.Dexterity) : /Dex/.test(worn.ac) ? mods.Dexterity : 0;
     ac = base + dex;
     acNote = wornLabel || worn.name;
-  } else if (feats.includes("Unarmored Defense") && lib.cls?.name === "Barbarian") {
+  } else if (hasFeature("Barbarian", "Unarmored Defense")) {
     ac = 10 + mods.Dexterity + mods.Constitution;
     acNote = "Unarmored Defense (10 + Dex + Con)";
-  } else if (feats.includes("Unarmored Defense") && lib.cls?.name === "Monk" && !shield) {
+  } else if (hasFeature("Monk", "Unarmored Defense") && !shield) {
     ac = 10 + mods.Dexterity + mods.Wisdom;
     acNote = "Unarmored Defense (10 + Dex + Wis)";
   }
