@@ -7,3 +7,4 @@ node_modules/
 *.pdf
 public/data/
 dist/
+*.tsbuildinfo
