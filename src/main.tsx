@@ -5,7 +5,7 @@ import "./styles.css";
 import { ContentProvider, useContent } from "./lib/store.tsx";
 import { SessionProvider, useSession } from "./lib/session.tsx";
 import { CharactersProvider } from "./lib/characters.tsx";
-import { cloud } from "./lib/backend.ts";
+import { cloud, configError } from "./lib/backend.ts";
 import { Join, SignIn } from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
 import Home from "./pages/Home.tsx";
@@ -77,7 +77,22 @@ function Shell() {
   );
 }
 
+function ConfigProblem({ message }: { message: string }) {
+  return (
+    <div className="app">
+      <div className="panel" style={{ maxWidth: 560, margin: "48px auto" }}>
+        <h2 style={{ marginTop: 0 }}>This instance isn't set up correctly</h2>
+        <p>{message}</p>
+        <p className="muted">
+          Fix the environment variable where the app is hosted (on Vercel: Settings → Environment Variables), then redeploy. See docs/SELF_HOSTING.md. To run without an instance, remove both variables.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
+  configError ? <ConfigProblem message={configError} /> :
   <StrictMode>
     <BrowserRouter>
       <SessionProvider>
