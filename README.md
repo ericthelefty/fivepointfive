@@ -2,7 +2,18 @@
 
 An open-source character builder and sheet for fifth edition (2024 rules) tabletop roleplaying games, built on the System Reference Document 5.2.1. Players can add their own content as plain Markdown files.
 
-> **Status:** early. This repository currently holds the game content, the content format, and the tools used to produce it. The app itself is next.
+> **Status:** v0.1. The builder works: characters are saved in your browser, and you can import your own `.md` content. Accounts and sharing come next.
+
+## Run it locally
+
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm test         # parser, import checks and rules tests
+npm run build    # production build in dist/ (what Vercel runs)
+```
+
+`npm run dev` and `npm run build` first compile the content packs in `content/` into JSON in `public/data/` (see `scripts/build-content.ts`).
 
 ## What's here
 
@@ -10,11 +21,12 @@ An open-source character builder and sheet for fifth edition (2024 rules) tablet
 |---|---|
 | [`content/srd-5.2.1/`](content/srd-5.2.1/) | The complete SRD 5.2.1 as 1,317 Markdown entries: classes, subclasses, species, backgrounds, feats, spells, equipment, magic items, creatures, the rules glossary and the rules chapters. Wording is unchanged from the source. |
 | [`docs/CONTENT_FORMAT.md`](docs/CONTENT_FORMAT.md) | How content files are written. The same format is used for the SRD and for anything users import. |
+| [`src/`](src/) | The web app (Vite + React + TypeScript). `src/lib/parse.ts` reads content files, `src/lib/fix.ts` checks and fixes imports, `src/lib/rules.ts` turns entries into builder choices. |
 | [`tools/pdf2md/`](tools/pdf2md/) | The converter that turned the SRD PDF into those files, written to be reused for other source documents. |
 
 ## Planned
 
-1. **Builder:** step-by-step character creation from SRD content, plus import of `.md` content files with a preview that auto-fixes simple formatting problems and suggests fixes for the rest.
+1. **Builder** (v0.1, done): step-by-step character creation from SRD content, a character sheet, a content library, and import of `.md` files with a preview that auto-fixes simple formatting problems and suggests fixes for the rest.
 2. **Accounts and sharing:** friends can view each other's characters and make their own copies.
 3. **Pack sharing:** share uploaded content packs with friends or groups.
 

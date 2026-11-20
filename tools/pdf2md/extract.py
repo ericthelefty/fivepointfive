@@ -246,7 +246,14 @@ def build_table(page, rect, page_spans, line_rows=None, line_rects=None):
 
     def cells(r):
         c = [[] for _ in range(ncol)]
-        for w in r["w"]:
+        # a single contiguous phrase spanning several columns (a group label
+        # row like "Light Armor (1 Minute to Don or Doff)") stays in column 1
+        ws = r["w"]
+        single = len(ws) > 1 and all(b[0] - a[2] < 4.5 for a, b in zip(ws, ws[1:]))
+        if single and len({col_of(w) for w in ws}) > 1:
+            c[0] = [w[4] for w in ws]
+            return [" ".join(x) for x in c]
+        for w in ws:
             c[col_of(w)].append(w[4])
         return [" ".join(x) for x in c]
 
