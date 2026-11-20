@@ -103,3 +103,21 @@ describe("species and conditions", () => {
     expect(es.map((e) => e.tags.includes("Condition"))).toEqual([true, true, false]);
   });
 });
+
+import { guideMeta } from "./guideMeta.ts";
+
+describe("guide version and publish date", () => {
+  it("the guide states a version and a valid publish date, and they're removed from the body", () => {
+    const m = guideMeta(guide);
+    expect(m.version).toMatch(/^\d+\.\d+/);
+    expect(m.published).toBeInstanceOf(Date);
+    expect(Number.isNaN(m.published!.getTime())).toBe(false);
+    expect(m.body.startsWith("Every piece of game content")).toBe(true);
+  });
+
+  it("reads the date as a calendar day, not shifted by time zone", () => {
+    const m = guideMeta("# T\n**Version:** 1.0\n**Published:** 2026-01-01\n\nBody");
+    expect([m.published!.getFullYear(), m.published!.getMonth(), m.published!.getDate()]).toEqual([2026, 0, 1]);
+    expect(m.body).toBe("Body");
+  });
+});

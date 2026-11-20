@@ -3,6 +3,10 @@ import { Link } from "react-router-dom";
 import { Md } from "../lib/md.tsx";
 import guide from "../../docs/CONTENT_FORMAT.md?raw";
 import { TEMPLATES } from "../lib/templates.ts";
+import { guideMeta } from "../lib/guideMeta.ts";
+
+const META = guideMeta(guide);
+const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 
 export default function Guide() {
@@ -45,8 +49,16 @@ export default function Guide() {
       </section>
 
       <section className="panel">
-        <Md md={guide.replace(/^# .*\n/, "")} />
+        <Md md={META.body} />
       </section>
+
+      {(META.version || META.published) && (
+        <p className="faint" style={{ margin: 0, textAlign: "center" }}>
+          {META.version && <>Format guide version {META.version}</>}
+          {META.version && META.published && " · "}
+          {META.published && <>Published <time dateTime={isoDay(META.published)}>{META.published.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</time></>}
+        </p>
+      )}
     </div>
   );
 }

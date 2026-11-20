@@ -1,4 +1,6 @@
-# Content Format Guide (draft v0.5)
+# Content Format Guide
+**Version:** 0.5 (draft)
+**Published:** 2026-11-20
 
 Every piece of game content in this app — the bundled SRD, your homebrew, or material from books you own — is written as plain **Markdown** files. No YAML, no JSON, no code. If you can write a rulebook entry in Notepad, you can write content for this app.
 
