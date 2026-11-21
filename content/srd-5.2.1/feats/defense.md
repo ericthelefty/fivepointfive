@@ -4,3 +4,8 @@
 *Fighting Style Feat (Prerequisite: Fighting Style Feature)*
 
 While you’re wearing Light, Medium, or Heavy armor, you gain a +1 bonus to Armor Class.
+
+## Effects
+```yaml
+- bonus: { to: ac, value: 1, when: { armor: [light, medium, heavy] } }
+```

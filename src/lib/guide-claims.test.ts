@@ -15,7 +15,7 @@ const load = (dir: string): Entry[] =>
 
 describe("guide examples", () => {
   it("every markdown example in the guide imports without fixes or warnings", () => {
-    const blocks = [...guide.matchAll(/```markdown\n([\s\S]*?)```/g)].map((m) => m[1]).filter((b) => !b.includes("←"));
+    const blocks = [...guide.matchAll(/(`{3,4})markdown\n([\s\S]*?)\n\1(?!`)/g)].map((m) => m[2]).filter((b) => !b.includes("←"));
     expect(blocks.length).toBeGreaterThanOrEqual(2);
     for (const b of blocks) {
       const r = checkFile("example.md", b, "t", { classes: [] });

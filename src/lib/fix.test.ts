@@ -66,18 +66,24 @@ describe("import checks", () => {
     expect(r.entries[0].name).toBe("My House Rules");
   });
 
-  it("suggests stat typos and unknown effect phrases, and unknown parents", () => {
+  it("checks Modif Effects blocks, old phrasebook bullets, and unknown parents", () => {
     const r = checkFile(
       "f.md",
-      "# Ironhide\n**Type:** Feat\n\n## Effects\n- +1 Consitution (max 20)\n- +1 AC while not wearing armor\n- become very tough\n\n# Oath\n**Type:** Subclass\n**Parent:** Fightr\n",
+      "# Ironhide\n**Type:** Feat\n\n## Effects\n```yaml\n- bonus: { to: ac, value: 1 }\n- bonuss: { to: hp:per-level, value: 1 }\n```\n\n" +
+        "# Old Style\n**Type:** Feat\n\n## Effects\n- +1 AC while not wearing armor\n\n" +
+        "# Rulebook\n**Type:** Rule\n\n## Effects\nThis heading is just rules text.\n\n" +
+        "# Oath\n**Type:** Subclass\n**Parent:** Fightr\n",
       "p",
       KNOWN,
     );
     const msgs = r.suggestions.map((s) => s.message);
-    expect(msgs.some((m) => /Did you mean Constitution/.test(m))).toBe(true);
-    expect(msgs.some((m) => /Not a phrase/.test(m))).toBe(true);
+    const typo = r.suggestions.find((s) => /Did you mean bonus/.test(s.message))!;
+    expect(typo.line).toBe(7);
+    expect(typo.replacement).toBe("- bonus: { to: hp:per-level, value: 1 }");
+    expect(msgs.filter((m) => /yaml fence/.test(m))).toHaveLength(1);
     expect(msgs.some((m) => /Did you mean Fighter/.test(m))).toBe(true);
-    expect(msgs.filter((m) => /AC/.test(m))).toHaveLength(0);
+    expect(r.suggestions).toHaveLength(3);
+    expect(r.entries[0].effects).toHaveLength(1);
   });
 });
 

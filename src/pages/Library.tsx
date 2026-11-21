@@ -14,7 +14,7 @@ export function entryToMd(e: Entry): string {
     lines.push(`**${k.replace(/\b\w/g, (c) => c.toUpperCase())}:** ${v}`);
   }
   if (e.tagline) lines.splice(2, 0, `*${e.tagline}*`);
-  return lines.join("\n") + "\n\n" + e.body + "\n";
+  return lines.join("\n") + "\n\n" + (e.raw ?? e.body) + "\n";
 }
 
 export default function Library() {

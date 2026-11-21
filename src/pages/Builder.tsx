@@ -7,6 +7,7 @@ import {
 } from "../lib/multiclass.ts";
 import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
+import { modifFor, setSlotFeat, validIncreases, type PendingChoice } from "../lib/modif.ts";
 import { Md, MdInline } from "../lib/md.tsx";
 import { features, stripMd, type Entry } from "../lib/parse.ts";
 import {
@@ -96,6 +97,111 @@ export default function Builder() {
 
 type StepProps = { c: Character; update: (p: Partial<Character>) => void };
 
+/** Choices from Modif `choose` blocks (Fighting Style, Weapon Mastery, origin feats, tools…). */
+function ModifChoices({ c, update, origins }: StepProps & { origins: (string | undefined)[] }) {
+  const content = useContent();
+  const fx = modifFor(c, content);
+  // feat slots (Ability Score Improvement) and what's chosen inside them are on the Ability scores step
+  const list = fx.pending.filter((p) => !p.storedIn && !p.slot && origins.includes(p.origin));
+  if (!list.length) return null;
+  return <>{list.map((p) => <ChoiceRow key={p.key} p={p} c={c} update={update} />)}</>;
+}
+
+function setChoice(c: Character, update: StepProps["update"], key: string, next: string[]) {
+  update({ choices: { ...(c.choices || {}), [key]: next } });
+}
+
+function ChoiceRow({ p, c, update, bare }: StepProps & { p: PendingChoice; bare?: boolean }) {
+  const content = useContent();
+  if (p.amounts) return <IncreaseRow p={p} c={c} update={update} bare={bare} />;
+  const chosen = p.chosen.slice(0, p.count);
+  const pick = (v: string) =>
+    setChoice(c, update, p.key, p.count === 1 ? [v] : chosen.includes(v) ? chosen.filter((x) => x !== v) : chosen.length < p.count ? [...chosen, v] : chosen);
+  const label = (v: string) => p.options?.find((o) => o.value === v)?.label || content.byId(v)?.name || v;
+  return (
+    <div className={bare ? "" : "choice"}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+        <strong>{p.label}</strong>
+        {chosen.length < p.count && p.options && <span className="tag need">Choice needed</span>}
+      </div>
+      {p.entry.id !== p.origin && !p.slot && <div className="faint">From {p.entry.name}</div>}
+      {p.options ? (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+          {p.options.map((o) => (
+            <button key={o.value} className="pill" aria-pressed={chosen.includes(o.value)} onClick={() => pick(o.value)}>{o.label}</button>
+          ))}
+        </div>
+      ) : (
+        <div className="faint" style={{ marginTop: 6 }}>{chosen.length ? `Chosen: ${chosen.map(label).join(", ")}. ` : ""}Note your choice on the sheet; the app can't list these options yet.</div>
+      )}
+      {p.count > 1 && p.options && <div className="faint" style={{ marginTop: 6 }}>Chosen {chosen.length} / {p.count}</div>}
+    </div>
+  );
+}
+
+/** "+2 to one score or +1 to two": click an ability to add +1, click again past its limit to take it back. */
+function IncreaseRow({ p, c, update, bare }: StepProps & { p: PendingChoice; bare?: boolean }) {
+  const a = p.amounts!;
+  const abilities = p.options?.map((o) => o.value) || ABILITIES;
+  const count = (ab: string) => p.chosen.filter((x) => x === ab).length;
+  const click = (ab: string) => {
+    const next = validIncreases([...p.chosen, ab], a.sets);
+    setChoice(c, update, p.key, next.length > p.chosen.length ? next : p.chosen.filter((x) => x !== ab));
+  };
+  const left = a.points - p.chosen.length;
+  return (
+    <div className={bare ? "" : "choice"}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+        <strong>{p.label.replace(/^.*?: /, "Increase: ")}</strong>
+        {left > 0 && <span className="tag need">{left} to place</span>}
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+        {abilities.map((ab) => (
+          <button key={ab} className="pill" aria-pressed={count(ab) > 0} onClick={() => click(ab)} title={`Click to add +1 (maximum ${a.max})`}>
+            {ab}{count(ab) ? ` +${count(ab)}` : ""}
+          </button>
+        ))}
+      </div>
+      <div className="faint" style={{ marginTop: 6 }}>Scores can’t go above {a.max}.</div>
+    </div>
+  );
+}
+
+/** Ability Score Improvement and Epic Boon slots, with the choices of the feat taken in each. */
+function FeatSlots({ c, update }: StepProps) {
+  const content = useContent();
+  const fx = modifFor(c, content);
+  const slots = fx.pending.filter((p) => p.level !== undefined).sort((x, y) => (x.level! - y.level!) || x.label.localeCompare(y.label));
+  if (!slots.length) return null;
+  return (
+    <div className="panel">
+      <h2>Ability Score Improvements and feats</h2>
+      <p className="faint">At these levels you take the Ability Score Improvement feat or another feat you qualify for.</p>
+      <div className="stack" style={{ gap: 10, marginTop: 10 }}>
+        {slots.map((slot) => {
+          const feat = content.byId(slot.chosen[0]);
+          const inner = fx.pending.filter((p) => p.slot === slot.key && p.key !== slot.key);
+          return (
+            <div key={slot.key} className="choice">
+              <label className="field" style={{ gap: 6 }}>
+                <strong>{slot.label.replace(/: .*$/, "")}</strong>
+                <select value={slot.chosen[0] || ""} onChange={(e) => update({ choices: setSlotFeat(c.choices, slot.key, e.target.value || undefined) })}>
+                  {!slot.chosen[0] && <option value="">Choose a feat…</option>}
+                  {slot.options!.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </label>
+              {feat && feat.id !== "srd:feat/ability-score-improvement" && (
+                <details style={{ marginTop: 6 }}><summary className="faint">{feat.tagline || "About this feat"}</summary><Md md={feat.body} /></details>
+              )}
+              {inner.map((p) => <div key={p.key} style={{ marginTop: 10 }}><ChoiceRow p={p} c={c} update={update} bare /></div>)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PackLabel({ e }: { e: Entry }) {
   return e.pack === "srd" ? null : <span className="tag plain" style={{ marginLeft: 6 }}>{e.pack}</span>;
 }
@@ -184,6 +290,7 @@ function ClassStep({ c, update }: StepProps) {
                 </div>
               </div>
             )}
+            <ModifChoices c={c} update={update} origins={[cls.id, sub?.id]} />
             <div className="eyebrow" style={{ marginTop: 6 }}>Features through {cls.name} level {lvl}</div>
             {[...feats.map((f) => ({ ...f, src: cls.name })), ...subFeats.map((f) => ({ ...f, src: sub!.name }))]
               .sort((a, b) => a.level - b.level)
@@ -208,7 +315,8 @@ function MulticlassPanel({ c, update }: StepProps) {
   const classes = byType("Class");
   const infos = classInfos(c, byId);
   const extras = extraClasses(c);
-  const problems = prerequisiteProblems(infos.map((i) => i.cls), finalScores(c));
+  const content = useContent();
+  const problems = prerequisiteProblems(infos.map((i) => i.cls), modifFor(c, content).scores);
   const taken = new Set([c.classId, ...extras.map((x) => x.classId)]);
   const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);
   return (
@@ -372,6 +480,7 @@ function SpeciesStep({ c, update }: StepProps) {
                 </div>
               </div>
             )}
+            <ModifChoices c={c} update={update} origins={[sp.id]} />
             <div className="faint">Source: {sp.fields["source"] || sp.pack}</div>
           </div>
         )}
@@ -430,6 +539,7 @@ function BackgroundStep({ c, update }: StepProps) {
                 <Md md={feat.body} />
               </div>
             )}
+            <ModifChoices c={c} update={update} origins={[bg.id]} />
             <div className="faint">Source: {bg.fields["source"] || bg.pack}</div>
           </div>
         )}
@@ -451,7 +561,8 @@ function AbilityStep({ c, update }: StepProps) {
   const cls = byId(c.classId);
   const bg = byId(c.backgroundId);
   const bgAbilities = abilityList(bg?.fields["ability scores"]);
-  const finals = finalScores(c);
+  const content = useContent();
+  const finals = modifFor(c, content).scores;
 
   const setMethod = (method: Character["method"]) => {
     const base = Object.fromEntries(ABILITIES.map((a, i) => [a, method === "standard" ? (SUGGESTED[cls?.name || ""] || STANDARD_ARRAY)[i] : method === "pointbuy" ? 8 : c.base[a] ?? 10]));
@@ -518,6 +629,7 @@ function AbilityStep({ c, update }: StepProps) {
           ))}
         </div>
         {c.method === "standard" && [...used.values()].some((n) => n > 1) && <p className="faint" style={{ color: "var(--warn)" }}>Each value in the array should be used once.</p>}
+        <p className="faint" style={{ marginBottom: 0 }}>Totals include your background increase and any feats below.</p>
       </div>
 
       <div className="panel">
@@ -543,6 +655,7 @@ function AbilityStep({ c, update }: StepProps) {
           </>
         )}
       </div>
+      <FeatSlots c={c} update={update} />
     </div>
   );
 }
@@ -654,7 +767,7 @@ function EquipmentStep({ c, update }: StepProps) {
   const weapons = useMemo(() => weaponTable(entries), [entries]);
   const cat = useMemo(() => catalog(entries, weapons, armor), [entries, weapons, armor]);
   const inv = inventoryOf(c, cls, bg, cat);
-  const d = derive(c, { cls, background: bg, species: byId(c.speciesId), armor, items: inv.items });
+  const d = derive(c, { cls, background: bg, species: byId(c.speciesId), armor, items: inv.items, classes: classInfos(c, byId), modif: modifFor(c, { entries, byId }) });
   const Group = ({ title, opts, value, onPick }: { title: string; opts: { key: string; text: string }[]; value?: string; onPick: (k: string) => void }) => (
     <div className="panel">
       <h2 style={{ marginBottom: 10 }}>{title}</h2>

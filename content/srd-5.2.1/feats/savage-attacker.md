@@ -4,3 +4,8 @@
 *Origin Feat*
 
 You’ve trained to deal particularly damaging strikes. Once per turn when you hit a target with a weapon, you can roll the weapon’s damage dice twice and use either roll against the target.
+
+## Effects
+```yaml
+- trigger: { event: hit, scope: { weapon: {} }, per: turn, offer: { reroll: { roll: damage, keep: either } } }
+```

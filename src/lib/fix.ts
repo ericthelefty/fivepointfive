@@ -6,6 +6,7 @@
  * - Reject: only when there is nothing usable (not .md, empty, not text).
  */
 import { KNOWN_TYPES, parseFile, splitEntries, type Entry } from "./parse.ts";
+import { readBlocks } from "./modif.ts";
 
 export interface Fix {
   line: number;
@@ -38,21 +39,7 @@ export const SKILLS = [
   "Intimidation", "Investigation", "Medicine", "Nature", "Perception", "Performance",
   "Persuasion", "Religion", "Sleight of Hand", "Stealth", "Survival",
 ];
-const STATS = [...ABILITIES, "AC", "Speed", "Initiative", "HP", "Hit Points", "Passive Perception"];
 
-/** Effects phrasebook (docs/CONTENT_FORMAT.md §4). */
-export const EFFECT_PATTERNS: { rx: RegExp; label: string }[] = [
-  { rx: /^[+-]\d+ ([A-Za-z ]+?)( \(max \d+\))?$/i, label: "+N stat" },
-  { rx: /^proficiency in .+$/i, label: "proficiency" },
-  { rx: /^expertise in .+$/i, label: "expertise" },
-  { rx: /^(advantage|disadvantage) on .+$/i, label: "advantage" },
-  { rx: /^resistance to .+$/i, label: "resistance" },
-  { rx: /^AC = .+$/i, label: "AC formula" },
-  { rx: /^.+: .+ uses? per (Short|Long|Short or Long) Rest$/i, label: "resource" },
-  { rx: /^choose \d+ .+ from .+$/i, label: "choice" },
-  { rx: /^grant .+$/i, label: "grant" },
-];
-const CONDITION_RX = /\s+(while .+|at level \d+)$/i;
 
 export function lev(a: string, b: string): number {
   a = a.toLowerCase();
@@ -222,28 +209,37 @@ export function checkFile(
   return finish();
 
   function finish(): FileReport {
-    // Effects lines
-    let inEffects = false;
+    // Effects: Modif blocks in a ```yaml fence under "## Effects" (docs/MODIF.md)
+    let fxHead = -1;
     for (let i = 0; i < lines.length; i++) {
       const l = lines[i];
-      if (/^#{2,6}\s/.test(l)) inEffects = /^#{2,6}\s+Effects\s*$/i.test(l);
-      else if (/^# /.test(l)) inEffects = false;
-      if (!inEffects) continue;
-      const m = l.match(/^\s*[-*]\s+(.+)$/);
-      if (!m) continue;
-      const phrase = m[1].trim().replace(CONDITION_RX, "");
-      const ok = EFFECT_PATTERNS.some((p) => p.rx.test(phrase));
-      const stat = phrase.match(/^[+-]\d+ ([A-Za-z ]+?)( \(max \d+\))?$/);
-      if (stat && !STATS.some((s) => s.toLowerCase() === stat[1].toLowerCase())) {
-        const guess = closest(stat[1], STATS, 3);
+      if (/^#{1,6}\s/.test(l)) fxHead = /^#{2,6}\s+Effects\s*$/i.test(l) ? i : -1;
+      if (fxHead < 0 || i === fxHead || !l.trim()) continue;
+      if (/^\s*```ya?ml\s*$/i.test(l)) {
+        let j = i + 1;
+        while (j < lines.length && !/^\s*```\s*$/.test(lines[j])) j++;
+        const yaml = lines.slice(i + 1, j).join("\n");
+        for (const p of readBlocks(yaml).problems) {
+          const at = p.line ? i + p.line : i + 1;
+          const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const bad = p.found ? lines.findIndex((x, k) => k > i && k < j && new RegExp(`^\\s*-\\s*${esc(p.found!)}\\s*:`).test(x)) : -1;
+          suggestions.push({
+            id: `s${sid++}`, line: (bad >= 0 ? bad : at) + 1, text: lines[bad >= 0 ? bad : at] ?? "",
+            message: `${p.message} Until fixed, this block isn’t applied; the rules text still works.`,
+            replacement: bad >= 0 && p.suggestion ? lines[bad].replace(/^(\s*-\s*)[^:\s]+\s*:/, `$1${p.suggestion}:`) : undefined,
+          });
+        }
+        i = j;
+        fxHead = -1;
+        continue;
+      }
+      // an older bullet list (the retired phrasebook); other text under an "Effects" heading is ordinary rules text
+      if (/^\s*[-*]\s+/.test(l)) {
         suggestions.push({
           id: `s${sid++}`, line: i + 1, text: l,
-          message: guess ? `“${stat[1]}” isn’t a stat this system knows. Did you mean ${guess}? Until fixed, this line is text only.` : `“${stat[1]}” isn’t a stat this system knows. This line is text only.`,
-          replacement: guess ? l.replace(stat[1], guess) : undefined,
+          message: "Effects are written as Modif blocks inside a ```yaml fence, so this line stays as text. See “Automating rules (Effects)” in the Format guide.",
         });
-      } else if (!ok) {
-        suggestions.push({ id: `s${sid++}`, line: i + 1, text: l, message: "Not a phrase the app can automate yet, so it stays as text. See “Automating rules (Effects)” in the Format guide." });
-      }
+      } else fxHead = -1;
     }
     // duplicate names within the file
     const fixed = lines.join("\n");

@@ -5,10 +5,39 @@
 
 You gain the following benefits.
 
-***Ability Score Increase.*** Increase your Strength or Dexterity score by 1, to a maximum of 20.
+## Ability Score Increase
 
-***Punch and Grab.*** When you hit a creature with an Unarmed Strike as part of the Attack action on your turn, you can use both the Damage and the Grapple option. You can use this benefit only once per turn.
+Increase your Strength or Dexterity score by 1, to a maximum of 20.
 
-***Attack Advantage.*** You have Advantage on attack rolls against a creature Grappled by you.
+## Effects
+```yaml
+- choose: { id: grappler-asi, kind: ability, from: [str, dex], amounts: [1], max: 20 }
+```
 
-***Fast Wrestler.*** You don’t have to spend extra movement to move a creature Grappled by you if the creature is your size or smaller.
+## Punch and Grab
+
+When you hit a creature with an Unarmed Strike as part of the Attack action on your turn, you can use both the Damage and the Grapple option. You can use this benefit only once per turn.
+
+## Effects
+```yaml
+- trigger: { event: hit, scope: { weapon: { unarmed: true } }, per: turn, if: "As part of the Attack action on your turn",
+             offer: { text: "Use both the Damage and the Grapple option." } }
+```
+
+## Attack Advantage
+
+You have Advantage on attack rolls against a creature Grappled by you.
+
+## Effects
+```yaml
+- advantage: { roll: attack, scope: { against: { target: { grappled-by: self } } } }
+```
+
+## Fast Wrestler
+
+You don’t have to spend extra movement to move a creature Grappled by you if the creature is your size or smaller.
+
+## Effects
+```yaml
+- trait: { text: "Moving a creature you've Grappled costs no extra movement if it's your size or smaller." }
+```

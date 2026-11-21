@@ -5,6 +5,7 @@
  */
 import { features, parseTables, spellInfo, stripMd, type Entry, type Table } from "./parse.ts";
 import { ABILITIES, SKILLS } from "./fix.ts";
+import { evalNumber, type ModifResult } from "./modif.ts";
 
 export const ABBR: Record<string, string> = {
   Strength: "Str", Dexterity: "Dex", Constitution: "Con", Intelligence: "Int", Wisdom: "Wis", Charisma: "Cha",
@@ -48,6 +49,8 @@ export interface Character {
   /** Set once the inventory has been edited; until then it comes from starting equipment. */
   inventory?: import("./inventory.ts").Item[];
   coins?: import("./inventory.ts").Coins;
+  /** Answers to Modif `choose` blocks, keyed "<entry id>#<choice id>" (see modif.ts). */
+  choices?: Record<string, string[]>;
 }
 
 export function newCharacter(): Character {
@@ -220,6 +223,10 @@ export function traits(e?: Entry): { name: string; md: string }[] {
       open = true;
     } else if (open && out.length) out[out.length - 1].md += "\n\n" + p;
   }
+  // Entries converted to Modif write each trait as its own heading (Modif §2.4)
+  if (e.effects?.length && e.type !== "Class" && e.type !== "Subclass") {
+    for (const s of e.sections) if (s.level === 2 && !/^Level \d+:/.test(s.title)) out.push({ name: s.title, md: s.md });
+  }
   return out;
 }
 
@@ -276,6 +283,12 @@ export interface Derived {
   speed: number;
   passivePerception: number;
   hitDie: number;
+  /** Lowest d20 roll that is a Critical Hit with weapons (Improved Critical: 19). */
+  critRange: number;
+  /** Attacks per Attack action (Extra Attack). */
+  attacksPerAction: number;
+  /** What the Modif engine worked out, when any entry has Effects. */
+  modif?: ModifResult;
 }
 
 export function finalScores(c: Character): Scores {
@@ -291,18 +304,22 @@ export function derive(
     items?: import("./inventory.ts").Item[];
     /** All classes with their levels (from multiclass.classInfos); defaults to the one class. */
     classes?: { cls: Entry; level: number; starting: boolean; skills: string[] }[];
+    /** From modif.computeModif: entries with Effects are read from their blocks, not their text. */
+    modif?: ModifResult;
   },
 ): Derived {
-  const scores = finalScores(c);
+  // ability scores after feats (Ability Score Improvement, Boons) when Modif has read them
+  const scores = lib.modif?.scores && Object.keys(lib.modif.scores).length ? lib.modif.scores : finalScores(c);
   const mods = Object.fromEntries(ABILITIES.map((a) => [a, mod(scores[a])]));
   const pb = profBonus(c.level);
-  const saveProf = abilityList(lib.cls?.fields["saving throw proficiencies"]);
+  const fx = lib.modif;
+  const saveProf = fx && lib.cls && fx.encoded.has(lib.cls.id) ? [...fx.saves] : abilityList(lib.cls?.fields["saving throw proficiencies"]);
   const saves = Object.fromEntries(
     ABILITIES.map((a) => [a, { prof: saveProf.includes(a), value: mods[a] + (saveProf.includes(a) ? pb : 0) }]),
   );
   const bgSkills = listOf(lib.background?.fields["skill proficiencies"] || "").filter((s) => SKILLS.includes(s));
   const classes = lib.classes?.length ? lib.classes : lib.cls ? [{ cls: lib.cls, level: c.level, starting: true, skills: c.classSkills }] : [];
-  const prof = new Set([...bgSkills, ...c.classSkills, ...c.extraSkills, ...classes.filter((k) => !k.starting).flatMap((k) => k.skills)]);
+  const prof = new Set([...bgSkills, ...c.classSkills, ...c.extraSkills, ...classes.filter((k) => !k.starting).flatMap((k) => k.skills), ...(fx?.skills || [])]);
   const skills = Object.fromEntries(
     SKILLS.map((s) => [s, { prof: prof.has(s), value: mods[SKILL_ABILITY[s]] + (prof.has(s) ? pb : 0) }]),
   );
@@ -355,16 +372,44 @@ export function derive(
     ac = 10 + mods.Dexterity + mods.Wisdom;
     acNote = "Unarmored Defense (10 + Dex + Wis)";
   }
+  // Modif: alternative AC formulas (best one wins) and AC bonuses
+  if (fx && !worn) {
+    const env = { level: c.level, total: c.level, pb, mods, scores, classLevels: {}, table: {} };
+    for (const b of fx.acBases) {
+      if (b.noShield && shield) continue;
+      const n = evalNumber(b.expr, env);
+      if (n !== null && n > ac) {
+        ac = n;
+        acNote = b.source;
+      }
+    }
+  }
   if (shield) {
     ac += 2;
     acNote += " + Shield";
   }
+  if (fx) {
+    const wornCat = worn ? worn.category.toLowerCase() : "";
+    for (const b of fx.acBonuses) {
+      if (b.noShield && shield) continue;
+      if (b.unarmored && worn) continue;
+      if (b.armor && !b.armor.some((k) => wornCat.startsWith(k))) continue;
+      ac += b.value;
+      acNote += ` + ${b.source.replace(/ \(.*\)$/, "")}`;
+    }
+  }
+  const plus = (to: string) => (fx?.bonuses || []).filter((b) => b.to === to).reduce((n, b) => n + b.value, 0);
   return {
-    scores, mods, pb, saves, skills, hp, ac, acNote,
-    initiative: mods.Dexterity,
-    speed: speedOf(lib.species),
-    passivePerception: 10 + skills.Perception.value,
+    scores, mods, pb, saves, skills,
+    hp: hp + plus("hp:max") + plus("hp:per-level") * c.level,
+    ac, acNote,
+    initiative: mods.Dexterity + plus("initiative"),
+    speed: speedOf(lib.species) + plus("speed:walk"),
+    passivePerception: 10 + skills.Perception.value + plus("passive:perception"),
     hitDie: hd,
+    critRange: fx?.critRange ?? 20,
+    attacksPerAction: fx?.attacksPerAction ?? 1,
+    modif: fx,
   };
 }
 

@@ -154,7 +154,7 @@ export default function Content() {
                         <tbody>
                           {r.entries.map((e, i) => {
                             const issues = r.suggestions.filter((s) => s.line >= (e.line || 0) && s.line < (r.entries[i + 1]?.line || 1e9));
-                            const auto = /## Effects/i.test(e.body);
+                            const auto = !!e.effects?.length;
                             return (
                               <tr key={i}>
                                 <td><strong>{e.name}</strong></td>

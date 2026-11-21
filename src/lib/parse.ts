@@ -23,8 +23,18 @@ export interface Entry {
   /** Markdown of the whole entry without the title and header block */
   body: string;
   sections: Section[];
+  /** Modif blocks (fenced YAML under `## Effects`), each tied to the heading it follows. */
+  effects?: EffectSource[];
+  /** The body with its Effects sections, for export. Only set when there are effects. */
+  raw?: string;
   file?: string;
   line?: number;
+}
+
+/** One `## Effects` section: the YAML text and the feature heading it belongs to (null = the entry itself). */
+export interface EffectSource {
+  feature: string | null;
+  yaml: string;
 }
 
 export interface Table {
@@ -104,26 +114,44 @@ export function parseEntry(md: string, pack: string, file?: string, line?: numbe
     }
     break;
   }
-  const bodyLines = lines.slice(i);
-  const body = bodyLines.join("\n").trim();
+  const allLines = lines.slice(i);
+  const raw = allLines.join("\n").trim();
 
-  // sections
+  // sections; "Effects" sections are data, so they leave the text and become `effects`
   const sections: Section[] = [];
+  const effects: EffectSource[] = [];
+  const bodyLines: string[] = [];
   let curSec: Section | null = null;
+  let curFx: EffectSource | null = null;
   let fence = false;
   const topLines: string[] = [];
-  for (const l of bodyLines) {
-    if (/^\s*(```|~~~)/.test(l)) fence = !fence;
-    const h = !fence && l.match(/^(#{2,6})\s+(.+?)\s*$/);
+  allLines.forEach((l, li) => {
+    const isFence = /^\s*(```|~~~)/.test(l);
+    const h = !fence && !isFence && l.match(/^(#{2,6})\s+(.+?)\s*$/);
+    if (isFence) fence = !fence;
+    // "## Effects" followed by a ```yaml fence is Modif data; any other "Effects" heading is ordinary text
+    if (h && /^effects$/i.test(h[2]) && /^\s*```ya?ml\s*$/i.test(allLines.slice(li + 1).find((x) => x.trim()) || "")) {
+      curFx = { feature: curSec ? curSec.title : null, yaml: "" };
+      effects.push(curFx);
+      return;
+    }
+    if (h) curFx = null;
+    if (curFx) {
+      if (!isFence) curFx.yaml += l + "\n";
+      return;
+    }
+    bodyLines.push(l);
     if (h) {
       curSec = { title: h[2], level: h[1].length, md: "" };
       sections.push(curSec);
-      continue;
+      return;
     }
     if (curSec) curSec.md += l + "\n";
     else topLines.push(l);
-  }
+  });
   for (const s of sections) s.md = s.md.trim();
+  for (const fx of effects) fx.yaml = fx.yaml.replace(/\s+$/, "") + "\n";
+  const body = effects.length ? bodyLines.join("\n").replace(/\n{3,}/g, "\n\n").trim() : raw;
 
   // creature-style fields after a stat table, and "Core X Traits" fields
   const scanFields = (text: string) => {
@@ -145,7 +173,12 @@ export function parseEntry(md: string, pack: string, file?: string, line?: numbe
 
   const type = fields["type"] ? stripMd(fields["type"]) : "Rule";
   const id = `${pack}:${slug(type)}/${fields["id"] ? slug(fields["id"]) : slug(title)}`;
-  return { id, pack, type, name: title, tags, tagline, fields, body, sections, file, line };
+  const e: Entry = { id, pack, type, name: title, tags, tagline, fields, body, sections, file, line };
+  if (effects.length) {
+    e.effects = effects;
+    e.raw = raw;
+  }
+  return e;
 }
 
 export function parseFile(text: string, pack: string, file?: string): Entry[] {

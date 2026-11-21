@@ -10,28 +10,70 @@ A Champion focuses on the development of martial prowess in a relentless pursuit
 
 Your attack rolls with weapons and Unarmed Strikes can score a Critical Hit on a roll of 19 or 20 on the d20.
 
+## Effects
+```yaml
+- crit-range: { value: 19, scope: { any: [ { weapon: {} }, { weapon: { unarmed: true } } ] } }
+```
+
 ## Level 3: Remarkable Athlete
 
 Thanks to your athleticism, you have Advantage on Initiative rolls and Strength (Athletics) checks.
 
 In addition, immediately after you score a Critical Hit, you can move up to half your Speed without provoking Opportunity Attacks.
 
+## Effects
+```yaml
+- advantage: { roll: [initiative, skill:athletics] }
+- trigger: { event: crit, offer: { move: { distance: half-speed, no-opportunity-attacks: true } } }
+```
+
 ## Level 7: Additional Fighting Style
 
 You gain another Fighting Style feat of your choice.
+
+## Effects
+```yaml
+- choose: { id: fighting-style-2, kind: feat, count: 1, from: { feat: { category: fighting-style } } }
+```
 
 ## Level 10: Heroic Warrior
 
 The thrill of battle drives you toward victory. During combat, you can give yourself Heroic Inspiration whenever you start your turn without it.
 
+## Effects
+```yaml
+- trigger: { event: start-of-turn, when: { in-combat: true, has: { resource: heroic-inspiration, is: 0 } },
+             auto: true, offer: { regain: { resource: heroic-inspiration, to: 1 } } }
+```
+
 ## Level 15: Superior Critical
 
 Your attack rolls with weapons and Unarmed Strikes can now score a Critical Hit on a roll of 18–20 on the d20.
+
+## Effects
+```yaml
+- crit-range: { value: 18, scope: { any: [ { weapon: {} }, { weapon: { unarmed: true } } ] } }
+```
 
 ## Level 18: Survivor
 
 You attain the pinnacle of resilience in battle, giving you these benefits.
 
-***Defy Death.*** You have Advantage on Death Saving Throws. Moreover, when you roll 18–20 on a Death Saving Throw, you gain the benefit of rolling a 20 on it.
+### Defy Death
 
-***Heroic Rally.*** At the start of each of your turns, you regain Hit Points equal to 5 plus your Constitution modifier if you are Bloodied and have at least 1 Hit Point.
+You have Advantage on Death Saving Throws. Moreover, when you roll 18–20 on a Death Saving Throw, you gain the benefit of rolling a 20 on it.
+
+## Effects
+```yaml
+- advantage: { roll: death-save }
+- treat-roll: { roll: death-save, range: [18, 20], as: 20 }
+```
+
+### Heroic Rally
+
+At the start of each of your turns, you regain Hit Points equal to 5 plus your Constitution modifier if you are Bloodied and have at least 1 Hit Point.
+
+## Effects
+```yaml
+- trigger: { event: start-of-turn, when: { hp: bloodied, not: { hp: zero } }, auto: true, offer: { heal: 5 + mod:con } }
+```

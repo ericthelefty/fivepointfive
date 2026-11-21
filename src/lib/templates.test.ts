@@ -43,10 +43,11 @@ import guide from "../../docs/CONTENT_FORMAT.md?raw";
 
 describe("format guide worked example", () => {
   it("the Effects example imports with every line understood", () => {
-    const m = guide.match(/```markdown\n(# Barkskin Hide[\s\S]*?)```/);
+    const m = guide.match(/````markdown\n(# Barkskin Hide[\s\S]*?)\n````/);
     expect(m).toBeTruthy();
     const r = checkFile("feat.md", m![1], "t", KNOWN);
     expect(r.fixes).toEqual([]);
     expect(r.suggestions).toEqual([]);
+    expect(r.entries[0].effects?.map((f) => f.feature)).toEqual(["Ability Score Increase", "Bark Armor", "Rooted"]);
   });
 });

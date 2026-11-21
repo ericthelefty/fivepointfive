@@ -64,6 +64,7 @@ export const CONDITION_EFFECTS: Record<string, { attackDis?: boolean; checkDis?:
 export interface RollContext {
   kind: "check" | "save" | "attack" | "init" | "death";
   ability?: string;
+  skill?: string;
 }
 
 /** Advantage/Disadvantage sources from conditions, and the exhaustion penalty. */

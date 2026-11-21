@@ -175,52 +175,70 @@ For now, attack rolls and Armor Class on the play sheet come from the SRD's Weap
 
 ## 4. Automating rules (Effects) — optional
 
-Every entry works without this section: players read the rules text and apply it by hand. An `## Effects` section restates the rules in short, fixed phrases the app can understand, so a future version can do the math for you.
+Every entry works without this section: players read the rules text and apply it by hand. An `## Effects` section restates the rules as **Modif** blocks, a small YAML format the app can act on. The full list of blocks is in the Modif spec (`docs/MODIF.md`).
 
-**What happens today:** when you import, the app checks each Effects line and flags any it can't understand, so your files are ready. It doesn't apply effects to the character sheet yet. The phrasebook may still grow and change as it's used on real files.
+**Where they go.** Put a `## Effects` heading right after the text of the feature it belongs to, then a fenced `yaml` block. Each list item (`- `) is one block. A class gives each `Level N:` feature its own Effects; an entry with one rule has one Effects section. The app hides Effects from the rules text that players read.
 
-Write each effect as a bullet (`- `) under `## Effects`, using these phrases:
+**One heading per trait.** If a feature packs several traits into bold-italic run-ins (`***Rooted.*** You have…`), write each one as its own heading instead, with its Effects under it.
 
-| Phrase | Example |
+**What happens today:** the importer checks every block and flags typos and blocks it doesn't know. On the sheet, the app applies proficiencies, choices (skills, tools, feats, weapon masteries), ability score increases (including the feats taken at Ability Score Improvement levels), limited-use features and their recovery, healing actions, AC formulas and AC bonuses, Initiative and Speed bonuses, Advantage on rolls, critical-hit range, Extra Attack and death-save rules. Anything else in your Effects is listed on the sheet as a reminder, and the rules text still applies.
+
+Common blocks:
+
+| Block | Example |
 |---|---|
-| `+N <ability or stat>` | `+1 Constitution (max 20)`, `+1 AC`, `+10 Speed` |
-| `proficiency in <skill/save/tool/armor/weapon>` | `proficiency in Athletics` |
-| `expertise in <skill>` | `expertise in Stealth` |
-| `advantage on <roll>` / `disadvantage on <roll>` | `advantage on Initiative` |
-| `resistance to <damage type>` | `resistance to Fire damage` |
-| `AC = <formula>` | `AC = 10 + Dex + Con` |
-| `<resource>: N uses per <rest>` | `Rage: 2 uses per Long Rest`, or `Rage: Rages uses per Long Rest` (see below) |
-| `choose N <thing> from <list>` | `choose 2 skills from Arcana, History, Religion` |
-| `grant <entry>` | `grant Magic Initiate (Cleric)` |
+| `proficiency` | `- proficiency: [skill:athletics, save:con, armor:light, tool:smiths-tools]` |
+| `choose` | `- choose: { id: skills, kind: skill, count: 2, grants: proficiency, from: [arcana, history, religion] }` |
+| `bonus` | `- bonus: { to: ac, value: 1, when: { armor: [light, medium, heavy] } }` |
+| `base` | `- base: { to: ac, value: 10 + mod:dex + mod:con, when: { armor: none } }` |
+| `advantage` | `- advantage: { roll: initiative }` |
+| `resource` | `- resource: { id: rage, max: table:Rages, reset: long, partial: { at: short, amount: 1 } }` |
+| `action` | `- action: { id: second-wind, activation: bonus, cost: { resource: second-wind }, heal: 1d10 + level:fighter }` |
+| `crit-range`, `extra-attack` | `- crit-range: { value: 19 }`, `- extra-attack: { total: 2 }` |
+| `score` | `- score: { con: 1 }` |
 
-Any phrase can end with a condition: `while not wearing armor`, `while raging`, `at level 5`.
-
-**Using a class table column instead of a number.** Where a number changes with level, you can write the name of a column from the class's progression table. The Barbarian table has a column called **Rages** (2 at level 1, 3 at level 3, and so on), so `Rage: Rages uses per Long Rest` means "as many uses as the Rages column shows for your level."
+**Values** can be numbers or short formulas: `prof` (Proficiency Bonus), `mod:dex`, `level:fighter`, `max(1, mod:cha)`, dice such as `1d10`, and `table:<column>` for a column of the class's progression table. The Barbarian table has a column called **Rages**, so `max: table:Rages` means "as many as the Rages column shows for your level."
 
 ### A worked example
 
 A homebrew feat with its rules text and the matching Effects:
 
-```markdown
+````markdown
 # Barkskin Hide
 **Type:** Feat
 *General Feat (Prerequisite: Level 4+)*
 
 Your skin hardens like old bark.
 
-***Ability Score Increase.*** Increase your Constitution score by 1, to a maximum of 20.
+## Ability Score Increase
 
-***Bark Armor.*** While you aren't wearing armor, your base Armor Class equals 10 plus your Dexterity and Constitution modifiers.
-
-***Rooted.*** You have Advantage on saving throws to avoid being knocked Prone.
+Increase your Constitution score by 1, to a maximum of 20.
 
 ## Effects
-- +1 Constitution (max 20)
-- AC = 10 + Dex + Con while not wearing armor
-- advantage on saving throws against Prone
+```yaml
+- score: { con: 1 }
 ```
 
-The rules text is what players read; the Effects lines say the same thing in phrasebook form. If the two disagree, the rules text is what counts.
+## Bark Armor
+
+While you aren't wearing armor, your base Armor Class equals 10 plus your Dexterity and Constitution modifiers.
+
+## Effects
+```yaml
+- base: { to: ac, value: 10 + mod:dex + mod:con, when: { armor: none } }
+```
+
+## Rooted
+
+You have Advantage on saving throws to avoid being knocked Prone.
+
+## Effects
+```yaml
+- advantage: { roll: save:all, scope: { against: { condition: prone } } }
+```
+````
+
+The rules text is what players read; the Effects say the same thing as data. If the two disagree, the rules text is what counts.
 
 ---
 

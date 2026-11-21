@@ -19,6 +19,7 @@ import {
 } from "../lib/play.ts";
 import { catalog, inventoryOf, magicInfo, type Coins, type Item } from "../lib/inventory.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
+import { advantageFor, computeModif, statusOf, treatRoll, type ModifAction } from "../lib/modif.ts";
 import { casterKind, classFeatures, classInfos, classLabel, hitDicePools, spellSlots, weaponProficiencyEntry, type ClassInfo, type Slot } from "../lib/multiclass.ts";
 
 type Tab = "actions" | "spells" | "features" | "conditions" | "inventory" | "notes";
@@ -108,7 +109,14 @@ export default function Sheet() {
   if (!c) return chars.ready ? <div className="panel">Character not found. <Link to="/">Back to characters</Link></div> : <p className="muted">Loading…</p>;
 
   const p = playOf(c);
-  const d = derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos });
+  const fx = computeModif({ c, classes: infos, species: sp, background: bg, entries: content.entries, byId: content.byId });
+  const d = derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos, modif: fx });
+  /** "Automated" / "Partly automated" tag for a feature whose Effects the sheet reads. */
+  const autoTag = (entryId: string | undefined, feature: string) => {
+    const st = entryId ? statusOf(fx, entryId, feature) : undefined;
+    if (!st || st === "not automated") return null;
+    return <span className={`tag ${st === "automated" ? "ok" : "plain"}`} style={{ marginLeft: 8 }} title={st === "automated" ? "The sheet applies this for you." : "The sheet applies part of this; see “Apply by hand”."}>{st === "automated" ? "Automated" : "Partly automated"}</span>;
+  };
   const hpMax = d.hp;
   const hpCur = Math.min(hpMax, p.hpCur ?? hpMax);
   const speed = p.conditions.some((k) => CONDITION_EFFECTS[k]?.speed0) ? 0 : d.speed;
@@ -126,7 +134,14 @@ export default function Sheet() {
   const spellAtk = casters[0]?.atk ?? 0;
   const slots: Slot[] = spellSlots(infos, content.entries);
   const slotKey = (s: Slot) => (s.pact ? `p${s.level}` : String(s.level));
-  const resources = infos.flatMap((i) => classResources(c, i.cls, i.level).map((r) => (i.starting ? r : { ...r, key: `${i.cls.name}:${r.key}` })));
+  // classes with Effects get their resources from Modif blocks; others from their class table
+  const resources = [
+    ...infos.flatMap((i) => (fx.encoded.has(i.cls.id) ? [] : classResources(c, i.cls, i.level).map((r) => (i.starting ? r : { ...r, key: `${i.cls.name}:${r.key}` })))),
+    ...fx.resources.map((r) => {
+      const owner = infos.find((i) => r.entryId === i.cls.id || r.entryId === i.sub?.id);
+      return owner && !owner.starting ? { ...r, key: `${owner.cls.name}:${r.key}` } : r;
+    }),
+  ];
   // Hit Dice, pooled by die size (older characters stored one count)
   const pools = hitDicePools(infos);
   const hdUsedOf = (die: number) => (p.hdUsedBy ? p.hdUsedBy[die] || 0 : die === pools[0]?.die ? p.hdUsed : 0);
@@ -183,6 +198,7 @@ export default function Sheet() {
       return null;
     }
     const bar = mode;
+    cm.adv.push(...advantageFor(fx, ctx));
     const m = combineModes(bar === "adv" || cm.adv.length > 0, bar === "dis" || cm.dis.length > 0);
     const extra = takeBonus();
     const r = d20(bonus - cm.penalty, m, extra ? extra.replace(/^\+/, "") : undefined);
@@ -220,18 +236,21 @@ export default function Sheet() {
     const extra = takeBonus();
     const r = d20(a.toHit - cm.penalty, m, extra ? extra.replace(/^\+/, "") : undefined);
     const dmg = versatile && a.versatile ? a.versatile : a.damage;
+    // Improved Critical and similar: a lower natural roll is also a Critical Hit
+    const crit = r.kept >= d.critRange;
+    const critNote = crit && r.kept < 20 ? ` (${d.critRange}–20)` : "";
     const why = [...(mode !== "normal" ? [mode === "adv" ? "Advantage (roll bar)" : "Disadvantage (roll bar)"] : []), ...cm.adv.map((x) => `Advantage: ${x}`), ...cm.dis.map((x) => `Disadvantage: ${x}`)];
     log(
       {
         title: `${a.name}${versatile ? " (two hands)" : ""}: attack`,
         total: String(r.total),
-        cls: r.crit ? "crit" : r.fumble ? "fumble" : "atk",
+        cls: crit ? "crit" : r.fumble ? "fumble" : "atk",
         detail:
           `d20 [${r.rolls.map((x) => (r.rolls.length > 1 && x === r.kept ? `<b>${x}</b>` : x)).join(", ")}] ${fmt(a.toHit)}${cm.penalty ? ` −${cm.penalty} exhaustion` : ""}${r.extra ? ` ${esc(describeRolled(r.extra))}` : ""}` +
           (why.length ? `<div>${esc(why.join(" · "))}</div>` : "") +
-          (r.crit ? `<div class="vd crit">Critical hit!</div>` : r.fumble ? `<div class="vd bad">Natural 1: miss</div>` : ""),
+          (crit ? `<div class="vd crit">Critical hit!${critNote}</div>` : r.fumble ? `<div class="vd bad">Natural 1: miss</div>` : ""),
       },
-      [{ label: r.crit ? `Roll crit damage (${dmg})` : `Roll damage (${dmg})`, run: () => rollDamage(a.name, dmg, r.crit, a.type) }],
+      [{ label: crit ? `Roll crit damage (${dmg})` : `Roll damage (${dmg})`, run: () => rollDamage(a.name, dmg, crit, a.type) }],
     );
   };
 
@@ -284,18 +303,22 @@ export default function Sheet() {
   };
   const deathSave = () => {
     const extra = takeBonus();
-    const r = d20(0, mode, extra ? extra.replace(/^\+/, "") : undefined);
+    const adv = advantageFor(fx, { kind: "death" });
+    const r = d20(0, combineModes(mode === "adv" || adv.length > 0, mode === "dis"), extra ? extra.replace(/^\+/, "") : undefined);
     let { deathS: s, deathF: f } = p;
-    let verdict = "";
+    let verdict = adv.length ? `<div>${esc(adv.map((x) => `Advantage: ${x}`).join(" · "))}</div>` : "";
     let hp = hpCur;
-    if (r.kept === 20) { hp = 1; s = 0; f = 0; verdict = `<div class="vd crit">Natural 20: you regain 1 HP</div>`; }
-    else if (r.kept === 1) { f = Math.min(3, f + 2); verdict = `<div class="vd bad">Natural 1: two failures</div>`; }
-    else if (r.total >= 10) { s = Math.min(3, s + 1); verdict = `<div class="vd ok">Success</div>`; }
-    else { f = Math.min(3, f + 1); verdict = `<div class="vd bad">Failure</div>`; }
+    const treat = treatRoll(fx, "death-save", r.kept);
+    if (treat) verdict += `<div>${esc(treat.source)}: your ${r.kept} counts as a ${treat.as}</div>`;
+    const kept = treat ? treat.as : r.kept;
+    if (kept === 20) { hp = 1; s = 0; f = 0; verdict += `<div class="vd crit">${r.kept === 20 ? "Natural 20" : "Counts as a 20"}: you regain 1 HP</div>`; }
+    else if (kept === 1) { f = Math.min(3, f + 2); verdict += `<div class="vd bad">Natural 1: two failures</div>`; }
+    else if (r.total >= 10) { s = Math.min(3, s + 1); verdict += `<div class="vd ok">Success</div>`; }
+    else { f = Math.min(3, f + 1); verdict += `<div class="vd bad">Failure</div>`; }
     if (s >= 3) verdict += `<div class="vd ok">Three successes: you’re Stable</div>`;
     if (f >= 3) verdict += `<div class="vd bad">Three failures: you die</div>`;
     setPlay({ deathS: s >= 3 ? 0 : s, deathF: f, hpCur: hp });
-    log({ title: "Death save", total: String(r.total), cls: r.kept === 20 ? "crit" : r.kept === 1 ? "fumble" : "test", detail: `d20 [${r.rolls.join(", ")}]${r.extra ? ` ${esc(describeRolled(r.extra))}` : ""}${verdict}` });
+    log({ title: "Death save", total: String(r.total), cls: kept === 20 ? "crit" : kept === 1 ? "fumble" : "test", detail: `d20 [${r.rolls.join(", ")}]${r.extra ? ` ${esc(describeRolled(r.extra))}` : ""}${verdict}` });
   };
 
   // --------------------------------------------------------------- rests
@@ -314,8 +337,31 @@ export default function Sheet() {
       hdLeft > 0 ? [{ label: "Spend a Hit Die", run: () => spendHitDie() }] : undefined);
   };
   const longRest = () => {
-    setPlay({ hpCur: hpMax, hpTemp: 0, hdUsed: 0, hdUsedBy: {}, deathS: 0, deathF: 0, slotsUsed: {}, resUsed: {}, exhaustion: Math.max(0, p.exhaustion - 1), concentration: undefined });
-    log({ title: "Long rest", total: "", cls: "event", detail: `HP restored to ${hpMax}. All Hit Dice, spell slots and class resources regained.${p.exhaustion ? " Exhaustion reduced by 1." : ""}` });
+    const inspire = fx.onLongRest.find((x) => x.regain === "heroic-inspiration");
+    setPlay({ hpCur: hpMax, hpTemp: 0, hdUsed: 0, hdUsedBy: {}, deathS: 0, deathF: 0, slotsUsed: {}, resUsed: {}, exhaustion: Math.max(0, p.exhaustion - 1), concentration: undefined, ...(inspire ? { inspiration: true } : {}) });
+    log({ title: "Long rest", total: "", cls: "event", detail: `HP restored to ${hpMax}. All Hit Dice, spell slots and class resources regained.${p.exhaustion ? " Exhaustion reduced by 1." : ""}${inspire && !p.inspiration ? ` ${esc(inspire.source)}: you gain Heroic Inspiration.` : ""}` });
+  };
+
+  // ------------------------------------------------------- feature actions
+  const runFeature = (a: ModifAction) => {
+    const res = a.resource ? resources.find((r) => r.key === a.resource || r.key.endsWith(`:${a.resource}`)) : undefined;
+    const used = res ? p.resUsed[res.key] || 0 : 0;
+    if (res && used >= res.max) {
+      log({ title: a.name, total: "—", cls: "info", detail: `No uses of ${esc(res.name)} left. They come back on a ${res.recover === "long" ? "Long" : "Short or Long"} Rest.` });
+      return;
+    }
+    const patch: Partial<PlayState> = res ? { resUsed: { ...p.resUsed, [res.key]: used + 1 } } : {};
+    const left = res ? ` · ${res.max - used - 1} of ${res.max} uses left` : "";
+    if (a.heal) {
+      const r = roll(a.heal);
+      if (!r) return;
+      const cur = Math.min(hpMax, hpCur + Math.max(0, r.total));
+      patch.hpCur = cur;
+      log({ title: `${a.name}`, total: `+${cur - hpCur}`, cls: "heal", detail: `${esc(describeRolled(r))} · HP ${hpCur} → ${cur}${left}` });
+    } else {
+      log({ title: a.name, total: "", cls: "event", detail: `${esc(a.text || "")}${left ? `<div>${left.slice(3)}</div>` : ""}` });
+    }
+    setPlay(patch);
   };
 
   // -------------------------------------------------------------- spells
@@ -446,7 +492,7 @@ export default function Sheet() {
             <section className="spanel skills">
               <h3>Skills</h3>
               {SKILLS.map((s) => (
-                <button key={s} className="sk" onClick={() => test(`${s} check`, d.skills[s].value, { kind: "check", ability: SKILL_ABILITY[s] })}>
+                <button key={s} className="sk" onClick={() => test(`${s} check`, d.skills[s].value, { kind: "check", ability: SKILL_ABILITY[s], skill: s })}>
                   <span className={`dot ${d.skills[s].prof ? "p1" : ""}`} />
                   <span className="skn">{s}{skillTag(s)}</span>
                   <span className="ska">{ABBR[SKILL_ABILITY[s]]}</span>
@@ -530,6 +576,7 @@ export default function Sheet() {
 
               {tab === "actions" && (
                 <div className="spanel" style={{ overflowX: "auto" }}>
+                  {d.attacksPerAction > 1 && <p className="note" style={{ marginTop: 0 }}>When you take the Attack action, you attack <b>{d.attacksPerAction} times</b>.</p>}
                   <table className="atks">
                     <thead><tr><th>Attack</th><th>To hit</th><th>Damage</th><th></th></tr></thead>
                     <tbody>
@@ -549,7 +596,25 @@ export default function Sheet() {
                       ))}
                     </tbody>
                   </table>
-                  <p className="note" style={{ marginTop: 10 }}>Attacks come from the weapons equipped in your <button className="linkish" onClick={() => setTab("inventory")}>Inventory</button>.</p>
+                  <p className="note" style={{ marginTop: 10 }}>Attacks come from the weapons equipped in your <button className="linkish" onClick={() => setTab("inventory")}>Inventory</button>.{d.critRange < 20 ? ` Your weapon attacks score a Critical Hit on a ${d.critRange}–20.` : ""}</p>
+                  {fx.actions.length > 0 && (
+                    <table className="atks" style={{ marginTop: 14 }}>
+                      <thead><tr><th>Feature</th><th>Uses</th><th>Effect</th><th></th></tr></thead>
+                      <tbody>
+                        {fx.actions.map((a) => {
+                          const res = a.resource ? resources.find((r) => r.key === a.resource || r.key.endsWith(`:${a.resource}`)) : undefined;
+                          return (
+                            <tr key={a.id}>
+                              <td><b>{a.name}</b><div className="note">{a.activation}</div></td>
+                              <td>{res ? `${res.max - (p.resUsed[res.key] || 0)} / ${res.max}` : "—"}</td>
+                              <td>{a.heal ? `Regain ${a.heal} HP` : <span className="note">{a.text}</span>}</td>
+                              <td><div className="rowbtn"><button className="sbtn sm" onClick={() => runFeature(a)} disabled={!!res && (p.resUsed[res.key] || 0) >= res.max}>Use</button></div></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               )}
 
@@ -577,13 +642,13 @@ export default function Sheet() {
                 <div>
                   {allFeats.map((f, i) => (
                     <details key={`f${i}`} className="feat">
-                      <summary>{f.name} <span className="mut">· {f.src === f.classLevel.replace(/ \d+$/, "") ? f.classLevel : `${f.src} · ${f.classLevel}`}</span></summary>
+                      <summary>{f.name} <span className="mut">· {f.src === f.classLevel.replace(/ \d+$/, "") ? f.classLevel : `${f.src} · ${f.classLevel}`}</span>{autoTag(infos.flatMap((i) => [i.cls, i.sub]).find((e) => e?.name === f.src)?.id, f.name)}</summary>
                       <Md md={f.md} />
                     </details>
                   ))}
                   {traits(sp).map((t, i) => (
                     <details key={`t${i}`} className="feat">
-                      <summary>{t.name} <span className="mut">· {sp!.name}</span></summary>
+                      <summary>{t.name} <span className="mut">· {sp!.name}</span>{autoTag(sp?.id, t.name)}</summary>
                       <Md md={t.md} />
                     </details>
                   ))}
@@ -594,8 +659,20 @@ export default function Sheet() {
                   )}
                   {feat && (
                     <details className="feat">
-                      <summary>{feat.name} <span className="mut">· {bg!.name} feat</span></summary>
+                      <summary>{feat.name} <span className="mut">· {bg!.name} feat</span>{autoTag(feat.id, feat.name)}</summary>
                       <Md md={feat.body} />
+                    </details>
+                  )}
+                  {fx.featPicks.filter((fp) => fp.feat.id !== feat?.id).map(({ feat: f, slot, level, className }) => (
+                    <details key={slot || f.id} className="feat">
+                      <summary>{f.name} <span className="mut">· {level ? `${className || ""} ${level} feat`.trim() : "feat"}</span>{autoTag(f.id, f.name)}</summary>
+                      <Md md={f.body} />
+                    </details>
+                  ))}
+                  {fx.reminders.length > 0 && (
+                    <details className="feat">
+                      <summary>Apply by hand <span className="mut">· {fx.reminders.length} rules the sheet doesn’t track</span></summary>
+                      <ul className="note">{fx.reminders.map((r, i) => <li key={i}><b>{r.feature}</b>{r.feature !== r.source ? ` (${r.source})` : ""}: {r.text}</li>)}</ul>
                     </details>
                   )}
                 </div>

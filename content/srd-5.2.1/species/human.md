@@ -7,8 +7,34 @@
 
 As a Human, you have these special traits.
 
-***Resourceful.*** You gain Heroic Inspiration whenever you finish a Long Rest.
+## Effects
+```yaml
+- choose: { id: size, kind: size, count: 1, from: [medium, small] }
+```
 
-***Skillful.*** You gain proficiency in one skill of your choice.
+## Resourceful
 
-***Versatile.*** You gain an Origin feat of your choice (see “Feats”). Skilled is recommended.
+You gain Heroic Inspiration whenever you finish a Long Rest.
+
+## Effects
+```yaml
+- trigger: { event: { rest: long }, auto: true, offer: { regain: { resource: heroic-inspiration, to: 1 } } }
+```
+
+## Skillful
+
+You gain proficiency in one skill of your choice.
+
+## Effects
+```yaml
+- choose: { id: skillful, kind: skill, count: 1, grants: proficiency, from: any }
+```
+
+## Versatile
+
+You gain an Origin feat of your choice (see “Feats”). Skilled is recommended.
+
+## Effects
+```yaml
+- choose: { id: versatile, kind: feat, count: 1, from: { feat: { category: origin } }, default: $srd/feats/skilled }
+```
