@@ -1,4 +1,4 @@
-# entries: the 4 SRD backgrounds. Ability Scores, Feat, Skill Proficiencies and Tool Proficiency are header fields
+# entries: the SRD backgrounds not yet in the pack (Soldier is converted). Ability Scores, Feat, Skill Proficiencies and Tool Proficiency are header fields
 # when fixed; only the open choices and the equipment need blocks.
 acolyte:
   # **Feat:** Magic Initiate (Cleric) is a header field; the parenthesis pre-answers the feat's mi-list choice (§2.3)
@@ -16,10 +16,4 @@ sage:
   - equipment:
       options:
         - { id: a, items: [quarterstaff, calligraphers-supplies, book, { parchment: 8 }, robe], gp: 8 }
-        - { id: b, gp: 50 }
-soldier:
-  - choose: { id: gaming-set, kind: tool, count: 1, grants: proficiency, from: { tool: { category: gaming-set } } }
-  - equipment:
-      options:
-        - { id: a, items: [spear, shortbow, { arrows: 20 }, choice:gaming-set, healers-kit, quiver, travelers-clothes], gp: 14 }
         - { id: b, gp: 50 }
