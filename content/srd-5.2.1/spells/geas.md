@@ -16,3 +16,10 @@ You can issue any command you choose, short of an activity that would result in 
 A *Remove Curse, Greater Restoration*, or *Wish* spell ends this spell.
 
 ***Using a Higher-Level Spell Slot.*** If you use a level 7 or 8 spell slot, the duration is 365 days. If you use a level 9 spell slot, the spell lasts until it is ended by one of the spells mentioned above.
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, save: { ability: wis }, apply: { condition: charmed, duration: spell,
+            text: "Takes 5d10 Psychic damage (once a day) when it acts against your command." } }
+- scaling: { slots: { "7-8": { duration: { amount: 365, unit: day } }, "9": { duration: until-dispelled } } }
+```

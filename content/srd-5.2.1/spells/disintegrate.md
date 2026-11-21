@@ -14,3 +14,10 @@ A creature targeted by this spell makes a Dexterity saving throw. On a failed sa
 This spell automatically disintegrates a Large or smaller nonmagical object or a creation of magical force. If such a target is Huge or larger, this spell disintegrates a 10-foot-Cube portion of it.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 3d6 for each spell slot level above 6.
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, save: { ability: dex }, damage: { dice: 10d6 + 40, type: force },
+            text: "Reduced to 0 HP: disintegrated. Auto-disintegrates Large or smaller nonmagical objects and magical force." }
+- scaling: { per-slot-above: 6, add: { damage: 3d6 } }
+```

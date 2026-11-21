@@ -28,3 +28,11 @@ Any spell you cast from the hat uses your spell save DC and spell attack bonus.
 | 86–90 | A Hostile Swarm of Bats flies out of the hat, occupies your space, and attacks you. |
 | 91–95 | A vertical, 10-foot-diameter, two-way portal to another plane of existence opens in an unoccupied space within 30 feet of you and remains open until the end of your next turn. The GM determines where it leads. |
 | 96–00 | You pull a magic item out of the hat. Roll 1d6 to determine the item’s rarity: on a 1–3, Common; on a 4–5, Uncommon; on a 6, Rare. The GM chooses the item, which disappears after 1 hour if it’s not consumed or destroyed before then. |
+
+## Effects
+```yaml
+- spellcasting: { focus: self, class: wizard }
+- resource: { id: unknown-spell, max: 1, reset: short }
+- action: { cost: { resource: $#unknown-spell, slot: chosen }, cast: { choose-on-use: { spell: { list: wizard, slot: available, not: { known: true } } } },
+            check: { skill: arcana, dc: 10 + spell.level }, on-failure: { roll-table: { dice: 1d100, table: Hat of Many Spells } } }
+```

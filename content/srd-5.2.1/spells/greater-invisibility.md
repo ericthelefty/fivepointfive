@@ -8,3 +8,8 @@
 **Duration:** Concentration, up to 1 minute
 
 A creature you touch has the Invisible condition until the spell ends.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1 }, apply: { condition: invisible, duration: spell } }
+```

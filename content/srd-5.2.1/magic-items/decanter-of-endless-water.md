@@ -12,3 +12,9 @@ You can take a Magic action to remove the stopper and issue one of three command
 **Fountain.** The decanter produces 5 gallons of water.
 
 **Geyser.** The decanter produces 30 gallons of water that gushes forth in a Line 30 feet long and 1 foot wide. If you’re holding the decanter, you can aim the geyser in one direction (no action required). One creature of your choice in the Line must succeed on a DC 13 Strength saving throw or take 1d4 Bludgeoning damage and have the Prone condition. Instead of a creature, you can target one object in the Line that isn’t being worn or carried and that weighs no more than 200 pounds. The object is knocked over by the geyser.
+
+## Effects
+```yaml
+- action: { activation: magic, choose-one: [ { id: splash, label: Splash }, { id: fountain, label: Fountain },
+              { id: geyser, label: Geyser, area: { shape: line, size: 30, width: 1 }, save: { ability: str, dc: 13 }, on-failure: { damage: { dice: 1d4, type: bludgeoning }, apply: { condition: prone } } } ] }
+```

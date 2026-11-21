@@ -10,3 +10,10 @@
 You touch a creature and grant it a measure of protection from death. The first time the target would drop to 0 Hit Points before the spell ends, the target instead drops to 1 Hit Point, and the spell ends.
 
 If the spell is still in effect when the target is subjected to an effect that would kill it instantly without dealing damage, that effect is negated against the target, and the spell ends.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1 } }
+- target-effects: { effects: [ { trigger: { event: zero-hp, auto: true, offer: { set-hp: 1, end-effect: true } } },
+                               { trait: { text: "The first instant-death effect without damage is negated, and the spell ends." } } ] }
+```

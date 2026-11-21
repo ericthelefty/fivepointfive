@@ -10,3 +10,8 @@ Opening the bottle causes thick smoke to billow out, forming a cloud that fills 
 Each minute the bottle remains open, the size of the Emanation increases by 10 feet until it reaches its maximum size of 120 feet.
 
 Closing the bottle causes the cloud to become fixed in place until it disperses after 10 minutes. A strong wind (such as that created by the *Gust of Wind* spell) disperses the cloud after 1 minute.
+
+## Effects
+```yaml
+- toggle: { activation: magic, effects: [ { zone: { area: { shape: emanation, size: 60, grows: { per: minute, add: 10, max: 120 } }, effects: [ { trait: [heavily-obscured] } ] } } ] }
+```

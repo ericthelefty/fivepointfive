@@ -24,3 +24,20 @@ This rod has a flanged head, and it functions as a magic Mace that grants a +3 b
 ***Paralyze.*** When you hit a creature with a melee attack using the rod, you can force the target to make a DC 17 Constitution saving throw. On a failed save, the target has the Paralyzed condition for 1 minute. The target repeats the save at the end of each of its turns, ending the effect on a success. Once used, this property can’t be used again until the next dawn.
 
 ***Terrify.*** While holding the rod, you can take a Magic action to force each creature you can see within 30 feet of yourself to make a DC 17 Wisdom saving throw. On a failed save, a target has the Frightened condition for 1 minute. A Frightened target repeats the save at the end of each of its turns, ending the effect on itself on a success. Once used, this property can’t be used again until the next dawn.
+
+## Effects
+```yaml
+- bonus: { to: [attack, damage], value: 3, scope: { weapon: { id: self } } }
+- action: { activation: bonus, choose-one: [
+              { id: button-1, label: Flame Blade, effects: [ { trait: { light: { bright: 40, dim: 40 } } }, { trigger: { event: hit, scope: { weapon: { id: self } }, auto: true, offer: { damage: { dice: 2d6, type: fire } } } } ] },
+              { id: button-2, label: Battleaxe }, { id: button-3, label: Spear }, { id: button-4, label: Climbing Pole },
+              { id: button-5, label: Battering Ram, effects: [ { bonus: { to: check:str, value: 10, text: "To break through doors and walls" } } ] },
+              { id: button-6, label: Compass } ] }
+- resource: { id: lordly-powers, max: 1, reset: dawn, per-property: true }
+- trigger: { event: hit, scope: { weapon: { id: self } }, label: Drain Life, offer: { cost: { resource: $#lordly-powers }, save: { ability: con, dc: 17 },
+             on-failure: { damage: { dice: 4d6, type: necrotic }, heal-self: half-damage } } }
+- trigger: { event: hit, scope: { weapon: { id: self } }, label: Paralyze, offer: { cost: { resource: $#lordly-powers }, save: { ability: str, dc: 17 },
+             on-failure: { apply: { condition: paralyzed, duration: { amount: 1, unit: minute }, save-ends: end-of-turn } } } }
+- action: { activation: magic, label: Terrify, cost: { resource: $#lordly-powers }, area: { shape: emanation, size: 30 }, save: { ability: wis, dc: 17 },
+            on-failure: { apply: { condition: frightened, duration: { amount: 1, unit: minute }, save-ends: end-of-turn } } }
+```

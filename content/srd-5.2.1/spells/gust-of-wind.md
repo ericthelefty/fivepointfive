@@ -14,3 +14,9 @@ Any creature in the Line must spend 2 feet of movement for every 1 foot it moves
 The gust disperses gas or vapor, and it extinguishes candles and similar unprotected flames in the area. It causes protected flames, such as those of lanterns, to dance wildly and has a 50 percent chance to extinguish them.
 
 As a Bonus Action on your later turns, you can change the direction in which the Line blasts from you.
+
+## Effects
+```yaml
+- zone: { area: { shape: line, size: 60, width: 10 }, event: [cast, end-of-turn], save: { ability: str }, on-failure: { move: { target: 15, direction: away } },
+          moves: { activation: bonus, text: "change direction" }, effects: [ { trait: { text: "Moving toward you costs 2 feet per foot." } } ] }
+```

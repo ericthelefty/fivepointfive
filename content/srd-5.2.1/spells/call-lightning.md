@@ -16,3 +16,10 @@ Until the spell ends, you can take a Magic action to call down lightning in that
 If you’re outdoors in a storm when you cast this spell, the spell gives you control over that storm instead of creating a new one. Under such conditions, the spell’s damage increases by 1d10.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d10 for each spell slot level above 3.
+
+## Effects
+```yaml
+- action: { area: { shape: sphere, size: 5 }, save: { ability: dex, success: half }, damage: { dice: 3d10, type: lightning },
+            repeat: { activation: magic }, text: "If cast outdoors in a storm, the damage increases by 1d10." }
+- scaling: { per-slot-above: 3, add: { damage: 1d10 } }
+```

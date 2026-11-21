@@ -8,3 +8,10 @@ Found in a small container, this powder resembles *Dust of Disappearance*, and *
 As a Utilize action, you can throw the dust into the air, forcing yourself and every creature in a 30-foot Emanation originating from you to make a DC 15 Constitution saving throw. Constructs, Elementals, Oozes, Plants, and Undead succeed on the save automatically.
 
 On a failed save, a creature begins sneezing uncontrollably; it has the Incapacitated condition and is suffocating. The creature repeats the save at the end of each of its turns, ending the effect on itself on a success. The effect also ends on any creature targeted by a *Lesser Restoration* spell.
+
+## Effects
+```yaml
+- action: { activation: utilize, consume: true, area: { shape: emanation, size: 30, include-self: true },
+            save: { ability: con, dc: 15, auto-succeed: { creature: [construct, elemental, ooze, plant, undead] } },
+            on-failure: { apply: { condition: incapacitated, save-ends: end-of-turn, text: "Suffocating" } } }
+```

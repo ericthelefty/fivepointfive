@@ -20,3 +20,12 @@ You speak a one-word command to a creature you can see within range. The target 
 **Halt.** On its turn, the target doesn’t move and takes no action or Bonus Action.
 
 ***Using a Higher-Level Spell Slot.*** You can affect one additional creature for each spell slot level above 1.
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, save: { ability: wis }, choose-one: [
+              { id: approach, label: Approach }, { id: drop, label: Drop }, { id: flee, label: Flee },
+              { id: grovel, label: Grovel, apply: { condition: prone } }, { id: halt, label: Halt } ],
+            text: "The target follows the command on its next turn." }
+- scaling: { per-slot-above: 1, add: { targets: 1 } }
+```

@@ -4,3 +4,8 @@
 *Wondrous Item, Uncommon*
 
 While wearing this helm, you can cast *Comprehend Languages* from it.
+
+## Effects
+```yaml
+- grant-spell: { spell: $srd/spells/comprehend-languages, at-will: true }
+```

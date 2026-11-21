@@ -17,3 +17,10 @@ After dealing its extra damage to a creature, the ammunition becomes nonmagical.
 | 26–35 | Dragons | 81–85 | Oozes |
 | 36–45 | Elementals | 86–90 | Plants |
 | 46–50 | Humanoids | 91–00 | Undead |
+
+## Effects
+```yaml
+- variant: { id: slays, by: roll, roll: 1d100, table: Ammunition of Slaying }
+- trigger: { event: hit, scope: { weapon: { id: self }, against: { creature: variant:slays } }, auto: true,
+             offer: { save: { ability: con, dc: 17, success: half }, damage: { dice: 6d10, type: force }, consume: self } }
+```

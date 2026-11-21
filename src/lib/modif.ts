@@ -15,6 +15,7 @@ import { features, slug, stripMd, type Entry } from "./parse.ts";
 import { classTable, tableRow, mod, profBonus, finalScores, type Character } from "./rules.ts";
 import { ABILITIES, SKILLS, closest } from "./fix.ts";
 import { SUBCLASS_LEVEL, classInfos } from "./multiclass.ts";
+import type { Item } from "./inventory.ts";
 
 // ------------------------------------------------------------------ vocabulary
 /** The 70 block types of Modif 0.6. */
@@ -107,6 +108,10 @@ export interface Env {
   scores: Record<string, number>;
   classLevels: Record<string, number>; // slug(class name) -> level
   table: Record<string, string>; // the entry's class-table row at `level`
+  /** Spellcasting modifier, save DC and attack bonus (for `spell-ability`, `spell:dc`, `spell:attack`). */
+  spell?: { mod: number; dc: number; attack: number };
+  /** An item's variant values (`variant:plus`, `variant:size.fly`). */
+  variants?: Record<string, Val>;
 }
 
 /** A value as dice plus a flat number: "1d10 + level:fighter" -> { dice: ["1d10"], flat: 5 }. */
@@ -130,6 +135,15 @@ export function evalAmount(expr: Val, env: Env): Amount | null {
     const [k, ...rest] = word.split(":");
     const arg = rest.join(":").trim();
     if (k === "prof" && !arg) return { dice: [], flat: env.pb };
+    if (k === "spell-ability" && !arg) return env.spell ? { dice: [], flat: env.spell.mod } : null;
+    if (k === "spell" && (arg === "dc" || arg === "attack")) return env.spell ? { dice: [], flat: env.spell[arg] } : null;
+    if (k === "variant") {
+      let x: Val = env.variants;
+      for (const part of arg.split(".")) x = x == null ? undefined : x[part];
+      if (typeof x === "number") return { dice: [], flat: x };
+      if (typeof x === "string") return evalAmount(x, { ...env, variants: undefined });
+      return null;
+    }
     if (k === "level" && !arg) return { dice: [], flat: env.total };
     if (k === "level") return { dice: [], flat: env.classLevels[slug(arg)] ?? 0 };
     if (k === "mod" && ABBR3[arg]) return { dice: [], flat: env.mods[ABBR3[arg]] };
@@ -181,7 +195,8 @@ export function evalAmount(expr: Val, env: Env): Amount | null {
       return { dice: [], flat: n };
     }
     // a word runs to the next operator; table columns may contain spaces
-    const m = src.slice(pos).match(/^[^+*/(),-]+/);
+    // a word runs to the next operator; a hyphen between letters is part of it (spell-ability)
+    const m = src.slice(pos).match(/^(?:[^+*/(),-]|-(?=[a-z]))+/);
     if (!m) return null;
     pos += m[0].length;
     return ref(m[0].trim());
@@ -236,6 +251,16 @@ export interface ModifCtx {
   background?: Entry;
   entries: Entry[];
   byId: (id?: string) => Entry | undefined;
+  /** Carried magic items, and whether each is active (equipped/attuned as it needs). */
+  items?: { item: Item; entry: Entry; active: boolean }[];
+  /** What the character is wearing, for `when: { armor }` (undefined = unknown). */
+  gear?: { armor?: string; shield: boolean };
+  /** Toggles and spells switched on (keys of ModifToggle / "spell:<id>"), from the play state. */
+  active?: { key: string; slot?: number; onSelf?: boolean }[];
+  /** Conditions the character has (play state), for `when: { condition }`. */
+  conditions?: string[];
+  /** Spellcasting numbers for `spell-ability` etc. (the first caster's), when known. */
+  spell?: { mod: number; dc: number; attack: number };
 }
 
 export interface ChoiceOption { value: string; label: string }
@@ -264,24 +289,88 @@ export interface PendingChoice {
 export interface FeatPick { feat: Entry; slot?: string; level?: number; className?: string }
 
 /** One ability score increase, applied in order after the background's (Modif §6.7). */
-export interface ScoreStep { ability: string; amount: number; max: number; source: string }
+export interface ScoreStep { ability: string; amount: number; max: number; source: string; /** "becomes at least" (Belt of Giant Strength) */ set?: number }
 
 export interface ModifResource {
   key: string;
   name: string;
   max: number;
-  recover: "short" | "shortOne" | "long";
+  /** short: all back on a Short Rest; shortOne: one back on a Short Rest; long; dawn (treated as a Long Rest); never. */
+  recover: "short" | "shortOne" | "long" | "dawn" | "never";
+  /** Dice rolled to regain uses (item charges: "1d6+1" at dawn). Without it, all come back. */
+  regain?: string;
   entryId: string;
+  itemId?: string;
 }
+
+/** What using something costs: uses of a resource (or item charges), maybe a range the player picks. */
+export interface ModifCost { key: string; amount: number; min?: number; max?: number }
 
 export interface ModifAction {
   id: string;
   name: string;
   source: string;
   activation: string;
+  cost?: ModifCost;
+  /** @deprecated use cost.key */
   resource?: string;
   heal?: string;
   text?: string;
+  /** Casting a spell from a feature or item. */
+  cast?: { spellId: string; level?: number; dc?: number; attack?: number };
+  save?: { ability: string; dc?: number; success?: string };
+  damage?: { dice: string; type: string }[];
+  /** Using it uses up one of this inventory item (potions, scrolls). */
+  consume?: string;
+  /** Pick one of these each use. */
+  options?: string[];
+}
+
+/** Something to switch on and off: Rage, Cloak of Invisibility, a form. */
+export interface ModifToggle {
+  key: string;
+  name: string;
+  source: string;
+  activation: string;
+  cost?: ModifCost;
+  duration?: string;
+  /** Minutes it can last (for ending it on a rest); Infinity = until ended. */
+  minutes: number;
+  ends?: string;
+  /** What it does, in words. */
+  lines: string[];
+  active: boolean;
+  itemId?: string;
+}
+
+/** "When this happens, you can…": reactions and other triggered options. */
+export interface ModifTrigger {
+  key: string;
+  name: string;
+  source: string;
+  when: string;
+  text: string;
+  cost?: ModifCost;
+  auto: boolean;
+}
+
+/** A spell the character can cast through a feat, species trait or item. */
+export interface GrantedSpell {
+  spell: Entry;
+  source: string;
+  /** Resource key for its free casts. */
+  free?: string;
+  atWill?: boolean;
+  /** Spellcasting ability for it, when the grant says. */
+  ability?: string;
+  dc?: number;
+}
+
+/** A spell that's in effect (cast with a duration). */
+export interface ActiveSpell {
+  key: string; spell: Entry; slot?: number; lines: string[]; concentration: boolean;
+  /** It has effects on its target (Mage Armor, Bless), which apply to you if you're the target. */
+  targetEffects: boolean; onSelf: boolean;
 }
 
 export interface Reminder { source: string; feature: string; text: string }
@@ -305,11 +394,21 @@ export interface ModifResult {
   size?: string;
   resources: ModifResource[];
   actions: ModifAction[];
+  toggles: ModifToggle[];
+  triggers: ModifTrigger[];
+  activeSpells: ActiveSpell[];
+  grantedSpells: GrantedSpell[];
+  /** Always-on traits, defenses, senses and the like, in words. */
+  notes: Reminder[];
   acBonuses: { value: number; armor?: string[]; unarmored?: boolean; noShield?: boolean; source: string }[];
   acBases: { expr: Val; noShield: boolean; source: string }[];
   bonuses: { to: string; value: number; source: string }[];
-  attackBonuses: { value: number; ranged?: boolean; melee?: boolean; source: string }[];
+  attackBonuses: { value: number; ranged?: boolean; melee?: boolean; itemId?: string; ability?: string; source: string }[];
+  damageBonuses: { value: number; ranged?: boolean; melee?: boolean; itemId?: string; ability?: string; source: string }[];
   advantages: { roll: string; source: string }[];
+  disadvantages: { roll: string; source: string }[];
+  /** "AC can't be less than N" (Barkskin). */
+  acFloor?: { value: number; source: string };
   critRange: number;
   attacksPerAction: number;
   treatRolls: { roll: string; min: number; max: number; as: number; source: string }[];
@@ -323,8 +422,9 @@ export interface ModifResult {
 export function emptyResult(): ModifResult {
   return {
     encoded: new Set(), saves: new Set(), skills: new Set(), weapons: new Set(), armor: new Set(), tools: new Set(),
-    masteries: [], feats: [], featPicks: [], scores: {}, scoreSteps: [], resources: [], actions: [], acBonuses: [], acBases: [], bonuses: [], attackBonuses: [],
-    advantages: [], critRange: 20, attacksPerAction: 1, treatRolls: [], onLongRest: [], reminders: [], pending: [],
+    masteries: [], feats: [], featPicks: [], scores: {}, scoreSteps: [], resources: [], actions: [], toggles: [], triggers: [],
+    activeSpells: [], grantedSpells: [], notes: [], acBonuses: [], acBases: [], bonuses: [], attackBonuses: [], damageBonuses: [],
+    advantages: [], disadvantages: [], critRange: 20, attacksPerAction: 1, treatRolls: [], onLongRest: [], reminders: [], pending: [],
     features: [], problems: [],
   };
 }
@@ -407,7 +507,10 @@ export function validIncreases(picks: string[], sets: number[][]): string[] {
 
 export function applyScoreSteps(start: Record<string, number>, steps: ScoreStep[]): Record<string, number> {
   const s = { ...start };
-  for (const st of steps) if (s[st.ability] < st.max) s[st.ability] = Math.min(st.max, s[st.ability] + st.amount);
+  for (const st of steps) {
+    if (st.set !== undefined) s[st.ability] = Math.max(s[st.ability], st.set);
+    else if (s[st.ability] < st.max) s[st.ability] = Math.min(st.max, s[st.ability] + st.amount);
+  }
   return s;
 }
 
@@ -502,15 +605,20 @@ function runModif(ctx: ModifCtx, scores: Record<string, number>, prereqScores: R
   const mods = Object.fromEntries(ABILITIES.map((a) => [a, mod(scores[a])]));
   const pb = profBonus(c.level);
   const classLevels = Object.fromEntries(ctx.classes.map((k) => [slug(k.cls.name), k.level]));
-  const baseEnv: Env = { level: c.level, total: c.level, pb, mods, scores, classLevels, table: {} };
+  const baseEnv: Env = { level: c.level, total: c.level, pb, mods, scores, classLevels, table: {}, spell: ctx.spell };
   const seenFeats = new Set<string>();
+  const activeKeys = new Set((ctx.active || []).map((x) => x.key));
 
-  type ReadOpts = { level: number; table: Record<string, string>; info?: ClassRef; kind: "class" | "subclass" | "species" | "background" | "feat"; origin?: string; slot?: string };
+  type ReadOpts = {
+    level: number; table: Record<string, string>; info?: ClassRef; kind: "class" | "subclass" | "species" | "background" | "feat" | "item";
+    origin?: string; slot?: string; item?: Item; itemActive?: boolean;
+  };
   const readEntry = (e: Entry | undefined, opts: ReadOpts) => {
     if (!e?.effects?.length) return;
     const origin = opts.origin || e.id;
-    r.encoded.add(e.id);
+    if (opts.kind !== "item") r.encoded.add(e.id);
     const env: Env = { ...baseEnv, level: opts.level, table: opts.table };
+    if (opts.item) env.variants = itemVariants(e, opts.item);
     const featureList = opts.kind === "class" || opts.kind === "subclass" ? features(e) : [];
     for (const fx of e.effects) {
       const { blocks, problems } = readBlocks(fx.yaml);
@@ -529,14 +637,17 @@ function runModif(ctx: ModifCtx, scores: Record<string, number>, prereqScores: R
       const featText = featureList.find((f) => f.name === fname)?.md || "";
       for (const b of blocks) {
         if (multiOnly && b.type !== "multiclass" && b.type !== "hit-die" && b.type !== "equipment") continue;
+        // an item that isn't active (not equipped or attuned as it needs) only keeps count of its charges
+        if (opts.item && !opts.itemActive && b.type !== "charges" && b.type !== "resource") continue;
         const ok = applyBlock(b, {
           e, fname, env, opts, ctx, r, remind, featText, multiOnly: !!multiOnly, origin, slot: opts.slot, featureLevel: lvl,
           readFeat: (f) => readFeat(f, origin),
           featSlot: (id, level, def) => featSlot(e, opts.info, fname, id, level, def, origin),
+          item: opts.item, activeKeys,
         });
         if (ok) applied++;
       }
-      if (blocks.length) {
+      if (blocks.length && opts.kind !== "item") {
         r.features.push({
           entryId: e.id, feature: fname,
           status: skipped === 0 ? "automated" : applied > 0 ? "partly automated" : "not automated",
@@ -602,6 +713,40 @@ function runModif(ctx: ModifCtx, scores: Record<string, number>, prereqScores: R
       if (sk) r.skills.add(sk);
     }
   }
+  // magic items the character carries (effects only while active; charges always counted)
+  for (const ic of ctx.items || []) readEntry(ic.entry, { level: c.level, table: {}, kind: "item", item: ic.item, itemActive: ic.active, origin: ic.entry.id });
+  // spells in effect: their self-effects apply; the rest is listed
+  for (const act of ctx.active || []) {
+    if (!act.key.startsWith("spell:")) continue;
+    const sp = ctx.byId(act.key.slice(6));
+    if (!sp) continue;
+    const lines: string[] = [];
+    const env: Env = { ...baseEnv };
+    // a spell whose range is Self affects you; for others the player says whether they're the target
+    const selfRange = /^self/i.test(stripMd(sp.fields["range"] || ""));
+    const onSelf = !!act.onSelf || selfRange;
+    let targetEffects = false;
+    for (const fx of sp.effects || []) {
+      for (const b of readBlocks(fx.yaml).blocks) {
+        const mine = b.type === "self-effects" || (b.type === "target-effects" && onSelf);
+        if (b.type === "target-effects") targetEffects = true;
+        if (mine) {
+          for (const inner of toBlocks(b.v?.effects)) {
+            lines.push(`On you: ${describeBlock(inner, env)}`);
+            applyBlock(inner, {
+              e: sp, fname: sp.name, env, opts: { level: c.level, kind: "spell" }, ctx, r, remind: () => undefined, featText: "", multiOnly: false,
+              origin: sp.id, featureLevel: 1, readFeat: () => undefined, featSlot: () => undefined, activeKeys, inEffect: true,
+            });
+          }
+        } else if (!["scaling", "narrative", "choose"].includes(b.type)) lines.push(describeBlock(b, env));
+      }
+    }
+    if (!sp.effects?.length) lines.push(firstSentence(sp.body));
+    r.activeSpells.push({
+      key: act.key, spell: sp, slot: act.slot, lines: lines.filter(Boolean), concentration: /concentration/i.test(sp.fields["duration"] || ""),
+      targetEffects: targetEffects && !selfRange, onSelf,
+    });
+  }
   // a feat you can take only once isn't offered again in another slot
   for (const p of r.pending) {
     if (p.level === undefined || !p.options) continue;
@@ -648,6 +793,11 @@ interface ApplyCtx {
   /** Set inside a feat taken in a slot: its choices are kept per slot. */
   slot?: string;
   featureLevel: number;
+  /** The inventory item whose entry this is (scope `self`, charges). */
+  item?: Item;
+  activeKeys: Set<string>;
+  /** Applying the effects of something switched on: they're described there, not in "Always on". */
+  inEffect?: boolean;
 }
 
 function grant(r: ModifResult, item: string): boolean {
@@ -668,16 +818,383 @@ function grant(r: ModifResult, item: string): boolean {
   return true;
 }
 
+/** A list of `{ type: value }` maps (a toggle's `effects`) as blocks. */
+export function toBlocks(list: Val): Block[] {
+  return (Array.isArray(list) ? list : [])
+    .filter((x) => x && typeof x === "object" && !Array.isArray(x) && Object.keys(x).length === 1)
+    .map((x) => {
+      const [type, v] = Object.entries(x)[0];
+      return { type, v };
+    });
+}
+
+/** Variant values of an inventory item: "+2 Longsword" picks the rarity whose value is 2; "(hill)" picks by name. */
+function itemVariants(e: Entry, item: Item): Record<string, Val> {
+  const out: Record<string, Val> = {};
+  for (const fx of e.effects || []) {
+    for (const b of readBlocks(fx.yaml).blocks) {
+      if (b.type !== "variant" || !b.v?.id || !b.v.values || typeof b.v.values !== "object" || Array.isArray(b.v.values)) continue;
+      const vals = b.v.values as Record<string, Val>;
+      if (b.v.by === "rarity") {
+        const plus = item.name.match(/\+(\d)/)?.[1];
+        const hit = plus ? Object.values(vals).find((x) => x === +plus) : undefined;
+        if (hit !== undefined) out[b.v.id] = hit;
+      } else if (b.v.by === "name") {
+        const q = (item.name.match(/\(([^)]*)\)\s*$/)?.[1] || "").toLowerCase();
+        const key = Object.keys(vals).find((k) => k.toLowerCase() === q) ?? (q ? undefined : "");
+        if (key !== undefined && key in vals) out[b.v.id] = vals[key];
+      }
+    }
+  }
+  return out;
+}
+
+/** Key in the play state for a toggle or resource: items keep their own per inventory item. */
+function scopedKey(a: ApplyCtx, id: string): string {
+  return a.item ? `item:${a.item.id}:${id}` : id;
+}
+
+/** The key of a resource named by a cost or reference ("$#rages", "$srd/barbarian#rages", "rages"). */
+function resourceKey(a: ApplyCtx, ref: string): string {
+  const local = ref.replace(/^\$[^#]*#/, "").replace(/^\$#/, "");
+  return ref.startsWith("$#") || !ref.startsWith("$") ? scopedKey(a, local) : local;
+}
+
+function costOf(cost: Val, a: ApplyCtx): ModifCost | undefined {
+  if (!cost || typeof cost !== "object") return undefined;
+  if (typeof cost.resource === "string") return { key: resourceKey(a, cost.resource), amount: typeof cost.amount === "number" ? cost.amount : 1 };
+  if (cost.charges !== undefined && a.item) {
+    const ch = cost.charges;
+    if (typeof ch === "number") return { key: `item:${a.item.id}`, amount: ch };
+    if (ch && typeof ch === "object") return { key: `item:${a.item.id}`, amount: ch.min ?? 1, min: ch.min ?? 1, max: ch.max };
+  }
+  return undefined;
+}
+
+function toggleKey(a: ApplyCtx, id: string): string {
+  return a.item ? `item:${a.item.id}#${id}` : `${a.e.id}#${id}`;
+}
+
+/** The toggle key a `when: { active: … }` reference means. */
+function activeRefKey(a: ApplyCtx, ref: string): string {
+  const id = ref.replace(/^.*#/, "");
+  if (ref.startsWith("$#") || !ref.startsWith("$")) return toggleKey(a, id);
+  const ent = resolveRef(ref.split("#")[0], a.ctx);
+  return `${ent?.id || ref.split("#")[0]}#${id}`;
+}
+
+const titleCase = (s: string) => String(s ?? "").replace(/(^|[\s-])\w/g, (x) => x.toUpperCase()).replace(/-/g, " ");
+
+/** true / false when the sheet can tell, null when only the player can (Modif §3.5). */
+function whenEval(w: Val, a: ApplyCtx): boolean | null {
+  if (!w || typeof w !== "object") return null;
+  if (Array.isArray(w)) {
+    const parts = w.map((x) => whenEval(x, a));
+    return parts.includes(false) ? false : parts.includes(null) ? null : true;
+  }
+  let unknown = false;
+  for (const [k, x] of Object.entries(w)) {
+    let res: boolean | null = null;
+    if (k === "active") res = ([] as Val[]).concat(x).some((ref) => typeof ref === "string" && a.activeKeys.has(activeRefKey(a, ref)));
+    else if (k === "not") {
+      const n = whenEval(x, a);
+      res = n === null ? null : !n;
+    } else if (k === "all") res = whenEval(x, a);
+    else if (k === "any") {
+      const parts = ([] as Val[]).concat(x).map((p) => whenEval(p, a));
+      res = parts.includes(true) ? true : parts.includes(null) ? null : false;
+    } else if (k === "armor" && a.ctx.gear) {
+      const worn = a.ctx.gear.armor;
+      res = x === "none" ? !worn : ([] as Val[]).concat(x).includes(worn);
+    } else if (k === "shield" && a.ctx.gear) res = a.ctx.gear.shield === !!x;
+    else if (k === "condition" && a.ctx.conditions) {
+      const have = a.ctx.conditions.map((cn) => cn.toLowerCase());
+      res = ([] as Val[]).concat(x).some((cn) => have.includes(String(cn).toLowerCase()));
+    } else if ((k === "wielding" || k === "equipped" || k === "attuned") && a.item) res = true;
+    else if (k === "has" && a.item && x && typeof x === "object" && (x as Val).item === "self") res = true;
+    else if (k === "variant" && x && typeof x === "object" && a.env.variants && (x as Val).id in a.env.variants) res = a.env.variants[(x as Val).id] === (x as Val).is;
+    if (res === false) return false;
+    if (res === null) unknown = true;
+  }
+  return unknown ? null : true;
+}
+
+/** A `when` in words, for reminders. */
+function whenText(w: Val): string {
+  if (!w || typeof w !== "object") return "";
+  if (Array.isArray(w)) return w.map(whenText).filter(Boolean).join("; ");
+  return Object.entries(w)
+    .map(([k, x]) => {
+      if (k === "player" || k === "text") return String(x);
+      if (k === "active") return `while ${([] as Val[]).concat(x).map((r) => titleCase(String(r).replace(/^.*#/, ""))).join(" or ")} is active`;
+      if (k === "not") return `unless ${whenText(x)}`;
+      if (k === "armor") return x === "none" ? "while not wearing armor" : `while wearing ${([] as Val[]).concat(x).join(" or ")} armor`;
+      if (k === "condition") return `while ${([] as Val[]).concat(x).map((c) => titleCase(String(c))).join(" or ")}`;
+      if (k === "hp") return x === "bloodied" ? "while Bloodied" : `at ${x} HP`;
+      if (k === "in-combat") return "in combat";
+      if (k === "has" && (x as Val)?.item === "self") return "while you carry it";
+      if (k === "variant") return `${titleCase(String((x as Val)?.is ?? ""))} only`;
+      return `${k.replace(/-/g, " ")}: ${words(x)}`;
+    })
+    .join(", ");
+}
+
+const ABIL_NAME = (x: string) => ABBR3[x] || titleCase(x);
+
+/** Any small value in words: "radiant", ["fire", "cold"], { light: { bright: 20 } }, "$srd/spells/magic-missile". */
+function words(x: Val): string {
+  if (x === null || x === undefined) return "";
+  if (typeof x === "string") return x.startsWith("$") ? titleCase(x.replace(/^.*\//, "").replace(/#.*$/, "")) : titleCase(x);
+  if (typeof x === "number" || typeof x === "boolean") return String(x);
+  if (Array.isArray(x)) return x.map(words).filter(Boolean).join(", ");
+  if (x.text) return String(x.text);
+  if (x.label) return String(x.label);
+  return Object.entries(x).map(([k, v]) => (v === true ? titleCase(k) : `${titleCase(k)} ${words(v)}`)).join(", ");
+}
+
+function valueText(v: Val, env?: Env): string {
+  if (v === undefined || v === null) return "";
+  if (typeof v === "number") return String(v);
+  if (typeof v === "string") {
+    const a = env ? evalAmount(v, env) : null;
+    return a ? amountText(a) : v;
+  }
+  if (v.steps && env) {
+    const n = evalNumber(v, env);
+    return n === null ? "" : String(n);
+  }
+  if (v.dice !== undefined) return valueText(v.dice, env);
+  return words(v);
+}
+
+function rollText(roll: Val): string {
+  return ([] as Val[]).concat(roll).map((x) => {
+    const s = String(x);
+    const [k, arg] = s.split(":");
+    if (s === "initiative") return "Initiative";
+    if (s === "death-save") return "Death Saving Throws";
+    if (s === "attack") return "attack rolls";
+    if (s === "attacks-against-you") return "attack rolls against you";
+    if (k === "save") return !arg || arg === "all" ? "saving throws" : `${ABIL_NAME(arg)} saving throws`;
+    if (k === "check") return !arg || arg === "all" ? "ability checks" : `${ABIL_NAME(arg)} checks`;
+    if (k === "skill") return `${titleCase(arg)} checks`;
+    return s.replace(/-/g, " ");
+  }).join(" and ");
+}
+
+function damageText(d: Val, env?: Env): string {
+  return ([] as Val[]).concat(d).filter(Boolean).map((p) => {
+    const type = typeof p.type === "string" ? (p.type.startsWith("choice:") ? "chosen-type" : p.type) : p.type?.["choose-on-use"] ? ([] as Val[]).concat(p.type["choose-on-use"]).join("/") : "";
+    return `${valueText(p.dice ?? p, env)} ${type}`.trim() + (p.half ? " (half on a success)" : "");
+  }).join(" + ");
+}
+
+function saveText(sv: Val, env?: Env): string {
+  if (!sv || typeof sv !== "object") return "";
+  const dc = sv.dc !== undefined ? valueText(sv.dc, env) : "";
+  return `${dc ? `DC ${dc} ` : ""}${ABIL_NAME(String(sv.ability || ""))} save${sv.success === "half" ? " (half on a success)" : ""}`;
+}
+
+export function durationOf(d: Val): { text: string; minutes: number } {
+  if (!d) return { text: "", minutes: Infinity };
+  if (typeof d === "string") return { text: d === "spell" ? "while the spell lasts" : d.replace(/-/g, " "), minutes: d === "spell" ? Infinity : 0.1 };
+  if (d.until) {
+    const max = d.max ? durationOf(d.max) : null;
+    return { text: `until ${String(d.until).replace(/-/g, " ")}${d.extend ? ` (extend: ${d.extend})` : ""}${max ? `, up to ${max.text}` : ""}`, minutes: max ? max.minutes : 1 };
+  }
+  if (d.amount !== undefined) {
+    const n = typeof d.amount === "number" ? d.amount : 1;
+    const unit = String(d.unit || "minute");
+    const per: Record<string, number> = { round: 0.1, minute: 1, hour: 60, day: 1440 };
+    return { text: `${typeof d.amount === "number" ? d.amount : d.amount} ${unit}${n === 1 ? "" : "s"}`, minutes: n * (per[unit] ?? 1) };
+  }
+  return { text: "", minutes: Infinity };
+}
+
+/** Header "Duration" of a spell: minutes it lasts (0 = instantaneous). */
+export function spellMinutes(field?: string): number {
+  const t = stripMd(field || "").toLowerCase();
+  if (!t || /instantaneous/.test(t)) return 0;
+  const m = t.match(/(\d+)\s*(round|minute|hour|day)/);
+  if (m) return +m[1] * ({ round: 0.1, minute: 1, hour: 60, day: 1440 } as Record<string, number>)[m[2]];
+  return Infinity; // until dispelled, special
+}
+
+function eventText(ev: Val): string {
+  if (Array.isArray(ev)) return ev.map(eventText).join(" or ");
+  if (typeof ev === "string") {
+    const words: Record<string, string> = {
+      hit: "When you hit", miss: "When you miss with an attack", crit: "When you score a Critical Hit", attack: "When you attack",
+      "start-of-turn": "At the start of your turn", "end-of-turn": "At the end of your turn", cast: "When you cast a spell",
+      "take-damage": "When you take damage", damaged: "When you take damage", "enter-area": "When a creature enters the area",
+      initiative: "When you roll Initiative",
+    };
+    return words[ev] || `On ${ev.replace(/-/g, " ")}`;
+  }
+  if (ev && typeof ev === "object") {
+    if (ev.fail) return `When you fail ${ev.fail === "save" ? "a saving throw" : ev.fail === "check" ? "an ability check" : ev.fail === "d20" ? "a D20 Test" : rollText(ev.fail)}`;
+    if (ev.succeed) return `When you succeed on ${ev.succeed === "d20" ? "a D20 Test" : rollText(ev.succeed)}`;
+    if (ev.rest) return `When you finish a ${ev.rest === "long" ? "Long" : "Short"} Rest`;
+    if (ev.use) return `When you use ${titleCase(String(ev.use).replace(/^.*#/, ""))}`;
+    if (ev.roll) return `When you roll ${rollText(ev.roll)}`;
+    return `On ${Object.entries(ev).map(([k, x]) => `${k.replace(/-/g, " ")} ${words(x)}`).join(", ")}`;
+  }
+  return "When it happens";
+}
+
+function offerText(o: Val, env?: Env): string {
+  if (!o || typeof o !== "object") return "";
+  if (o.text) return String(o.text);
+  const parts: string[] = [];
+  if (o.reroll && typeof o.reroll === "object") parts.push(`Roll the ${o.reroll.roll === "damage" ? "damage dice" : rollText(o.reroll.roll || "die")} again${o.reroll.keep === "either" ? " and use either roll" : o.reroll.keep === "higher" ? " and use the higher roll" : ""}`);
+  else if (o.reroll) parts.push(`Reroll${o.bonus ? ` with a bonus of ${valueText(o.bonus, env)}` : ""}${o["must-use-new"] ? " and use the new roll" : ""}`);
+  if (o["add-roll"]) parts.push(`Add ${valueText(o["add-roll"], env)} to the roll`);
+  if (o.move) parts.push(`Move up to ${o.move.distance === "half-speed" ? "half your Speed" : o.move.teleport ? `${o.move.teleport} ft by teleporting` : `${o.move.distance} ft`}${o.move["no-opportunity-attacks"] ? " without provoking Opportunity Attacks" : ""}`);
+  if (o.regain) parts.push(`Regain ${titleCase(String(o.regain.resource || "").replace(/^.*#/, ""))}`);
+  if (o.heal !== undefined) parts.push(`Regain ${valueText(o.heal, env)} HP`);
+  if (o.damage) parts.push(`Deal ${damageText(o.damage, env)} damage`);
+  if (o.save) parts.push(saveText(o.save, env));
+  if (o["choose-one"]) parts.push(`Choose: ${([] as Val[]).concat(o["choose-one"]).map((x) => x.label || x.id).join(", ")}`);
+  if (o["treat-as"]) parts.push(`Count it as a ${o["treat-as"]}`);
+  if (o.refund) parts.push(o.refund === "if-fails" ? "Not spent if it doesn't change the result" : `Refund ${o.refund}`);
+  return parts.join(". ");
+}
+
+/** One block in words, for the active effects list and reminders. Never throws: content can be anything. */
+export function describeBlock(b: Block, env?: Env): string {
+  try {
+    return describeInner(b, env);
+  } catch {
+    return b.type.replace(/-/g, " ");
+  }
+}
+
+function describeInner(b: Block, env?: Env): string {
+  const v = b.v;
+  const w = v && typeof v === "object" && v.when ? ` (${whenText(v.when)})` : "";
+  switch (b.type) {
+    case "defense": {
+      const p: string[] = [];
+      const except = v.except ? ` except ${([] as Val[]).concat(v.except).map(titleCase).join(", ")}` : "";
+      if (v.resistance) p.push(`Resistance to ${([] as Val[]).concat(v.resistance).map((x) => (x === "all" ? "all damage" : words(x))).join(", ")}${except}`);
+      if (v.immunity) p.push(`Immunity to ${([] as Val[]).concat(v.immunity).map(words).join(", ")}`);
+      if (v.vulnerability) p.push(`Vulnerability to ${([] as Val[]).concat(v.vulnerability).map(words).join(", ")}`);
+      if (v["condition-immunity"]) p.push(`Can't be ${([] as Val[]).concat(v["condition-immunity"]).map(words).join(" or ")}`);
+      return p.join("; ") + w;
+    }
+    case "bonus": {
+      const to = ([] as Val[]).concat(v.to).map((t) => {
+        const s = String(t);
+        if (s === "ac") return "AC";
+        if (s === "attack") return "attack rolls";
+        if (s === "damage") return "damage";
+        if (s === "initiative") return "Initiative";
+        if (s.startsWith("speed")) return "Speed";
+        if (s === "hp:max") return "Hit Point maximum";
+        if (s === "spell:attack") return "spell attack rolls";
+        if (s === "spell:dc") return "spell save DC";
+        return rollText(s);
+      }).join(" and ");
+      const val = valueText(v.value, env);
+      const scope = v.scope?.ability ? ` (${ABIL_NAME(v.scope.ability)} attacks)` : v.scope?.weapon?.kind ? ` (${v.scope.weapon.kind} weapons)` : "";
+      return `${/^-/.test(val) ? val : `+${val}`} to ${to}${scope}${w}`;
+    }
+    case "advantage":
+    case "disadvantage":
+      return `${b.type === "advantage" ? "Advantage" : "Disadvantage"} on ${rollText(v.roll)}${v.scope?.ability ? ` (${ABIL_NAME(v.scope.ability)})` : ""}${v.scope?.against ? " against some creatures" : ""}${w}`;
+    case "base":
+      return `${v.to === "ac" ? "AC" : v.to} = ${String(v.value).replace(/mod:(\w+)/g, (_, x) => `${ABIL_NAME(x).slice(0, 3)}`)}${w}`;
+    case "set":
+      return `${String(v.to).replace(/^score:(\w+)$/, (_, x) => `${ABIL_NAME(x)} score`)} ${v.mode === "min" ? "at least" : v.mode === "multiply" ? "×" : "becomes"} ${valueText(v.value, env)}${w}`;
+    case "speed":
+      return Object.entries(v).filter(([k]) => k !== "when").map(([k, x]) => `${titleCase(k)} Speed ${valueText(x, env)}${typeof x === "number" ? " ft" : ""}`).join(", ") + w;
+    case "sense":
+      return Object.entries(v).filter(([k]) => k !== "when").map(([k, x]) => `${titleCase(k)} ${x === "unlimited" ? "(unlimited)" : `${x} ft`}`).join(", ") + w;
+    case "condition":
+      return `You have the ${([] as Val[]).concat(v.add ?? v).map(words).join(" and ")} condition${v.duration ? ` (${durationOf(v.duration).text})` : ""}`;
+    case "trait":
+      return words(v);
+    case "summon":
+      return `Summons ${v.creature ? words(v.creature) : "a creature"} (see the rules)`;
+    case "note":
+      return v?.text || "";
+    case "language":
+      return `Languages: ${([] as Val[]).concat(v).join(", ")}`;
+    case "crit-range":
+      return `Critical Hit on ${v.value}–20`;
+    case "extra-attack":
+      return `Attack ${v.total} times with the Attack action`;
+    case "damage-die":
+      return `Damage die ${valueText(v.die, env)}${w}`;
+    case "use-ability":
+      return `Use ${ABIL_NAME(v.ability)} for ${([] as Val[]).concat(v.for || []).map((x) => rollText(x)).join(", ")}${w}`;
+    case "aura": {
+      const inner = toBlocks(v.effects).map((x) => describeBlock(x, env)).join("; ");
+      return `Aura (${typeof v.area?.size === "number" ? v.area.size : valueText(v.area?.size, env) || "?"} ft${v.affects ? `, ${([] as Val[]).concat(v.affects).join(" and ")}` : ""}): ${inner}`;
+    }
+    case "zone": {
+      const ev = v.event ? ` ${eventText(v.event).toLowerCase()}` : "";
+      return `Area${v.area?.size ? ` (${v.area.size} ft ${v.area.shape || ""})`.replace(/ \)/, ")") : ""}:${ev}${v.save ? `, ${saveText(v.save, env)}` : ""}${v.damage ? `, ${damageText(v.damage, env)} damage` : ""}${v.heal ? `, heal ${valueText(v.heal, env)}` : ""}${v.apply ? `, ${applyText(v.apply)}` : ""}`.replace(/:,/, ":").replace(/:$/, "");
+    }
+    case "target-effects":
+      return `On the target: ${toBlocks(v.effects).map((x) => describeBlock(x, env)).join("; ")}${v["ends-when"] ? ` (ends ${whenText(v["ends-when"]) || "early in some cases"})` : ""}`;
+    case "self-effects":
+      return `On you: ${toBlocks(v.effects).map((x) => describeBlock(x, env)).join("; ")}`;
+    case "trigger":
+      return `${eventText(v.event)}: ${offerText(v.offer, env) || "see the rules"}${v.if ? ` (${v.if})` : ""}`;
+    case "action": {
+      const p: string[] = [];
+      if (v.attack) p.push("Attack roll");
+      if (v.save) p.push(saveText(v.save, env));
+      if (v.damage) p.push(`${damageText(v.damage, env)} damage`);
+      if (v.heal !== undefined) p.push(`heal ${valueText(v.heal, env)}`);
+      if (v.apply) p.push(applyText(v.apply));
+      if (v.text) p.push(String(v.text));
+      return p.join(", ");
+    }
+    case "toggle":
+    case "form":
+      return toBlocks(v.effects).map((x) => describeBlock(x, env)).join("; ") || v.text || "";
+    case "narrative":
+      return typeof v === "string" ? v : "";
+    default:
+      return `${b.type.replace(/-/g, " ")}${v?.text ? `: ${v.text}` : ""}`;
+  }
+}
+
+function applyText(ap: Val): string {
+  if (!ap) return "";
+  const cond = ap.condition ? ([] as Val[]).concat(ap.condition).map(words).join(" and ") : "";
+  const dur = ap.duration ? durationOf(ap.duration).text : "";
+  return `${cond ? `target is ${cond}` : ap.text || "an effect"}${dur ? ` (${dur})` : ""}${cond && ap.text ? `: ${ap.text}` : ""}`;
+}
+
+const BONUS_PATHS = ["initiative", "speed:walk", "speed:all", "hp:per-level", "hp:max", "passive:perception", "spell:attack", "spell:dc"];
+
 /** Apply one block. Returns true when the sheet acts on it; otherwise it adds a reminder. */
 function applyBlock(b: Block, a: ApplyCtx): boolean {
   const { r, env, e, fname } = a;
   const v = b.v;
-  const src = `${fname}${e.name !== fname ? ` (${e.name})` : ""}`;
+  const src = a.item ? a.item.name : `${fname}${e.name !== fname ? ` (${e.name})` : ""}`;
   const shortText = () => firstSentence(a.featText) || fname;
+  const note = (text: string) => {
+    if (text && !a.inEffect) r.notes.push({ source: a.item ? a.item.name : e.name, feature: fname, text });
+    return true;
+  };
+  // a `when` the sheet can check decides now; one only the player knows becomes a reminder
+  const special = ["toggle", "form", "choose", "resource", "charges", "bonus", "trigger", "base", "action"];
+  if (v && typeof v === "object" && !Array.isArray(v) && v.when && !special.includes(b.type)) {
+    const ok = whenEval(v.when, a);
+    if (ok === false) return true;
+    if (ok === null) {
+      a.remind(describeBlock(b, env));
+      return false;
+    }
+  }
   switch (b.type) {
     case "proficiency": {
       const items: Val[] = Array.isArray(v) ? v : [v];
-      return items.every((x) => typeof x === "string" && grant(r, x));
+      return items.every((x) => (typeof x === "string" && grant(r, x)) || (a.item && typeof x === "object" && note(`Proficient with this ${Object.keys(x)[0]}`)));
     }
     case "multiclass": {
       if (!a.multiOnly) return true; // only matters when this class isn't the first
@@ -686,7 +1203,8 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
     }
     case "hit-die":
     case "equipment":
-      return true; // the builder reads hit dice and starting equipment from the header fields
+    case "variant":
+      return true; // read from header fields, or used through `variant:` values
     case "choose": {
       if (!v || typeof v !== "object") return false;
       if (v.kind === "subclass") return true; // the class step picks the subclass
@@ -712,6 +1230,7 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         for (const ab of picks) r.scoreSteps.push({ ability: ab, amount: 1, max, source: e.name });
         return true;
       }
+      if (a.item) return note(`${fname}: ${choiceLabel(v, fname, 1).replace(/^.*?: /, "")} when you use it`);
       let storedIn: PendingChoice["storedIn"];
       if (a.opts.kind === "class" && v.id === "skills" && kinds[0] === "skill") storedIn = "classSkills";
       if (a.opts.kind === "species" && kinds.length === 1 && kinds[0] === "skill") storedIn = "extraSkills";
@@ -738,6 +1257,8 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         r.size = chosen[0];
         return true;
       }
+      // an option or ability picked once (Magic Initiate's list): nothing more for the sheet to do
+      if (kinds[0] === "option" || kinds[0] === "ability") return true;
       a.remind(`${choiceLabel(v, fname, count)}${chosen.length ? ` (${chosen.join(", ")})` : ""}.`);
       return false;
     }
@@ -755,50 +1276,195 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       const max = evalNumber(v.max, env);
       if (max === null || !v.id) return false;
       const resets: string[] = [].concat(v.reset || "long");
-      const recover: ModifResource["recover"] = resets.includes("short")
+      const recover: ModifResource["recover"] = resets.includes("short") || resets.includes("initiative")
         ? "short"
-        : v.partial?.at === "short" && (v.partial.amount ?? 1) === 1 ? "shortOne" : "long";
-      if (max > 0) r.resources.push({ key: v.id, name: v.label || fname, max, recover, entryId: e.id });
-      if (resets.some((x) => !["short", "long"].includes(x))) a.remind(`${v.label || fname}: also resets on ${resets.join(", ")}.`);
+        : v.partial?.at === "short" && (v.partial.amount ?? 1) === 1 ? "shortOne"
+        : resets.includes("long") ? "long" : resets.includes("dawn") ? "dawn" : resets.includes("never") ? "never" : "long";
+      const name = v.label || (a.item ? a.item.name : fname);
+      if (max > 0) r.resources.push({ key: scopedKey(a, v.id), name, max, recover, entryId: e.id, itemId: a.item?.id });
+      if (resets.includes("initiative") && !resets.includes("short")) a.remind(`${name}: also comes back when you roll Initiative.`);
+      return true;
+    }
+    case "charges": {
+      if (!a.item) return false;
+      const max = evalNumber(v.max, env);
+      if (max === null) {
+        a.remind(`${a.item.name}: ${valueText(v.max, env)} charges (track them by hand).`);
+        return false;
+      }
+      const rc = v.recharge;
+      const regain = rc?.dice !== undefined ? valueText(rc.dice, env).replace(/\s+/g, "") : undefined;
+      const recover: ModifResource["recover"] = !rc ? "never" : rc.at === "short" ? "short" : rc.at === "long" ? "long" : "dawn";
+      r.resources.push({ key: `item:${a.item.id}`, name: `${a.item.name} charges`, max, recover, regain, entryId: e.id, itemId: a.item.id });
+      if (v["destroy-on"]) note(`${a.item.name}: when the last charge is used, it may be destroyed${v["destroy-on"].roll ? ` (roll ${v["destroy-on"].roll}; ${v["destroy-on"].if} destroys it)` : ""}.`);
       return true;
     }
     case "action": {
+      if (v.when && whenEval(v.when, a) === false) return true;
       const heal = v.heal !== undefined ? evalAmount(v.heal, env) : null;
-      const res = typeof v.cost === "object" ? v.cost?.resource : undefined;
+      const cost = costOf(v.cost, a);
+      const spellRef = typeof v.cast === "string" ? resolveRef(v.cast, a.ctx) : undefined;
+      const dc = v.dc ?? v.overrides?.dc ?? v.save?.dc;
+      const name = spellRef ? spellRef.name : v.label || titleOf(v.id) || (a.item ? a.item.name : fname);
+      const dmg = v.damage ? ([] as Val[]).concat(v.damage).map((p) => ({ dice: valueText(p.dice ?? p, env).replace(/\s+/g, ""), type: typeof p.type === "string" ? p.type : "" })) : undefined;
       r.actions.push({
-        id: v.id || slug(fname), name: titleOf(v.id) || fname, source: src, activation: actLabel(v.activation),
-        resource: typeof res === "string" ? res.replace(/^\$#/, "").replace(/^.*#/, "") : undefined,
+        id: a.item ? `item:${a.item.id}:${v.id || slug(name)}` : v.id || slug(fname), name, source: src, activation: actLabel(v.activation),
+        cost, resource: cost?.key,
         heal: heal ? amountText(heal) : undefined,
-        text: v.text || (heal ? undefined : shortText()),
+        cast: spellRef ? { spellId: spellRef.id, level: typeof v["cast-at"] === "number" ? v["cast-at"] : undefined, dc: typeof dc === "number" ? dc : undefined, attack: typeof v.overrides?.attack === "number" ? v.overrides.attack : undefined } : undefined,
+        save: v.save ? { ability: ABIL_NAME(String(v.save.ability)), dc: v.save.dc !== undefined ? evalNumber(v.save.dc, env) ?? undefined : typeof dc === "number" ? dc : undefined, success: v.save.success } : undefined,
+        damage: dmg,
+        consume: v.consume && a.item ? a.item.id : undefined,
+        options: Array.isArray(v["choose-one"]) ? v["choose-one"].map((x: Val) => String(x.label || titleOf(x.id) || describeBlock({ type: "action", v: x }, env))) : undefined,
+        text: v.text || (heal || spellRef || v.save || v.damage || v["choose-one"] ? undefined : a.item ? describeBlock(b, env) : shortText()),
       });
       return true;
     }
+    case "cast-list": {
+      if (!a.item) return false;
+      for (const sp of Array.isArray(v.spells) ? v.spells : []) {
+        const ref = resolveRef(String(sp.spell || ""), a.ctx);
+        if (!ref) continue;
+        const n = typeof sp.cost === "number" ? sp.cost : 1;
+        r.actions.push({
+          id: `item:${a.item.id}:${ref.id}`, name: ref.name, source: src, activation: actLabel(ref.fields["casting time"] ? "" : "magic") || stripMd(ref.fields["casting time"] || ""),
+          cost: v["pay-from"] === "charges" ? { key: `item:${a.item.id}`, amount: n } : undefined,
+          cast: { spellId: ref.id, level: typeof sp["cast-at"] === "number" ? sp["cast-at"] : undefined, dc: typeof v.dc === "number" ? v.dc : undefined },
+          text: `${n} charge${n === 1 ? "" : "s"}`,
+        });
+      }
+      return true;
+    }
+    case "grant-spell": {
+      const refs = ([] as Val[]).concat(v.spell || []).map((x) => resolveRef(String(x), a.ctx)).filter(Boolean) as Entry[];
+      if (!refs.length) {
+        a.remind(`${fname}: ${v.choose ? "choose the spell(s) it grants" : "grants a spell"}${v.free ? `, cast once per ${v.free.per} Rest without a slot` : ""}.`);
+        return false;
+      }
+      const ab = typeof v.ability === "string" && v.ability.startsWith("choice:")
+        ? a.ctx.c.choices?.[`${a.slot ? `${a.slot}/` : ""}${e.id}#${v.ability.slice(7)}`]?.[0]
+        : typeof v.ability === "string" ? ABBR3[v.ability] : undefined;
+      for (const sp of refs) {
+        let free: string | undefined;
+        if (v.free) {
+          free = scopedKey(a, `free:${sp.id.replace(/^.*\//, "")}`);
+          const per = String(v.free.per || "long");
+          r.resources.push({ key: free, name: `${sp.name} (free)`, max: typeof v.free.count === "number" ? v.free.count : 1, recover: per === "short" ? "short" : per === "dawn" ? "dawn" : "long", entryId: e.id, itemId: a.item?.id });
+        }
+        r.grantedSpells.push({ spell: sp, source: src, free, atWill: !!v["at-will"], ability: ab, dc: typeof v.overrides?.dc === "number" ? v.overrides.dc : undefined });
+      }
+      return true;
+    }
+    case "toggle":
+    case "form": {
+      const id = v.id || slug(fname) || "toggle";
+      const key = toggleKey(a, id);
+      const active = a.activeKeys.has(key);
+      const dur = durationOf(v.duration);
+      const inner = toBlocks(v.effects);
+      const lines = inner.map((x) => describeBlock(x, env)).filter(Boolean);
+      if (v.text) lines.push(String(v.text));
+      if (b.type === "form") lines.push("You take another form (see the rules).");
+      r.toggles.push({
+        key, name: a.item ? a.item.name : v.label || titleOf(v.id) || fname, source: src, activation: actLabel(v.activation),
+        cost: costOf(v.cost, a), duration: dur.text || undefined, minutes: dur.minutes,
+        ends: v["ends-when"] ? `Ends early: ${whenText(v["ends-when"])}` : undefined, lines, active, itemId: a.item?.id,
+      });
+      if (active) for (const x of inner) applyBlock(x, { ...a, inEffect: true });
+      return true;
+    }
+    case "aura": {
+      const affects: Val[] = [].concat(v.affects || ["self"]);
+      const off = v["inactive-when"] ? whenEval(v["inactive-when"], a) : false;
+      if (affects.includes("self") || affects.includes("allies") || affects.includes("all")) {
+        if (off !== true) for (const x of toBlocks(v.effects)) applyBlock(x, a);
+      }
+      return note(describeBlock(b, env));
+    }
+    case "trigger": {
+      const ev = v.event;
+      const regain = v.offer?.regain;
+      if (ev && typeof ev === "object" && ev.rest === "long" && v.auto && regain?.resource && !v.when) {
+        r.onLongRest.push({ regain: regain.resource, source: src });
+        return true;
+      }
+      if (v.when && whenEval(v.when, a) === false) return true;
+      r.triggers.push({
+        key: `${a.item ? `item:${a.item.id}` : e.id}#${fname}#${r.triggers.length}`, name: a.item ? a.item.name : fname, source: src,
+        when: eventText(ev) + (v.if ? ` (${v.if})` : "") + (v.when ? ` (${whenText(v.when)})` : ""),
+        text: offerText(v.offer, env) || shortText(), cost: costOf(v.offer?.cost ?? v.cost, a), auto: !!v.auto,
+      });
+      return true;
+    }
+    case "defense":
+    case "sense":
+    case "speed":
+    case "trait":
+    case "note":
+    case "language":
+    case "condition":
+      return note(describeBlock(b, env));
+    case "curse":
+      note(`Cursed${v.prevents ? `: you can't ${([] as Val[]).concat(v.prevents).join(" or ")} it` : ""}${v.ends?.spell ? ` until ${titleCase(String(v.ends.spell).replace(/^.*\//, ""))}` : ""}`);
+      for (const x of toBlocks(v.effects)) applyBlock(x, a);
+      return true;
     case "bonus": {
       const value = evalNumber(v.value, env);
       if (value === null || !v.to) return false;
       const when = v.when || {};
       const whenKeys = Object.keys(when);
-      if (v.to === "ac") {
+      const targets: string[] = [].concat(v.to);
+      const selfWeapon = v.scope?.weapon?.id === "self" && a.item;
+      const selfItem = v.scope?.item === "self" && a.item;
+      // AC with an armor condition keeps the derive() path, which knows what's worn
+      if (targets.length === 1 && targets[0] === "ac" && !selfItem) {
         if (v.scope) return false;
         if (whenKeys.every((k) => k === "armor" || k === "shield")) {
           const armor = when.armor === "none" ? undefined : when.armor ? [].concat(when.armor) : undefined;
           r.acBonuses.push({ value, armor, unarmored: when.armor === "none", noShield: when.shield === false, source: src });
           return true;
         }
-        return false;
       }
-      if (whenKeys.length) return false;
-      if (v.to === "attack") {
-        const kind = v.scope?.weapon?.kind;
-        if (v.scope && !kind) return false;
-        r.attackBonuses.push({ value, ranged: kind === "ranged", melee: kind === "melee", source: src });
+      if (whenKeys.length) {
+        const ok = whenEval(when, a);
+        if (ok === false) return true;
+        if (ok === null) {
+          a.remind(describeBlock(b, env));
+          return false;
+        }
+      }
+      let all = true;
+      for (const to of targets) {
+        if (to === "attack" || to === "damage") {
+          const kind = v.scope?.weapon?.kind;
+          const ability = v.scope?.ability ? ABBR3[v.scope.ability] : undefined;
+          const generic = !v.scope || (v.scope.weapon && Object.keys(v.scope.weapon).every((k) => k === "kind")) || (ability && Object.keys(v.scope).length === 1);
+          if (!selfWeapon && !generic) { all = false; continue; }
+          const entry = { value, ranged: kind === "ranged", melee: kind === "melee", itemId: selfWeapon ? a.item!.id : undefined, ability, source: src };
+          (to === "attack" ? r.attackBonuses : r.damageBonuses).push(entry);
+        } else if (to === "ac") {
+          r.acBonuses.push({ value, source: src });
+        } else if (v.scope && !selfItem) {
+          all = false;
+        } else if (BONUS_PATHS.includes(to) || /^(save|check|skill):/.test(to)) {
+          r.bonuses.push({ to: to === "speed:all" ? "speed:walk" : to, value, source: src });
+        } else all = false;
+      }
+      if (!all) a.remind(describeBlock(b, env));
+      return all;
+    }
+    case "set": {
+      const n = evalNumber(v.value, env);
+      const sm = String(v.to || "").match(/^score:(\w+)$/);
+      if (sm && ABBR3[sm[1]] && n !== null && (v.mode ?? "if-higher") === "if-higher") {
+        r.scoreSteps.push({ ability: ABBR3[sm[1]], amount: 0, max: 30, set: n, source: src });
         return true;
       }
-      if (v.scope) return false;
-      if (["initiative", "speed:walk", "hp:per-level", "hp:max", "passive:perception"].includes(v.to)) {
-        r.bonuses.push({ to: v.to, value, source: src });
+      if (v.to === "ac" && v.mode === "min" && n !== null) {
+        if (!r.acFloor || n > r.acFloor.value) r.acFloor = { value: n, source: src };
         return true;
       }
+      a.remind(describeBlock(b, env));
       return false;
     }
     case "base": {
@@ -808,9 +1474,14 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       r.acBases.push({ expr: v.value, noShield: when.shield === false || v["allow-shield"] === false, source: src });
       return true;
     }
-    case "advantage": {
-      if (v.when || v.scope || v.once) return false;
-      for (const roll of [].concat(v.roll || [])) r.advantages.push({ roll, source: src });
+    case "advantage":
+    case "disadvantage": {
+      const list = b.type === "advantage" ? r.advantages : r.disadvantages;
+      const rolls: string[] = [].concat(v.roll || []);
+      const ability = v.scope?.ability;
+      const plain = !v.once && (!v.scope || (ability && Object.keys(v.scope).length === 1));
+      if (!plain || rolls.some((x) => x === "attacks-against-you" || x.startsWith("checks-to"))) return note(describeBlock(b, env));
+      for (const roll of rolls) list.push({ roll: ability && roll === "attack" ? `attack:${ability}` : roll, source: src });
       return true;
     }
     case "crit-range": {
@@ -833,21 +1504,12 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       r.treatRolls.push({ roll: v.roll, min: range[0], max: range[1], as: v.as, source: src });
       return true;
     }
-    case "trigger": {
-      const ev = v.event;
-      const regain = v.offer?.regain;
-      if (ev && typeof ev === "object" && ev.rest === "long" && v.auto && regain?.resource && !v.when) {
-        r.onLongRest.push({ regain: regain.resource, source: src });
-        return true;
-      }
-      a.remind(shortText());
-      return false;
-    }
     case "narrative":
+      if (v === true) return true; // checked: nothing for a sheet to track
       a.remind(typeof v === "string" ? v : shortText());
       return false;
     default:
-      a.remind(shortText());
+      a.remind(a.item ? `${describeBlock(b, env)}` : shortText());
       return false;
   }
 }
@@ -879,6 +1541,7 @@ export function advantageFor(r: ModifResult | undefined, roll: { kind: string; a
   if (!r) return [];
   const want: string[] = [];
   if (roll.kind === "init") want.push("initiative");
+  if (roll.kind === "attack") want.push("attack", ...(roll.ability ? [`attack:${abbr(roll.ability)}`] : []));
   if (roll.kind === "death") want.push("death-save");
   if (roll.kind === "check" && roll.skill) want.push(`skill:${slug(roll.skill)}`);
   if (roll.kind === "check" && roll.ability) want.push(`check:${abbr(roll.ability)}`, "check:all");
@@ -903,4 +1566,123 @@ export function statusOf(r: ModifResult | undefined, entryId: string, feature: s
   if (!parts.length) return undefined;
   if (parts.every((f) => f.status === "automated")) return "automated";
   return parts.some((f) => f.status !== "not automated") ? "partly automated" : "not automated";
+}
+
+/** Disadvantage from Effects on this roll (the sources). */
+export function disadvantageFor(r: ModifResult | undefined, roll: { kind: string; ability?: string; skill?: string }): string[] {
+  if (!r) return [];
+  return advantageFor({ ...r, advantages: r.disadvantages }, roll);
+}
+
+// ------------------------------------------------------------------ spells
+export interface SpellPlan {
+  attack?: { count: number };
+  save?: { ability: string; success?: string };
+  damage: { dice: string; type: string }[];
+  heal?: string;
+  tempHp?: string;
+  /** Everything else it does, in words (conditions, areas, effects on you). */
+  lines: string[];
+  /** It has effects on you while it lasts (Shield, Mage Armor). */
+  selfEffects: boolean;
+  /** Minutes it lasts (0 = instantaneous, Infinity = until dispelled). */
+  minutes: number;
+  concentration: boolean;
+}
+
+/** Add `add` dice (or a number) `times` times to a dice expression: "8d6" + 1d6 × 2 = "10d6". */
+function addDice(expr: string, add: Val, times: number): string {
+  if (!times) return expr;
+  if (typeof add === "number") return `${expr}+${add * times}`;
+  const m = String(add).match(/^(\d*)d(\d+)$/);
+  if (!m) return expr;
+  const n = (+m[1] || 1) * times;
+  const head = expr.match(/^(\d+)d(\d+)/);
+  if (head && head[2] === m[2]) return expr.replace(/^\d+d\d+/, `${+head[1] + n}d${m[2]}`);
+  return `${expr}+${n}d${m[2]}`;
+}
+
+/**
+ * What casting a spell does, read from its Effects: attack or save, damage and
+ * healing at the slot level (and character level for cantrips), and the rest in words.
+ * Returns null for a spell without Effects (the sheet reads its text instead).
+ */
+export function spellPlan(s: Entry, o: { slot: number; charLevel: number; spell: { mod: number; dc: number; attack: number } }): SpellPlan | null {
+  if (!s.effects?.length) return null;
+  const blocks = s.effects.flatMap((fx) => readBlocks(fx.yaml).blocks);
+  const level = +(s.tagline?.match(/^Level (\d+)/)?.[1] || 0);
+  const env: Env = {
+    level: o.charLevel, total: o.charLevel, pb: profBonus(o.charLevel), mods: {}, scores: {}, classLevels: {}, table: {}, spell: o.spell,
+  };
+  const plan: SpellPlan = {
+    damage: [], lines: [], selfEffects: false,
+    minutes: spellMinutes(s.fields["duration"]), concentration: /concentration/i.test(s.fields["duration"] || ""),
+  };
+  const amt = (x: Val) => {
+    const a = evalAmount(x, env);
+    return a ? amountText(a) : typeof x === "string" ? x : "";
+  };
+  const typeOf = (t: Val) => (typeof t === "string" ? (t.startsWith("choice:") ? "chosen type" : t) : t?.["choose-on-use"] ? ([] as Val[]).concat(t["choose-on-use"]).join(" or ") : "");
+  const takeDamage = (d: Val) => {
+    for (const p of ([] as Val[]).concat(d || [])) {
+      const dice = amt(p?.dice ?? p);
+      if (dice) plan.damage.push({ dice: dice.replace(/\s+/g, ""), type: typeOf(p?.type) });
+    }
+  };
+  // the main roll: the first action, else a zone or aura that deals damage, else a trigger on you
+  let main = blocks.find((b) => b.type === "action")?.v;
+  if (!main) main = blocks.find((b) => (b.type === "zone" || b.type === "aura") && (b.v?.damage || b.v?.heal || b.v?.save))?.v;
+  if (!main) {
+    for (const b of blocks) {
+      const inner = b.type === "aura" || b.type === "self-effects" ? toBlocks(b.v?.effects) : [];
+      const t = inner.find((x) => x.type === "trigger" && (x.v?.offer?.damage || x.v?.offer?.heal));
+      if (t) { main = t.v.offer; break; }
+    }
+  }
+  if (main) {
+    if (main.attack) plan.attack = { count: typeof main.attack?.count === "number" ? main.attack.count : 1 };
+    if (main.save) plan.save = { ability: ABIL_NAME(String(main.save.ability)), success: main.save.success };
+    takeDamage(main.damage);
+    if (main.heal !== undefined) plan.heal = amt(main.heal).replace(/\s+/g, "");
+    if (main["temp-hp"] !== undefined) plan.tempHp = amt(main["temp-hp"]).replace(/\s+/g, "");
+    if (main.apply) plan.lines.push(applyText(main.apply));
+    if (main["choose-one"]) plan.lines.push(`Choose one: ${([] as Val[]).concat(main["choose-one"]).map((x) => x.label || titleOf(x.id)).join(", ")}`);
+    if (main.text) plan.lines.push(String(main.text));
+  }
+  for (const b of blocks) {
+    if (b.v === main || b.type === "narrative" || b.type === "choose") continue;
+    if (b.type === "scaling") {
+      const sc = b.v || {};
+      let times = 0;
+      if (typeof sc["per-slot-above"] === "number") times = Math.max(0, o.slot - sc["per-slot-above"]);
+      if (Array.isArray(sc.cantrip)) times = sc.cantrip.filter((l: number) => o.charLevel >= l).length;
+      for (const [k, x] of Object.entries(sc.add || {}) as [string, Val][]) {
+        if (!times) break;
+        if (k === "damage" && plan.damage[0]) plan.damage[0].dice = addDice(plan.damage[0].dice, typeof x === "object" && x ? x.dice : x, times);
+        else if (k === "heal" && plan.heal) plan.heal = addDice(plan.heal, x, times);
+        else if (k === "temp-hp" && plan.tempHp) plan.tempHp = addDice(plan.tempHp, x, times);
+        else if (k === "attack.count" && plan.attack) plan.attack.count += (typeof x === "number" ? x : 1) * times;
+        else {
+          const what = k.split(".").pop()!.replace(/-/g, " ");
+          const dice = typeof x === "object" && x ? x.dice ?? x : x;
+          const dm = typeof dice === "string" ? dice.match(/^(\d*)d(\d+)$/) : null;
+          const amount = typeof dice === "number" ? String(dice * times) : dm ? `${(+dm[1] || 1) * times}d${dm[2]}` : null;
+          plan.lines.push(amount ? `At this level: +${amount} ${what === "size" ? "ft (area)" : what}` : `At higher levels: ${typeof x === "string" ? x : words(x)}`);
+        }
+      }
+      if (sc.slots && typeof sc.slots === "object") {
+        for (const [range, x] of Object.entries(sc.slots)) {
+          const [lo, hi] = range.replace("+", "-99").split("-").map(Number);
+          if (o.slot >= lo && o.slot <= (hi || lo)) plan.lines.push(`At this level: ${describeBlock({ type: "note", v: { text: JSON.stringify(x).replace(/[{}"]/g, "").replace(/,/g, ", ") } })}`);
+        }
+      }
+      continue;
+    }
+    if (b.type === "self-effects") plan.selfEffects = true;
+    if (b.type === "action" && !main) continue;
+    plan.lines.push(describeBlock(b, env));
+  }
+  plan.lines = plan.lines.filter(Boolean);
+  void level;
+  return plan;
 }

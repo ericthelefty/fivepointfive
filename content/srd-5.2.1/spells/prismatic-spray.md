@@ -9,6 +9,12 @@
 
 Eight rays of light flash from you in a 60-foot Cone. Each creature in the Cone makes a Dexterity saving throw. For each target, roll 1d8 to determine which color ray affects it, consulting the Prismatic Rays table.
 
+## Effects
+```yaml
+- action: { area: { shape: cone, size: 60 }, save: { ability: dex }, roll-table: { dice: 1d8, table: Prismatic Rays, per-target: true },
+            text: "1 Fire, 2 Acid, 3 Lightning, 4 Poison, 5 Cold: 12d6, half on success. 6 Indigo: Restrained, then Petrified. 7 Violet: Blinded, then another plane. 8: two rays." }
+```
+
 ## Prismatic Rays
 
 | 1d8 | Ray |

@@ -12,3 +12,10 @@ A flickering flame appears in your hand and remains there for the duration. Whil
 Until the spell ends, you can take a Magic action to hurl fire at a creature or an object within 60 feet of you. Make a ranged spell attack. On a hit, the target takes 1d8 Fire damage.
 
 ***Cantrip Upgrade.*** The damage increases by 1d8 when you reach levels 5 (2d8), 11 (3d8), and 17 (4d8).
+
+## Effects
+```yaml
+- self-effects: { effects: [ { trait: { light: { bright: 20, dim: 20 } } },
+                             { action: { activation: magic, range: 60, attack: { kind: ranged-spell }, damage: { dice: 1d8, type: fire } } } ] }
+- scaling: { cantrip: [5, 11, 17], add: { self-effects.action.damage: 1d8 } }
+```

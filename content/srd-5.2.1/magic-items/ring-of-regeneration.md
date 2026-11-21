@@ -4,3 +4,8 @@
 *Ring, Very Rare (Requires Attunement)*
 
 While wearing this ring, you regain 1d6 Hit Points every 10 minutes if you have at least 1 Hit Point. If you lose a body part, the ring causes the missing part to regrow and return to full functionality after 1d6 + 1 days if you have at least 1 Hit Point the whole time.
+
+## Effects
+```yaml
+- trigger: { event: { every: 10 minute }, auto: true, when: { not: { hp: zero } }, offer: { heal: 1d6 } }
+```

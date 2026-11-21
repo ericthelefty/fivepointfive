@@ -4,3 +4,8 @@
 *Ring, Very Rare (Requires Attunement)*
 
 While wearing this ring, you can cast *Telekinesis* from it.
+
+## Effects
+```yaml
+- grant-spell: { spell: $srd/spells/telekinesis, at-will: true }
+```

@@ -14,3 +14,11 @@ As a Bonus Action on each of your turns, you can mentally command any creature y
 The creature is under your control for 24 hours, after which it stops obeying any command you’ve given it. To maintain control of the creature for another 24 hours, you must cast this spell on the creature before the current 24-hour period ends. This use of the spell reasserts your control over up to three creatures you have animated with this spell rather than animating new ones.
 
 ***Using a Higher-Level Spell Slot.*** If you use a level 7 spell slot, you can animate or reassert control over four **Ghouls**. If you use a level 8 spell slot, you can animate or reassert control over five **Ghouls** or two **Ghasts** or **Wights**. If you use a level 9 spell slot, you can animate or reassert control over six **Ghouls**, three **Ghasts** or **Wights**, or two **Mummies.** See “Monsters” for these stat blocks.
+
+## Effects
+```yaml
+- summon: { creature: $srd/monsters/ghoul, count: 3, control: { activation: bonus, range: 120, duration: { amount: 24, unit: hour } },
+            text: "Cast only at night." }
+- scaling: { slots: { "7": { summon.count: 4 }, "8": { summon.count: 5, summon.creature: [$srd/monsters/ghast, $srd/monsters/wight] },
+                      "9": { summon.count: 6, summon.creature: [$srd/monsters/ghast, $srd/monsters/wight, $srd/monsters/mummy] } } }
+```

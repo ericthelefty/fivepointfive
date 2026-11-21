@@ -16,3 +16,9 @@ When you cast the spell, any creature that is completely inside the cage’s are
 A creature inside the cage can’t leave it by nonmagical means. If the creature tries to use teleportation or interplanar travel to leave, it must first make a Charisma saving throw. On a successful save, the creature can use that magic to exit the cage. On a failed save, the creature doesn’t exit the cage and wastes the spell or effect. The cage also extends into the Ethereal Plane, blocking ethereal travel.
 
 This spell can’t be dispelled by *Dispel Magic.*
+
+## Effects
+```yaml
+- action: { choose-one: [ { id: cage, label: Cage, area: { shape: cube, size: 20 } }, { id: box, label: Box, area: { shape: cube, size: 10 } } ],
+            text: "Creatures inside are trapped; leaving by magic needs a Cha save (spell save DC); the spell's material component is consumed." }
+```

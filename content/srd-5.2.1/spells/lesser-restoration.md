@@ -8,3 +8,8 @@
 **Duration:** Instantaneous
 
 You touch a creature and end one condition on it: Blinded, Deafened, Paralyzed, or Poisoned.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1 }, remove-condition: { choose: [blinded, deafened, paralyzed, poisoned] } }
+```

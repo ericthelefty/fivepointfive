@@ -12,3 +12,10 @@ You gain these benefits while wearing the robe.
 ***Magic Resistance.*** You have Advantage on saving throws against spells and other magical effects.
 
 ***War Mage.*** Your spell save DC and spell attack bonus each increase by 2.
+
+## Effects
+```yaml
+- base: { to: ac, value: 15 + mod:dex, when: { armor: none } }
+- advantage: { roll: save:all, scope: { source: magic } }
+- bonus: { to: [spell:dc, spell:attack], value: 2 }
+```

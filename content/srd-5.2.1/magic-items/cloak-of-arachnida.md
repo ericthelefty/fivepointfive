@@ -12,3 +12,12 @@ This fine garment is made of black silk interwoven with faint, silvery threads. 
 ***Spider Walk.*** You can’t be caught in webs of any sort and can move through webs as if they were Difficult Terrain.
 
 ***Web.*** You can cast *Web* (save DC 13). The web created by the spell fills twice its normal area. Once used, this property can’t be used again until the next dawn.
+
+## Effects
+```yaml
+- defense: { resistance: [poison] }
+- speed: { climb: speed:walk }
+- trait: [spider-climb, web-walker]
+- resource: { id: arachnida-web, max: 1, reset: dawn }
+- action: { cost: { resource: $#arachnida-web }, cast: $srd/spells/web, overrides: { dc: 13, area.size: "2 * spell.area" } }
+```

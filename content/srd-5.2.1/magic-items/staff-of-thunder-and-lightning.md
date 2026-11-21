@@ -14,3 +14,17 @@ This staff can be wielded as a magic Quarterstaff that grants a +2 bonus to atta
 ***Lightning Strike.*** You can take a Magic action to cause a bolt of lightning to leap from the staff’s tip in a Line that is 5 feet wide and 120 feet long. Each creature in that Line makes a DC 17 Dexterity saving throw, taking 9d6 Lightning damage on a failed save or half as much damage on a successful one.
 
 ***Thunderclap.*** You can take a Magic action to cause the staff to produce a thunderclap audible out to 600 feet. Every creature within a 60-foot Emanation originating from you makes a DC 17 Constitution saving throw. On a failed save, a creature takes 2d6 Thunder damage and has the Deafened condition for 1 minute. On a successful save, a creature takes half as much damage only.
+
+## Effects
+```yaml
+- bonus: { to: [attack, damage], value: 2, scope: { weapon: { id: self } } }
+- resource: { id: thunder-lightning, max: 1, reset: dawn, per-property: true }
+- trigger: { event: hit, scope: { weapon: { id: self, kind: melee } }, label: Lightning, offer: { cost: { resource: $#thunder-lightning }, damage: { dice: 2d6, type: lightning } } }
+- trigger: { event: hit, scope: { weapon: { id: self, kind: melee } }, label: Thunder, offer: { cost: { resource: $#thunder-lightning }, save: { ability: con, dc: 17 },
+             on-failure: { apply: { condition: stunned, duration: { until: end-of-next-turn } } } } }
+- trigger: { event: hit, scope: { weapon: { id: self, kind: melee } }, label: Thunder and Lightning, offer: { cost: { resource: $#thunder-lightning }, text: "Both, without using those properties." } }
+- action: { activation: magic, label: Lightning Strike, cost: { resource: $#thunder-lightning }, area: { shape: line, size: 120, width: 5 },
+            save: { ability: dex, dc: 17, success: half }, damage: { dice: 9d6, type: lightning } }
+- action: { activation: magic, label: Thunderclap, cost: { resource: $#thunder-lightning }, area: { shape: emanation, size: 60 },
+            save: { ability: con, dc: 17, success: half }, damage: { dice: 2d6, type: thunder }, on-failure: { apply: { condition: deafened, duration: { amount: 1, unit: minute } } } }
+```

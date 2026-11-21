@@ -12,3 +12,10 @@ You launch a sunbeam in a 5-foot-wide, 60-foot-long Line. Each creature in the L
 Until the spell ends, you can take a Magic action to create a new Line of radiance.
 
 For the duration, a mote of brilliant radiance shines above you. It sheds Bright Light in a 30-foot radius and Dim Light for an additional 30 feet. This light is sunlight.
+
+## Effects
+```yaml
+- action: { area: { shape: line, size: 60, width: 5 }, save: { ability: con, success: half }, damage: { dice: 6d8, type: radiant },
+            on-failure: { apply: { condition: blinded, duration: { until: start-of-next-turn } } }, repeat: { activation: magic } }
+- self-effects: { effects: [ { trait: { light: { bright: sunlight, dim: 30 } } } ] }
+```

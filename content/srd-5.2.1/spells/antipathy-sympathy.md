@@ -12,3 +12,11 @@ As you cast the spell, choose whether it creates antipathy or sympathy, and targ
 **Antipathy.** The creature has the Frightened condition. The Frightened creature must use its movement on its turns to get as far away as possible from the target, moving by the safest route.
 
 **Sympathy.** The creature has the Charmed condition. The Charmed creature must use its movement on its turns to get as close as possible to the target, moving by the safest route. If the creature is within 5 feet of the target, the creature can’t willingly move away. If the target damages the Charmed creature, that creature can make a
+
+## Effects
+```yaml
+- action: { targets: { count: 1, size-max: huge }, choose-one: [
+              { id: antipathy, label: Antipathy, apply: { condition: frightened, text: "Must move away from the target." } },
+              { id: sympathy, label: Sympathy, apply: { condition: charmed, text: "Must move toward the target." } } ],
+            save: { ability: wis, text: "When a creature of the chosen kind comes within 120 feet" } }
+```

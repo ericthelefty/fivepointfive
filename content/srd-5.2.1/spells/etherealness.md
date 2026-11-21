@@ -16,3 +16,9 @@ When the spell ends, you return to the plane you left in the spot that correspon
 This spell ends instantly if you cast it while you are on the Ethereal Plane or a plane that doesn’t border it, such as one of the Outer Planes.
 
 ***Using a Higher-Level Spell Slot.*** You can target up to three willing creatures (including yourself) for each spell slot level above 7. The creatures must be within 10 feet of you when you cast the spell.
+
+## Effects
+```yaml
+- self-effects: { effects: [ { trait: { text: "On the Border Ethereal: you can affect and be affected only by things on that plane. Returning into an occupied space shunts you and deals Force damage equal to twice the feet moved." } } ] }
+- scaling: { per-slot-above: 7, add: { targets: 3, text: "three willing creatures within 10 feet per slot level above 7" } }
+```

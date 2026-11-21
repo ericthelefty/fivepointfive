@@ -16,3 +16,13 @@ Additionally, you can focus your senses as a Magic action to discern the distanc
 | Brass | Fire | Red | Fire |
 | Bronze | Lightning | Silver | Cold |
 | Copper | Acid | White | Cold |
+
+## Effects
+```yaml
+- variant: { id: dragon, by: name, table: Dragon Scale Mail }
+- bonus: { to: ac, value: 1 }
+- advantage: { roll: save:all, scope: { source: dragon-breath } }
+- defense: { resistance: [variant:dragon.damage] }
+- resource: { id: dragon-sense, max: 1, reset: dawn }
+- action: { activation: magic, cost: { resource: $#dragon-sense }, text: "Learn the distance and direction to the nearest dragon of that kind within 30 miles." }
+```

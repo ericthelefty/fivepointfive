@@ -16,3 +16,15 @@ On each of your turns until the spell ends, you can take a Magic action to targe
 ***Panicked.*** The target has the Frightened condition. On each of its turns, the Frightened target must take the Dash action and move away from you by the safest and shortest route available. If the target moves to a space at least 60 feet away from you where it can’t see you, this effect ends.
 
 ***Sickened.*** The target has the Poisoned condition.
+
+## Effects
+```yaml
+- action:
+    targets: { count: 1, within: 60 }
+    save: { ability: wis }
+    repeat: { activation: magic, text: "Not a creature that succeeded on its save" }
+    choose-one:
+      - { id: asleep, label: Asleep, apply: { condition: unconscious, duration: spell, ends-when: [damage, shaken-awake] } }
+      - { id: panicked, label: Panicked, apply: { condition: frightened, duration: spell, text: "Dashes away each turn; can end the effect 60+ feet away out of sight." } }
+      - { id: sickened, label: Sickened, apply: { condition: poisoned, duration: spell, save-ends: end-of-turn } }
+```

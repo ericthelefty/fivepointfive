@@ -12,3 +12,13 @@ You place a curse on a creature that you can see within range. Until the spell e
 If the target drops to 0 Hit Points before this spell ends, you can take a Bonus Action on a later turn to curse a new creature.
 
 ***Using a Higher-Level Spell Slot.*** Your Concentration can last longer with a spell slot of level 2 (up to 4 hours), 3–4 (up to 8 hours), or 5+ (24 hours).
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, choose: { id: hex-ability, kind: ability } }
+- target-effects: { effects: [ { disadvantage: { roll: check:chosen } } ] }
+- trigger: { event: hit, scope: { against: { target: marked } }, auto: true, offer: { damage: { dice: 1d6, type: necrotic } } }
+- trigger: { event: { target-drops: zero }, offer: { text: "Bonus Action on a later turn: curse a new creature." } }
+- scaling: { slots: { "2": { duration: { amount: 4, unit: hour, concentration: true } }, "3-4": { duration: { amount: 8, unit: hour, concentration: true } },
+                      "5+": { duration: { amount: 24, unit: hour, concentration: true } } } }
+```

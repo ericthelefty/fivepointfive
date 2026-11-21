@@ -12,3 +12,11 @@ You attempt to turn one creature that you can see within range into stone. The t
 A Restrained target makes another Constitution saving throw at the end of each of its turns. If it successfully saves against this spell three times, the spell ends. If it fails its saves three times, it is turned to stone and has the Petrified condition for the duration. The successes and failures needn’t be consecutive; keep track of both until the target collects three of a kind.
 
 If you maintain your Concentration on this spell for the entire possible duration, the target is Petrified until the condition is ended by *Greater Restoration* or similar magic.
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, save: { ability: con, auto-succeed: { creature: construct } },
+            on-failure: { apply: { condition: restrained, duration: spell,
+              save-ends: { at: end-of-turn, successes: 3, failures: 3, on-fail-out: { condition: petrified } } } },
+            on-success: { apply: { text: "Speed 0", duration: { until: start-of-next-turn } } } }
+```

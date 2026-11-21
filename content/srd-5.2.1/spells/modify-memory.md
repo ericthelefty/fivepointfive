@@ -18,3 +18,11 @@ A modified memory doesn’t necessarily affect how a creature behaves, particula
 A *Remove Curse* or *Greater Restoration* spell cast on the target restores the creature’s true memory.
 
 ***Using a Higher-Level Spell Slot.*** You can alter the target’s memories of an event that took place up to 7 days ago (level 6 spell slot), 30 days ago (level 7 spell slot), 365 days ago (level 8 spell slot), or any time in the creature’s past (level 9 spell slot).
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, save: { ability: wis, advantage: { text: "You are fighting it" } },
+            apply: { condition: [charmed, incapacitated], duration: spell, ends-when: [damage, targeted-by-spell] },
+            text: "Rewrite memory of an event from the last 24 hours lasting up to 10 minutes." }
+- scaling: { slots: { "6": { text: "memories up to 7 days old" }, "7": { text: "up to 30 days" }, "8": { text: "up to 365 days" }, "9": { text: "any time" } } }
+```

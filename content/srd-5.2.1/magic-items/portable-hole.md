@@ -12,3 +12,9 @@ You can take a Magic action to close a *Portable Hole* by taking hold of the edg
 If the hole is folded up, a creature within the hole’s extradimensional space can take an action to make a DC 10 Strength (Athletics) check. On a successful check, the creature forces its way out and appears within 5 feet of the *Portable Hole*. A closed *Portable Hole* holds enough air for 1 hour of breathing, divided by the number of breathing creatures inside.
 
 Placing a *Portable Hole* inside an extradimensional space created by a *Bag of Holding, Handy Haversack,* or similar item instantly destroys both items and opens a gate to the Astral Plane. The gate originates where the one item was placed inside the other. Any creature within 10 feet of the gate and not behind Total Cover is sucked through it and deposited in a random location on the Astral Plane. The gate then closes. The gate is one-way only and can’t be reopened.
+
+## Effects
+```yaml
+- container: { capacity: { text: "A 10-foot-deep extradimensional hole, 6 feet across" } }
+- action: { activation: magic, text: "Unfold or fold the hole. Placing it in a Bag of Holding (or vice versa) destroys both." }
+```

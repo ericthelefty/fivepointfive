@@ -12,3 +12,10 @@ You suggest a course of activity—described in no more than 25 words—to twelv
 Each target must succeed on a Wisdom saving throw or have the Charmed condition for the duration or until you or your allies deal damage to the target. Each Charmed target pursues the suggestion to the best of its ability. The suggested activity can continue for the entire duration, but if the suggested activity can be completed in a shorter time, the spell ends for a target upon completing it.
 
 ***Using a Higher-Level Spell Slot.*** The duration is longer with a spell slot of level 7 (10 days), 8 (30 days), or 9 (366 days).
+
+## Effects
+```yaml
+- action: { targets: { count: 12 }, save: { ability: wis }, apply: { condition: charmed, duration: spell, ends-when: damage-by-you-or-allies,
+            text: "Pursues the suggested course of activity." } }
+- scaling: { slots: { "7": { duration: { amount: 10, unit: day } }, "8": { duration: { amount: 30, unit: day } }, "9": { duration: { amount: 366, unit: day } } } }
+```

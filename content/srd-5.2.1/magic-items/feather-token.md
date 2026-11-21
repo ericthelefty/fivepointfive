@@ -19,6 +19,12 @@ This object looks like a feather. Different types of feather tokens exist, each 
 
 As a Bonus Action, you can direct the whip to fly up to 20 feet and repeat the attack against a creature within 10 feet of the whip. The whip disappears after 1 hour, when you take a Magic action to dismiss it, or when you die or have the Incapacitated condition.
 
+## Effects
+```yaml
+- variant: { id: kind, by: name, values: [anchor, bird, fan, swan-boat, tree, whip] }
+- action: { activation: magic, consume: true, text: "The token's single-use effect (see its kind)." }
+```
+
 ## Feather Tokens
 
 | 1d100 | Token | Rarity |

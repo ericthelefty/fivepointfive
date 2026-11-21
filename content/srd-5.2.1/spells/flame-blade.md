@@ -14,3 +14,10 @@ As a Magic action, you can make a melee spell attack with the fiery blade. On a 
 The flaming blade sheds Bright Light in a 10-foot radius and Dim Light for an additional 10 feet.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d6 for each spell slot level above 2.
+
+## Effects
+```yaml
+- self-effects: { effects: [ { action: { activation: magic, attack: { kind: melee-spell }, damage: { dice: 3d6 + spell-ability, type: fire } } },
+                             { trait: { light: { bright: 10, dim: 10 } } } ] }
+- scaling: { per-slot-above: 2, add: { self-effects.action.damage: 1d6 } }
+```

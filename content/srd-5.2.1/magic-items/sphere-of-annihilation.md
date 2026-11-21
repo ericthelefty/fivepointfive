@@ -18,3 +18,8 @@ While in control of the sphere, you can take a Bonus Action to cause it to move 
 | 01–50 | The sphere is destroyed. |
 | 51–85 | The sphere moves through the portal or into the extradimensional space. |
 | 86–00 | A spatial rift sends the sphere and each creature and object within 180 feet of the sphere to a random plane of existence. |
+
+## Effects
+```yaml
+- narrative: true
+```

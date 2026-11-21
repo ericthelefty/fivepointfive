@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { features, parseFile, type Entry } from "./parse.ts";
+import type { Item } from "./inventory.ts";
 import { armorTable, derive, newCharacter, traits, intro, type Character } from "./rules.ts";
 import { classInfos } from "./multiclass.ts";
-import { advantageFor, computeModif, setSlotFeat, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
+import { advantageFor, computeModif, setSlotFeat, spellPlan, type ModifCtx, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
 const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : f.endsWith(".md") ? [join(d, f)] : []));
@@ -34,10 +35,10 @@ const champion = (level: number, extra: Partial<Character> = {}): Character => (
   ...extra,
 });
 
-function sheet(c: Character): { fx: ModifResult; d: ReturnType<typeof derive> } {
+function sheet(c: Character, extra: Partial<ModifCtx> = {}): { fx: ModifResult; d: ReturnType<typeof derive> } {
   const infos = classInfos(c, byId);
-  const fx = computeModif({ c, classes: infos, species: byId(c.speciesId), background: byId(c.backgroundId), entries: all, byId });
-  const d = derive(c, { cls: byId(c.classId), species: byId(c.speciesId), background: byId(c.backgroundId), armor, classes: infos, modif: fx });
+  const fx = computeModif({ c, classes: infos, species: byId(c.speciesId), background: byId(c.backgroundId), entries: all, byId, ...extra });
+  const d = derive(c, { cls: byId(c.classId), species: byId(c.speciesId), background: byId(c.backgroundId), armor, classes: infos, modif: fx, items: c.inventory });
   return { fx, d };
 }
 
@@ -46,7 +47,8 @@ describe("Modif blocks in pack files", () => {
     const withFx = all.filter((e) => e.effects?.length);
     const feats = all.filter((e) => e.type === "Feat");
     expect(feats.every((f) => f.effects?.length)).toBe(true); // every SRD feat
-    expect(withFx.filter((e) => e.type !== "Feat").map((e) => e.name).sort()).toEqual(["Champion", "Fighter", "Human", "Soldier"]);
+    expect(all.filter((e) => e.type === "Spell" || e.type === "Magic Item").every((e) => e.effects?.length)).toBe(true); // every spell and magic item
+    expect(withFx.filter((e) => !["Feat", "Spell", "Magic Item"].includes(e.type)).map((e) => e.name).sort()).toEqual(["Champion", "Fighter", "Human", "Soldier"]);
     for (const e of withFx) for (const fx of e.effects!) expect(readBlocks(fx.yaml).problems, `${e.name} / ${fx.feature}`).toEqual([]);
   });
 
@@ -148,7 +150,10 @@ describe("Fighter (Champion), Human, Soldier", () => {
     expect(advantageFor(fx, { kind: "check", ability: "Strength", skill: "Athletics" })).toEqual(["Remarkable Athlete (Champion)"]);
     expect(advantageFor(fx, { kind: "check", ability: "Strength" })).toEqual([]);
     expect(fx.resources.map((r) => [r.name, r.max, r.recover])).toEqual([["Second Wind", 2, "shortOne"], ["Action Surge", 1, "short"]]);
-    expect(fx.features.find((f) => f.feature === "Remarkable Athlete")!.status).toBe("partly automated");
+    expect(fx.features.find((f) => f.feature === "Remarkable Athlete")!.status).toBe("automated");
+    expect(fx.triggers.find((t) => t.name === "Remarkable Athlete")).toMatchObject({
+      when: "When you score a Critical Hit", text: "Move up to half your Speed without provoking Opportunity Attacks",
+    });
     expect(fx.features.find((f) => f.feature === "Improved Critical")!.status).toBe("automated");
   });
 
@@ -172,7 +177,8 @@ describe("Fighter (Champion), Human, Soldier", () => {
       [4, 6, 8, 12, 14, 16].map((l) => `srd:class/fighter#asi@${l}`),
     );
     expect(fx.pending.find((p) => p.key === "srd:subclass/champion#fighting-style-2")!.chosen).toEqual([]);
-    expect(fx.reminders.some((r) => r.feature === "Heroic Rally")).toBe(true);
+    expect(fx.triggers.find((t) => t.name === "Heroic Rally")).toMatchObject({ when: "At the start of your turn (while Bloodied, unless at zero HP)", text: "Regain 7 HP", auto: true });
+    expect(fx.triggers.find((t) => t.name === "Indomitable")).toMatchObject({ cost: { key: "indomitable", amount: 1 } });
     expect(fx.pending.some((p) => p.key === "srd:class/fighter#epic-boon")).toBe(false);
   });
 
@@ -285,5 +291,113 @@ describe("Ability Score Improvements", () => {
     expect(fx.pending.find((p) => p.key === asiPick(4))!.chosen).toEqual([]);
     expect(d.scores.Strength).toBe(17);
     expect(d.scores.Constitution).toBe(17);
+  });
+});
+
+describe("Active effects, uses and triggers", () => {
+  const item = (id: string, ref: string, extra: Partial<Item> = {}): Item => ({ id, name: byId(ref)!.name, kind: "magic", qty: 1, ref, equipped: true, attuned: true, ...extra });
+  const withItems = (items: Item[], extra: Partial<ModifCtx> = {}) => {
+    const c = { ...champion(5), inventory: [{ id: "cm", name: "Chain Mail", kind: "armor", qty: 1, base: "Chain Mail", equipped: true } as Item, ...items] };
+    return sheet(c, { items: items.map((it) => ({ item: it, entry: byId(it.ref)!, active: !!it.equipped && !!it.attuned })), gear: { armor: "heavy", shield: false }, ...extra });
+  };
+
+  it("an item toggle costs charges, and its effects apply only while switched on", () => {
+    const cloak = item("c1", "srd:magic-item/cloak-of-invisibility");
+    const off = withItems([cloak]).fx;
+    expect(off.resources.find((r) => r.key === "item:c1")).toMatchObject({ max: 3, recover: "dawn", regain: "1d3" });
+    const t = off.toggles.find((x) => x.itemId === "c1")!;
+    expect(t).toMatchObject({ key: "item:c1#cloak-of-invisibility", cost: { key: "item:c1", amount: 1 }, minutes: 60, active: false });
+    expect(t.lines).toEqual(["You have the Invisible condition"]);
+    expect(off.notes.some((n) => /Invisible/.test(n.text))).toBe(false);
+    const on = withItems([cloak], { active: [{ key: "item:c1#cloak-of-invisibility" }] }).fx;
+    expect(on.toggles.find((x) => x.itemId === "c1")!.active).toBe(true);
+    expect(on.notes.some((n) => /Invisible/.test(n.text))).toBe(false); // shown under Active now, not Always on
+  });
+
+  it("items apply only while active, but keep counting charges", () => {
+    const staff = item("s1", "srd:magic-item/staff-of-healing", { attuned: false });
+    const { fx } = withItems([staff]);
+    expect(fx.resources.find((r) => r.key === "item:s1")).toMatchObject({ max: 10, regain: "1d6+4" });
+    expect(fx.actions.some((a) => a.cost?.key === "item:s1")).toBe(false);
+    const on = withItems([{ ...staff, attuned: true }]).fx;
+    expect(on.actions.filter((a) => a.cost?.key === "item:s1").map((a) => [a.name, a.cost!.amount])).toEqual([["Cure Wounds", 1], ["Lesser Restoration", 2], ["Mass Cure Wounds", 5]]);
+    expect(on.actions.find((a) => a.name === "Cure Wounds")!.cast!.spellId).toBe("srd:spell/cure-wounds");
+  });
+
+  it("+N weapons, rings and belts change the numbers", () => {
+    const sword = item("w1", "srd:magic-item/weapon-1-2-or-3", { name: "+2 Longsword", base: "Longsword", attuned: false });
+    const ring = item("r1", "srd:magic-item/ring-of-protection");
+    const gaunt = item("g1", "srd:magic-item/gauntlets-of-ogre-power");
+    const { fx, d } = withItems([{ ...sword, attuned: true }, ring, gaunt]);
+    expect(fx.attackBonuses.filter((b) => b.itemId === "w1").map((b) => b.value)).toEqual([2]);
+    expect(fx.damageBonuses.filter((b) => b.itemId === "w1").map((b) => b.value)).toEqual([2]);
+    expect(d.ac).toBe(16 + 1 + 1); // Chain Mail, Defense, Ring of Protection
+    expect(d.saves.Dexterity.value).toBe(1 + 1);
+    expect(d.scores.Strength).toBe(19);
+  });
+
+  it("granted spells and their free casts", () => {
+    const ring = item("r2", "srd:magic-item/ring-of-water-walking");
+    const { fx } = withItems([ring]);
+    expect(fx.grantedSpells.map((g) => [g.spell.name, g.atWill, g.source])).toEqual([["Water Walk", true, "Ring of Water Walking"]]);
+  });
+
+  it("triggers list what you can do when something happens", () => {
+    const { fx } = sheet(champion(9));
+    const names = fx.triggers.map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["Tactical Mind", "Tactical Shift", "Indomitable", "Tactical Master", "Savage Attacker", "Remarkable Athlete"]));
+    expect(fx.triggers.find((t) => t.name === "Tactical Mind")).toMatchObject({ when: "When you fail an ability check", cost: { key: "second-wind", amount: 1 } });
+    expect(fx.triggers.find((t) => t.name === "Savage Attacker")!.when).toBe("When you hit");
+  });
+
+  it("a toggle's effects and `when: { active }` blocks switch with it", () => {
+    const [glow] = parseFile(
+      "# Glowkin\n**Type:** Species\n**Speed:** 30 feet\n\n## Radiance\n\nYou can shine.\n\n## Effects\n```yaml\n" +
+        "- resource: { id: shine, max: 2, reset: long }\n" +
+        "- toggle: { id: radiance, activation: bonus, cost: { resource: $#shine }, duration: { amount: 1, unit: minute }, effects: [ { advantage: { roll: save:con } }, { defense: { resistance: [radiant] } } ] }\n" +
+        "- bonus: { to: speed:walk, value: 10, when: { active: $#radiance } }\n```\n",
+      "t",
+    );
+    const c = { ...champion(1), speciesId: undefined };
+    const off = sheet(c, { species: glow });
+    expect(off.fx.toggles[0]).toMatchObject({ key: "t:species/glowkin#radiance", cost: { key: "shine", amount: 1 }, minutes: 1 });
+    expect(off.fx.toggles[0].lines).toEqual(["Advantage on Constitution saving throws", "Resistance to Radiant"]);
+    expect(off.d.speed).toBe(30);
+    expect(advantageFor(off.fx, { kind: "save", ability: "Constitution" })).toEqual([]);
+    const on = sheet(c, { species: glow, active: [{ key: "t:species/glowkin#radiance" }] });
+    expect(on.d.speed).toBe(40);
+    expect(advantageFor(on.fx, { kind: "save", ability: "Constitution" })).toEqual(["Radiance (Glowkin)"]);
+  });
+
+  it("a spell cast on yourself applies its target effects", () => {
+    const c = { ...champion(1), inventory: [] as Item[] };
+    const off = sheet(c, { active: [{ key: "spell:srd:spell/mage-armor" }], gear: { shield: false } });
+    expect(off.fx.activeSpells[0]).toMatchObject({ targetEffects: true, onSelf: false });
+    expect(off.d.ac).toBe(11);
+    const on = sheet(c, { active: [{ key: "spell:srd:spell/mage-armor", onSelf: true }], gear: { shield: false } });
+    expect(on.d.ac).toBe(14); // 13 + Dex
+    expect(on.fx.activeSpells[0].lines).toEqual(["On you: AC = 13 + Dex (while not wearing armor)"]);
+  });
+});
+
+describe("Spells read from their Effects", () => {
+  const sp = (n: string) => byId(`srd:spell/${n}`)!;
+  const nums = { mod: 3, dc: 13, attack: 5 };
+  it("damage scales with the slot", () => {
+    expect(spellPlan(sp("fireball"), { slot: 5, charLevel: 9, spell: nums })).toMatchObject({ save: { ability: "Dexterity", success: "half" }, damage: [{ dice: "10d6", type: "fire" }], minutes: 0 });
+  });
+  it("cantrips scale with character level", () => {
+    expect(spellPlan(sp("fire-bolt"), { slot: 0, charLevel: 11, spell: nums })).toMatchObject({ attack: { count: 1 }, damage: [{ dice: "3d10", type: "fire" }] });
+  });
+  it("healing adds the spellcasting modifier and scales", () => {
+    expect(spellPlan(sp("cure-wounds"), { slot: 2, charLevel: 3, spell: nums })!.heal).toBe("4d8+3");
+  });
+  it("duration and concentration come from the header", () => {
+    expect(spellPlan(sp("bless"), { slot: 1, charLevel: 1, spell: nums })).toMatchObject({ concentration: true, minutes: 1 });
+    expect(spellPlan(sp("mage-armor"), { slot: 1, charLevel: 1, spell: nums })).toMatchObject({ concentration: false, minutes: 480 });
+  });
+  it("every SRD spell has a plan", () => {
+    const spells = all.filter((e) => e.type === "Spell");
+    for (const s of spells) expect(spellPlan(s, { slot: 9, charLevel: 20, spell: nums }), s.name).not.toBeNull();
   });
 });

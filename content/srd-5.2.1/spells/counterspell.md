@@ -8,3 +8,9 @@
 **Duration:** Instantaneous
 
 You attempt to interrupt a creature in the process of casting a spell. The creature makes a Constitution saving throw. On a failed save, the spell dissipates with no effect, and the action, Bonus Action, or Reaction used to cast it is wasted. If that spell was cast with a spell slot, the slot isn’t expended.
+
+## Effects
+```yaml
+- trigger: { event: { cast: any }, who: { creature: other, range: 60, see: true }, reaction: true,
+             offer: { save: { ability: con }, text: "On a failed save the spell fails; a spent slot isn't expended." } }
+```

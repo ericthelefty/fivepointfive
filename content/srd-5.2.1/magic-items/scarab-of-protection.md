@@ -10,3 +10,12 @@ This beetle-shaped medallion provides three benefits while it is on your person.
 ***Preservation.*** The scarab has 12 charges. If you fail a saving throw against a Necromancy spell or a harmful effect originating from an Undead, you can take a Reaction to expend 1 charge and turn the failed save into a successful one. The scarab crumbles into powder and is destroyed when its last charge is expended.
 
 ***Spell Resistance.*** You have Advantage on saving throws against spells.
+
+## Effects
+```yaml
+- bonus: { to: ac, value: 1, when: { has: { item: self } } }
+- charges: { max: 12, destroy-on: { when: last-charge } }
+- trigger: { event: { fail: save }, reaction: true, scope: { any: [ { spell: { school: necromancy } }, { against: { creature: undead } } ] },
+             offer: { treat-as: success, cost: { charges: 1 } } }
+- advantage: { roll: save:all, scope: { source: spell } }
+```

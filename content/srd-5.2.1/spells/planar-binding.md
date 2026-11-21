@@ -12,3 +12,11 @@ You attempt to bind a Celestial, an Elemental, a Fey, or a Fiend to your service
 A bound creature must follow your commands to the best of its ability. You might command the creature to accompany you on an adventure, to guard a location, or to deliver a message. If the creature is Hostile, it strives to twist your commands to achieve its own objectives. If the creature carries out your commands completely before the spell ends, it travels to you to report this fact if you are on the same plane of existence. If you are on a different plane, it returns to the place where you bound it and remains there until the spell ends.
 
 ***Using a Higher-Level Spell Slot.*** The duration increases with a spell slot of level 6 (10 days), 7 (30 days), 8 (180 days), and 9 (366 days).
+
+## Effects
+```yaml
+- action: { targets: { count: 1, creature: [celestial, elemental, fey, fiend] }, save: { ability: cha },
+            apply: { text: "Bound to serve you", duration: spell } }
+- scaling: { slots: { "6": { duration: { amount: 10, unit: day } }, "7": { duration: { amount: 30, unit: day } },
+                      "8": { duration: { amount: 180, unit: day } }, "9": { duration: { amount: 366, unit: day } } } }
+```

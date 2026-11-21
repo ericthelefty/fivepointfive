@@ -6,3 +6,10 @@
 While holding this Shield, you have Resistance to damage from attacks made with Ranged weapons.
 
 ***Curse.*** This Shield is cursed. Attuning to it curses you until you are targeted by a *Remove Curse* spell or similar magic. Removing the Shield fails to end the curse on you. Whenever an attack with a Ranged weapon targets a creature within 10 feet of you, the curse causes you to become the target instead.
+
+## Effects
+```yaml
+- defense: { resistance: [all], scope: { against: { attack: ranged-weapon } } }
+- curse: { prevents: [unattune], ends: { spell: $srd/spells/remove-curse },
+           effects: [ { trigger: { event: targeted, who: { creature: any, range: 10 }, auto: true, if: "A Ranged weapon attack", offer: { text: "You become the target instead." } } } ] }
+```

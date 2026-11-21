@@ -12,3 +12,11 @@ You tap into the nightmares of a creature you can see within range and create an
 For the duration, the target makes a Wisdom saving throw at the end of each of its turns. On a failed save, it takes the Psychic damage again. On a successful save, the spell ends.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d10 for each spell slot level above 4.
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, save: { ability: wis, success: half }, damage: { dice: 4d10, type: psychic },
+            on-failure: { apply: { duration: spell, effects: [ { disadvantage: { roll: [check:all, attack] } } ] } },
+            then: { at: end-of-target-turn, save: { ability: wis }, on-failure: { damage: { dice: 4d10, type: psychic } }, on-success: { end-effect: true } } }
+- scaling: { per-slot-above: 4, add: { damage: 1d10, then.on-failure.damage: 1d10 } }
+```

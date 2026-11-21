@@ -16,3 +16,19 @@ You gain the following benefits while wearing the helm.
 ***Spells.*** You can cast one of the following spells (save DC 18), using one of the helm’s gems of the specified type as a component: *Daylight* (opal), *Fireball* (fire opal), *Prismatic Spray* (diamond), or *Wall of Fire* (ruby). The gem is destroyed when the spell is cast and disappears from the helm.
 
 ***Taking Fire Damage.*** Roll 1d20 if you are wearing the helm and take Fire damage as a result of failing a saving throw against a spell. On a roll of 1, the helm emits beams of light from its remaining gems and is then destroyed. Each creature within a 60-foot Emanation originating from you must succeed on a DC 17 Dexterity saving throw or be struck by a beam, taking Radiant damage equal to the number of gems in the helm.
+
+## Effects
+```yaml
+- charges: { max: { diamond: 1d10, ruby: 2d10, fire-opal: 3d10, opal: 4d10 }, kinds: true }
+- aura: { id: diamond-light, area: { shape: emanation, size: 30 }, affects: [enemies], when: { has: { charges: diamond } },
+          effects: [ { trigger: { event: start-of-turn, auto: true, if: "The creature is Undead", offer: { damage: { dice: 1d6, type: radiant } } } } ] }
+- toggle: { id: fire-opal-flames, activation: magic, when: { has: { charges: fire-opal } },
+            effects: [ { trigger: { event: hit, auto: true, offer: { damage: { dice: 1d6, type: fire } } } }, { trait: { light: { bright: 10, dim: 10 } } } ] }
+- defense: { resistance: [fire], when: { has: { charges: ruby } } }
+- action: { cost: { charges: { kind: opal } }, cast: $srd/spells/daylight, overrides: { dc: 18 } }
+- action: { cost: { charges: { kind: fire-opal } }, cast: $srd/spells/fireball, overrides: { dc: 18 } }
+- action: { cost: { charges: { kind: diamond } }, cast: $srd/spells/prismatic-spray, overrides: { dc: 18 } }
+- action: { cost: { charges: { kind: ruby } }, cast: $srd/spells/wall-of-fire, overrides: { dc: 18 } }
+- trigger: { event: damaged, auto: true, scope: { against: { damage: fire } }, if: "From a failed save against a spell",
+             offer: { roll: 1d20, if-roll: 1, text: "The helm explodes in beams and is destroyed." } }
+```

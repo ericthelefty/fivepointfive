@@ -7,6 +7,17 @@ This cube is about an inch across. Each face has a distinct marking on it. You c
 
 The cube starts with 10 charges, and it regains 1d6 expended charges daily at dawn.
 
+## Effects
+```yaml
+- charges: { max: 10, recharge: { dice: 1d6, at: dawn } }
+- action: { cost: { charges: 1 }, cast: $srd/spells/mage-armor, overrides: { dc: 17 } }
+- action: { cost: { charges: 1 }, cast: $srd/spells/shield }
+- action: { cost: { charges: 3 }, cast: $srd/spells/tiny-hut }
+- action: { cost: { charges: 4 }, cast: $srd/spells/private-sanctum }
+- action: { cost: { charges: 4 }, cast: $srd/spells/resilient-sphere, overrides: { dc: 17 } }
+- action: { cost: { charges: 5 }, cast: $srd/spells/wall-of-force }
+```
+
 ## Cube of Force Faces
 
 | Spell | Charge Cost |

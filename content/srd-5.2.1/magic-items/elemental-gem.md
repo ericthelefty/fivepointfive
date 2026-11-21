@@ -12,3 +12,9 @@ This gem contains a mote of elemental energy. When you take a Utilize action to 
 | Emerald | Water Elemental |
 | Red corundum | Fire Elemental |
 | Yellow diamond | Earth Elemental |
+
+## Effects
+```yaml
+- variant: { id: gem, by: name, table: Elemental Gem }
+- action: { activation: utilize, consume: true, summon: { creature: variant:gem.elemental, duration: { amount: 1, unit: hour }, initiative: after-you } }
+```

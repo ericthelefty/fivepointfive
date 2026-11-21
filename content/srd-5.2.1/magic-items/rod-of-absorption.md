@@ -10,3 +10,11 @@ When you become attuned to the rod, you know how many levels of energy the rod h
 If you are a spellcaster holding the rod, you can convert energy stored in it into spell slots to cast spells you have prepared or know. You can create spell slots only of a level equal to or lower than your own spell slots, up to a maximum of level 5. You use the stored levels in place of your slots but otherwise cast the spell as normal. For example, you can use 3 levels stored in the rod as a level 3 spell slot.
 
 A newly found rod typically has 1d10 levels of spell energy stored in it. A rod that can no longer absorb spell energy and has no energy remaining becomes nonmagical.
+
+## Effects
+```yaml
+- resource: { id: absorbed, max: 50, reset: never, lifetime: true, start: 1d10 }
+- trigger: { event: { targeted: spell }, reaction: true, if: "The spell targets only you and has no area",
+             offer: { regain: { resource: $#absorbed, amount: spell.level }, text: "The spell is canceled." } }
+- convert: { from: { resource: $#absorbed, amount: any }, to: { slot: cost.resource, max-slot: 5 }, activation: none }
+```

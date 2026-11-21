@@ -12,3 +12,9 @@ You teleport to a location within range. You arrive at exactly the spot desired.
 You can also teleport one willing creature. The creature must be within 5 feet of you when you teleport, and it teleports to a space within 5 feet of your destination space.
 
 If you, the other creature, or both would arrive in a space occupied by a creature or completely filled by one or more objects, you and any creature traveling with you each take 4d6 Force damage, and the teleportation fails.
+
+## Effects
+```yaml
+- action: { move: { teleport: 500, bring: { count: 1, creature: willing, within: 5 } },
+            text: "If you'd arrive in an occupied space, each traveller takes 4d6 Force damage and the teleport fails." }
+```

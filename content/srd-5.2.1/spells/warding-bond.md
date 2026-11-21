@@ -10,3 +10,11 @@
 You touch another creature that is willing and create a mystic connection between you and the target until the spell ends. While the target is within 60 feet of you, it gains a +1 bonus to AC and saving throws, and it has Resistance to all damage. Also, each time it takes damage, you take the same amount of damage.
 
 The spell ends if you drop to 0 Hit Points or if you and the target become separated by more than 60 feet. It also ends if the spell is cast again on either of the connected creatures.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1, creature: willing } }
+- target-effects: { effects: [ { bonus: { to: [ac, save:all], value: 1 } }, { defense: { resistance: [all] } },
+                               { trigger: { event: damaged, auto: true, offer: { text: "The caster takes the same damage." } } } ],
+                    ends-when: [{ text: "You drop to 0 HP or are more than 60 feet apart" }] }
+```

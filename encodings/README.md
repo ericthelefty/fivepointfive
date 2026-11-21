@@ -7,7 +7,7 @@ In each file, a top-level key is the feature heading a block list belongs under 
 | Folder | Contents |
 |---|---|
 | `characters/` | Every class, subclass and species not yet in the pack, plus `backgrounds.yaml` (Acolyte, Criminal, Sage). |
-| `catalog/` | All spells (`spells-01`…`14` plus the `spells-samples-*` files), all magic items (`items-01`…`07` plus `items-samples-*`), adventuring gear, tools, equipment rules, conditions, rules and hazards/poisons. |
+| `catalog/` | Adventuring gear, tools, equipment rules, conditions, rules and hazards/poisons. |
 | `weapon-armor-rows.yaml` | The weapon and armor table rows as structured data (made by a converter, not hand-written). |
 
-**Already in the pack, so not repeated here:** Fighter, Champion, Human, Soldier and all 17 feats. Once an entry is converted, the pack file is the source of truth: delete its draft here in the same change.
+**Already in the pack, so not repeated here:** Fighter, Champion, Human, Soldier, all 17 feats, all 339 spells and all 258 magic items. Once an entry is converted, the pack file is the source of truth: delete its draft here in the same change.

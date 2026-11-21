@@ -13,6 +13,13 @@ The creature exists for a duration specific to each figurine. At the end of the 
 
 ***Ebony Fly (Rare).*** This ebony statuette, carved in the likeness of a horsefly, can become a **Giant Fly** (see the accompanying stat block) for up to 12 hours and can be ridden as a mount. Once it has been used, it can’t be used again until 2 days have passed.
 
+## Effects
+```yaml
+- variant: { id: kind, by: name, values: [bronze-griffon, ebony-fly, golden-lions, ivory-goats, marble-elephant, obsidian-steed, onyx-dog, serpentine-owl, silver-raven] }
+- action: { activation: magic, range: 60, summon: { creature: variant:kind.creature, initiative: after-you, duration: variant:kind.duration },
+            text: "Becomes a creature that obeys you; recharge varies by kind." }
+```
+
 ## Giant Fly
 
 *Large Beast, Unaligned*

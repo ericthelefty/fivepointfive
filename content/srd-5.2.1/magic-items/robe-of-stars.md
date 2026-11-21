@@ -8,3 +8,11 @@ This black or dark-blue robe is embroidered with small white or silver stars. Yo
 Six stars, located on the robe’s upper-front portion, are particularly large. While wearing this robe, you can take a Magic action to remove one of the stars and expend it to cast the level 5 version of *Magic Missile*. Daily at dusk, 1d6 removed stars reappear on the robe.
 
 While you wear the robe, you can take a Magic action to enter the Astral Plane along with everything you are wearing and carrying. You remain there until you take a Magic action to return to the plane you were on. You reappear in the last space you occupied or, if that space is occupied, the nearest unoccupied space.
+
+## Effects
+```yaml
+- bonus: { to: save:all, value: 1 }
+- charges: { max: 6, recharge: { dice: 1d6, at: dusk } }
+- action: { activation: magic, cost: { charges: 1 }, cast: $srd/spells/magic-missile, cast-at: 5 }
+- action: { activation: magic, text: "Enter the Astral Plane with everything you wear and carry, until you take a Magic action to return." }
+```

@@ -12,3 +12,14 @@ For the duration, Celestials, Elementals, Fey, Fiends, and Undead have Disadvant
 ***Break Enchantment.*** As a Magic action, you touch a creature that is possessed by or has the Charmed or Frightened condition from one or more creatures of the types above. The target is no longer possessed, Charmed, or Frightened by such creatures.
 
 ***Dismissal.*** As a Magic action, you target one creature you can see within 5 feet of you that has one of the creature types above. The target must succeed on a Charisma saving throw or be sent back to its home plane if it isn’t there already. If they aren’t on their home plane, Undead are sent to the Shadowfell, and Fey are sent to the Feywild.
+
+## Effects
+```yaml
+- self-effects: { effects: [ { disadvantage: { roll: attacks-against-you, scope: { against: { creature: [celestial, elemental, fey, fiend, undead] } } } } ] }
+- action:
+    activation: magic
+    end-effect: true
+    choose-one:
+      - { id: break-enchantment, label: Break Enchantment, range: touch, remove-condition: [charmed, frightened], text: "Also ends possession by those creature types." }
+      - { id: dismissal, label: Dismissal, range: 5, save: { ability: cha }, text: "Sent back to its home plane." }
+```

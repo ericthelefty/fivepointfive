@@ -14,3 +14,10 @@ You have a telepathic link with the Charmed target while the two of you are on t
 You can command the target to take a Reaction but must take your own Reaction to do so.
 
 ***Using a Higher-Level Spell Slot.*** Your Concentration can last longer with a level 9 spell slot (up to 8 hours).
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, save: { ability: wis, advantage: { text: "You or your allies are fighting it" } },
+            apply: { condition: charmed, duration: spell, save-ends: on-damage, text: "You command it telepathically (no action)." } }
+- scaling: { slots: { "9": { duration: { amount: 8, unit: hour, concentration: true } } } }
+```

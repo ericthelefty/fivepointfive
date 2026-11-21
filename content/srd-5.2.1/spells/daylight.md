@@ -12,3 +12,9 @@ For the duration, sunlight spreads from a point within range and fills a 60-foot
 Alternatively, you cast the spell on an object that isn’t being worn or carried, causing the sunlight to fill a 60-foot Emanation originating from that object. Covering that object with something opaque, such as a bowl or helm, blocks the sunlight.
 
 If any of this spell’s area overlaps with an area of Darkness created by a spell of level 3 or lower, that other spell is dispelled.
+
+## Effects
+```yaml
+- zone: { area: { choose-on-use: [ { shape: sphere, size: 60 }, { shape: emanation, size: 60, from: object } ] },
+          effects: [ { trait: { light: { bright: sunlight, dim: 60 } } } ], text: "Dispels Darkness spells of level 3 or lower it overlaps." }
+```

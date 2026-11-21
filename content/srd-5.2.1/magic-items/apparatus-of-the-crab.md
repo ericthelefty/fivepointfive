@@ -13,6 +13,11 @@ The apparatus floats on water. It can also go underwater to a depth of 900 feet.
 
 A creature in the compartment can take a Utilize action to move as many as two of the apparatus’s levers up or down. After each use, a lever goes back to its neutral position. Each lever, from left to right, functions as shown in the Apparatus of the Crab Levers table.
 
+## Effects
+```yaml
+- narrative: true
+```
+
 ## Apparatus of the Crab Levers
 
 | Lever | Up | Down |

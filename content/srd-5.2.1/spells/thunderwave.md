@@ -12,3 +12,10 @@ You unleash a wave of thunderous energy. Each creature in a 15-foot Cube origina
 In addition, unsecured objects that are entirely within the Cube are pushed 10 feet away from you, and a thunderous boom is audible within 300 feet.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d8 for each spell slot level above 1.
+
+## Effects
+```yaml
+- action: { area: { shape: cube, size: 15 }, save: { ability: con, success: half }, damage: { dice: 2d8, type: thunder },
+            on-failure: { move: { target: 10, direction: away } } }
+- scaling: { per-slot-above: 1, add: { damage: 1d8 } }
+```

@@ -14,3 +14,10 @@ Areas of effect created by spells or other magic can’t extend into the aura, a
 Ongoing spells, except those cast by an Artifact or a deity, are suppressed in the area. While an effect is suppressed, it doesn’t function, but the time it spends suppressed counts against its duration.
 
 *Dispel Magic* has no effect on the aura, and the auras created by different *Antimagic Field* spells don’t nullify each other.
+
+## Effects
+```yaml
+- aura: { id: antimagic-field, area: { shape: emanation, size: 10 }, affects: [all],
+          effects: [ { suppress: { target: magic } } ],
+          text: "No spells, Magic actions or magical effects in or into the area; magic items stop working; no teleportation in or out." }
+```

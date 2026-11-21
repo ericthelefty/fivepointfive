@@ -17,3 +17,12 @@ This rod has the following properties.
 ***Protective Aura.*** As a Magic action, you can plant the haft end of the rod in the ground, whereupon the rod’s head sheds Bright Light in a 60-foot radius and Dim Light for an additional 60 feet. While in that Bright Light, you and your allies gain a +1 bonus to Armor Class and saving throws and can sense the location of any Invisible creature that is also in the Bright Light.
 
 The rod’s head stops glowing and the effect ends after 10 minutes or when a creature takes a Magic action to pull the rod from the ground. Once used, this property can’t be used again until the next dawn.
+
+## Effects
+```yaml
+- advantage: { roll: [skill:perception, initiative] }
+- grant-spell: { spell: [$srd/spells/detect-evil-and-good, $srd/spells/detect-magic, $srd/spells/detect-poison-and-disease, $srd/spells/see-invisibility], at-will: true }
+- resource: { id: protective-aura, max: 1, reset: dawn }
+- action: { activation: magic, cost: { resource: $#protective-aura }, duration: { amount: 10, unit: minute },
+            effects: [ { aura: { area: { shape: emanation, size: 60 }, affects: [self, allies], effects: [ { bonus: { to: [ac, save:all], value: 1 } }, { sense: { see-invisible: 60 } } ] } } ] }
+```

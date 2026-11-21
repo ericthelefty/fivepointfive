@@ -14,3 +14,10 @@ On each of your turns, you can take a Bonus Action to mentally command any creat
 The creature is under your control for 24 hours, after which it stops obeying any command you’ve given it. To maintain control of the creature for another 24 hours, you must cast this spell on the creature again before the current 24-hour period ends. This use of the spell reasserts your control over up to four creatures you have animated with this spell rather than animating a new creature.
 
 ***Using a Higher-Level Spell Slot.*** You animate or reassert control over two additional Undead creatures for each spell slot level above 3. Each of the creatures must come from a different corpse or pile of bones.
+
+## Effects
+```yaml
+- summon: { creature: { choose: [$srd/monsters/skeleton, $srd/monsters/zombie] }, count: 1, control: { activation: bonus, range: 60, duration: { amount: 24, unit: hour } },
+            text: "Recasting reasserts control over up to four creatures instead." }
+- scaling: { per-slot-above: 3, add: { summon.count: 2 } }
+```

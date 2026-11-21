@@ -10,3 +10,10 @@
 A vertical column of brilliant fire roars down from above. Each creature in a 10-foot-radius, 40-foot-high Cylinder centered on a point within range makes a Dexterity saving throw, taking 5d6 Fire damage and 5d6 Radiant damage on a failed save or half as much damage on a successful one.
 
 ***Using a Higher-Level Spell Slot.*** The Fire damage and the Radiant damage increase by 1d6 for each spell slot level above 5.
+
+## Effects
+```yaml
+- action: { area: { shape: cylinder, size: 10, height: 40 }, save: { ability: dex, success: half },
+            damage: [ { dice: 5d6, type: fire }, { dice: 5d6, type: radiant } ] }
+- scaling: { per-slot-above: 5, add: { damage: [1d6, 1d6] } }
+```

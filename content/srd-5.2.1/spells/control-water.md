@@ -18,3 +18,16 @@ The water level remains elevated until the spell ends or you choose a different 
 ***Redirect Flow.*** You cause flowing water in the area to move in a direction you choose, even if the water has to flow over obstacles, up walls, or in other unlikely directions. The water in the area moves as you direct it, but once it moves beyond the spell’s area, it resumes its flow based on the terrain. The water continues to move in the direction you chose until the spell ends or you choose a different effect.
 
 ***Whirlpool.*** You cause a whirlpool to form in the center of the area, which must be at least 50 feet square and 25 feet deep. The whirlpool lasts until you choose a different effect or the spell ends. The whirlpool is 5 feet wide at the base, up to 50 feet wide at the top, and 25 feet tall. Any creature in the water and within 25 feet of the whirlpool is pulled 10 feet toward it. When a creature enters the whirlpool for the first time on a turn or ends its turn there, it makes a Strength saving throw. On a failed save, the creature takes 2d8 Bludgeoning damage. On a successful save, the creature takes half as much damage. A creature can swim away from the whirlpool only if it first takes an action to pull away and succeeds on a Strength (Athletics) check against your spell save DC.
+
+## Effects
+```yaml
+- action:
+    area: { shape: cube, size: 100 }
+    repeat: { activation: magic }
+    choose-one:
+      - { id: flood, label: Flood, text: "Raise standing water by up to 20 feet, or make a 20-foot wave." }
+      - { id: part-water, label: Part Water, text: "Part the water to make a trench." }
+      - { id: redirect-flow, label: Redirect Flow, text: "Water flows in a direction you choose." }
+      - { id: whirlpool, label: Whirlpool, save: { ability: str }, damage: { dice: 2d8, type: bludgeoning },
+          text: "Creatures in the vortex take damage and are pulled toward the center." }
+```

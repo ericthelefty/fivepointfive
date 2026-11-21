@@ -12,3 +12,11 @@ Choose a manufactured metal object, such as a metal weapon or a suit of Heavy or
 If a creature is holding or wearing the object and takes the damage from it, the creature must succeed on a Constitution saving throw or drop the object if it can. If it doesn’t drop the object, it has Disadvantage on attack rolls and ability checks until the start of your next turn.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d8 for each spell slot level above 2.
+
+## Effects
+```yaml
+- action: { targets: { text: "A manufactured metal object" }, damage: { dice: 2d8, type: fire }, repeat: { activation: bonus },
+            save: { ability: con, text: "Only a creature holding or wearing it" },
+            on-failure: { text: "Drops it, or has Disadvantage on attack rolls and checks until the start of your next turn." } }
+- scaling: { per-slot-above: 2, add: { damage: 1d8 } }
+```

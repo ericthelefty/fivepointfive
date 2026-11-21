@@ -12,3 +12,9 @@ You set an alarm against intrusion. Choose a door, a window, or an area within r
 **Audible Alarm.** The alarm produces the sound of a handbell for 10 seconds within 60 feet of the warded area.
 
 **Mental Alarm.** You are alerted by a mental ping if you are within 1 mile of the warded area. This ping awakens you if you’re asleep.
+
+## Effects
+```yaml
+- action: { area: { shape: cube, size: 20 }, choose-one: [ { id: audible, label: Audible Alarm }, { id: mental, label: Mental Alarm } ],
+            text: "Alerts you when a creature touches or enters the warded area; designated creatures don't trigger it." }
+```

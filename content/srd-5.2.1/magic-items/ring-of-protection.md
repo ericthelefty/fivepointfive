@@ -4,3 +4,8 @@
 *Ring, Rare (Requires Attunement)*
 
 You gain a +1 bonus to Armor Class and saving throws while wearing this ring.
+
+## Effects
+```yaml
+- bonus: { to: [ac, save:all], value: 1 }
+```

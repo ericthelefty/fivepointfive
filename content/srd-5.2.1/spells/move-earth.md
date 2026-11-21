@@ -14,3 +14,8 @@ At the end of every 10 minutes you spend concentrating on the spell, you can cho
 This spell can’t manipulate natural stone or stone construction. Rocks and structures shift to accommodate the new terrain. If the way you shape the terrain would make a structure unstable, it might collapse.
 
 Similarly, this spell doesn’t directly affect plant growth. The moved earth carries any plants along with it.
+
+## Effects
+```yaml
+- narrative: true
+```

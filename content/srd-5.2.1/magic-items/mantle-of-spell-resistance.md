@@ -4,3 +4,8 @@
 *Wondrous Item, Rare (Requires Attunement)*
 
 You have Advantage on saving throws against spells while you wear this cloak.
+
+## Effects
+```yaml
+- advantage: { roll: save:all, scope: { source: spell } }
+```

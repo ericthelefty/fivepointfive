@@ -14,3 +14,11 @@ In addition, the spell damages types of creatures that you choose when you cast 
 You can designate a password when you cast the spell. A creature that speaks the password as it enters the area takes no damage from the spell.
 
 The spell’s area can’t overlap with the area of another *Forbiddance* spell. If you cast *Forbiddance* every day for 30 days in the same location, the spell lasts until it is dispelled, and the Material components are consumed on the last casting.
+
+## Effects
+```yaml
+- zone: { area: { text: "Up to 40,000 square feet, 30 feet high" }, choose: { id: forbidden, kind: option, count: any,
+          options: [ { id: aberration }, { id: celestial }, { id: elemental }, { id: fey }, { id: fiend }, { id: undead } ] },
+          event: [enter-area, end-of-turn], per: turn, damage: { dice: 5d10, type: { choose-on-cast: [radiant, necrotic] } },
+          effects: [ { trait: [no-teleport-in, no-planar-travel] } ] }
+```

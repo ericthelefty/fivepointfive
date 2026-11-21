@@ -8,3 +8,11 @@ This ring has 3 charges, and it regains 1d3 expended charges daily at dawn. Whil
 - *Animal Friendship*
 - *Fear* (affects Beasts only)
 - *Speak with Animals*
+
+## Effects
+```yaml
+- charges: { max: 3, recharge: { dice: 1d3, at: dawn } }
+- action: { cost: { charges: 1 }, cast: $srd/spells/animal-friendship, overrides: { dc: 13 } }
+- action: { cost: { charges: 1 }, cast: $srd/spells/fear, overrides: { dc: 13, targets: { creature: beast } } }
+- action: { cost: { charges: 1 }, cast: $srd/spells/speak-with-animals }
+```

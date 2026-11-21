@@ -10,3 +10,12 @@ This robe is adorned with eyelike patterns. While you wear the robe, you gain th
 **Special Senses.** You have Darkvision and Truesight, both with a range of 120 feet.
 
 ***Drawbacks.*** A *Light* spell cast on the robe or a *Daylight* spell cast within 5 feet of the robe gives you the Blinded condition for 1 minute. At the end of each of your turns, you make a Constitution saving throw (DC 11 for *Light* or DC 15 for *Daylight*), ending the condition on yourself on a success.
+
+## Effects
+```yaml
+- advantage: { roll: skill:perception, when: { player: "Relying on sight" } }
+- sense: { darkvision: 120, truesight: 120 }
+- trait: [cant-be-surprised-by-sight]
+- trigger: { event: { targeted: [$srd/spells/light, $srd/spells/daylight] }, auto: true,
+             offer: { apply: { condition: blinded, duration: { amount: 1, unit: minute }, save-ends: { at: end-of-turn, ability: con, dc: { light: 11, daylight: 15 } } } } }
+```

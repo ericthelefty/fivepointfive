@@ -12,3 +12,9 @@ A bright streak flashes from you to a point you choose within range and then blo
 Flammable objects in the area that aren’t being worn or carried start burning.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d6 for each spell slot level above 3.
+
+## Effects
+```yaml
+- action: { area: { shape: sphere, size: 20 }, save: { ability: dex, success: half }, damage: { dice: 8d6, type: fire } }
+- scaling: { per-slot-above: 3, add: { damage: 1d6 } }
+```

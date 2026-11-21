@@ -8,3 +8,9 @@ As long as this weapon is within your reach and you are attuned to it, you and a
 ***Alarm.*** The weapon magically awakens each subject who is sleeping naturally when combat begins. This benefit doesn’t wake a subject from magically induced sleep.
 
 ***Supernatural Readiness.*** Each subject has Advantage on its Initiative rolls.
+
+## Effects
+```yaml
+- aura: { id: weapon-of-warning, area: { shape: emanation, size: 30 }, affects: [self, allies], when: { has: { item: self, within-reach: true } },
+          effects: [ { advantage: { roll: initiative } }, { trait: [woken-when-combat-begins] } ] }
+```

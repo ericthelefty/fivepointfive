@@ -15,3 +15,14 @@ This potion’s transparent liquid has floating in it a sliver of light resembli
 | Potion of Giant Strength (fire) | 25 | Rare |
 | Potion of Giant Strength (cloud) | 27 | Very Rare |
 | Potion of Giant Strength (storm) | 29 | Legendary |
+
+## Effects
+```yaml
+- variant: { id: str, by: name, values: { hill: 21, frost: 23, stone: 23, fire: 25, cloud: 27, storm: 29 } }
+- action:
+    activation: bonus
+    consume: true
+    duration: { amount: 1, unit: hour }
+    effects:
+      - set: { to: score:str, value: variant:str }
+```

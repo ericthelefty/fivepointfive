@@ -270,6 +270,38 @@ export function armorTable(rulesEntries: Entry[]): ArmorRow[] {
   return out;
 }
 
+/**
+ * The body armor and shield a character wears: equipped inventory items, or
+ * (older callers without an inventory) the armor named in the starting equipment.
+ */
+export function wornGear(
+  c: Character,
+  lib: { cls?: Entry; background?: Entry; armor: ArmorRow[]; items?: import("./inventory.ts").Item[] },
+): { worn?: ArmorRow; shield: number; label: string; category?: string } {
+  const gear = [
+    equipmentOptions(lib.cls?.fields["starting equipment"]).find((o) => o.key === (c.equipClass || "A"))?.text || "",
+    equipmentOptions(lib.background?.fields["equipment"]).find((o) => o.key === (c.equipBackground || "A"))?.text || "",
+  ].join(", ");
+  const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const isShieldRow = (a: ArmorRow) => /shield/i.test(a.category);
+  let shield = 0;
+  let worn: ArmorRow | undefined;
+  let wornLabel = "";
+  if (lib.items) {
+    const on = lib.items.filter((i) => i.equipped && i.qty > 0 && i.base);
+    const bodyItem = on.find((i) => lib.armor.some((a) => a.name === i.base && !isShieldRow(a)));
+    worn = bodyItem && lib.armor.find((a) => a.name === bodyItem.base);
+    wornLabel = bodyItem ? bodyItem.name : "";
+    shield = on.some((i) => lib.armor.some((a) => a.name === i.base && isShieldRow(a))) ? 2 : 0;
+  } else {
+    shield = /\bShield\b/.test(gear) ? 2 : 0;
+    worn = lib.armor.find((a) => !isShieldRow(a) && new RegExp(`\\b${esc(a.name)}\\b`).test(gear));
+    wornLabel = worn?.name || "";
+  }
+  const category = worn ? (["light", "medium", "heavy"].find((k) => worn!.category.toLowerCase().startsWith(k)) ?? undefined) : undefined;
+  return { worn, shield, label: wornLabel, category };
+}
+
 export interface Derived {
   scores: Scores;
   mods: Scores;
@@ -314,14 +346,20 @@ export function derive(
   const pb = profBonus(c.level);
   const fx = lib.modif;
   const saveProf = fx && lib.cls && fx.encoded.has(lib.cls.id) ? [...fx.saves] : abilityList(lib.cls?.fields["saving throw proficiencies"]);
+  // Modif bonuses by path ("save:all", "skill:stealth", "initiative"…)
+  const plus = (to: string) => (fx?.bonuses || []).filter((b) => b.to === to).reduce((n, b) => n + b.value, 0);
+  const ab3 = (a: string) => a.slice(0, 3).toLowerCase();
   const saves = Object.fromEntries(
-    ABILITIES.map((a) => [a, { prof: saveProf.includes(a), value: mods[a] + (saveProf.includes(a) ? pb : 0) }]),
+    ABILITIES.map((a) => [a, { prof: saveProf.includes(a), value: mods[a] + (saveProf.includes(a) ? pb : 0) + plus(`save:${ab3(a)}`) + plus("save:all") }]),
   );
   const bgSkills = listOf(lib.background?.fields["skill proficiencies"] || "").filter((s) => SKILLS.includes(s));
   const classes = lib.classes?.length ? lib.classes : lib.cls ? [{ cls: lib.cls, level: c.level, starting: true, skills: c.classSkills }] : [];
   const prof = new Set([...bgSkills, ...c.classSkills, ...c.extraSkills, ...classes.filter((k) => !k.starting).flatMap((k) => k.skills), ...(fx?.skills || [])]);
   const skills = Object.fromEntries(
-    SKILLS.map((s) => [s, { prof: prof.has(s), value: mods[SKILL_ABILITY[s]] + (prof.has(s) ? pb : 0) }]),
+    SKILLS.map((s) => [s, {
+      prof: prof.has(s),
+      value: mods[SKILL_ABILITY[s]] + (prof.has(s) ? pb : 0) + plus(`skill:${s.toLowerCase().replace(/ /g, "-")}`) + plus(`check:${ab3(SKILL_ABILITY[s])}`) + plus("check:all"),
+    }]),
   );
   // HP: the starting class's full die at level 1, then each class's average per level
   const hd = hitDie(lib.cls);
@@ -334,27 +372,7 @@ export function derive(
     : Math.max(1, hd + mods.Constitution + (c.level - 1) * (hd / 2 + 1 + mods.Constitution));
 
   // AC: equipped armor and shield, else class Unarmored Defense, else 10 + Dex.
-  // Without an inventory (older callers), armor is found in the starting equipment text.
-  const gear = [
-    equipmentOptions(lib.cls?.fields["starting equipment"]).find((o) => o.key === (c.equipClass || "A"))?.text || "",
-    equipmentOptions(lib.background?.fields["equipment"]).find((o) => o.key === (c.equipBackground || "A"))?.text || "",
-  ].join(", ");
-  const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const isShieldRow = (a: ArmorRow) => /shield/i.test(a.category);
-  let shield = 0;
-  let worn: ArmorRow | undefined;
-  let wornLabel = "";
-  if (lib.items) {
-    const on = lib.items.filter((i) => i.equipped && i.qty > 0 && i.base);
-    const bodyItem = on.find((i) => lib.armor.some((a) => a.name === i.base && !isShieldRow(a)));
-    worn = bodyItem && lib.armor.find((a) => a.name === bodyItem.base);
-    wornLabel = bodyItem ? bodyItem.name : "";
-    shield = on.some((i) => lib.armor.some((a) => a.name === i.base && isShieldRow(a))) ? 2 : 0;
-  } else {
-    shield = /\bShield\b/.test(gear) ? 2 : 0;
-    worn = lib.armor.find((a) => !isShieldRow(a) && new RegExp(`\\b${esc(a.name)}\\b`).test(gear));
-    wornLabel = worn?.name || "";
-  }
+  const { worn, shield, label: wornLabel } = wornGear(c, lib);
   let ac = 10 + mods.Dexterity;
   let acNote = "10 + Dex";
   // Unarmored Defense from whichever class has it (only one way to calculate AC applies)
@@ -398,12 +416,15 @@ export function derive(
       acNote += ` + ${b.source.replace(/ \(.*\)$/, "")}`;
     }
   }
-  const plus = (to: string) => (fx?.bonuses || []).filter((b) => b.to === to).reduce((n, b) => n + b.value, 0);
+  if (fx?.acFloor && ac < fx.acFloor.value) {
+    ac = fx.acFloor.value;
+    acNote = fx.acFloor.source;
+  }
   return {
     scores, mods, pb, saves, skills,
     hp: hp + plus("hp:max") + plus("hp:per-level") * c.level,
     ac, acNote,
-    initiative: mods.Dexterity + plus("initiative"),
+    initiative: mods.Dexterity + plus("initiative") + plus("check:dex") + plus("check:all"),
     speed: speedOf(lib.species) + plus("speed:walk"),
     passivePerception: 10 + skills.Perception.value + plus("passive:perception"),
     hitDie: hd,

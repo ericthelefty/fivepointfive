@@ -15,3 +15,8 @@ Once you finish creating the golem, the book is consumed in eldritch flames. The
 | 6–17 | Flesh Golem | 60 days | 50,000 GP |
 | 18 | Iron Golem | 120 days | 100,000 GP |
 | 19–20 | Stone Golem | 90 days | 80,000 GP |
+
+## Effects
+```yaml
+- narrative: true
+```

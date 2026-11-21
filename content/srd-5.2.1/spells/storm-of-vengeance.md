@@ -18,3 +18,17 @@ At the start of each of your later turns, the storm produces different effects, 
 ***Turn 4.*** Hailstones rain down. Each creature under the cloud takes 2d6 Bludgeoning damage.
 
 ***Turns 5–10.*** Gusts and freezing rain assail the area under the cloud. Each creature there takes 1d6 Cold damage. Until the spell ends, the area is Difficult Terrain and Heavily Obscured, ranged attacks with weapons are impossible there, and strong wind blows through the area.
+
+## Effects
+```yaml
+- zone:
+    area: { shape: sphere, size: 300 }
+    event: [cast]
+    save: { ability: con }
+    on-failure: { damage: { dice: 2d6, type: thunder }, apply: { condition: deafened, duration: spell } }
+    by-turn:
+      "2": { damage: { dice: 4d6, type: acid } }
+      "3": { targets: { count: 6 }, save: { ability: dex, success: half }, damage: { dice: 10d6, type: lightning } }
+      "4": { damage: { dice: 2d6, type: bludgeoning } }
+      "5-10": { damage: { dice: 1d6, type: cold }, text: "Difficult Terrain, heavy wind; ranged attacks impossible." }
+```

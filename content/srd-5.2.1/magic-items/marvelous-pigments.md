@@ -12,3 +12,8 @@ When the work is done, all the painted objects and terrain features become real.
 No object created by a pot of pigment can have a value greater than 25 GP, and the total value of all objects created by a pot of pigment can’t exceed 500 GP. If you paint objects of greater value (such as a large pile of gold), they look authentic, but close inspection reveals they’re made from paste, cookies, or some other worthless material.
 
 If you paint a form of energy such as fire or lightning, the energy dissipates as soon as you complete the painting, doing no harm.
+
+## Effects
+```yaml
+- narrative: true
+```

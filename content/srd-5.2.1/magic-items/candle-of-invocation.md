@@ -20,3 +20,12 @@ Alternatively, when you light the candle for the first time, you can cast *Gate*
 | 34–41 | Bytopia | 86–90 | Nine Hells |
 | 42–46 | Carceri | 91–95 | Pandemonium |
 | 47–54 | Elysium | 96–00 | Ysgard |
+
+## Effects
+```yaml
+- resource: { id: burn-time, max: 240, unit: minute, reset: never, spend: while-active }
+- toggle: { activation: magic, cost: { resource: $#burn-time },
+            effects: [ { aura: { area: { shape: emanation, size: 30 }, affects: [all],
+                       effects: [ { advantage: { roll: d20 } }, { trait: { text: "Clerics and Druids can cast prepared level 1 spells without slots." } } ] } } ] }
+- action: { activation: magic, cast: $srd/spells/gate, consume: true, if: "First lighting" }
+```

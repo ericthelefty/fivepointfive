@@ -14,3 +14,9 @@ If you are within range of the illusion, you can take a Magic action to cause th
 Physical interaction with the image reveals it to be an illusion, for things can pass through it. A creature that takes a Study action to examine the image can determine that it is an illusion with a successful Intelligence (Investigation) check against your spell save DC. If a creature discerns the illusion for what it is, the creature can see through the image, and its other sensory qualities become faint to the creature.
 
 ***Using a Higher-Level Spell Slot.*** The spell lasts until dispelled, without requiring Concentration, if cast with a level 4+ spell slot.
+
+## Effects
+```yaml
+- action: { area: { shape: cube, size: 20 }, repeat: { activation: magic }, text: "A convincing illusion with sound, smell and temperature; Study + Int (Investigation) vs your DC to discern it." }
+- scaling: { slots: { "4+": { duration: until-dispelled, concentration: false } } }
+```

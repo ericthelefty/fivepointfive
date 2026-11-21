@@ -16,3 +16,11 @@ If you blow the horn without meeting its requirement, the summoned spirits attac
 | 41–75 | Brass | 3 | Proficiency with all Simple weapons |
 | 76–90 | Bronze | 4 | Training with all Medium armor |
 | 91–00 | Iron | 5 | Proficiency with all Martial weapons |
+
+## Effects
+```yaml
+- variant: { id: horn, by: roll, roll: 1d100, values: { silver: { spirits: 2 }, brass: { spirits: 3, requires: weapon:simple }, bronze: { spirits: 4, requires: armor:medium }, iron: { spirits: 5, requires: weapon:martial } } }
+- resource: { id: valhalla, max: 1, reset: { amount: 7, unit: day } }
+- action: { activation: magic, cost: { resource: $#valhalla }, summon: { creature: $srd/monsters/berserker, count: variant:horn.spirits, duration: { amount: 1, unit: hour } },
+            text: "Without the horn's requirement, the spirits attack you." }
+```

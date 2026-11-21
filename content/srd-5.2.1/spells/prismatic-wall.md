@@ -15,6 +15,16 @@ The wall consists of seven layers, each with a different color. When a creature 
 
 The wall, which has AC 10, can be destroyed one layer at a time, in order from red to violet, by means specific to each layer. If a layer is destroyed, it is gone for the duration. *Antimagic Field* has no effect on the wall, and *Dispel Magic* can affect only the violet layer.
 
+## Effects
+```yaml
+- zone: { area: { choose-on-use: [ { shape: wall, size: 90, height: 30 }, { shape: globe, size: 30 } ] },
+          effects: [ { trait: { light: { bright: 100, dim: 100 } } } ], table: Prismatic Layers,
+          event: [enter-area], save: { ability: dex }, damage: { dice: 12d6, type: { by-layer: [fire, acid, lightning, poison, cold] } },
+          text: "Seven layers, each with its own save and effect (red to violet)." }
+- zone: { area: { shape: emanation, size: 20, from: wall }, event: [enter-area], if: "The creature can see the wall", save: { ability: con },
+          apply: { condition: blinded, duration: { amount: 1, unit: minute } } }
+```
+
 ## Prismatic Layers
 
 | Order | Effects |

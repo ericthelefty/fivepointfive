@@ -20,3 +20,9 @@ You create a magical effect within range. Choose the effect from the options bel
 ***Magic Mark.*** You make a color, a small mark, or a symbol appear on an object or a surface for 1 hour.
 
 ***Minor Creation.*** You create a nonmagical trinket or an illusory image that can fit in your hand. It lasts until the end of your next turn. A trinket can deal no damage and has no monetary worth.
+
+## Effects
+```yaml
+- action: { limit: 3, choose-one: [ { id: sensory, label: Sensory Effect }, { id: fire, label: Fire Play }, { id: clean, label: Clean or Soil },
+                                    { id: sensation, label: Minor Sensation }, { id: mark, label: Magic Mark }, { id: trinket, label: Minor Creation } ] }
+```

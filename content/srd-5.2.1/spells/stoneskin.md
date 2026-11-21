@@ -8,3 +8,9 @@
 **Duration:** Concentration, up to 1 hour
 
 Until the spell ends, one willing creature you touch has Resistance to Bludgeoning, Piercing, and Slashing damage.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1, creature: willing } }
+- target-effects: { effects: [ { defense: { resistance: [bludgeoning, piercing, slashing] } } ] }
+```

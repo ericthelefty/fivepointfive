@@ -10,3 +10,12 @@
 You bless up to three creatures within range. Whenever a target makes an attack roll or a saving throw before the spell ends, the target adds 1d4 to the attack roll or save.
 
 ***Using a Higher-Level Spell Slot.*** You can target one additional creature for each spell slot level above 1.
+
+## Effects
+```yaml
+- action: { range: 30, targets: { count: 3 } }
+- target-effects:
+    effects:
+      - bonus: { to: [attack, save:all], value: 1d4 }
+- scaling: { per-slot-above: 1, add: { targets: 1 } }
+```

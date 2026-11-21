@@ -16,3 +16,15 @@ Six types of magic beads exist. The GM decides the type of each bead on the neck
 | 17–18 | Bead of Smiting | Shining Smite |
 | 19 | Bead of Summons | Guardian of Faith |
 | 20 | Bead of Wind Walking | Wind Walk |
+
+## Effects
+```yaml
+- charges: { max: 1d4 + 2, start: 1d4 + 2, kinds: true, recharge: { at: dawn, to: max } }
+- spellcasting: { focus: self }
+- action: { activation: bonus, cost: { charges: { kind: blessing } }, cast: $srd/spells/bless }
+- action: { activation: bonus, cost: { charges: { kind: curing } }, cast: { choose-on-use: [$srd/spells/cure-wounds, $srd/spells/lesser-restoration] }, cast-at: 2 }
+- action: { activation: bonus, cost: { charges: { kind: favor } }, cast: $srd/spells/greater-restoration }
+- action: { activation: bonus, cost: { charges: { kind: smiting } }, cast: $srd/spells/shining-smite }
+- action: { activation: bonus, cost: { charges: { kind: summons } }, cast: $srd/spells/guardian-of-faith }
+- action: { activation: bonus, cost: { charges: { kind: wind-walking } }, cast: $srd/spells/wind-walk }
+```

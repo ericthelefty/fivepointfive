@@ -16,3 +16,11 @@ The first time a creature enters the webs on a turn or starts its turn there, it
 A creature Restrained by the webs can take an action to make a Strength (Athletics) check against your spell save DC. If it succeeds, it is no longer Restrained.
 
 The webs are flammable. Any 5-foot Cube of webs exposed to fire burns away in 1 round, dealing 2d4 Fire damage to any creature that starts its turn in the fire.
+
+## Effects
+```yaml
+- zone: { area: { shape: cube, size: 20 }, event: [enter-area, start-of-turn], per: turn, save: { ability: dex },
+          apply: { condition: restrained, escape: { check: skill:athletics, dc: spell:dc } },
+          effects: [ { trait: [difficult-terrain, lightly-obscured] } ],
+          text: "A 5-foot cube of web exposed to fire burns away in 1 round, dealing 2d4 Fire damage to creatures starting their turn in it." }
+```

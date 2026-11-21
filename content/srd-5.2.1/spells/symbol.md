@@ -30,3 +30,17 @@ Once triggered, the glyph glows, filling a 60-foot-radius Sphere with Dim Light 
 ***Sleep.*** Each target must succeed on a Wisdom saving throw or have the Unconscious condition for 10 minutes. A creature awakens if it takes damage or if someone takes an action to shake it awake.
 
 ***Stunning.*** Each target must succeed on a Wisdom saving throw or have the Stunned condition for 1 minute.
+
+## Effects
+```yaml
+- action:
+    text: "Inscribe a glyph (Wis (Perception) vs your DC to notice); when triggered it fills a 60-foot Sphere for 10 minutes."
+    area: { shape: sphere, size: 60 }
+    choose-one:
+      - { id: death, label: Death, save: { ability: con, success: half }, damage: { dice: 10d10, type: necrotic } }
+      - { id: discord, label: Discord, save: { ability: wis }, apply: { text: "Bickers; Disadvantage on attack rolls and checks", duration: { amount: 1, unit: minute } } }
+      - { id: fear, label: Fear, save: { ability: wis }, apply: { condition: frightened, duration: { amount: 1, unit: minute } } }
+      - { id: pain, label: Pain, save: { ability: con }, apply: { condition: incapacitated, duration: { amount: 1, unit: minute } } }
+      - { id: sleep, label: Sleep, save: { ability: wis }, apply: { condition: unconscious, duration: { amount: 10, unit: minute } } }
+      - { id: stunning, label: Stunning, save: { ability: wis }, apply: { condition: stunned, duration: { amount: 1, unit: minute } } }
+```

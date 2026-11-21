@@ -8,3 +8,9 @@ While holding this brass-stoppered iron flask, you can take a Magic action to ta
 You can take a Magic action to remove the flask’s stopper and release the creature in the flask. The creature then obeys your commands for 1 hour, understanding those commands even if it doesn’t know the language in which the commands are given. If you issue no commands or give the creature a command that is likely to result in its death or imprisonment, it defends itself but otherwise takes no actions. At the end of the duration, the creature acts in accordance with its normal disposition and alignment.
 
 An *Identify* spell reveals if the flask contains a creature, but the only way to determine the type of creature is to open the flask. A newly discovered *Iron Flask* might already contain a creature chosen by the GM.
+
+## Effects
+```yaml
+- action: { activation: magic, range: 60, targets: { count: 1, text: "Native to another plane" }, save: { ability: wis, dc: 17, advantage: { text: "Trapped by this flask before" } },
+            on-failure: { text: "Trapped in the flask." } }
+```

@@ -8,3 +8,9 @@
 **Duration:** Concentration, up to 10 minutes
 
 You take the Dash action, and until the spell ends, you can take that action again as a Bonus Action.
+
+## Effects
+```yaml
+- action: { take: dash }
+- self-effects: { effects: [ { action: { activation: bonus, take: dash } } ] }
+```

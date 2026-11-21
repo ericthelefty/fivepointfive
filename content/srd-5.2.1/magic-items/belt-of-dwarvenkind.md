@@ -16,3 +16,13 @@ If you aren’t a dwarf or duergar, you gain the following additional benefits w
 **Darkvision.** You have Darkvision with a range of 60 feet.
 
 **Resilience.** You have Resistance to Poison damage. You also have Advantage on saving throws you make to avoid or end the Poisoned condition.
+
+## Effects
+```yaml
+- language: [dwarvish]
+- advantage: { roll: skill:persuasion, when: { player: "Interacting with dwarves or duergar" } }
+- score: { con: 2, max: 20 }
+- sense: { darkvision: 60, when: { not: { species: dwarf } } }
+- defense: { resistance: [poison], when: { not: { species: dwarf } } }
+- advantage: { roll: save:all, scope: { against: { condition: poisoned } }, when: { not: { species: dwarf } } }
+```

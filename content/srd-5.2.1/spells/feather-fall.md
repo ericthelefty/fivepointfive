@@ -8,3 +8,9 @@
 **Duration:** 1 minute
 
 Choose up to five falling creatures within range. A falling creature’s rate of descent slows to 60 feet per round until the spell ends. If a creature lands before the spell ends, the creature takes no damage from the fall, and the spell ends for that creature.
+
+## Effects
+```yaml
+- trigger: { event: fall, who: { creature: any, range: 60, see: true }, reaction: true, offer: { cast: self } }
+- action: { targets: { count: 5 }, apply: { text: "Falls 60 feet per round and takes no falling damage." } }
+```

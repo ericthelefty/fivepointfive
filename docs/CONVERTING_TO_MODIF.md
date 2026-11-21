@@ -18,7 +18,7 @@ You are converting entries in the fivepointfive SRD content pack to **Modif**, t
 
 - **Validator:** `tools/modif_check.py` with `tools/modif.schema.json` next to it (see `tools/README.md`). Run `python3 tools/modif_check.py`. It reads the Effects blocks out of the Markdown files and must report **0 issues**. Install `jsonschema` (`pip install jsonschema`) so the schema checks run too.
 - **Inserter:** `tools/insert_effects.py <entry.md> <draft.yaml>` puts a draft's blocks under the right headings. Turn run-in traits into headings first, then review the result by eye.
-- **Draft encodings:** `encodings/` (see `encodings/README.md`) holds hand-encoded YAML for every unconverted class, subclass and species and the backgrounds (`characters/`), plus the spells, items, equipment, conditions and rules (`catalog/`). In each file, top-level keys are feature headings. Treat these as drafts to check against the text, not as finished work. When an entry is converted, delete its draft in the same change.
+- **Draft encodings:** `encodings/` (see `encodings/README.md`) holds hand-encoded YAML for every unconverted class, subclass and species and the backgrounds (`characters/`), plus the equipment, conditions and rules (`catalog/`). In each file, top-level keys are feature headings. Treat these as drafts to check against the text, not as finished work. When an entry is converted, delete its draft in the same change.
 
 ## The task
 
@@ -27,7 +27,7 @@ Convert the entries the user names. If they don't name any, convert in this orde
 1. **Classes with their subclass:** Barbarian + Berserker, Bard + Lore, Cleric + Life, Druid + Land, Monk + Open Hand, Paladin + Devotion, Ranger + Hunter, Rogue + Thief, Sorcerer + Draconic, Warlock + Fiend, Wizard + Evoker.
 2. **Species:** Dragonborn, Dwarf, Elf, Gnome, Goliath, Halfling, Orc, Tiefling.
 3. **Backgrounds:** Acolyte, Criminal, Sage.
-4. **Spells, magic items, equipment, conditions and rules.** The app doesn't act on most of these blocks yet, but encode them faithfully.
+4. **Equipment, conditions and rules.** (Spells and magic items are already in the pack.) The app doesn't act on most of these blocks yet, but encode them faithfully.
 
 ## How to write Effects
 
@@ -68,6 +68,7 @@ Once an entry has any Effects block, the app trusts its blocks over its text. So
 - **Saving throws:** core traits need `proficiency: [save:…, save:…]`. Without it the class shows no save proficiencies.
 - **Skill choice:** the class skill choice must be `choose: { id: skills, kind: skill, count: N, grants: proficiency, from: [...] }`, using the id `skills` exactly. The builder stores it in its existing class-skills field.
 - **Multiclass grants:** include `multiclass: [...]` with exactly what the "As a Multiclass Character" text grants.
+- **Switchable features:** Rage, Wild Shape, Bladesong and the like are a `toggle` (or `form`) with an `id`, its `cost`, `duration` and `effects`. Effects elsewhere that apply only while it's on use `when: { active: $#<id> }`. The sheet turns these into switches on its Effects tab, so they must be complete.
 - **Limited-use features:** every one, Rage, Bardic Inspiration, Channel Divinity, Wild Shape, Focus Points and so on, needs a `resource` block. The app stops reading resources from the class table once the class has Effects. Use `table:<Column>` where the class table has a column, and `steps` where uses change at levels without a column.
 - **Feat slots:** Ability Score Improvement is `choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [levels] }` under the first ASI heading. Epic Boon is `choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: <the boon the class text recommends, if any> }`. Copy `fighter.md`.
 - **Species skill choices:** a species "skill of your choice" is a single-kind `choose` with `kind: skill`. The builder stores it in its species-skill field.

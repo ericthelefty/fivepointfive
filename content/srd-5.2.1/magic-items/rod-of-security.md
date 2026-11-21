@@ -8,3 +8,8 @@ While holding this rod, you can take a Magic action to activate it. The rod then
 For each hour spent in the demiplane, a visitor regains Hit Points as if it had spent 1 Hit Point Die. Also, creatures don’t age while there, although time passes normally. Visitors can remain there for up to 200 days divided by the number of creatures present (round down).
 
 When the time runs out or you take a Magic action to end the effect, all visitors reappear in the location they occupied when you activated the rod or an unoccupied space nearest that location. Once used, this property can’t be used again until 10 days have passed.
+
+## Effects
+```yaml
+- narrative: true
+```

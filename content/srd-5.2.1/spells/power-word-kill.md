@@ -8,3 +8,8 @@
 **Duration:** Instantaneous
 
 You compel one creature you can see within range to die. If the target has 100 Hit Points or fewer, it dies. Otherwise, it takes 12d12 Psychic damage.
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, branch: { if: "target.hp <= 100", then: { text: "It dies." }, else: { damage: { dice: 12d12, type: psychic } } } }
+```

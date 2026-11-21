@@ -10,3 +10,10 @@
 One Humanoid you can see within range makes a Wisdom saving throw. It does so with Advantage if you or your allies are fighting it. On a failed save, the target has the Charmed condition until the spell ends or until you or your allies damage it. The Charmed creature is Friendly to you. When the spell ends, the target knows it was Charmed by you.
 
 ***Using a Higher-Level Spell Slot.*** You can target one additional creature for each spell slot level above 1.
+
+## Effects
+```yaml
+- action: { targets: { count: 1, creature: humanoid }, save: { ability: wis, advantage: { text: "You or your allies are fighting it" } },
+            apply: { condition: charmed, duration: spell, ends-when: damage-by-you-or-allies } }
+- scaling: { per-slot-above: 1, add: { targets: 1 } }
+```

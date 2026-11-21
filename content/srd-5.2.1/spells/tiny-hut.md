@@ -14,3 +14,9 @@ Creatures and objects within the Emanation when you cast the spell can move thro
 The atmosphere inside the Emanation is comfortable and dry, regardless of the weather outside. Until the spell ends, you can command the interior to have Dim Light or Darkness (no action required). The Emanation is opaque from the outside and of any color you choose, but it’s transparent from the inside.
 
 The spell ends early if you leave the Emanation or if you cast it again.
+
+## Effects
+```yaml
+- zone: { area: { shape: emanation, size: 10 }, effects: [ { defense: { immunity: { spell: { level: "<= 3", from: outside } } } } ],
+          text: "Comfortable dome; only those inside at casting can pass through; dim light or darkness inside (your choice)." }
+```

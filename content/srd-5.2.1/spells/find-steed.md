@@ -17,6 +17,12 @@ The steed resembles a Large, rideable animal of your choice, such as a horse, a 
 
 ***Using a Higher-Level Spell Slot.*** Use the spell slot’s level for the spell’s level in the stat block. face a choice of paths along the way there, you know which path is the most direct.
 
+## Effects
+```yaml
+- summon: { creature: $srd/spells/find-steed#otherworldly-steed, limit: 1, type-override: { choose: [celestial, fey, fiend] }, initiative: shared,
+            text: "A controlled mount while you ride it." }
+```
+
 ## Otherworldly Steed
 
 *Large Celestial, Fey, or Fiend (Your Choice), Neutral*

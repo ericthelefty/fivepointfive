@@ -44,3 +44,11 @@ While this stone orbits your head, you can cast any spell stored in it. The spel
 ***Strength (Very Rare).*** Your Strength increases by 2, to a maximum of 20, while this pale blue rhomboid orbits your head.
 
 ***Sustenance (Rare).*** You don’t need to eat or drink while this clear spindle orbits your head.
+
+## Effects
+```yaml
+- variant: { id: kind, by: name, values: [absorption, agility, awareness, fortitude, greater-absorption, insight] }
+- limit: { worn: 3, of: $srd/magic-items/ioun-stone }
+- score: { dex: 2, max: 20, when: { variant: { id: kind, is: agility } } }
+- advantage: { roll: [initiative, skill:perception], when: { variant: { id: kind, is: awareness } } }
+```

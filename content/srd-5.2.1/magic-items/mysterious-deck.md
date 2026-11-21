@@ -9,6 +9,11 @@ Before you draw a card, you must declare how many cards you intend to draw and t
 
 Once a card is drawn, it disappears. Unless the card is the Fool or Jester, the card reappears in the deck, making it possible to draw the same card twice. (Once the Fool or Jester has left the deck, reroll on the table if that card comes up again.)
 
+## Effects
+```yaml
+- narrative: true
+```
+
 ## Mysterious Deck
 
 | 1d100 (13-Card Deck) | 1d100 (22-Card Deck) | Card |

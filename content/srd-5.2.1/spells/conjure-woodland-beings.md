@@ -12,3 +12,11 @@ You conjure nature spirits that flit around you in a 10-foot Emanation for the d
 In addition, you can take the Disengage action as a Bonus Action for the spell’s duration.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d8 for each spell slot level above 4.
+
+## Effects
+```yaml
+- aura: { id: conjure-woodland-beings, area: { shape: emanation, size: 10 }, affects: [enemies],
+          effects: [ { trigger: { event: [enter-area, end-of-turn], per: turn, offer: { save: { ability: wis, success: half }, damage: { dice: 5d8, type: force } } } } ] }
+- self-effects: { effects: [ { action: { activation: bonus, take: disengage } } ] }
+- scaling: { per-slot-above: 4, add: { damage: 1d8 } }
+```

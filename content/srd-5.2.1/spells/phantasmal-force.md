@@ -14,3 +14,11 @@ The target can take a Study action to examine the phantasm with an Intelligence 
 While affected by the spell, the target treats the phantasm as if it were real and rationalizes any illogical outcomes from interacting with it. For example, if the target steps through a phantasmal bridge and survives the fall, it believes the bridge exists and something else caused it to fall.
 
 An affected target can even take damage from the illusion if the phantasm represents a dangerous creature or hazard. On each of your turns, such a phantasm can deal 2d8 Psychic damage to the target if it is in the phantasm’s area or within 5 feet of the phantasm. The target perceives the damage as a type appropriate to the illusion.
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, save: { ability: int },
+            on-failure: { apply: { duration: spell, escape: { activation: study, check: skill:investigation, dc: spell:dc },
+              text: "A phantasm only it perceives (up to a 10-foot Cube)." } },
+            then: { at: each-of-your-turns, damage: { dice: 2d8, type: psychic }, if: "The target is in or within 5 feet of the phantasm" } }
+```

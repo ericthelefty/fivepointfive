@@ -20,3 +20,11 @@ You manifest a minor wonder within range. You create one of the effects below wi
 ***Phantom Sound.*** You create an instantaneous sound that originates from a point of your choice within range, such as a rumble of thunder, the cry of a raven, or ominous whispers.
 
 ***Tremors.*** You cause harmless tremors in the ground for 1 minute.
+
+## Effects
+```yaml
+- action: { limit: 3, choose-one: [ { id: eyes, label: Altered Eyes },
+                                    { id: voice, label: Booming Voice, effects: [ { advantage: { roll: skill:intimidation } } ] },
+                                    { id: fire, label: Fire Play }, { id: hand, label: Invisible Hand },
+                                    { id: sounds, label: Phantom Sound }, { id: tremors, label: Tremors } ] }
+```

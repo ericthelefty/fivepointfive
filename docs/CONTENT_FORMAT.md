@@ -181,7 +181,14 @@ Every entry works without this section: players read the rules text and apply it
 
 **One heading per trait.** If a feature packs several traits into bold-italic run-ins (`***Rooted.*** You have…`), write each one as its own heading instead, with its Effects under it.
 
-**What happens today:** the importer checks every block and flags typos and blocks it doesn't know. On the sheet, the app applies proficiencies, choices (skills, tools, feats, weapon masteries), ability score increases (including the feats taken at Ability Score Improvement levels), limited-use features and their recovery, healing actions, AC formulas and AC bonuses, Initiative and Speed bonuses, Advantage on rolls, critical-hit range, Extra Attack and death-save rules. Anything else in your Effects is listed on the sheet as a reminder, and the rules text still applies.
+**What happens today:** the importer checks every block and flags typos and blocks it doesn't know. On the sheet:
+- **Numbers:** proficiencies, choices (skills, tools, feats, weapon masteries), ability score increases (including feats taken at Ability Score Improvement levels), AC formulas and bonuses, save, check, skill, Initiative, Speed, attack and damage bonuses, Advantage and Disadvantage, critical-hit range, Extra Attack and death-save rules.
+- **Active effects:** anything with a `toggle` (Rage, a cloak you switch on) gets a switch on the Effects tab; switching it on spends its cost and applies its effects until you end it or rest. Spells you cast with a duration show there too, and their effects on you apply.
+- **Uses:** limited-use features, item charges (with their recharge) and free casts are tracked, each with a Use button.
+- **When this happens:** triggers (reactions, "when you hit", "when you fail a save") are listed with their remaining uses.
+- **Spells and magic items** take their attack, save, damage, healing and upcasting from their Effects; magic items apply while equipped or attuned as they need.
+
+Anything the sheet can't act on (areas, effects on other creatures, conditions only the player can judge) is listed as a reminder, and the rules text still applies.
 
 Common blocks:
 

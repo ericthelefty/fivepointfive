@@ -10,3 +10,9 @@
 You shoot a greenish ray at a creature within range. Make a ranged spell attack against the target. On a hit, the target takes 2d8 Poison damage and has the Poisoned condition until the end of your next turn.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d8 for each spell slot level above 1.
+
+## Effects
+```yaml
+- action: { attack: { kind: ranged-spell }, damage: { dice: 2d8, type: poison }, on-hit: { apply: { condition: poisoned, duration: { until: end-of-next-turn } } } }
+- scaling: { per-slot-above: 1, add: { damage: 1d8 } }
+```

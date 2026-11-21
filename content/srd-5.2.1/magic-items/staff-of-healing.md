@@ -13,3 +13,11 @@ This staff has 10 charges. While holding the staff, you can cast one of the spel
 | Mass Cure Wounds | 5 |
 
 ***Regaining Charges.*** The staff regains 1d6 + 4 expended charges daily at dawn. If you expend the last charge, roll 1d20. On a 1, the staff vanishes in a flash of light, lost forever.
+
+## Effects
+```yaml
+- charges: { max: 10, recharge: { dice: 1d6 + 4, at: dawn }, destroy-on: { roll: 1d20, if: 1, when: last-charge } }
+- action: { activation: magic, cast: $srd/spells/cure-wounds, cost: { charges: { min: 1, max: 4 } }, cast-at: cost.charges, ability: spell-ability }
+- action: { activation: magic, cast: $srd/spells/lesser-restoration, cost: { charges: 2 }, ability: spell-ability }
+- action: { activation: magic, cast: $srd/spells/mass-cure-wounds, cost: { charges: 5 }, ability: spell-ability }
+```

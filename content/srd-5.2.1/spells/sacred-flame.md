@@ -10,3 +10,9 @@
 Flame-like radiance descends on a creature that you can see within range. The target must succeed on a Dexterity saving throw or take 1d8 Radiant damage. The target gains no benefit from Half Cover or Three-Quarters Cover for this save.
 
 ***Cantrip Upgrade.*** The damage increases by 1d8 when you reach levels 5 (2d8), 11 (3d8), and 17 (4d8).
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, save: { ability: dex, ignore-cover: [half, three-quarters] }, damage: { dice: 1d8, type: radiant } }
+- scaling: { cantrip: [5, 11, 17], add: { damage: 1d8 } }
+```

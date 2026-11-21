@@ -11,6 +11,12 @@ You pull wisps of shadow material from the Shadowfell to create an object within
 
 The spell’s duration depends on the object’s material, as shown in the Materials table. If the object is composed of multiple materials, use the shortest duration. Using any object created by this spell as another spell’s Material component causes the other spell to fail.
 
+## Effects
+```yaml
+- narrative: true
+- scaling: { per-slot-above: 5, add: { text: "The Cube grows by 5 feet." } }
+```
+
 ## Materials
 
 | Material | Duration |

@@ -8,3 +8,9 @@ These furred boots are snug and feel warm. While wearing them, you gain the foll
 ***Cold Resistance.*** You have Resistance to Cold damage and can tolerate temperatures of 0 degrees Fahrenheit or lower without any additional protection.
 
 ***Winter Strider.*** You ignore Difficult Terrain created by ice or snow.
+
+## Effects
+```yaml
+- defense: { resistance: [cold] }
+- trait: [tolerate-extreme-cold, ignore-ice-snow-difficult-terrain]
+```

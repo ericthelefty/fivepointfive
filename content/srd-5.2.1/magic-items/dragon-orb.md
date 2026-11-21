@@ -23,3 +23,8 @@ While you are Charmed by the orb, you can’t voluntarily end your Attunement to
 ***Call Dragons.*** While you control the orb, you can take a Magic action to cause the orb to issue a telepathic call that extends in all directions for 40 miles. Chromatic dragons in range feel compelled to come to the orb as soon as possible by the most direct route. Dragon deities such as Tiamat are unaffected by this call. Chromatic dragons drawn to the orb might be Hostile toward you for compelling them against their will. Once you have used this property, it can’t be used again for 1 hour.
 
 ***Destroying an Orb.*** A *Dragon Orb* has AC 20 and is destroyed if it takes damage from a *+3 Weapon* or a *Disintegrate* spell. Nothing else can harm it.
+
+## Effects
+```yaml
+- narrative: true
+```

@@ -9,6 +9,12 @@ The magic of the deck functions only if its cards are drawn at random. You can t
 
 Any physical interaction with the illusory creature reveals it to be false, because objects pass through it. A creature that takes a Study action to visually inspect the illusory creature identifies it as an illusion with a successful DC 15 Intelligence (Investigation) check. The illusion lasts until its card is moved or the illusion is dispelled (using a *Dispel Magic* spell or a similar effect). When the illusion ends, the image on its card disappears, and that card can’t be used again.
 
+## Effects
+```yaml
+- charges: { max: 34, start: "34 - (1d20 - 1)" }
+- action: { activation: magic, cost: { charges: 1 }, roll-table: { table: Deck of Illusions }, text: "An illusion of a creature forms over the card until dispelled." }
+```
+
 ## Deck of Illusions
 
 | 1d100 | Illusion* |

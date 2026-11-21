@@ -14,3 +14,9 @@ Four sizes of *Carpet of Flying* exist. The GM chooses the size of a given carpe
 | 21–55 | 4 ft. × 6 ft. | 400 lb. | 60 feet |
 | 56–80 | 5 ft. × 7 ft. | 600 lb. | 40 feet |
 | 81–00 | 6 ft. × 9 ft. | 800 lb. | 30 feet |
+
+## Effects
+```yaml
+- variant: { id: size, by: roll, roll: 1d100, table: Carpet of Flying, values: { 3x5: { capacity: 200, fly: 80 }, 4x6: { capacity: 400, fly: 60 }, 5x7: { capacity: 600, fly: 40 }, 6x9: { capacity: 800, fly: 30 } } }
+- toggle: { activation: magic, effects: [ { speed: { fly: variant:size.fly } } ], text: "Fly Speed halves above its capacity (max twice capacity)." }
+```

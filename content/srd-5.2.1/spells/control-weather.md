@@ -13,6 +13,11 @@ When you cast the spell, you change the current weather conditions, which are de
 
 When you change the weather conditions, find a current condition on the following tables and change its stage by one, up or down. When changing the wind, you can change its direction.
 
+## Effects
+```yaml
+- narrative: true
+```
+
 ## Precipitation
 
 | Stage | Condition |

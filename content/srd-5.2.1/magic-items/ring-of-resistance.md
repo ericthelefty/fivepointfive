@@ -18,3 +18,10 @@ You have Resistance to one damage type while wearing this ring. The gemstone in 
 | 8 | Psychic | Jade |
 | 9 | Radiant | Topaz |
 | 10 | Thunder | Spinel |
+
+## Effects
+```yaml
+- variant: { id: type, by: roll, roll: 1d10, values: { 1: acid, 2: cold, 3: fire, 4: force, 5: lightning,
+                                                       6: necrotic, 7: poison, 8: psychic, 9: radiant, 10: thunder } }
+- defense: { resistance: [variant:type] }
+```

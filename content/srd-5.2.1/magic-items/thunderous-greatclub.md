@@ -10,3 +10,14 @@ The weapon has the following additional properties.
 ***Clap of Thunder.*** As a Magic action, you can strike the weapon against a hard surface to create a loud clap of thunder audible out to 300 feet. You also create a 30-foot Cone of thunderous energy. Each creature in the Cone must succeed on a DC 15 Strength saving throw or have the Prone condition. Nonmagical objects in the Cone that aren’t being worn or carried take 3d8 Thunder damage.
 
 ***Earthquake.*** As a Magic action, you can strike the weapon against the ground to create an intense seismic disturbance in a 50-foot-radius circle centered on the point of impact. Structures in contact with the ground in that area take 50 Bludgeoning damage, and each creature on the ground in that area must succeed on a DC 20 Dexterity saving throw or have the Prone condition. If that creature is also concentrating, it must succeed on a DC 20 Constitution saving throw, or its Concentration is broken. In addition, you can cause a 30-foot-deep, 10-foot-wide fissure to open up on the ground anywhere in the area. Any creature on a spot where the fissure opens must make a DC 20 Dexterity saving throw, falling into the fissure on a failed save or moving with the fissure’s edge on a successful one. Any structure on a spot where the fissure opens collapses into the fissure. Once you use this property, it can’t be used again until the next dawn.
+
+## Effects
+```yaml
+- set: { to: score:str, value: 20 }
+- trigger: { event: hit, scope: { weapon: { id: self } }, auto: true, offer: { damage: { dice: 1d8, type: thunder } } }
+- action: { activation: magic, label: Clap of Thunder, area: { shape: cone, size: 30 }, save: { ability: str, dc: 15 }, on-failure: { apply: { condition: prone } } }
+- resource: { id: greatclub-earthquake, max: 1, reset: dawn }
+- action: { activation: magic, label: Earthquake, cost: { resource: $#greatclub-earthquake }, area: { shape: circle, size: 50 }, save: { ability: dex, dc: 20 },
+            on-failure: { apply: { condition: prone }, then: { if: "Concentrating", save: { ability: con, dc: 20 }, on-failure: { breaks-concentration: true } } },
+            text: "Structures take 50 Bludgeoning damage; you can open a 30-foot-deep fissure (DC 20 Dex or fall in)." }
+```

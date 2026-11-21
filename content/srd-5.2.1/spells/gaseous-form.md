@@ -14,3 +14,13 @@ While in this form, the target’s only method of movement is a Fly Speed of 10 
 The target can’t talk or manipulate objects, and any objects it was carrying or holding can’t be dropped, used, or otherwise interacted with. Finally, the target can’t attack or cast spells.
 
 ***Using a Higher-Level Spell Slot.*** You can target one additional creature for each spell slot level above 3.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1, creature: willing } }
+- target-effects: { effects: [ { set: { to: speed:all, value: 0, mode: override } }, { speed: { fly: 10 } }, { trait: [hover, cant-talk, cant-manipulate-objects] },
+                               { defense: { resistance: [bludgeoning, piercing, slashing], condition-immunity: [prone] } },
+                               { advantage: { roll: [save:str, save:dex, save:con] } } ],
+                    ends-when: [{ hp: zero }] }
+- scaling: { per-slot-above: 3, add: { targets: 1 } }
+```

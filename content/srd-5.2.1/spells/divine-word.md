@@ -9,6 +9,12 @@
 
 You utter a word imbued with power from the Upper Planes. Each creature of your choice in range makes a Charisma saving throw. On a failed save, a target that has 50 Hit Points or fewer suffers an effect based on its current Hit Points, as shown in the Divine Word Effects table. Regardless of its Hit Points, a Celestial, an Elemental, a Fey, or a Fiend target that fails its save is forced back to its plane of origin (if it isn’t there already) and can’t return to the current plane for 24 hours by any means short of a *Wish* spell.
 
+## Effects
+```yaml
+- action: { targets: { count: any, choose: true }, save: { ability: cha }, on-failure: { table: Divine Word Effects,
+            text: "By current HP: 0–20 dies; 21–30 Blinded, Deafened, Stunned 1 hour; 31–40 Blinded, Deafened 10 minutes; 41–50 Deafened 1 minute. Celestials, Elementals, Fey and Fiends are banished for 24 hours." } }
+```
+
 ## Divine Word Effects
 
 | Hit Points | Effect |

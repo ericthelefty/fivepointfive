@@ -4,3 +4,8 @@
 *Wondrous Item, Uncommon (Requires Attunement)*
 
 While this polished agate is on your person, you gain a +1 bonus to ability checks and saving throws.
+
+## Effects
+```yaml
+- bonus: { to: [check:all, save:all], value: 1, when: { has: { item: self } } }
+```

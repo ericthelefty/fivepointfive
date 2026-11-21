@@ -10,3 +10,10 @@
 You touch a creature. The target’s Speed increases by 10 feet until the spell ends.
 
 ***Using a Higher-Level Spell Slot.*** You can target one additional creature for each spell slot level above 1.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1 } }
+- target-effects: { effects: [ { bonus: { to: speed:walk, value: 10 } } ] }
+- scaling: { per-slot-above: 1, add: { targets: 1 } }
+```

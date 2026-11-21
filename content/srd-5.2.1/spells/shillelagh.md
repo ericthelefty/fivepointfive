@@ -12,3 +12,12 @@ A Club or Quarterstaff you are holding is imbued with nature’s power. For the 
 The spell ends early if you cast it again or if you let go of the weapon.
 
 ***Cantrip Upgrade.*** The damage die changes when you reach levels 5 (d10), 11 (d12), and 17 (2d6).
+
+## Effects
+```yaml
+- self-effects:
+    effects:
+      - use-ability: { ability: spell-ability, instead-of: str, for: [attack, damage], scope: { weapon: { id: [club, quarterstaff] } } }
+      - damage-die: { die: "steps(1: d8, 5: d10, 11: d12, 17: 2d6)", scope: { weapon: { id: [club, quarterstaff] } } }
+      - damage-type: { add-option: force, scope: { weapon: { id: [club, quarterstaff] } } }
+```

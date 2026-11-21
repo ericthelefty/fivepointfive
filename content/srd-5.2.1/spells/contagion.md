@@ -12,3 +12,11 @@ Your touch inflicts a magical contagion. The target must succeed on a Constituti
 The target must repeat the saving throw at the end of each of its turns until it gets three successes or failures. If the target succeeds on three of these saves, the spell ends on the target. If the target fails three of the saves, the spell lasts for 7 days on it.
 
 Whenever the Poisoned target receives an effect that would end the Poisoned condition, the target must succeed on a Constitution saving throw, or the Poisoned condition doesn’t end on it.
+
+## Effects
+```yaml
+- action: { range: touch, save: { ability: con }, choose: { kind: ability, id: contagion-ability },
+            on-failure: { damage: { dice: 11d8, type: necrotic }, apply: { condition: poisoned,
+              effects: [ { disadvantage: { roll: save:chosen } } ],
+              save-ends: { at: end-of-turn, successes: 3, failures: 3, on-fail-out: { duration: { amount: 7, unit: day } } } } } }
+```

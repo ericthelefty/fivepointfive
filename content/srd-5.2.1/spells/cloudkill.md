@@ -14,3 +14,11 @@ Each creature in the Sphere makes a Constitution saving throw, taking 5d8 Poison
 The Sphere moves 10 feet away from you at the start of each of your turns.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d8 for each spell slot level above 5.
+
+## Effects
+```yaml
+- zone: { area: { shape: sphere, size: 20 }, event: [cast, enter-area, end-of-turn], per: turn, save: { ability: con, success: half },
+          damage: { dice: 5d8, type: poison }, moves: { distance: 10, at: start-of-your-turn, direction: away },
+          effects: [ { trait: [heavily-obscured] } ] }
+- scaling: { per-slot-above: 5, add: { damage: 1d8 } }
+```

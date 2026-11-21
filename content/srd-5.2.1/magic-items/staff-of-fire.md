@@ -14,3 +14,16 @@ You have Resistance to Fire damage while you hold this staff.
 | Fireball | 3 |  |  |
 
 ***Regaining Charges.*** The staff regains 1d6 + 4 expended charges daily at dawn. If you expend the last charge, roll 1d20. On a 1, the staff crumbles into cinders and is destroyed.
+
+## Effects
+```yaml
+- defense: { resistance: [fire] }
+- charges: { max: 10, recharge: { dice: 1d6+4, at: dawn }, destroy-on: { roll: 1d20, if: 1, when: last-charge } }
+- action:
+    activation: magic
+    dc: spell:dc
+    choose-one:
+      - { cast: $srd/spells/burning-hands, cost: { charges: 1 } }
+      - { cast: $srd/spells/fireball, cost: { charges: 3 } }
+      - { cast: $srd/spells/wall-of-fire, cost: { charges: 4 } }
+```

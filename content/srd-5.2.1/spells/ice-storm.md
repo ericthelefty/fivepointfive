@@ -12,3 +12,10 @@ Hail falls in a 20-foot-radius, 40-foot-high Cylinder centered on a point within
 Hailstones turn ground in the Cylinder into Difficult Terrain until the end of your next turn.
 
 ***Using a Higher-Level Spell Slot.*** The Bludgeoning damage increases by 1d10 for each spell slot level above 4.
+
+## Effects
+```yaml
+- action: { area: { shape: cylinder, size: 20, height: 40 }, save: { ability: dex, success: half },
+            damage: [ { dice: 2d10, type: bludgeoning }, { dice: 4d6, type: cold } ], text: "Difficult Terrain until the end of your next turn." }
+- scaling: { per-slot-above: 4, add: { damage: [1d10, 0] } }
+```

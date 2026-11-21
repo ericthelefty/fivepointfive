@@ -10,3 +10,9 @@ While summoned, the djinni is Friendly to you and your allies, and it obeys your
 After the djinni departs, it can’t be summoned again for 24 hours, and the ring becomes nonmagical if the djinni dies.
 
 *Rings of Djinni Summoning* are often created by the djinn they summon and given to mortals as gifts of friendship or tokens of esteem.
+
+## Effects
+```yaml
+- action: { activation: magic, summon: { creature: $srd/monsters/djinni, duration: { amount: 1, unit: hour, concentration: true } }, lockout: { amount: 24, unit: hour },
+            text: "The ring becomes nonmagical if the djinni dies." }
+```

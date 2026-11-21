@@ -10,3 +10,9 @@
 A frigid beam of blue-white light streaks toward a creature within range. Make a ranged spell attack against the target. On a hit, it takes 1d8 Cold damage, and its Speed is reduced by 10 feet until the start of your next turn.
 
 ***Cantrip Upgrade.*** The damage increases by 1d8 when you reach levels 5 (2d8), 11 (3d8), and 17 (4d8).
+
+## Effects
+```yaml
+- action: { attack: { kind: ranged-spell }, damage: { dice: 1d8, type: cold }, on-hit: { apply: { text: "Speed −10 ft", duration: { until: start-of-next-turn } } } }
+- scaling: { cantrip: [5, 11, 17], add: { damage: 1d8 } }
+```

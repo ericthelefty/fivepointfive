@@ -14,3 +14,11 @@ When the wall appears, each creature in its area makes a Strength saving throw, 
 At the start of each of your turns after the wall appears, the wall, along with any creatures in it, moves 50 feet away from you. Any Huge or smaller creature inside the wall or whose space the wall enters when it moves must succeed on a Strength saving throw or take 5d10 Bludgeoning damage. A creature can take this damage only once per round. At the end of the turn, the wall’s height is reduced by 50 feet, and the damage the wall deals on later rounds is reduced by 1d10. When the wall reaches 0 feet in height, the spell ends.
 
 A creature caught in the wall can move by swimming. Because of the wave’s force, though, the creature must succeed on a Strength (Athletics) check against your spell save DC to move at all. If it fails the check, it can’t move. A creature that moves out of the wall falls to the ground.
+
+## Effects
+```yaml
+- zone: { area: { shape: wall, size: 300, height: 300, width: 50 }, event: [cast], save: { ability: str, success: half },
+          damage: { dice: 6d10, type: bludgeoning }, moves: { distance: 50, at: start-of-your-turn, direction: away },
+          then: { at: start-of-your-turn, save: { ability: str }, on-failure: { damage: { dice: 5d10, type: bludgeoning } },
+                  shrinks: { height: 50, damage: 1d10 } } }
+```

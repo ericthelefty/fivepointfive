@@ -16,3 +16,11 @@ If a creature touches the glowing bead before the spell ends, that creature make
 When the bead explodes, flammable objects in the explosion that aren’t being worn or carried start burning.
 
 ***Using a Higher-Level Spell Slot.*** The base damage increases by 1d6 for each spell slot level above 7.
+
+## Effects
+```yaml
+- action: { area: { shape: sphere, size: 20 }, save: { ability: dex, success: half }, damage: { dice: 12d6, type: fire },
+            grows: { at: end-of-your-turn, add: { damage: 1d6 } }, at: spell-end,
+            text: "A creature touching the bead saves (Dex): fail = explodes, success = throw it 40 feet." }
+- scaling: { per-slot-above: 7, add: { damage: 1d6 } }
+```

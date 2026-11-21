@@ -26,3 +26,8 @@ The spell creates the effects below within the warded area. *Dispel Magic* has n
 - *Stinking Cloud* in two locations (the vapors return within 10 minutes if dispersed while *Guards and Wards* lasts)
 - *Gust of Wind* in one corridor or room (the wind blows continuously while the spell lasts)
 - *Suggestion* in one 5-foot square; any creature that enters that square receives the suggestion mentally
+
+## Effects
+```yaml
+- narrative: true
+```

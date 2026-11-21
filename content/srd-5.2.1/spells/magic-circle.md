@@ -18,3 +18,12 @@ Choose one or more of the following types of creatures: Celestials, Elementals, 
 Each time you cast this spell, you can cause its magic to operate in the reverse direction, preventing a creature of the specified type from leaving the Cylinder and protecting targets outside it.
 
 ***Using a Higher-Level Spell Slot.*** The duration increases by 1 hour for each spell slot level above 3.
+
+## Effects
+```yaml
+- zone: { area: { shape: cylinder, size: 10, height: 20 },
+          choose: { id: circle-types, kind: option, count: any, options: [ { id: celestial }, { id: elemental }, { id: fey }, { id: fiend }, { id: undead } ] },
+          choose-one: [ { id: inward, label: Keep them out }, { id: outward, label: Keep them in } ],
+          text: "Chosen creatures can't willingly enter by nonmagical means (Cha save to teleport in), have Disadvantage on attacks against targets inside, and can't charm, frighten or possess them." }
+- scaling: { per-slot-above: 3, add: { duration: 1 hour } }
+```

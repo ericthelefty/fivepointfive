@@ -24,3 +24,16 @@ The target’s gear melds into the new form. The creature can’t use or otherwi
 If the spell lasts more than an hour, you no longer control the creature. It might remain Friendly to you, depending on how you have treated it.
 
 ***Creature into Object.*** If you turn a creature into an object, it transforms along with whatever it is wearing and carrying into that form, as long as the object’s size is no larger than the creature’s size. The creature’s statistics become those of the object, and the creature has no memory of time spent in this form after the spell ends and it returns to normal.
+
+## Effects
+```yaml
+- form:
+    target: other
+    targets: { count: 1 }
+    save: { ability: wis, unwilling-only: true }
+    choose-one:
+      - { id: creature-to-creature, label: Creature into Creature, choose: { from: { creature: { cr-max: target.cr-or-level } } }, temp-hp: form.hp }
+      - { id: object-to-creature, label: Object into Creature, choose: { from: { creature: { cr-max: 9 } } } }
+      - { id: creature-to-object, label: Creature into Object, text: "No bigger than the creature's size; it can't act." }
+    text: "Lasts until dispelled if you concentrate for the full hour."
+```

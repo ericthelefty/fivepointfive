@@ -14,3 +14,9 @@ This wand has 7 charges.
 | Fear (60-foot Cone) | 3 |
 
 ***Regaining Charges.*** The wand regains 1d6 + 1 expended charges daily at dawn. If you expend the wand’s last charge, roll 1d20. On a 1, the wand crumbles into ashes and is destroyed.
+
+## Effects
+```yaml
+- charges: { max: 7, recharge: { dice: 1d6 + 1, at: dawn }, destroy-on: { roll: 1d20, if: 1, when: last-charge } }
+- cast-list: { pay-from: charges, dc: 15, spells: [ { spell: $srd/spells/command, cost: 1, options: [flee, grovel] }, { spell: $srd/spells/fear, cost: 3, overrides: { area.size: 60 } } ] }
+```

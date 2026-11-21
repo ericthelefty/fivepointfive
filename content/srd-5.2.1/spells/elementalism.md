@@ -18,3 +18,9 @@ You exert control over the elements, creating one of the following effects withi
 ***Beckon Water.*** You create a spray of cool mist that lightly dampens creatures and objects in a 5-foot Cube. Alternatively, you create 1 cup of clean water either in an open container or on a surface, and the water evaporates in 1 minute.
 
 ***Sculpt Element.*** You cause dirt, sand, fire, smoke, mist, or water that can fit in a 1-foot Cube to assume a crude shape (such as that of a creature) for 1 hour.
+
+## Effects
+```yaml
+- action: { choose-one: [ { id: air, label: Beckon Air }, { id: earth, label: Beckon Earth }, { id: fire, label: Beckon Fire },
+                          { id: water, label: Beckon Water }, { id: sculpt, label: Sculpt Element } ] }
+```

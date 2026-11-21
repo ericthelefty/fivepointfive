@@ -14,3 +14,9 @@ Whatever its potency, the potion’s red liquid glimmers when agitated.
 | Potion of Healing (greater) | 4d4 + 4 | Uncommon |
 | Potion of Healing (superior) | 8d4 + 8 | Rare |
 | Potion of Healing (supreme) | 10d4 + 20 | Very Rare |
+
+## Effects
+```yaml
+- variant: { id: heal, by: name, values: { "": 2d4+2, greater: 4d4+4, superior: 8d4+8, supreme: 10d4+20 } }
+- action: { activation: bonus, heal: variant:heal, consume: true }
+```

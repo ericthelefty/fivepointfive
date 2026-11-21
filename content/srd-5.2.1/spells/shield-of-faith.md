@@ -8,3 +8,9 @@
 **Duration:** Concentration, up to 10 minutes
 
 A shimmering field surrounds a creature of your choice within range, granting it a +2 bonus to AC for the duration.
+
+## Effects
+```yaml
+- action: { targets: { count: 1 } }
+- target-effects: { effects: [ { bonus: { to: ac, value: 2 } } ] }
+```

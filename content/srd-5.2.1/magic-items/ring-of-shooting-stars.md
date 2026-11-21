@@ -22,3 +22,14 @@ As a Bonus Action, you can move each sphere up to 30 feet, but no farther than 1
 | 2 | 5d4 | 4 | 2d4 |
 
 ***Shooting Stars.*** You can expend 1 to 3 charges as a Magic action. For every charge you expend, you launch a glowing mote of light from the ring at a point you can see within 60 feet of yourself. Each creature in a 15-foot Cube originating from that point is showered in sparks and makes a DC 15 Dexterity saving throw, taking 5d4 Radiant damage on a failed save or half as much damage on a successful one.
+
+## Effects
+```yaml
+- grant-spell: { spell: [$srd/spells/dancing-lights, $srd/spells/light], at-will: true }
+- charges: { max: 6, recharge: { dice: 1d6, at: dawn } }
+- action: { cost: { charges: 1 }, cast: $srd/spells/faerie-fire }
+- action: { id: lightning-spheres, activation: magic, cost: { charges: 2 }, range: 120,
+            text: "Up to four lightning spheres; when one ends next to a creature it saves (Dex DC 15) vs lightning damage based on the number of spheres." }
+- action: { id: shooting-stars, activation: magic, cost: { charges: { min: 1, max: 3 } }, range: 60, area: { shape: cube, size: 15 },
+            save: { ability: dex, dc: 15, success: half }, damage: { dice: 4d4, type: fire, per: star } }
+```

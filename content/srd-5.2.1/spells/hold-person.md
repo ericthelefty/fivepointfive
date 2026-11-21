@@ -10,3 +10,10 @@
 Choose a Humanoid that you can see within range. The target must succeed on a Wisdom saving throw or have the Paralyzed condition for the duration. At the end of each of its turns, the target repeats the save, ending the spell on itself on a success.
 
 ***Using a Higher-Level Spell Slot.*** You can target one additional Humanoid for each spell slot level above 2.
+
+## Effects
+```yaml
+- action: { range: 60, targets: { count: 1, creature: humanoid }, save: { ability: wis },
+            apply: { condition: paralyzed, duration: spell, save-ends: end-of-turn } }
+- scaling: { per-slot-above: 2, add: { targets: 1 } }
+```

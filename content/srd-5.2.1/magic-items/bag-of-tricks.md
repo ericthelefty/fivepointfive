@@ -11,6 +11,14 @@ The creature is Friendly to you and your allies, and it acts immediately after y
 
 Once three fuzzy objects have been pulled from the bag, the bag can’t be used again until the next dawn.
 
+## Effects
+```yaml
+- variant: { id: color, by: name, values: [gray, rust, tan] }
+- charges: { max: 3, recharge: { at: dawn, to: max } }
+- action: { activation: magic, cost: { charges: 1 }, summon: { creature: { roll-table: { dice: 1d8, table: variant:color } }, duration: { until: dawn },
+            control: { activation: bonus }, initiative: after-you } }
+```
+
 ## Gray Bag of Tricks
 
 | 1d8 | Creature | 1d8 | Creature |

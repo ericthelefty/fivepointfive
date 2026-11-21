@@ -8,3 +8,10 @@ This rope is 30 feet long. While holding one end of the rope, you can take a Mag
 A target Restrained by the rope can take an action to make its choice of a DC 15 Strength (Athletics) or Dexterity (Acrobatics) check. On a successful check, the target is no longer Restrained by the rope. If you’re still holding onto the rope when a target escapes from it, you can take a Reaction to command the rope to coil up in your hand; otherwise, the rope coils up in the target’s space.
 
 The rope has AC 20, HP 20, and Immunity to Poison and Psychic damage. It regains 1 Hit Point every 5 minutes as long as it has at least 1 Hit Point. If the rope drops to 0 Hit Points, it is destroyed.
+
+## Effects
+```yaml
+- action: { activation: magic, range: 20, targets: { count: 1 }, save: { ability: dex, dc: 15 },
+            on-failure: { apply: { condition: restrained, escape: { check: [skill:athletics, skill:acrobatics], dc: 15 } } },
+            text: "The rope has AC 20, 20 HP, regains 1 HP every 5 minutes." }
+```

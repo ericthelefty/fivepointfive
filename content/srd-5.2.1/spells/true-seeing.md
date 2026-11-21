@@ -8,3 +8,9 @@
 **Duration:** 1 hour
 
 For the duration, the willing creature you touch has Truesight with a range of 120 feet.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1, creature: willing } }
+- target-effects: { effects: [ { sense: { truesight: 120 } } ] }
+```

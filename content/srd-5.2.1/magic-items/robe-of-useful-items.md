@@ -35,3 +35,9 @@ In addition, the robe has 4d4 other patches. The GM chooses the patches or deter
 | 84–90 | 2 Mastiffs |
 | 91–96 | Window (2 feet by 4 feet, up to 2 feet deep), which you can place on a vertical surface you can reach |
 | 97–00 | Portable Ram |
+
+## Effects
+```yaml
+- charges: { max: "12 + 4d4", start: "12 + 4d4", kinds: true, destroy-on: { when: last-charge } }
+- action: { activation: magic, cost: { charges: { kind: chosen } }, roll-table: { table: Robe of Useful Items }, text: "Detach a patch; it becomes the object or creature it shows." }
+```

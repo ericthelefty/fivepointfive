@@ -12,3 +12,9 @@ A Tiny Beast of your choice that you can see within range must succeed on a Char
 When the Beast arrives, it delivers your message to the creature that you described, mimicking your communication. If the Beast doesn’t reach its destination before the spell ends, the message is lost, and the Beast returns to where you cast the spell.
 
 ***Using a Higher-Level Spell Slot.*** The spell’s duration increases by 48 hours for each spell slot level above 2.
+
+## Effects
+```yaml
+- action: { targets: { count: 1, creature: beast, size: tiny }, save: { ability: cha }, text: "The Beast carries a 25-word message to a place you've visited." }
+- scaling: { per-slot-above: 2, add: { duration: 48 hour } }
+```

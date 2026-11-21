@@ -6,3 +6,8 @@
 When you drink this potion, you gain the “reduce” effect of the *Enlarge/Reduce* spell for 1d4 hours (no Concentration required).
 
 The red in the potion’s liquid continuously contracts to a tiny bead and then expands to color the clear liquid around it. Shaking the bottle fails to interrupt this process.
+
+## Effects
+```yaml
+- action: { activation: bonus, consume: true, cast: $srd/spells/enlarge-reduce, preset: { choose-one: reduce }, overrides: { concentration: false, duration: { amount: 1d4, unit: hour } } }
+```

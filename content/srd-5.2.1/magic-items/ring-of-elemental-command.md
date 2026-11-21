@@ -29,3 +29,13 @@ Every *Ring of Elemental Command* has the following two properties:
 | Earth | Earthquake (5 charges), Stone Shape (2 charges), Stoneskin (3 charges), Wall of Stone (3 charges) |
 | Fire | Burning Hands (1 charge), Fireball (2 charges), Fire Storm (4 charges), Wall of Fire (3 charges) |
 | Water | Create or Destroy Water (1 charge), Ice Storm (2 charges), Tsunami (5 charges), Wall of Ice (3 charges), Water Walk (2 charges) |
+
+## Effects
+```yaml
+- variant: { id: plane, by: choice, values: [air, earth, fire, water] }
+- advantage: { roll: attack, scope: { against: { creature: elemental } } }
+- disadvantage: { roll: attacks-against-you, scope: { against: { creature: elemental } } }
+- action: { activation: magic, label: Elemental Compulsion, range: 60, targets: { count: 1, creature: elemental }, save: { ability: wis, dc: 18 },
+            on-failure: { apply: { condition: charmed, duration: { until: start-of-next-turn }, text: "You decide its move and action." } } }
+- trait: { text: "Elemental Focus: language, resistance and movement powers by linked plane (variant)." }
+```

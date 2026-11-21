@@ -13,3 +13,9 @@ While wearing this amulet, you can take a Magic action to name a location that y
 | 71–80 | Random location on an Outer Plane determined by rolling 1d8: on a 1, Arborea; on a 2, Arcadia; on a 3, the Beastlands; on a 4, Bytopia; on a 5, Elysium; on a 6, Mechanus; on a 7, Mount Celestia; on an 8, Ysgard |
 | 81–90 | Random location on an Outer Plane determined by rolling 1d8: on a 1, the Abyss; on a 2, Acheron; on a 3, Carceri; on a 4, Gehenna; on a 5, Hades; on a 6, Limbo; on a 7, the Nine Hells; on an 8, Pandemonium |
 | 91–00 | Random location on the Astral Plane |
+
+## Effects
+```yaml
+- action: { activation: magic, check: { skill: arcana, dc: 15 }, on-success: { cast: $srd/spells/plane-shift },
+            on-failure: { roll-table: { dice: 1d100, table: Amulet of the Planes Destination } } }
+```

@@ -8,3 +8,9 @@
 **Duration:** Instantaneous
 
 A wave of healing energy washes over one creature you can see within range. The target regains all its Hit Points. If the creature has the Charmed, Frightened, Paralyzed, Poisoned, or Stunned condition, the condition ends. If the creature has the Prone condition, it can use its Reaction to stand up.
+
+## Effects
+```yaml
+- action: { targets: { count: 1 }, heal: all, remove-condition: [charmed, frightened, paralyzed, poisoned, stunned],
+            text: "A Prone target can use its Reaction to stand." }
+```

@@ -14,3 +14,8 @@ When you cast the spell, you can use the hand to manipulate an object, open an u
 As a Magic action on your later turns, you can control the hand thus again. As part of that action, you can move the hand up to 30 feet.
 
 The hand can’t attack, activate magic items, or carry more than 10 pounds.
+
+## Effects
+```yaml
+- action: { repeat: { activation: magic, move: 30 }, text: "A spectral hand manipulates objects up to 10 pounds; it can't attack or activate magic items." }
+```

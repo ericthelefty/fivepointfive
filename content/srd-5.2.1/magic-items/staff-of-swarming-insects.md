@@ -16,3 +16,11 @@ This staff has 10 charges.
 | Insect Plague | 5 |
 
 ***Regaining Charges.*** The staff regains 1d6 + 4 expended charges daily at dawn. If you expend the last charge, roll 1d20. On a 1, a swarm of insects consumes and destroys the staff, then disperses.
+
+## Effects
+```yaml
+- charges: { max: 10, recharge: { dice: 1d6 + 4, at: dawn }, destroy-on: { roll: 1d20, if: 1, when: last-charge } }
+- action: { activation: magic, cost: { charges: 1 }, duration: { amount: 10, unit: minute },
+            effects: [ { zone: { area: { shape: emanation, size: 30 }, effects: [ { trait: [heavily-obscured-except-you] } ] } } ] }
+- cast-list: { pay-from: charges, dc: spell:dc, spells: [ { spell: $srd/spells/giant-insect, cost: 4 }, { spell: $srd/spells/insect-plague, cost: 5 } ] }
+```

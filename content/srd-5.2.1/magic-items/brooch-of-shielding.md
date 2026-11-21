@@ -4,3 +4,8 @@
 *Wondrous Item, Uncommon (Requires Attunement)*
 
 While wearing this brooch, you have Resistance to Force damage, and you have Immunity to damage from the *Magic Missile* spell.
+
+## Effects
+```yaml
+- defense: { resistance: [force], immunity: { spell: $srd/spells/magic-missile } }
+```

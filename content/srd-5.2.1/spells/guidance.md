@@ -8,3 +8,9 @@
 **Duration:** Concentration, up to 1 minute
 
 You touch a willing creature and choose a skill. Until the spell ends, the creature adds 1d4 to any ability check using the chosen skill.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1, creature: willing }, choose: { id: guidance-skill, kind: skill } }
+- target-effects: { effects: [ { bonus: { to: skill:chosen, value: 1d4 } } ] }
+```

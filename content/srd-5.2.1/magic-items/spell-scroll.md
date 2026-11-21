@@ -27,3 +27,14 @@ The level of the spell on the scroll determines the spell’s saving throw DC an
 | 9 | Legendary | 19 | +11 |
 
 ***Copying a Scroll into a Spellbook.*** A Wizard spell on a *Spell Scroll* can be copied into a spellbook. When a spell is copied in this way, the copier must succeed on an Intelligence (Arcana) check with a DC equal to 10 plus the spell’s level. On a successful check, the spell is copied. Whether the check succeeds or fails, the *Spell Scroll* is destroyed.
+
+## Effects
+```yaml
+- variant: { id: level, by: spell-level, values: { 0: { dc: 13, attack: 5 }, 1: { dc: 13, attack: 5 }, 2: { dc: 13, attack: 5 },
+                                                   3: { dc: 15, attack: 7 }, 4: { dc: 15, attack: 7 }, 5: { dc: 17, attack: 9 },
+                                                   6: { dc: 17, attack: 9 }, 7: { dc: 18, attack: 10 }, 8: { dc: 18, attack: 10 },
+                                                   9: { dc: 19, attack: 11 } } }
+- action: { cast: variant:spell, consume: true, requires: { spell-on-list: true },
+            overrides: { components.material: false, dc: variant:level.dc, attack: variant:level.attack },
+            check: { ability: spell-ability, dc: 10 + spell.level, if: "The spell is above the level you can cast" } }
+```

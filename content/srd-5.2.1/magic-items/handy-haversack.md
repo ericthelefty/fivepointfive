@@ -12,3 +12,9 @@ If any of its pouches is overloaded, pierced, or torn, the haversack ruptures an
 Each pouch of the haversack holds enough air for 10 minutes of breathing, divided by the number of breathing creatures inside.
 
 Placing the haversack inside an extradimensional space created by a *Bag of Holding, Portable Hole,* or similar item instantly destroys both items and opens a gate to the Astral Plane. The gate originates where the one item was placed inside the other. Any creature within 10 feet of the gate and not behind Total Cover is sucked through it and deposited in a random location on the Astral Plane. The gate then closes. The gate is one-way only and can’t be reopened.
+
+## Effects
+```yaml
+- container: { capacity: { side-pouch: 200, side-pouch-2: 200, central: 500 }, weight: 5 }
+- trait: { text: "Retrieve an item as a Utilize action or a Bonus Action." }
+```

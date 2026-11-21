@@ -12,3 +12,9 @@ The touch of your shadow-wreathed hand can siphon life force from others to heal
 Until the spell ends, you can make the attack again on each of your turns as a Magic action, targeting the same creature or a different one.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d6 for each spell slot level above 3.
+
+## Effects
+```yaml
+- action: { attack: { kind: melee-spell }, damage: { dice: 3d6, type: necrotic }, on-hit: { heal-self: half-damage }, repeat: { activation: magic } }
+- scaling: { per-slot-above: 3, add: { damage: 1d6 } }
+```

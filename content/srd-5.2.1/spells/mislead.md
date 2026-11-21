@@ -12,3 +12,9 @@ You gain the Invisible condition at the same time that an illusory double of you
 As a Magic action, you can move the illusory double up to twice your Speed and make it gesture, speak, and behave in whatever way you choose. It is intangible and invulnerable.
 
 You can see through its eyes and hear through its ears as if you were located where it is.
+
+## Effects
+```yaml
+- self-effects: { effects: [ { condition: [invisible] } ], ends-when: [{ text: "Invisibility ends after you attack, deal damage or cast a spell" }] }
+- summon: { creature: { text: "Illusory double, intangible and invulnerable" }, control: { activation: magic, move: "2 * speed:walk" } }
+```

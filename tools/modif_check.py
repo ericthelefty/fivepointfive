@@ -307,6 +307,7 @@ def md_effects(path):
                 k = j
                 while k < len(lines) and not re.match(r'^\s*```\s*$', lines[k]): k += 1
                 key = re.sub(r'^Level \d+:\s*', '', cur or entry or '?')
+                key = key.replace('(', '').replace(')', '')  # entry names like "Stone of Good Luck (Luckstone)"
                 out.setdefault(key, []).extend(yaml.safe_load('\n'.join(lines[j:k])) or [])
                 i = k + 1
                 continue

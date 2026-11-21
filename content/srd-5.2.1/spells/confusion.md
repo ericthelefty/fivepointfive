@@ -20,3 +20,10 @@ Each creature in a 10-foot-radius Sphere centered on a point you choose within r
 At the end of each of its turns, an affected target repeats the save, ending the spell on itself on a success.
 
 ***Using a Higher-Level Spell Slot.*** The Sphere’s radius increases by 5 feet for each spell slot level above 4.
+
+## Effects
+```yaml
+- action: { area: { shape: sphere, size: 10 }, save: { ability: wis },
+            apply: { text: "No Bonus Actions or Reactions; roll 1d10 each turn for behavior", save-ends: end-of-turn, table: Confusion Behavior } }
+- scaling: { per-slot-above: 4, add: { area.size: 5 } }
+```

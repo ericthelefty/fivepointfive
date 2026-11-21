@@ -27,3 +27,10 @@ If you remove a bean from the bag, plant it in dirt or sand, and then water it, 
 | 81–90 | A nest of 1d4 + 3 rainbow-colored eggs springs up. Any creature that eats an egg makes a DC 20 Constitution saving throw. On a successful save, a creature permanently increases its lowest ability score by 1, randomly choosing among equally low scores. On a failed save, the creature takes 10d6 Force damage from an internal explosion. |
 | 91–95 | A pyramid with a 60-foot-square base bursts upward. Inside is a burial chamber containing a Mummy, a Mummy Lord, or some other Undead of the GM’s choice. Its sarcophagus contains treasure of the GM’s choice. |
 | 96–00 | A giant beanstalk sprouts, growing to a height of the GM’s choice. The top leads where the GM chooses, such as to a great view, a cloud giant’s castle, or another plane of existence. |
+
+## Effects
+```yaml
+- charges: { max: 3d4, start: 3d4, destroy-on: { when: last-charge } }
+- action: { cost: { charges: { min: 1 } }, area: { shape: sphere, size: 10 }, save: { ability: dex, dc: 15, success: half }, damage: { dice: 5d4, type: force },
+            text: "Dumped beans explode; a planted bean produces a random effect (table)." }
+```

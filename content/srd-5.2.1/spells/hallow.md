@@ -32,3 +32,24 @@ You touch a point and infuse an area around it with holy or unholy power. The ar
 **Tongues.** Creatures of any types you choose can communicate with any other creature in the area even if they don’t share a common language.
 
 **Vulnerability.** Creatures of any types you choose have Vulnerability to one damage type of your choice while in the area.
+
+## Effects
+```yaml
+- zone:
+    area: { shape: sphere, size: 60 }
+    choose: { id: hallowed-ward, kind: option, count: any, options: [ { id: aberration }, { id: celestial }, { id: elemental }, { id: fey }, { id: fiend }, { id: undead } ] }
+    choose-one:
+      - { id: courage, label: Courage, effects: [ { defense: { condition-immunity: [frightened] } } ] }
+      - { id: darkness, label: Darkness, effects: [ { trait: [magical-darkness] } ] }
+      - { id: daylight, label: Daylight, effects: [ { trait: { light: { bright: fill } } } ] }
+      - { id: peaceful-rest, label: Peaceful Rest, text: "Dead bodies can't be turned Undead." }
+      - { id: extradimensional, label: Extradimensional Interference, effects: [ { trait: [no-teleport-in, no-planar-travel] } ] }
+      - { id: fear, label: Fear, effects: [ { condition: [frightened] } ] }
+      - { id: resistance, label: Resistance, choose: { kind: damage-type }, effects: [ { defense: { resistance: [chosen] } } ] }
+      - { id: silence, label: Silence, effects: [ { trait: [no-sound-in-or-out] } ] }
+      - { id: tongues, label: Tongues, effects: [ { trait: [understood-by-all] } ] }
+      - { id: silence, label: Silence, effects: [ { trait: [no-sound-in-or-out] } ] }
+      - { id: tongues, label: Tongues, effects: [ { trait: [understood-by-all] } ] }
+      - { id: vulnerability, label: Vulnerability, choose: { kind: damage-type }, effects: [ { defense: { vulnerability: [chosen] } } ] }
+    text: "Creatures of the warded types can't willingly enter; it frees creatures they've charmed, frightened or possessed."
+```

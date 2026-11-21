@@ -12,3 +12,8 @@ This object appears as a wooden box that measures 12 inches long, 6 inches wide,
 **Third Command Word.** The *Folding Boat* folds back into a box if no creatures are aboard. Any objects in the vessel that can’t fit inside the box remain outside the box as it folds. Any objects in the vessel that can fit inside the box do so. When the box becomes a vessel, its weight becomes that of a normal vessel its size, and anything that was stored in the box remains in the boat.
 
 Statistics for the Rowboat and Keelboat appear in “Equipment.” If either vessel is reduced to 0 Hit Points, the *Folding Boat* is destroyed.
+
+## Effects
+```yaml
+- action: { activation: magic, choose-one: [ { id: rowboat, label: Rowboat }, { id: keelboat, label: Keelboat }, { id: fold, label: Fold back } ] }
+```

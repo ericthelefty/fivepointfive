@@ -14,3 +14,10 @@ As a Bonus Action, you can move the sphere up to 30 feet, rolling it along the g
 When you move the sphere, you can direct it over barriers up to 5 feet tall and jump it across pits up to 10 feet wide. Flammable objects that aren’t being worn or carried start burning if touched by the sphere, and it sheds Bright Light in a 20-foot radius and Dim Light for an additional 20 feet.
 
 ***Using a Higher-Level Spell Slot.*** The damage increases by 1d6 for each spell slot level above 2.
+
+## Effects
+```yaml
+- zone: { area: { shape: emanation, size: 5 }, event: [end-of-turn, moved-into], save: { ability: dex, success: half }, damage: { dice: 2d6, type: fire },
+          moves: { activation: bonus, distance: 30 }, effects: [ { trait: { light: { bright: 20, dim: 20 } } } ] }
+- scaling: { per-slot-above: 2, add: { damage: 1d6 } }
+```

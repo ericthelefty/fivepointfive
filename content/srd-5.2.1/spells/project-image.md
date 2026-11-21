@@ -12,3 +12,8 @@ You create an illusory copy of yourself that lasts for the duration. The copy ca
 You can see through the illusion’s eyes and hear through its ears as if you were in its space. As a Magic action, you can move it up to 60 feet and make it gesture, speak, and behave in whatever way you choose. It mimics your mannerisms perfectly.
 
 Physical interaction with the image reveals it to be illusory, since things can pass through it. A creature that takes the Study action to examine the image can determine that it is an illusion with a successful Intelligence (Investigation) check against your spell save DC. If a creature discerns the illusion for what it is, the creature can see through the image, and any noise it makes sounds hollow to the creature.
+
+## Effects
+```yaml
+- summon: { creature: { text: "Illusory copy of you; ends if it takes damage" }, control: { activation: magic, move: 60 } }
+```

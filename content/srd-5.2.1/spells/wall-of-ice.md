@@ -16,3 +16,12 @@ The wall is an object that can be damaged and thus breached. It has AC 12 and 30
 A creature moving through the sheet of frigid air for the first time on a turn makes a Constitution saving throw, taking 5d6 Cold damage on a failed save or half as much damage on a successful one.
 
 ***Using a Higher-Level Spell Slot.*** The damage the wall deals when it appears increases by 2d6 and the damage from passing through the sheet of frigid air increases by 1d6 for each spell slot level above 6.
+
+## Effects
+```yaml
+- zone: { area: { choose-on-use: [ { shape: dome, size: 10 }, { shape: globe, size: 10 }, { shape: panels, size: 10, count: 10 } ] },
+          event: [cast], save: { ability: dex, success: half }, damage: { dice: 10d6, type: cold },
+          then: { event: move-through, save: { ability: con, success: half }, damage: { dice: 5d6, type: cold } },
+          text: "Panels have AC 12 and 30 HP per 10-foot section; Vulnerability to Fire." }
+- scaling: { per-slot-above: 6, add: { damage: 2d6, then.damage: 1d6 } }
+```

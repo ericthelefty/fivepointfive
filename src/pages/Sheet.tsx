@@ -8,21 +8,24 @@ import { cloud, supabase } from "../lib/backend.ts";
 import { Md } from "../lib/md.tsx";
 import { features, spellInfo, stripMd, type Entry } from "../lib/parse.ts";
 import {
-  ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, casterInfo, derive, featName, fmt, speciesChoice, traits,
+  ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, casterInfo, derive, featName, fmt, speciesChoice, traits, wornGear,
   type Character,
 } from "../lib/rules.ts";
 import { combineModes, d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import {
   CONDITION_EFFECTS, attackFor, castingAbility, classResources, conditionMods, esc, playOf,
   spellDamage, spellRoll, timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
-  type PlayState, type RollContext,
+  type ActiveEffect, type PlayState, type RollContext,
 } from "../lib/play.ts";
-import { catalog, inventoryOf, magicInfo, type Coins, type Item } from "../lib/inventory.ts";
+import { catalog, inventoryOf, isActive, magicInfo, type Coins, type Item } from "../lib/inventory.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
-import { advantageFor, computeModif, statusOf, treatRoll, type ModifAction } from "../lib/modif.ts";
+import {
+  advantageFor, computeModif, disadvantageFor, spellMinutes, spellPlan, statusOf, treatRoll,
+  type ModifAction, type ModifCost, type ModifCtx, type ModifToggle,
+} from "../lib/modif.ts";
 import { casterKind, classFeatures, classInfos, classLabel, hitDicePools, spellSlots, weaponProficiencyEntry, type ClassInfo, type Slot } from "../lib/multiclass.ts";
 
-type Tab = "actions" | "spells" | "features" | "conditions" | "inventory" | "notes";
+type Tab = "actions" | "effects" | "spells" | "features" | "conditions" | "inventory" | "notes";
 type CardAction = { label: string; run: () => void };
 
 export default function Sheet() {
@@ -62,7 +65,8 @@ export default function Sheet() {
   const infos: ClassInfo[] = c ? classInfos(c, content.byId) : [];
   const anyCaster = infos.some((i) => casterKind(i.cls));
   useEffect(() => {
-    content.ensure("rules", "items", ...(anyCaster ? (["spells"] as const) : []));
+    // spells are always loaded: feats and items can grant them too
+    content.ensure("rules", "items", "spells");
   }, [anyCaster]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -109,8 +113,25 @@ export default function Sheet() {
   if (!c) return chars.ready ? <div className="panel">Character not found. <Link to="/">Back to characters</Link></div> : <p className="muted">Loading…</p>;
 
   const p = playOf(c);
-  const fx = computeModif({ c, classes: infos, species: sp, background: bg, entries: content.entries, byId: content.byId });
-  const d = derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos, modif: fx });
+  const gear = wornGear(c, { cls, background: bg, armor, items: inv.items });
+  const fxCtx: ModifCtx = {
+    c, classes: infos, species: sp, background: bg, entries: content.entries, byId: content.byId,
+    items: inv.items.flatMap((it) => {
+      const e = it.kind === "magic" && it.ref ? content.byId(it.ref) : undefined;
+      return e && it.qty > 0 ? [{ item: it, entry: e, active: isActive(it, infoOf(it)) }] : [];
+    }),
+    gear: { armor: gear.category, shield: gear.shield > 0 },
+    active: (p.active || []).map((x) => ({ key: x.key, slot: x.slot, onSelf: x.onSelf })),
+    conditions: p.conditions,
+  };
+  // read once for ability scores, then again with the spellcasting numbers they give
+  const fx0 = computeModif(fxCtx);
+  const d0 = derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos, modif: fx0 });
+  const firstCaster = infos.find((i) => casterKind(i.cls));
+  const ab0 = firstCaster ? castingAbility(firstCaster.cls) : null;
+  const fx = ab0 ? computeModif({ ...fxCtx, spell: { mod: d0.mods[ab0], dc: 8 + d0.pb + d0.mods[ab0], attack: d0.pb + d0.mods[ab0] } }) : fx0;
+  const d = fx === fx0 ? d0 : derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos, modif: fx });
+  const fxPlus = (to: string) => fx.bonuses.filter((b) => b.to === to).reduce((n, b) => n + b.value, 0);
   /** "Automated" / "Partly automated" tag for a feature whose Effects the sheet reads. */
   const autoTag = (entryId: string | undefined, feature: string) => {
     const st = entryId ? statusOf(fx, entryId, feature) : undefined;
@@ -126,7 +147,7 @@ export default function Sheet() {
     .map((i) => {
       const ab = castingAbility(i.cls);
       const m = ab ? d.mods[ab] : 0;
-      return { info: i, ab, mod: m, dc: 8 + d.pb + m, atk: d.pb + m, ci: casterInfo(i.cls, i.level) };
+      return { info: i, ab, mod: m, dc: 8 + d.pb + m + fxPlus("spell:dc"), atk: d.pb + m + fxPlus("spell:attack"), ci: casterInfo(i.cls, i.level) };
     });
   type Caster = (typeof casters)[number];
   const castAb = casters[0]?.ab;
@@ -142,6 +163,28 @@ export default function Sheet() {
       return owner && !owner.starting ? { ...r, key: `${owner.cls.name}:${r.key}` } : r;
     }),
   ];
+  // Modif attack and damage bonuses: the item's own (+1 weapon), weapon kind (Archery), ability (Rage)
+  function withBonuses(a: Attack, ranged: boolean): Attack {
+    const fits = (b: { itemId?: string; ranged?: boolean; melee?: boolean; ability?: string }) =>
+      b.itemId ? b.itemId === a.itemId : (!b.ranged || ranged) && (!b.melee || !ranged) && (!b.ability || b.ability === a.ability);
+    const hit = fx.attackBonuses.filter(fits);
+    const dmg = fx.damageBonuses.filter(fits);
+    if (!hit.length && !dmg.length) return a;
+    const addDmg = dmg.reduce((n, b) => n + b.value, 0);
+    const add = (expr: string) => {
+      const m = expr.match(/^(.*?)([+-]\d+)?$/);
+      const flat = (m?.[2] ? +m[2] : 0) + addDmg;
+      const head = m?.[2] ? m[1] : expr;
+      return /d/.test(head) ? `${head}${flat > 0 ? `+${flat}` : flat < 0 ? flat : ""}` : String(Math.max(0, +expr + addDmg));
+    };
+    return {
+      ...a,
+      toHit: a.toHit + hit.reduce((n, b) => n + b.value, 0),
+      damage: addDmg ? add(a.damage) : a.damage,
+      versatile: a.versatile && addDmg ? add(a.versatile) : a.versatile,
+      note: [a.note, ...[...hit, ...dmg].map((b) => b.source).filter((x, i, arr) => arr.indexOf(x) === i)].filter(Boolean).join(" · "),
+    };
+  }
   // Hit Dice, pooled by die size (older characters stored one count)
   const pools = hitDicePools(infos);
   const hdUsedOf = (die: number) => (p.hdUsedBy ? p.hdUsedBy[die] || 0 : die === pools[0]?.die ? p.hdUsed : 0);
@@ -150,9 +193,9 @@ export default function Sheet() {
   const attacks: Attack[] = [
     ...inv.items.flatMap((it) => {
       const w = it.equipped && it.qty > 0 && it.base ? weapons.find((x) => x.name === it.base) : undefined;
-      return w ? [attackFor({ ...w, name: it.name }, d, weaponProficiencyEntry(infos) || cls)] : [];
+      return w ? [withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficiencyEntry(infos) || cls), itemId: it.id }, /ranged/i.test(w.category))] : [];
     }),
-    unarmedStrike(d),
+    withBonuses(unarmedStrike(d), false),
   ];
   const setInventory = (items: Item[], coins: Coins) => {
     dirty.current = true;
@@ -199,6 +242,7 @@ export default function Sheet() {
     }
     const bar = mode;
     cm.adv.push(...advantageFor(fx, ctx));
+    cm.dis.push(...disadvantageFor(fx, ctx));
     const m = combineModes(bar === "adv" || cm.adv.length > 0, bar === "dis" || cm.dis.length > 0);
     const extra = takeBonus();
     const r = d20(bonus - cm.penalty, m, extra ? extra.replace(/^\+/, "") : undefined);
@@ -232,6 +276,8 @@ export default function Sheet() {
 
   const attack = (a: Attack, versatile = false) => {
     const cm = conditionMods(p, { kind: "attack" });
+    cm.adv.push(...advantageFor(fx, { kind: "attack", ability: a.ability }));
+    cm.dis.push(...disadvantageFor(fx, { kind: "attack", ability: a.ability }));
     const m = combineModes(mode === "adv" || cm.adv.length > 0, mode === "dis" || cm.dis.length > 0);
     const extra = takeBonus();
     const r = d20(a.toHit - cm.penalty, m, extra ? extra.replace(/^\+/, "") : undefined);
@@ -332,36 +378,95 @@ export default function Sheet() {
     }
     const slotsUsed = { ...p.slotsUsed };
     if (slots.some((s) => s.pact)) { for (const s of slots) if (s.pact) slotsUsed[slotKey(s)] = 0; back.push("Pact Magic slots"); }
-    setPlay({ resUsed, slotsUsed });
+    // effects lasting an hour or less are over by the end of a Short Rest
+    const ended = (p.active || []).filter((x) => x.minutes <= 60);
+    if (ended.length) back.push(`(ended: ${ended.map((x) => x.name).join(", ")})`);
+    setPlay({ resUsed, slotsUsed, active: (p.active || []).filter((x) => x.minutes > 60), ...(ended.some((x) => x.concentration) ? { concentration: undefined } : {}) });
     log({ title: "Short rest", total: "", cls: "event", detail: `${back.length ? `Regained ${esc(back.join(", "))}.` : "Nothing to regain."} Spend Hit Dice to heal (${hdLeft} left).` },
       hdLeft > 0 ? [{ label: "Spend a Hit Die", run: () => spendHitDie() }] : undefined);
   };
   const longRest = () => {
     const inspire = fx.onLongRest.find((x) => x.regain === "heroic-inspiration");
-    setPlay({ hpCur: hpMax, hpTemp: 0, hdUsed: 0, hdUsedBy: {}, deathS: 0, deathF: 0, slotsUsed: {}, resUsed: {}, exhaustion: Math.max(0, p.exhaustion - 1), concentration: undefined, ...(inspire ? { inspiration: true } : {}) });
-    log({ title: "Long rest", total: "", cls: "event", detail: `HP restored to ${hpMax}. All Hit Dice, spell slots and class resources regained.${p.exhaustion ? " Exhaustion reduced by 1." : ""}${inspire && !p.inspiration ? ` ${esc(inspire.source)}: you gain Heroic Inspiration.` : ""}` });
+    // uses come back, except item charges that never recharge; dice recharges are rolled ("1d6+1 at dawn")
+    const resUsed: Record<string, number> = {};
+    const notes: string[] = [];
+    for (const r of resources) {
+      const used = p.resUsed[r.key] || 0;
+      if (!used) continue;
+      if (r.recover === "never") resUsed[r.key] = used;
+      else if (r.regain) {
+        const rolled = roll(r.regain);
+        const back = Math.max(0, rolled?.total ?? used);
+        resUsed[r.key] = Math.max(0, used - back);
+        notes.push(`${r.name}: regained ${Math.min(back, used)} (${r.regain}${rolled ? ` = ${rolled.total}` : ""})`);
+      }
+    }
+    setPlay({ hpCur: hpMax, hpTemp: 0, hdUsed: 0, hdUsedBy: {}, deathS: 0, deathF: 0, slotsUsed: {}, resUsed, exhaustion: Math.max(0, p.exhaustion - 1), concentration: undefined, active: [], ...(inspire ? { inspiration: true } : {}) });
+    log({ title: "Long rest", total: "", cls: "event", detail: `HP restored to ${hpMax}. All Hit Dice, spell slots and class resources regained.${p.exhaustion ? " Exhaustion reduced by 1." : ""}${inspire && !p.inspiration ? ` ${esc(inspire.source)}: you gain Heroic Inspiration.` : ""}${notes.map((x) => `<div>${esc(x)}</div>`).join("")}${(p.active || []).length ? `<div>Ended: ${esc((p.active || []).map((x) => x.name).join(", "))}</div>` : ""}` });
   };
 
   // ------------------------------------------------------- feature actions
+  /** A cost's resource, uses left, and whether it can be paid. */
+  const costInfo = (cost?: ModifCost) => {
+    const res = cost ? resources.find((r) => r.key === cost.key || r.key.endsWith(`:${cost.key}`)) : undefined;
+    const left = res ? res.max - (p.resUsed[res.key] || 0) : Infinity;
+    return { res, left, ok: !cost || !res || left >= cost.amount };
+  };
+  const pay = (cost: ModifCost | undefined, cur: PlayState): Partial<PlayState> => {
+    const { res } = costInfo(cost);
+    return res && cost ? { resUsed: { ...cur.resUsed, [res.key]: (cur.resUsed[res.key] || 0) + cost.amount } } : {};
+  };
   const runFeature = (a: ModifAction) => {
-    const res = a.resource ? resources.find((r) => r.key === a.resource || r.key.endsWith(`:${a.resource}`)) : undefined;
-    const used = res ? p.resUsed[res.key] || 0 : 0;
-    if (res && used >= res.max) {
-      log({ title: a.name, total: "—", cls: "info", detail: `No uses of ${esc(res.name)} left. They come back on a ${res.recover === "long" ? "Long" : "Short or Long"} Rest.` });
+    const { res, left, ok } = costInfo(a.cost);
+    if (!ok) {
+      log({ title: a.name, total: "—", cls: "info", detail: `Not enough ${esc(res!.name)} left. ${res!.recover === "never" ? "It doesn't recharge." : res!.recover === "dawn" ? "It recharges at dawn." : `It comes back on a ${res!.recover === "long" ? "Long" : "Short or Long"} Rest.`}` });
       return;
     }
-    const patch: Partial<PlayState> = res ? { resUsed: { ...p.resUsed, [res.key]: used + 1 } } : {};
-    const left = res ? ` · ${res.max - used - 1} of ${res.max} uses left` : "";
+    const after = res && a.cost ? ` · ${left - a.cost.amount} of ${res.max} left` : "";
+    if (a.cast) {
+      const sp = content.byId(a.cast.spellId);
+      if (sp) {
+        const lvl = a.cast.level ?? (spellInfo(sp)?.level || 0);
+        castSpell(sp, lvl, null, { dc: a.cast.dc, attack: a.cast.attack, free: true, pay: a.cost, via: a.name });
+        return;
+      }
+    }
+    const patch: Partial<PlayState> = pay(a.cost, p);
+    if (a.consume) {
+      const items = inv.items.map((it) => (it.id === a.consume ? { ...it, qty: it.qty - 1 } : it)).filter((it) => it.qty > 0);
+      setInventory(items, inv.coins);
+    }
     if (a.heal) {
       const r = roll(a.heal);
       if (!r) return;
       const cur = Math.min(hpMax, hpCur + Math.max(0, r.total));
       patch.hpCur = cur;
-      log({ title: `${a.name}`, total: `+${cur - hpCur}`, cls: "heal", detail: `${esc(describeRolled(r))} · HP ${hpCur} → ${cur}${left}` });
+      log({ title: `${a.name}`, total: `+${cur - hpCur}`, cls: "heal", detail: `${esc(describeRolled(r))} · HP ${hpCur} → ${cur}${after}${a.consume ? " · used up" : ""}` });
     } else {
-      log({ title: a.name, total: "", cls: "event", detail: `${esc(a.text || "")}${left ? `<div>${left.slice(3)}</div>` : ""}` });
+      const acts: CardAction[] = (a.damage || []).filter((x) => x.dice).map((x) => ({ label: `Roll damage (${x.dice})`, run: () => rollDamage(a.name, x.dice, false, x.type) }));
+      log({
+        title: a.name, total: "", cls: "event",
+        detail: [a.save ? `${a.save.dc ? `DC <b>${a.save.dc}</b> ` : ""}${esc(a.save.ability)} save${a.save.success === "half" ? " (half on a success)" : ""}` : "", a.options ? `Choose: ${esc(a.options.join(", "))}` : "", esc(a.text || ""), after.slice(3), a.consume ? "Used up." : ""].filter(Boolean).map((x) => `<div>${x}</div>`).join(""),
+      }, acts);
     }
     setPlay(patch);
+  };
+
+  // ------------------------------------------------------ active effects
+  const activeList: ActiveEffect[] = p.active || [];
+  const isOn = (key: string) => activeList.some((x) => x.key === key);
+  const switchOn = (t: ModifToggle) => {
+    const { res, ok } = costInfo(t.cost);
+    if (!ok) {
+      log({ title: t.name, total: "—", cls: "info", detail: `No ${esc(res!.name)} left.` });
+      return;
+    }
+    setPlay((cur) => ({ ...pay(t.cost, cur), active: [...(cur.active || []).filter((x) => x.key !== t.key), { key: t.key, name: t.name, kind: "toggle", minutes: t.minutes, since: timeNow() }] }));
+    log({ title: `${t.name} on`, total: "", cls: "event", detail: [...t.lines, t.duration ? `Lasts ${t.duration}.` : "", t.ends || ""].filter(Boolean).map((x) => `<div>${esc(x)}</div>`).join("") });
+  };
+  const endEffect = (x: ActiveEffect) => {
+    setPlay((cur) => ({ active: (cur.active || []).filter((y) => y.key !== x.key), ...(x.concentration ? { concentration: undefined } : {}) }));
+    log({ title: `${x.name} ended`, total: "", cls: "event", detail: "" });
   };
 
   // -------------------------------------------------------------- spells
@@ -372,30 +477,66 @@ export default function Sheet() {
   }));
   // regular and Pact Magic slots of the same level both count; regular ones are used first
   const slotLeft = (lvl: number) => slots.filter((x) => x.level === lvl).reduce((n, x) => n + x.max - (p.slotsUsed[slotKey(x)] || 0), 0);
-  const castSpell = (s: Entry, slot: number, k: Caster) => {
+  /**
+   * Cast a spell: spends a slot (or a free use / item charges), works out its rolls from its
+   * Effects (or its text, for content without Effects), and keeps it as an active effect while it lasts.
+   */
+  function castSpell(s: Entry, slot: number, k: Caster | null, opt: { dc?: number; attack?: number; mod?: number; free?: boolean; pay?: ModifCost; via?: string } = {}) {
     const info = spellInfo(s);
+    const castMod = opt.mod ?? k?.mod ?? 0;
+    const spellAtk = opt.attack ?? k?.atk ?? d.pb + castMod;
+    const spellDC = opt.dc ?? k?.dc ?? 8 + d.pb + castMod;
+    const plan = spellPlan(s, { slot, charLevel: c!.level, spell: { mod: castMod, dc: spellDC, attack: spellAtk } });
     const r = spellRoll(s);
-    const spellAtk = k.atk;
-    const spellDC = k.dc;
-    const castMod = k.mod;
-    if (info && info.level > 0) {
+    const minutes = plan ? plan.minutes : spellMinutes(s.fields["duration"]);
+    const conc = plan ? plan.concentration : r.concentration;
+    let slotPatch: (cur: PlayState) => Partial<PlayState> = () => ({});
+    if (info && info.level > 0 && !opt.free) {
       const use = [...slots].sort((a, b) => Number(a.pact) - Number(b.pact)).find((x) => x.level === slot && x.max - (p.slotsUsed[slotKey(x)] || 0) > 0);
       if (!use) return;
       const key = slotKey(use);
-      setPlay((cur) => ({ slotsUsed: { ...cur.slotsUsed, [key]: (cur.slotsUsed[key] || 0) + 1 }, ...(r.concentration ? { concentration: s.name } : {}) }));
-    } else if (r.concentration) setPlay({ concentration: s.name });
+      slotPatch = (cur) => ({ slotsUsed: { ...cur.slotsUsed, [key]: (cur.slotsUsed[key] || 0) + 1 } });
+    }
+    setPlay((cur) => {
+      const patch: Partial<PlayState> = { ...slotPatch(cur), ...pay(opt.pay, cur) };
+      if (minutes > 0) {
+        // a new concentration spell ends the old one
+        const keep = (cur.active || []).filter((x) => x.key !== `spell:${s.id}` && !(conc && x.concentration));
+        patch.active = [...keep, { key: `spell:${s.id}`, name: s.name, kind: "spell", slot, concentration: conc, minutes, since: timeNow() }];
+      }
+      if (conc) patch.concentration = s.name;
+      return patch;
+    });
     const acts: CardAction[] = [];
-    const dmgExpr = r.damage ? spellDamage(s, r.damage, slot, c.level) : undefined;
-    if (r.attack) acts.push({ label: `Spell attack (${fmt(spellAtk)})`, run: () => attack({ name: s.name, toHit: spellAtk, damage: dmgExpr || "0", type: r.damageType || "", note: "" }) });
-    if (dmgExpr && !r.attack) acts.push({ label: `Roll damage (${dmgExpr})`, run: () => rollDamage(s.name, dmgExpr, false, r.damageType) });
-    if (r.heal) acts.push({ label: `Roll healing (${r.heal}+${castMod})`, run: () => rollDamage(s.name, `${r.heal}+${castMod}`, false, "", true) });
+    const lines: string[] = [];
+    if (plan) {
+      const dmg = plan.damage[0];
+      const dmgExpr = plan.damage.map((x) => x.dice).join("+");
+      const dmgType = plan.damage.map((x) => x.type).filter(Boolean).join(" + ");
+      if (plan.attack) acts.push({ label: `Spell attack (${fmt(spellAtk)})${plan.attack.count > 1 ? ` ×${plan.attack.count}` : ""}`, run: () => attack({ name: s.name, toHit: spellAtk, damage: dmgExpr || "0", type: dmgType, note: "" }) });
+      if (dmg && !plan.attack) acts.push({ label: `Roll damage (${dmgExpr})`, run: () => rollDamage(s.name, dmgExpr, false, dmgType) });
+      if (plan.heal) acts.push({ label: `Roll healing (${plan.heal})`, run: () => rollDamage(s.name, plan.heal!, false, "", true) });
+      if (plan.tempHp) lines.push(`Temporary HP: ${plan.tempHp}`);
+      if (plan.save) lines.push(`${plan.save.ability} save DC <b>${spellDC}</b>${plan.save.success === "half" ? " (half on a success)" : ""}`);
+      lines.push(...plan.lines.map(esc));
+    } else {
+      const dmgExpr = r.damage ? spellDamage(s, r.damage, slot, c!.level) : undefined;
+      if (r.attack) acts.push({ label: `Spell attack (${fmt(spellAtk)})`, run: () => attack({ name: s.name, toHit: spellAtk, damage: dmgExpr || "0", type: r.damageType || "", note: "" }) });
+      if (dmgExpr && !r.attack) acts.push({ label: `Roll damage (${dmgExpr})`, run: () => rollDamage(s.name, dmgExpr, false, r.damageType) });
+      if (r.heal) acts.push({ label: `Roll healing (${r.heal}+${castMod})`, run: () => rollDamage(s.name, `${r.heal}+${castMod}`, false, "", true) });
+      if (r.save) lines.push(`${esc(r.save)} save DC <b>${spellDC}</b>`);
+    }
     log({
       title: `Cast ${s.name}`,
       total: "",
       cls: "info",
-      detail: `${info?.level ? `Level ${slot} slot${slot > info.level ? ` (upcast from ${info.level})` : ""}` : "Cantrip"}${r.save ? ` · ${esc(r.save)} save DC <b>${spellDC}</b>` : ""}${r.concentration ? " · Concentration" : ""}`,
+      detail: [
+        `${opt.via ? `${esc(opt.via)} · ` : ""}${info?.level ? (opt.free ? `Level ${slot}, no slot used` : `Level ${slot} slot${slot > info.level ? ` (upcast from ${info.level})` : ""}`) : "Cantrip"}${conc ? " · Concentration" : ""}${minutes > 0 ? ` · lasts ${stripMd(s.fields["duration"] || "").replace(/^Concentration, /i, "")}` : ""}`,
+        ...lines,
+      ].map((x) => `<div>${x}</div>`).join(""),
     }, acts);
-  };
+  }
+
 
   // ------------------------------------------------------------ features
   const allFeats = classFeatures(infos);
@@ -453,10 +594,13 @@ export default function Sheet() {
             ))}
             {p.exhaustion > 0 && <span className="schip bad">Exhaustion {p.exhaustion}</span>}
             {p.concentration && (
-              <button className="schip conc" title="Drop concentration" onClick={() => { setPlay({ concentration: undefined }); log({ title: "Concentration ended", total: "", cls: "event", detail: esc(p.concentration!) }); }}>
+              <button className="schip conc" title="Drop concentration" onClick={() => { setPlay({ concentration: undefined, active: activeList.filter((x) => !x.concentration) }); log({ title: "Concentration ended", total: "", cls: "event", detail: esc(p.concentration!) }); }}>
                 ◎ Concentrating: {p.concentration} ✕
               </button>
             )}
+            {activeList.filter((x) => !x.concentration).map((x) => (
+              <button key={x.key} className="schip" title="Open the Effects tab" onClick={() => setTab("effects")}>● {x.name}</button>
+            ))}
             {p.inspiration && <span className="schip gold">★ Heroic Inspiration</span>}
           </div>
         </section>
@@ -555,9 +699,17 @@ export default function Sheet() {
                   </>
                 )}
                 {resources.map((r) => (
-                  <div key={r.key} className="slot" title={r.recover === "long" ? "Comes back on a Long Rest" : r.recover === "short" ? "All come back on a Short or Long Rest" : "One comes back on a Short Rest, all on a Long Rest"}>
+                  <div key={r.key} className="slot" title={r.recover === "long" ? "Comes back on a Long Rest" : r.recover === "short" ? "All come back on a Short or Long Rest" : r.recover === "shortOne" ? "One comes back on a Short Rest, all on a Long Rest" : r.recover === "dawn" ? `Recharges at dawn${r.regain ? ` (${r.regain})` : ""}; the sheet does it on a Long Rest` : "Doesn't recharge"}>
                     <span className="sl">{r.name}</span>
-                    <Pips n={r.max} used={p.resUsed[r.key] || 0} onToggle={(i) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: i < (cur.resUsed[r.key] || 0) ? i : i + 1 } }))} />
+                    {r.max <= 10 ? (
+                      <Pips n={r.max} used={p.resUsed[r.key] || 0} onToggle={(i) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: i < (cur.resUsed[r.key] || 0) ? i : i + 1 } }))} />
+                    ) : (
+                      <span className="counter" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                        <button className="sbtn sm ghost" aria-label={`Use one ${r.name}`} disabled={(p.resUsed[r.key] || 0) >= r.max} onClick={() => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: Math.min(r.max, (cur.resUsed[r.key] || 0) + 1) } }))}>−</button>
+                        <b>{r.max - (p.resUsed[r.key] || 0)}</b>/{r.max}
+                        <button className="sbtn sm ghost" aria-label={`Restore one ${r.name}`} disabled={!(p.resUsed[r.key] || 0)} onClick={() => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: Math.max(0, (cur.resUsed[r.key] || 0) - 1) } }))}>+</button>
+                      </span>
+                    )}
                   </div>
                 ))}
               </section>
@@ -565,11 +717,12 @@ export default function Sheet() {
 
             <div>
               <nav className="stabs">
-                {([["actions", "Actions"], ["spells", "Spells"], ["features", "Features & Feats"], ["conditions", "Conditions"], ["inventory", "Inventory"], ["notes", "Notes"]] as [Tab, string][])
-                  .filter(([k]) => k !== "spells" || anyCaster)
+                {([["actions", "Actions"], ["effects", "Effects"], ["spells", "Spells"], ["features", "Features & Feats"], ["conditions", "Conditions"], ["inventory", "Inventory"], ["notes", "Notes"]] as [Tab, string][])
+                  .filter(([k]) => k !== "spells" || anyCaster || fx.grantedSpells.length > 0)
                   .map(([k, l]) => (
                     <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
                       {l}{k === "conditions" && p.conditions.length + (p.exhaustion ? 1 : 0) > 0 && <span className="badge">{p.conditions.length + (p.exhaustion ? 1 : 0)}</span>}
+                      {k === "effects" && activeList.length > 0 && <span className="badge">{activeList.length}</span>}
                     </button>
                   ))}
               </nav>
@@ -599,16 +752,21 @@ export default function Sheet() {
                   <p className="note" style={{ marginTop: 10 }}>Attacks come from the weapons equipped in your <button className="linkish" onClick={() => setTab("inventory")}>Inventory</button>.{d.critRange < 20 ? ` Your weapon attacks score a Critical Hit on a ${d.critRange}–20.` : ""}</p>
                   {fx.actions.length > 0 && (
                     <table className="atks" style={{ marginTop: 14 }}>
-                      <thead><tr><th>Feature</th><th>Uses</th><th>Effect</th><th></th></tr></thead>
+                      <thead><tr><th>Feature or item</th><th>Uses</th><th>Effect</th><th></th></tr></thead>
                       <tbody>
                         {fx.actions.map((a) => {
-                          const res = a.resource ? resources.find((r) => r.key === a.resource || r.key.endsWith(`:${a.resource}`)) : undefined;
+                          const { res, left, ok } = costInfo(a.cost);
                           return (
                             <tr key={a.id}>
-                              <td><b>{a.name}</b><div className="note">{a.activation}</div></td>
-                              <td>{res ? `${res.max - (p.resUsed[res.key] || 0)} / ${res.max}` : "—"}</td>
-                              <td>{a.heal ? `Regain ${a.heal} HP` : <span className="note">{a.text}</span>}</td>
-                              <td><div className="rowbtn"><button className="sbtn sm" onClick={() => runFeature(a)} disabled={!!res && (p.resUsed[res.key] || 0) >= res.max}>Use</button></div></td>
+                              <td><b>{a.name}</b><div className="note">{[a.activation, a.source !== a.name ? a.source : ""].filter(Boolean).join(" · ")}</div></td>
+                              <td>{res ? `${left} / ${res.max}${a.cost && a.cost.amount > 1 ? ` (costs ${a.cost.amount})` : ""}` : "—"}</td>
+                              <td>
+                                {a.heal ? `Regain ${a.heal} HP` : a.cast ? `Casts ${a.name}${a.cast.dc ? ` (DC ${a.cast.dc})` : ""}` : null}
+                                {a.save && <span>{a.save.dc ? `DC ${a.save.dc} ` : ""}{a.save.ability} save{a.damage?.length ? `, ${a.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}` : ""}</span>}
+                                {!a.save && a.damage?.length ? <span>{a.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}</span> : null}
+                                {(a.text || a.options) && <div className="note">{[a.text, a.options && `Choose: ${a.options.join(", ")}`].filter(Boolean).join(" · ")}</div>}
+                              </td>
+                              <td><div className="rowbtn"><button className="sbtn sm" onClick={() => runFeature(a)} disabled={!ok}>{a.cast ? "Cast" : "Use"}</button></div></td>
                             </tr>
                           );
                         })}
@@ -618,7 +776,7 @@ export default function Sheet() {
                 </div>
               )}
 
-              {tab === "spells" && anyCaster && (
+              {tab === "spells" && (anyCaster || fx.grantedSpells.length > 0) && (
                 <div className="spanel">
                   {!content.loaded.has("spells") ? <p className="note">Loading spells…</p> : knownBy.map(({ k, list }) => (
                     <div key={k.info.index} style={{ marginBottom: 14 }}>
@@ -635,6 +793,114 @@ export default function Sheet() {
                       )}
                     </div>
                   ))}
+                  {fx.grantedSpells.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <h3>From feats, traits and items</h3>
+                      {fx.grantedSpells.map((g, i) => {
+                        const free = g.free ? resources.find((r) => r.key === g.free) : undefined;
+                        const freeLeft = free ? free.max - (p.resUsed[free.key] || 0) : 0;
+                        const lvl = spellInfo(g.spell)?.level || 0;
+                        const ab = g.ability || casters[0]?.ab || undefined;
+                        const m = ab ? d.mods[ab] : 0;
+                        const opt = { mod: m, dc: g.dc, free: true, via: g.source };
+                        return (
+                          <details key={`${g.spell.id}-${i}`} className="feat">
+                            <summary style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                              <span style={{ flex: 1 }}>{g.spell.name} <span className="mut">· {lvl ? `Level ${lvl}` : "Cantrip"} · {g.source}{g.atWill ? " · at will" : ""}{free ? ` · ${freeLeft}/${free.max} free` : ""}</span></span>
+                              {(g.atWill || lvl === 0) && <button className="sbtn sm" onClick={(e) => { e.preventDefault(); castSpell(g.spell, lvl, null, opt); }}>Cast</button>}
+                              {free && <button className="sbtn sm" disabled={freeLeft <= 0} onClick={(e) => { e.preventDefault(); castSpell(g.spell, lvl, null, { ...opt, pay: { key: free.key, amount: 1 } }); }}>Cast free</button>}
+                              {lvl > 0 && !g.atWill && slots.some((x) => x.level >= lvl) && (
+                                <button className="sbtn sm ghost" disabled={slotLeft(slots.find((x) => x.level >= lvl && slotLeft(x.level) > 0)?.level ?? lvl) <= 0} onClick={(e) => { e.preventDefault(); const sl = slots.find((x) => x.level >= lvl && slotLeft(x.level) > 0); if (sl) castSpell(g.spell, sl.level, null, { mod: m, dc: g.dc, via: g.source }); }}>Use a slot</button>
+                              )}
+                            </summary>
+                            <div className="note" style={{ margin: "6px 0" }}>{["casting time", "range", "components", "duration"].map((k2) => stripMd(g.spell.fields[k2] || "")).join(" · ")}</div>
+                            <Md md={g.spell.body} />
+                          </details>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tab === "effects" && (
+                <div className="stack" style={{ gap: 14 }}>
+                  <div className="spanel">
+                    <h3 style={{ marginTop: 0 }}>Active now</h3>
+                    {activeList.length === 0 ? <p className="note">Nothing active. Switch something on below, or cast a spell with a duration.</p> : activeList.map((x) => {
+                      const t = fx.toggles.find((y) => y.key === x.key);
+                      const sp = fx.activeSpells.find((y) => y.key === x.key);
+                      const lines = t ? t.lines : sp ? sp.lines : [];
+                      return (
+                        <div key={x.key} className="feat" style={{ padding: "8px 10px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                            <span><b>{x.name}</b> <span className="mut">· {x.kind === "spell" ? `spell${x.slot ? `, level ${x.slot}` : ""}` : t && t.source !== t.name ? t.source : "on"}{x.concentration ? " · Concentration" : ""} · since {x.since}{t?.duration ? ` · lasts ${t.duration}` : ""}</span></span>
+                            <button className="sbtn sm ghost" onClick={() => endEffect(x)}>End</button>
+                          </div>
+                          {sp?.targetEffects && (
+                            <label className="note" style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+                              <input type="checkbox" checked={!!x.onSelf} onChange={(e) => setPlay((cur) => ({ active: (cur.active || []).map((y) => (y.key === x.key ? { ...y, onSelf: e.target.checked } : y)) }))} />
+                              I'm a target (apply its effects to my sheet)
+                            </label>
+                          )}
+                          {lines.length > 0 && <ul className="note" style={{ margin: "6px 0 0 18px" }}>{lines.map((l, i) => <li key={i}>{l}</li>)}</ul>}
+                          {t?.ends && <div className="note">{t.ends}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {fx.toggles.filter((t) => !isOn(t.key)).length > 0 && (
+                    <div className="spanel">
+                      <h3 style={{ marginTop: 0 }}>Switch on</h3>
+                      {fx.toggles.filter((t) => !isOn(t.key)).map((t) => {
+                        const { res, left, ok } = costInfo(t.cost);
+                        return (
+                          <div key={t.key} className="feat" style={{ padding: "8px 10px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                              <span><b>{t.name}</b> <span className="mut">· {[t.activation, t.source !== t.name ? t.source : "", res ? `${left}/${res.max} ${res.name}` : "", t.duration ? `lasts ${t.duration}` : ""].filter(Boolean).join(" · ")}</span></span>
+                              <button className="sbtn sm" disabled={!ok} onClick={() => switchOn(t)}>Switch on</button>
+                            </div>
+                            {t.lines.length > 0 && <div className="note">{t.lines.join(" · ")}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {fx.triggers.length > 0 && (
+                    <div className="spanel">
+                      <h3 style={{ marginTop: 0 }}>When this happens</h3>
+                      <table className="atks">
+                        <tbody>
+                          {fx.triggers.map((t) => {
+                            const { res, left, ok } = costInfo(t.cost);
+                            return (
+                              <tr key={t.key}>
+                                <td><b>{t.name}</b><div className="note">{t.when}</div></td>
+                                <td>{t.text}{t.auto && <div className="note">Happens automatically.</div>}</td>
+                                <td>{res ? `${left} / ${res.max}` : ""}</td>
+                                <td>{res && t.cost && (
+                                  <button className="sbtn sm" disabled={!ok} onClick={() => { setPlay((cur) => pay(t.cost, cur)); log({ title: t.name, total: "", cls: "event", detail: `${esc(t.text)}<div>${left - t.cost!.amount} of ${res.max} ${esc(res.name)} left</div>` }); }}>Use</button>
+                                )}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {fx.notes.length > 0 && (
+                    <div className="spanel">
+                      <h3 style={{ marginTop: 0 }}>Always on</h3>
+                      <ul className="note" style={{ margin: "0 0 0 18px" }}>{fx.notes.map((n, i) => <li key={i}><b>{n.feature}</b>{n.feature !== n.source ? ` (${n.source})` : ""}: {n.text}</li>)}</ul>
+                    </div>
+                  )}
+                  {fx.reminders.length > 0 && (
+                    <div className="spanel">
+                      <h3 style={{ marginTop: 0 }}>Apply by hand</h3>
+                      <p className="note" style={{ marginTop: 0 }}>Rules the sheet shows but doesn’t track.</p>
+                      <ul className="note" style={{ margin: "0 0 0 18px" }}>{fx.reminders.map((r, i) => <li key={i}><b>{r.feature}</b>{r.feature !== r.source ? ` (${r.source})` : ""}: {r.text}</li>)}</ul>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -669,12 +935,7 @@ export default function Sheet() {
                       <Md md={f.body} />
                     </details>
                   ))}
-                  {fx.reminders.length > 0 && (
-                    <details className="feat">
-                      <summary>Apply by hand <span className="mut">· {fx.reminders.length} rules the sheet doesn’t track</span></summary>
-                      <ul className="note">{fx.reminders.map((r, i) => <li key={i}><b>{r.feature}</b>{r.feature !== r.source ? ` (${r.source})` : ""}: {r.text}</li>)}</ul>
-                    </details>
-                  )}
+
                 </div>
               )}
 
@@ -837,11 +1098,15 @@ function SpellRow({ s, slots, slotLeft, onCast }: {
   const firstOpen = options.find((l) => slotLeft(l) > 0) ?? options[0] ?? lvl;
   const [slot, setSlot] = useState(firstOpen);
   const r = spellRoll(s);
+  const plan = spellPlan(s, { slot, charLevel: 1, spell: { mod: 0, dc: 0, attack: 0 } });
+  const tags = plan
+    ? { c: plan.concentration, save: plan.save?.ability, attack: !!plan.attack, heal: !!plan.heal }
+    : { c: r.concentration, save: r.save, attack: r.attack, heal: !!r.heal };
   const canCast = lvl === 0 || slotLeft(slot) > 0;
   return (
     <details className="feat">
       <summary style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <span style={{ flex: 1 }}>{s.name} <span className="mut">· {lvl ? `Level ${lvl}` : "Cantrip"}{r.concentration ? " · C" : ""}{r.save ? ` · ${r.save.slice(0, 3)} save` : ""}{r.attack ? " · attack" : ""}</span></span>
+        <span style={{ flex: 1 }}>{s.name} <span className="mut">· {lvl ? `Level ${lvl}` : "Cantrip"}{tags.c ? " · C" : ""}{tags.save ? ` · ${tags.save.slice(0, 3)} save` : ""}{tags.attack ? " · attack" : ""}{tags.heal ? " · healing" : ""}</span></span>
         {lvl > 0 && options.length > 1 && (
           <select aria-label={`Slot level for ${s.name}`} value={slot} onClick={(e) => e.stopPropagation()} onChange={(e) => setSlot(+e.target.value)} style={{ minHeight: 30, padding: "2px 6px" }}>
             {options.map((l) => <option key={l} value={l}>L{l} ({slotLeft(l)} left)</option>)}

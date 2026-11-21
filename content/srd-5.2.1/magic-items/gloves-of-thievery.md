@@ -4,3 +4,8 @@
 *Wondrous Item, Uncommon*
 
 These gloves are imperceptible while worn. While wearing them, you gain a +5 bonus to Dexterity (Sleight of Hand) checks.
+
+## Effects
+```yaml
+- bonus: { to: skill:sleight-of-hand, value: 5 }
+```

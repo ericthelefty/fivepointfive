@@ -13,6 +13,12 @@ The creature is an ally to you and your allies. In combat, the creature shares y
 
 ***Using a Higher-Level Spell Slot.*** Use the spell slot’s level for the spell’s level in the stat block.
 
+## Effects
+```yaml
+- summon: { creature: $srd/spells/giant-insect#giant-insect, variant: { choose: [centipede, spider, wasp] }, initiative: after-you,
+            control: { activation: none }, stat-level: slot-level }
+```
+
 ## Giant Insect
 
 *Large Beast, Unaligned*

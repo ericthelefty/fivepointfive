@@ -12,3 +12,16 @@ The weapon has 5 charges. You can expend 1 charge and make a ranged attack with 
 **Giants’ Bane.** When you roll a 20 on the d20 for an attack roll made with this weapon against a Giant, the creature must succeed on a DC 17 Constitution saving throw or die.
 
 **Might of Giants.** The Strength score bestowed by your *Belt of Giant Strength* or *Gauntlets of Ogre Power* increases by 4, to a maximum of 30.
+
+## Effects
+```yaml
+- bonus: { to: [attack, damage], value: 1, scope: { weapon: { id: self } } }
+- charges: { max: 5, recharge: { dice: 1d4 + 1, at: dawn } }
+- action: { cost: { charges: 1 }, attack: { weapon: self, thrown: { range: 20/60 } },
+            on-hit: { area: { shape: emanation, size: 30, from: target }, save: { ability: con, dc: 17 },
+                      on-failure: { apply: { condition: stunned, duration: { until: end-of-next-turn } } } }, text: "Returns to your hand." }
+- trigger: { event: { roll: attack }, if-roll: 20, scope: { weapon: { id: self }, against: { creature: giant } },
+             when: { has: { attuned: [$srd/magic-items/belt-of-giant-strength, $srd/magic-items/gauntlets-of-ogre-power] } },
+             offer: { save: { ability: con, dc: 17 }, on-failure: { text: "It dies." } } }
+- modify: { target: [$srd/magic-items/belt-of-giant-strength, $srd/magic-items/gauntlets-of-ogre-power], add: { value: 4 }, max: 30 }
+```

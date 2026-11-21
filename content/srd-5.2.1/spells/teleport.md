@@ -11,6 +11,12 @@ This spell instantly transports you and up to eight willing creatures that you c
 
 The destination you choose must be known to you, and it must be on the same plane of existence as you. Your familiarity with the destination determines whether you arrive there successfully. The GM rolls 1d100 and consults the Teleportation Outcome table and the explanations after it.
 
+## Effects
+```yaml
+- action: { targets: { count: 8, creature: willing }, roll-table: { dice: 1d100, table: Teleportation Outcome },
+            text: "A mishap deals 3d10 Force damage and the GM rerolls." }
+```
+
 ## Teleportation Outcome
 
 | Familiarity | Mishap | Similar Area | Off Target | On Target |

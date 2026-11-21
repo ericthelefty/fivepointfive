@@ -22,3 +22,18 @@ When you cast the spell and as a Bonus Action on your later turns, you can move 
 **Interposing Hand.** The hand grants you Half Cover against attacks and other effects that originate from its space or that pass through it. In addition, its space counts as Difficult Terrain for your enemies.
 
 ***Using a Higher-Level Spell Slot.*** The damage of the Clenched Fist increases by 2d8 and the damage of the Grasping Hand increases by 2d6 for each spell slot level above 5.
+
+## Effects
+```yaml
+- summon: { creature: { text: "Large hand: AC 20, HP equal to your HP maximum" }, control: { activation: bonus, move: 60 } }
+- action:
+    id: arcane-hand
+    activation: bonus
+    choose-one:
+      - { id: clenched-fist, label: Clenched Fist, attack: { kind: melee-spell }, damage: { dice: 5d8, type: force } }
+      - { id: forceful-hand, label: Forceful Hand, save: { ability: str }, move: { target: 5 + 5 * spell-ability, direction: away } }
+      - { id: grasping-hand, label: Grasping Hand, save: { ability: dex }, apply: { condition: grappled, escape: { dc: spell:dc } },
+          then: { activation: bonus, damage: { dice: 4d6 + spell-ability, type: bludgeoning } } }
+      - { id: interposing-hand, label: Interposing Hand, text: "Half Cover for you; its space is Difficult Terrain for enemies." }
+- scaling: { per-slot-above: 5, add: { choose-one.clenched-fist.damage: 2d8, choose-one.grasping-hand.then.damage: 2d6 } }
+```

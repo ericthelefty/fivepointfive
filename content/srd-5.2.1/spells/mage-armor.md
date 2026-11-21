@@ -8,3 +8,12 @@
 **Duration:** 8 hours
 
 You touch a willing creature who isn’t wearing armor. Until the spell ends, the target’s base AC becomes 13 plus its Dexterity modifier. The spell ends early if the target dons armor.
+
+## Effects
+```yaml
+- action: { range: touch, targets: { count: 1, creature: willing } }
+- target-effects:
+    ends-when: [{ armor: any }]
+    effects:
+      - base: { to: ac, value: 13 + mod:dex, when: { armor: none } }
+```

@@ -12,3 +12,9 @@ A swirling cloud of embers and smoke fills a 20-foot-radius Sphere centered on a
 When the cloud appears, each creature in it makes a Dexterity saving throw, taking 10d8 Fire damage on a failed save or half as much damage on a successful one. A creature must also make this save when the Sphere moves into its space and when it enters the Sphere or ends its turn there. A creature makes this save only once per turn.
 
 The cloud moves 10 feet away from you in a direction you choose at the start of each of your turns.
+
+## Effects
+```yaml
+- zone: { area: { shape: sphere, size: 20 }, event: [cast, enter-area, end-of-turn, moved-into], per: turn, save: { ability: dex, success: half },
+          damage: { dice: 10d8, type: fire }, moves: { distance: 10, at: start-of-your-turn }, effects: [ { trait: [heavily-obscured] } ] }
+```

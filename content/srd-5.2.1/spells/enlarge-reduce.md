@@ -14,3 +14,14 @@ Everything that a targeted creature is wearing and carrying changes size with it
 ***Enlarge.*** The target’s size increases by one category—from Medium to Large, for example. The target also has Advantage on Strength checks and Strength saving throws. The target’s attacks with its enlarged weapons or Unarmed Strikes deal an extra 1d4 damage on a hit.
 
 ***Reduce.*** The target’s size decreases by one category—from Medium to Small, for example. The target also has Disadvantage on Strength checks and Strength saving throws. The target’s attacks with its reduced weapons or Unarmed Strikes deal 1d4 less damage on a hit (this can’t reduce the damage below 1).
+
+## Effects
+```yaml
+- action: { range: 30, targets: { count: 1 }, save: { ability: con, unwilling-only: true } }
+- target-effects:
+    choose-one:
+      - { id: enlarge, label: Enlarge, effects: [ { size: +1 }, { advantage: { roll: [check:str, save:str] } },
+                                                  { bonus: { to: damage, value: 1d4, scope: { weapon: {} } } } ] }
+      - { id: reduce, label: Reduce, effects: [ { size: -1 }, { disadvantage: { roll: [check:str, save:str] } },
+                                                { bonus: { to: damage, value: -1d4, scope: { weapon: {} }, text: "Can't reduce the damage below 1." } } ] }
+```

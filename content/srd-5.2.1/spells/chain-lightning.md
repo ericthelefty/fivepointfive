@@ -12,3 +12,9 @@ You launch a lightning bolt toward a target you can see within range. Three bolt
 Each target makes a Dexterity saving throw, taking 10d8 Lightning damage on a failed save or half as much damage on a successful one.
 
 ***Using a Higher-Level Spell Slot.*** One additional bolt leaps from the first target to another target for each spell slot level above 6.
+
+## Effects
+```yaml
+- action: { targets: { count: 4, text: "One target, then three more within 30 feet of it" }, save: { ability: dex, success: half }, damage: { dice: 10d8, type: lightning } }
+- scaling: { per-slot-above: 6, add: { targets: 1 } }
+```

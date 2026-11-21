@@ -14,3 +14,9 @@ No one but you can see the hound, and it is intangible and invulnerable. When a 
 At the start of each of your turns, the hound attempts to bite one enemy within 5 feet of it. That enemy must succeed on a Dexterity saving throw or take 4d8 Force damage.
 
 On your later turns, you can take a Magic action to move the hound up to 30 feet.
+
+## Effects
+```yaml
+- summon: { creature: { text: "Invisible phantom watchdog; Truesight 30 ft; intangible and invulnerable" }, control: { activation: magic, move: 30 } }
+- trigger: { event: start-of-turn, auto: true, offer: { save: { ability: dex }, damage: { dice: 4d8, type: force }, text: "One enemy within 5 feet of the hound." } }
+```

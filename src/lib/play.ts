@@ -30,6 +30,21 @@ export interface PlayState {
   inspiration: boolean;
   gear: string;
   log: LogEntry[];
+  /** Effects switched on (Modif toggles) and spells in effect, until ended or a rest. */
+  active?: ActiveEffect[];
+}
+
+export interface ActiveEffect {
+  key: string; // ModifToggle.key, or "spell:<entry id>"
+  name: string;
+  kind: "toggle" | "spell";
+  slot?: number;
+  concentration?: boolean;
+  /** How long it can last, in minutes (a Short Rest ends anything of an hour or less). */
+  minutes: number;
+  since: string;
+  /** A spell cast on yourself: its effects on the target apply to your sheet. */
+  onSelf?: boolean;
 }
 
 export function playOf(c: Character): PlayState {
@@ -142,6 +157,10 @@ export function proficientWith(w: Weapon, cls?: Entry): boolean {
 
 export interface Attack {
   name: string;
+  /** The ability the attack uses (for Rage, Reckless Attack and other ability-scoped effects). */
+  ability?: string;
+  /** The inventory item it comes from (for that item's own bonuses). */
+  itemId?: string;
   toHit: number;
   damage: string; // dice expression including modifier
   type: string;
@@ -161,6 +180,7 @@ export function attackFor(w: Weapon, d: Derived, cls?: Entry): Attack {
   const vers = w.properties.match(/Versatile \((\d+d\d+)\)/);
   return {
     name: w.name,
+    ability: ranged ? "Dexterity" : finesse && dex > str ? "Dexterity" : "Strength",
     toHit: abil + (prof ? d.pb : 0),
     damage: /^\d+d\d+$/.test(dice) ? `${dice}${sign(abil)}` : dice,
     type: typeParts.join(" "),
@@ -170,7 +190,7 @@ export function attackFor(w: Weapon, d: Derived, cls?: Entry): Attack {
 }
 
 export function unarmedStrike(d: Derived): Attack {
-  return { name: "Unarmed Strike", toHit: d.mods.Strength + d.pb, damage: `${Math.max(0, 1 + d.mods.Strength)}`, type: "Bludgeoning", note: "1 + Strength modifier" };
+  return { name: "Unarmed Strike", ability: "Strength", toHit: d.mods.Strength + d.pb, damage: `${Math.max(0, 1 + d.mods.Strength)}`, type: "Bludgeoning", note: "1 + Strength modifier" };
 }
 
 // --------------------------------------------------------------- resources
@@ -178,7 +198,9 @@ export interface Resource {
   key: string;
   name: string;
   max: number;
-  recover: "short" | "shortOne" | "long"; // all back on a Short Rest, one back, or Long Rest only
+  recover: "short" | "shortOne" | "long" | "dawn" | "never"; // all back on a Short Rest, one back, Long Rest only, at dawn, or not at all
+  /** Dice rolled to regain uses at dawn (item charges); without it, all come back. */
+  regain?: string;
 }
 
 const SKIP_COLS = /^(level|proficiency bonus|class features|cantrips|prepared spells|spell slots|slot level|.*spell level \d+|.*die|martial arts|sneak attack|unarmored movement|eldritch invocations|weapon mastery|favored enemy)$/i;

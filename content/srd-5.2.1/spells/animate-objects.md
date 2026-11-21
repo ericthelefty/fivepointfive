@@ -17,6 +17,13 @@ Until the spell ends, you can take a Bonus Action to mentally command any creatu
 
 If you move so that an affected creature is forced to pass through the barrier, the spell ends.
 
+## Effects
+```yaml
+- summon: { creature: $srd/spells/animate-objects#animated-object, count: spell-ability, count-rule: "Large counts as 2, Huge as 3",
+            control: { activation: bonus, range: 500 }, initiative: shared }
+- scaling: { per-slot-above: 5, add: { text: "Slam damage +1d4 (Medium or smaller), +1d6 (Large) or +1d12 (Huge)" } }
+```
+
 ## Animated Object
 
 *Huge or Smaller Construct, Unaligned*
