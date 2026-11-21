@@ -1,0 +1,41 @@
+# Weapon properties and mastery properties (rules/equipment/weapons.md). Each heading is a rule entry; a weapon with the
+# property (from the Weapons table) gets these blocks with `scope: { weapon: { id: self } }` implied.
+Ammunition:
+  - weapon-rule: { requires: { ammunition: true }, consume: { ammunition: 1, per: attack }, text: "Recover half the ammunition after a fight (1 minute)." }
+Finesse:
+  - use-ability: { ability: [str, dex], choose: best, for: [attack, damage], same-for-both: true }
+Heavy:
+  - disadvantage: { roll: attack, when: { any: [ { all: [ { weapon: melee }, { score: { str: "< 13" } } ] }, { all: [ { weapon: ranged }, { score: { dex: "< 13" } } ] } ] } }
+Light:
+  - action: { id: light-extra-attack, activation: bonus, if: "You took the Attack action and attacked with a Light weapon this turn",
+              attack: { weapon: { property: light, other-than: last-used } }, damage-ability-mod: only-if-negative }
+Loading:
+  - weapon-rule: { one-shot-per: [action, bonus, reaction] }
+Range:
+  - weapon-rule: { range: { normal: column, long: column }, long-range: disadvantage, beyond-long: cant }
+Reach:
+  - bonus: { to: reach, value: 5 }
+Thrown:
+  - weapon-rule: { can-throw: true, draw-as-part-of-attack: true, melee-ability-when-thrown: true }
+Two-Handed:
+  - weapon-rule: { hands: 2 }
+Versatile:
+  - damage-die: { die: column, when: { wielding: two-handed } }
+# --- Mastery properties (need a feature such as Weapon Mastery: `when: { has: { mastery: self } }` is implied) ---
+Cleave:
+  - trigger: { event: hit, scope: { weapon: { kind: melee } }, per: turn,
+               offer: { attack: { target: second-creature-within-5, damage-ability-mod: only-if-negative } } }
+Graze:
+  - trigger: { event: miss, auto: true, offer: { damage: { dice: attack-ability-mod, type: weapon } } }
+Nick:
+  - modify: { target: $#light-extra-attack, set: { activation: attack-action }, per: turn }
+Push:
+  - trigger: { event: hit, offer: { move: { target: 10, direction: away }, if: "Large or smaller" } }
+Sap:
+  - trigger: { event: hit, auto: true, offer: { apply: { text: "Disadvantage on its next attack roll", duration: { until: start-of-next-turn } } } }
+Slow:
+  - trigger: { event: hit, auto: true, if: "You dealt damage", offer: { apply: { text: "Speed −10 ft (doesn't stack)", duration: { until: start-of-next-turn }, limit: 1 } } }
+Topple:
+  - trigger: { event: hit, offer: { save: { ability: con, dc: 8 + attack-ability-mod + prof }, on-failure: { apply: { condition: prone } } } }
+Vex:
+  - trigger: { event: hit, auto: true, if: "You dealt damage", offer: { apply: { text: "Advantage on your next attack roll against it", duration: { until: end-of-next-turn } } } }

@@ -1,0 +1,21 @@
+# entry: srd/college-of-lore
+Bonus Proficiencies:
+  - choose: { id: lore-skills, kind: skill, count: 3, grants: proficiency, from: any }
+Cutting Words:
+  - trigger:
+      event: [ { roll: damage }, { succeed: check }, { succeed: attack } ]
+      reaction: true
+      who: { creature: other, range: 60, see: true }
+      offer: { add-roll: "-table:Bardic Die", cost: { resource: $srd/bard#bardic-inspiration } }
+Magical Discoveries:
+  - choose:
+      id: discoveries
+      kind: spell
+      count: 2
+      from: { spell: { list: [cleric, druid, wizard], slot: available } }
+      grants: { prepared: always, counts-as: bard }
+      swap: { at: level-up, count: 1 }
+Peerless Skill:
+  - trigger:
+      event: [ { fail: check }, { fail: attack } ]
+      offer: { add-roll: table:Bardic Die, cost: { resource: $srd/bard#bardic-inspiration }, refund: if-fails }

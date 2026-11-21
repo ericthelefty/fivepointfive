@@ -1,0 +1,37 @@
+# entry: srd/species/elf
+Darkvision:
+  - sense: { darkvision: 60 }
+Elven Lineage:
+  - choose: { id: lineage-ability, kind: ability, count: 1, from: [int, wis, cha] }
+  - choose:
+      id: lineage
+      kind: option
+      options:
+        - id: drow
+          label: Drow
+          effects:
+            - sense: { darkvision: 120 }
+            - grant-spell: { spell: $srd/spells/dancing-lights, ability: choice:lineage-ability }
+            - grant-spell: { spell: $srd/spells/faerie-fire, level: 3, prepared: always, free: { per: long, count: 1 }, ability: choice:lineage-ability }
+            - grant-spell: { spell: $srd/spells/darkness, level: 5, prepared: always, free: { per: long, count: 1 }, ability: choice:lineage-ability }
+        - id: high-elf
+          label: High Elf
+          effects:
+            - grant-spell: { choose: { id: high-elf-cantrip, count: 1, from: { spell: { list: wizard, level: 0 } }, swap: { at: long, count: 1 },
+                                       default: $srd/spells/prestidigitation }, ability: choice:lineage-ability }
+            - grant-spell: { spell: $srd/spells/detect-magic, level: 3, prepared: always, free: { per: long, count: 1 }, ability: choice:lineage-ability }
+            - grant-spell: { spell: $srd/spells/misty-step, level: 5, prepared: always, free: { per: long, count: 1 }, ability: choice:lineage-ability }
+        - id: wood-elf
+          label: Wood Elf
+          effects:
+            - set: { to: speed:walk, value: 35 }
+            - grant-spell: { spell: $srd/spells/druidcraft, ability: choice:lineage-ability }
+            - grant-spell: { spell: $srd/spells/longstrider, level: 3, prepared: always, free: { per: long, count: 1 }, ability: choice:lineage-ability }
+            - grant-spell: { spell: $srd/spells/pass-without-trace, level: 5, prepared: always, free: { per: long, count: 1 }, ability: choice:lineage-ability }
+Fey Ancestry:
+  - advantage: { roll: save:all, scope: { against: { condition: charmed } } }
+Keen Senses:
+  - choose: { id: keen-senses, kind: skill, count: 1, grants: proficiency, from: [insight, perception, survival] }
+Trance:
+  - defense: { condition-immunity: [magical-sleep] }
+  - trait: { text: "You don't need to sleep. You can finish a Long Rest in 4 hours of trance, staying conscious." }

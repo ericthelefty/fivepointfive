@@ -1,0 +1,12 @@
+# entry: srd/species/dwarf   (Size, Speed, Creature Type are header fields)
+Darkvision:
+  - sense: { darkvision: 120 }
+Dwarven Resilience:
+  - defense: { resistance: [poison] }
+  - advantage: { roll: save:all, scope: { against: { condition: poisoned } } }
+Dwarven Toughness:
+  - bonus: { to: hp:max, value: level }
+Stonecunning:
+  - resource: { id: stonecunning, max: prof, reset: long }
+  - toggle: { id: stonecunning, activation: bonus, cost: { resource: $#stonecunning }, duration: { amount: 10, unit: minute },
+              if: "You're on or touching a stone surface", effects: [ { sense: { tremorsense: 60 } } ] }

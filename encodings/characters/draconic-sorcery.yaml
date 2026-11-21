@@ -1,0 +1,27 @@
+# entry: srd/draconic-sorcery
+Draconic Resilience:
+  - bonus: { to: hp:max, value: level:sorcerer }
+  - base: { to: ac, value: 10 + mod:dex + mod:cha, when: { armor: none }, allow-shield: true }
+Draconic Spells:
+  - spell-list: { prepared: always, by-level: {
+      3: [$srd/spells/alter-self, $srd/spells/chromatic-orb, $srd/spells/command, $srd/spells/dragons-breath],
+      5: [$srd/spells/fear, $srd/spells/fly],
+      7: [$srd/spells/arcane-eye, $srd/spells/charm-monster],
+      9: [$srd/spells/legend-lore, $srd/spells/summon-dragon] } }
+Elemental Affinity:
+  - choose: { id: affinity, kind: damage-type, count: 1, from: [acid, cold, fire, lightning, poison] }
+  - defense: { resistance: [choice:affinity] }
+  - bonus: { to: damage, value: mod:cha, once: true, scope: { spell: { deals: choice:affinity } } }
+Dragon Wings:
+  - resource: { id: dragon-wings, max: 1, reset: long }
+  - convert: { from: { resource: $srd/sorcerer#sorcery-points, amount: 3 }, to: { resource: $#dragon-wings, amount: 1 }, activation: none, if-empty: true }
+  - toggle:
+      id: dragon-wings
+      activation: bonus
+      cost: { resource: $#dragon-wings }
+      duration: { amount: 1, unit: hour }
+      effects:
+        - speed: { fly: 60 }
+Dragon Companion:
+  - grant-spell: { spell: $srd/spells/summon-dragon, free: { per: long, count: 1 },
+                   overrides: { components.material: false, concentration: { optional: true, if-dropped: { duration: { amount: 1, unit: minute } } } } }

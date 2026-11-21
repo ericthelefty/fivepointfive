@@ -1,0 +1,100 @@
+# entries: one sample of each spell pattern not covered by spells.yaml.
+# Casting Time, Range, Components, Duration are header fields.
+fireball:                       # area save, scaling damage
+  - action: { area: { shape: sphere, size: 20 }, save: { ability: dex, success: half }, damage: { dice: 8d6, type: fire } }
+  - scaling: { per-slot-above: 3, add: { damage: 1d6 } }
+magic-missile:                  # auto-hit, count scales
+  - action: { targets: { count: 3, choose: true, repeat: true }, damage: { dice: 1d4 + 1, type: force, per-target: true } }
+  - scaling: { per-slot-above: 1, add: { targets: 1 } }
+mage-armor:                     # set another creature's base AC
+  - action: { range: touch, targets: { count: 1, creature: willing } }
+  - target-effects:
+      ends-when: [{ armor: any }]
+      effects:
+        - base: { to: ac, value: 13 + mod:dex, when: { armor: none } }
+barkskin:                       # AC floor
+  - target-effects:
+      effects:
+        - set: { to: ac, value: 17 }          # set = only if higher
+bless:                          # buff others with a die
+  - action: { range: 30, targets: { count: 3 } }
+  - target-effects:
+      effects:
+        - bonus: { to: [attack, save:all], value: 1d4 }
+  - scaling: { per-slot-above: 1, add: { targets: 1 } }
+heroism:                        # repeating temp HP at start of turn
+  - action: { range: touch, targets: { count: 1, creature: willing } }
+  - target-effects:
+      effects:
+        - defense: { condition-immunity: [frightened] }
+        - trigger: { event: start-of-turn, auto: true, offer: { temp-hp: spell-ability } }
+  - scaling: { per-slot-above: 1, add: { targets: 1 } }
+aid:                            # HP maximum on several targets
+  - action: { range: 30, targets: { count: 3 } }
+  - target-effects:
+      effects:
+        - bonus: { to: hp:max, value: 5, also-current: true }
+  - scaling: { per-slot-above: 2, add: { target-effects.bonus.value: 5 } }
+false-life:                     # temp HP to self with flat scaling
+  - action: { targets: { choose: self }, temp-hp: 2d4 + 4 }
+  - scaling: { per-slot-above: 1, add: { temp-hp: 5 } }
+haste:                          # big buff plus an after-effect when it ends
+  - action: { range: 30, targets: { count: 1, creature: willing } }
+  - target-effects:
+      effects:
+        - set: { to: speed:all, value: 2, mode: multiply }
+        - bonus: { to: ac, value: 2 }
+        - advantage: { roll: save:dex }
+        - note: { stat: actions, text: "One extra action each turn: Attack (one attack), Dash, Disengage, Hide or Utilize." }
+      on-end:
+        - condition: { add: [incapacitated], duration: { until: end-of-target-next-turn } }
+        - set: { to: speed:all, value: 0, mode: override, duration: { until: end-of-target-next-turn } }
+enlarge-reduce:                 # caster chooses a mode
+  - action: { range: 30, targets: { count: 1 }, save: { ability: con, unwilling-only: true } }
+  - target-effects:
+      choose-one:
+        - { id: enlarge, label: Enlarge, effects: [ { size: +1 }, { advantage: { roll: [check:str, save:str] } },
+                                                    { bonus: { to: damage, value: 1d4, scope: { weapon: {} } } } ] }
+        - { id: reduce, label: Reduce, effects: [ { size: -1 }, { disadvantage: { roll: [check:str, save:str] } },
+                                                  { bonus: { to: damage, value: -1d4, scope: { weapon: {} }, text: "Can't reduce the damage below 1." } } ] }
+true-strike:                    # weapon attack through a spell
+  - action: { attack: { weapon: chosen }, use-ability: spell-ability, damage-type: { add-option: radiant } }
+  - scaling: { cantrip: [5, 11, 17], add: { damage: { dice: 1d6, type: radiant } } }
+sleep:                          # two-stage save
+  - action: { area: { shape: sphere, size: 5 }, targets: { choose: true }, save: { ability: wis },
+              apply: { condition: incapacitated, duration: { until: end-of-next-turn }, ends-when: damage },
+              then: { save: { ability: wis }, apply: { condition: unconscious, duration: spell } },
+              auto-succeed: { creature: { immune: exhaustion, sleeps: false } } }
+spirit-guardians:               # aura spell
+  - aura:
+      id: spirit-guardians
+      area: { shape: emanation, size: 15 }
+      affects: [enemies]
+      effects:
+        - set: { to: speed:all, value: 0.5, mode: multiply }
+        - trigger: { event: [enter-area, end-of-turn], per: turn, auto: true,
+                     offer: { save: { ability: wis, success: half }, damage: { dice: 3d8, type: { choose-on-cast: [radiant, necrotic] } } } }
+  - scaling: { per-slot-above: 3, add: { damage: 1d8 } }
+wall-of-fire:                   # persistent area that damages on entry
+  - action: { area: { choose-on-use: [ { shape: wall, size: 60, height: 20, width: 1 }, { shape: ring, size: 20, height: 20, width: 1 } ] },
+              save: { ability: dex, success: half }, damage: { dice: 5d8, type: fire } }
+  - zone: { side: one, reach: 10, event: [enter-area, end-of-turn], per: turn, damage: { dice: 5d8, type: fire } }
+  - scaling: { per-slot-above: 4, add: { damage: 1d8 } }
+counterspell:                   # reaction against someone else's casting
+  - trigger: { event: { cast: any }, who: { creature: other, range: 60, see: true }, reaction: true,
+               offer: { save: { ability: con }, text: "On a failed save the spell fails; a spent slot isn't expended." } }
+find-familiar:                  # summon with a chosen stat block
+  - summon:
+      creature: { choose: { creature: { type: beast, cr-max: 0 } }, type-override: { choose: [celestial, fey, fiend] } }
+      via: spell
+      limit: 1
+      text: "Telepathy within 100 ft; see through its senses (Bonus Action); it can deliver your touch spells."
+polymorph:                      # form imposed on another creature
+  - action: { range: 60, targets: { count: 1 }, save: { ability: wis } }
+  - form:
+      target: other
+      choose: { from: { creature: { type: beast, cr-max: target.cr } } }
+      keeps: [alignment, personality, creature-type, hp, hit-dice]
+      temp-hp: form.hp
+      ends-when: [{ temp-hp: 0 }]
+      blocks: [spellcasting, speech]

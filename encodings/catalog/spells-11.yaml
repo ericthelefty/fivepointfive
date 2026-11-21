@@ -1,0 +1,78 @@
+# Spells batch 11 (power-word-kill … resurrection)
+power-word-kill:
+  - action: { targets: { count: 1 }, branch: { if: "target.hp <= 100", then: { text: "It dies." }, else: { damage: { dice: 12d12, type: psychic } } } }
+power-word-stun:
+  - action: { targets: { count: 1 }, branch: { if: "target.hp <= 150", then: { apply: { condition: stunned, save-ends: { at: end-of-turn, ability: con } } },
+              else: { apply: { text: "Speed 0", duration: { until: start-of-next-turn } } } } }
+prayer-of-healing:
+  - action: { targets: { count: 5, choose: true }, heal: 2d8, grant-rest: short, per: { target: long } }
+  - scaling: { per-slot-above: 2, add: { heal: 1d8 } }
+prestidigitation:
+  - action: { limit: 3, choose-one: [ { id: sensory, label: Sensory Effect }, { id: fire, label: Fire Play }, { id: clean, label: Clean or Soil },
+                                      { id: sensation, label: Minor Sensation }, { id: mark, label: Magic Mark }, { id: trinket, label: Minor Creation } ] }
+prismatic-spray:
+  - action: { area: { shape: cone, size: 60 }, save: { ability: dex }, roll-table: { dice: 1d8, table: Prismatic Rays, per-target: true },
+              text: "1 Fire, 2 Acid, 3 Lightning, 4 Poison, 5 Cold: 12d6, half on success. 6 Indigo: Restrained, then Petrified. 7 Violet: Blinded, then another plane. 8: two rays." }
+prismatic-wall:
+  - zone: { area: { choose-on-use: [ { shape: wall, size: 90, height: 30 }, { shape: globe, size: 30 } ] },
+            effects: [ { trait: { light: { bright: 100, dim: 100 } } } ], table: Prismatic Layers,
+            event: [enter-area], save: { ability: dex }, damage: { dice: 12d6, type: { by-layer: [fire, acid, lightning, poison, cold] } },
+            text: "Seven layers, each with its own save and effect (red to violet)." }
+  - zone: { area: { shape: emanation, size: 20, from: wall }, event: [enter-area], if: "The creature can see the wall", save: { ability: con },
+            apply: { condition: blinded, duration: { amount: 1, unit: minute } } }
+private-sanctum:
+  - narrative: true
+produce-flame:
+  - self-effects: { effects: [ { trait: { light: { bright: 20, dim: 20 } } },
+                               { action: { activation: magic, range: 60, attack: { kind: ranged-spell }, damage: { dice: 1d8, type: fire } } } ] }
+  - scaling: { cantrip: [5, 11, 17], add: { self-effects.action.damage: 1d8 } }
+programmed-illusion:
+  - narrative: true
+project-image:
+  - summon: { creature: { text: "Illusory copy of you; ends if it takes damage" }, control: { activation: magic, move: 60 } }
+protection-from-energy:
+  - action: { range: touch, targets: { count: 1, creature: willing }, choose: { id: energy, kind: damage-type, from: [acid, cold, fire, lightning, thunder] } }
+  - target-effects: { effects: [ { defense: { resistance: [choice:energy] } } ] }
+protection-from-evil-and-good:
+  - action: { range: touch, targets: { count: 1, creature: willing } }
+  - target-effects: { effects: [
+      { disadvantage: { roll: attacks-against-you, scope: { against: { creature: [aberration, celestial, elemental, fey, fiend, undead] } } } },
+      { defense: { condition-immunity: [charmed, frightened], scope: { against: { creature: [aberration, celestial, elemental, fey, fiend, undead] } } } },
+      { trait: { text: "Can't be possessed by those creatures; Advantage on new saves against their existing charm, fear or possession." } } ] }
+protection-from-poison:
+  - action: { range: touch, targets: { count: 1 }, remove-condition: [poisoned] }
+  - target-effects: { effects: [ { defense: { resistance: [poison] } }, { advantage: { roll: save:all, scope: { against: { condition: poisoned } } } } ] }
+purify-food-and-drink:
+  - narrative: true
+raise-dead:
+  - action: { range: touch, revive: { dead-max: { amount: 10, unit: day }, hp: 1 },
+              apply: { effects: [ { bonus: { to: d20, value: -4, decays: { per: long-rest, amount: 1 } } } ] } }
+ray-of-enfeeblement:
+  - action: { targets: { count: 1 }, save: { ability: con },
+              on-success: { apply: { text: "Disadvantage on its next attack roll", duration: { until: start-of-next-turn } } },
+              on-failure: { apply: { duration: spell, save-ends: end-of-turn,
+                effects: [ { disadvantage: { roll: d20, scope: { ability: str } } }, { bonus: { to: damage, value: -1d8 } } ] } } }
+ray-of-frost:
+  - action: { attack: { kind: ranged-spell }, damage: { dice: 1d8, type: cold }, on-hit: { apply: { text: "Speed −10 ft", duration: { until: start-of-next-turn } } } }
+  - scaling: { cantrip: [5, 11, 17], add: { damage: 1d8 } }
+ray-of-sickness:
+  - action: { attack: { kind: ranged-spell }, damage: { dice: 2d8, type: poison }, on-hit: { apply: { condition: poisoned, duration: { until: end-of-next-turn } } } }
+  - scaling: { per-slot-above: 1, add: { damage: 1d8 } }
+regenerate:
+  - action: { range: touch, targets: { count: 1 }, heal: 4d8 + 15 }
+  - target-effects: { effects: [ { trigger: { event: start-of-turn, auto: true, offer: { heal: 1 } } }, { trait: { text: "Severed body parts regrow after 2 minutes." } } ] }
+reincarnate:
+  - action: { range: touch, revive: { dead-max: { amount: 10, unit: day } }, roll-table: { dice: 1d10, table: Reincarnation }, text: "The new body's species comes from the table." }
+remove-curse:
+  - action: { range: touch, targets: { count: 1 }, text: "Ends all curses on a creature or object; breaks attunement to a cursed item." }
+resilient-sphere:
+  - action: { targets: { count: 1, size-max: large }, save: { ability: dex, unwilling-only: true },
+              apply: { duration: spell, text: "Enclosed: nothing passes in or out; immune to outside damage; can roll the sphere at half Speed." } }
+resistance:
+  - action: { range: touch, targets: { count: 1, creature: willing }, choose: { id: resistance-type, kind: damage-type, from: [acid, bludgeoning, cold, fire, lightning, necrotic, piercing, poison, radiant, slashing, thunder] } }
+  - target-effects: { effects: [ { trigger: { event: damaged, auto: true, per: turn, scope: { against: { damage: choice:resistance-type } },
+                                              offer: { damage-taken: { reduce: 1d4 } } } } ] }
+resurrection:
+  - action: { range: touch, revive: { dead-max: { amount: 100, unit: year }, hp: all },
+              apply: { effects: [ { bonus: { to: d20, value: -4, decays: { per: long-rest, amount: 1 } } } ] },
+              text: "Reviving after 365+ days: you can't cast spells and have Disadvantage on D20 Tests until a Long Rest." }

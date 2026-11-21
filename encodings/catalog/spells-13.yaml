@@ -1,0 +1,97 @@
+# Spells batch 13 (speak-with-animals … transport-via-plants)
+speak-with-animals:
+  - self-effects: { effects: [ { trait: [speak-with-beasts] } ] }
+speak-with-dead:
+  - narrative: true
+speak-with-plants:
+  - narrative: true
+spider-climb:
+  - action: { range: touch, targets: { count: 1, creature: willing } }
+  - target-effects: { effects: [ { speed: { climb: speed:walk } }, { trait: [spider-climb] } ] }
+  - scaling: { per-slot-above: 2, add: { targets: 1 } }
+spike-growth:
+  - zone: { area: { shape: sphere, size: 20 }, event: [move-within], damage: { dice: 2d4, type: piercing, per: 5 feet },
+            effects: [ { trait: [difficult-terrain] } ], text: "Camouflaged: Search + Wis (Perception or Survival) vs your DC to notice." }
+spiritual-weapon:
+  - action: { attack: { kind: melee-spell }, damage: { dice: 1d8 + spell-ability, type: force }, repeat: { activation: bonus, move: 20 } }
+  - scaling: { per-slot-above: 2, add: { damage: 1d8 } }
+starry-wisp:
+  - action: { attack: { kind: ranged-spell }, damage: { dice: 1d8, type: radiant },
+              on-hit: { apply: { duration: { until: end-of-next-turn }, effects: [ { trait: [cant-be-invisible] }, { trait: { light: { dim: 10 } } } ] } } }
+  - scaling: { cantrip: [5, 11, 17], add: { damage: 1d8 } }
+stinking-cloud:
+  - zone: { area: { shape: sphere, size: 20 }, event: [start-of-turn], save: { ability: con },
+            apply: { condition: poisoned, duration: { until: end-of-turn }, effects: [ { trait: [no-action, no-bonus-action] } ] },
+            effects: [ { trait: [heavily-obscured] } ] }
+stone-shape:
+  - narrative: true
+stoneskin:
+  - action: { range: touch, targets: { count: 1, creature: willing } }
+  - target-effects: { effects: [ { defense: { resistance: [bludgeoning, piercing, slashing] } } ] }
+storm-of-vengeance:
+  - zone:
+      area: { shape: sphere, size: 300 }
+      event: [cast]
+      save: { ability: con }
+      on-failure: { damage: { dice: 2d6, type: thunder }, apply: { condition: deafened, duration: spell } }
+      by-turn:
+        "2": { damage: { dice: 4d6, type: acid } }
+        "3": { targets: { count: 6 }, save: { ability: dex, success: half }, damage: { dice: 10d6, type: lightning } }
+        "4": { damage: { dice: 2d6, type: bludgeoning } }
+        "5-10": { damage: { dice: 1d6, type: cold }, text: "Difficult Terrain, heavy wind; ranged attacks impossible." }
+summon-dragon:
+  - summon: { creature: $srd/spells/summon-dragon#draconic-spirit, initiative: after-you, control: { activation: none }, stat-level: slot-level }
+sunbeam:
+  - action: { area: { shape: line, size: 60, width: 5 }, save: { ability: con, success: half }, damage: { dice: 6d8, type: radiant },
+              on-failure: { apply: { condition: blinded, duration: { until: start-of-next-turn } } }, repeat: { activation: magic } }
+  - self-effects: { effects: [ { trait: { light: { bright: sunlight, dim: 30 } } } ] }
+sunburst:
+  - action: { area: { shape: sphere, size: 60 }, save: { ability: con, success: half }, damage: { dice: 12d6, type: radiant },
+              on-failure: { apply: { condition: blinded, duration: { amount: 1, unit: minute }, save-ends: end-of-turn } },
+              text: "Dispels magical Darkness in the area." }
+symbol:
+  - action:
+      text: "Inscribe a glyph (Wis (Perception) vs your DC to notice); when triggered it fills a 60-foot Sphere for 10 minutes."
+      area: { shape: sphere, size: 60 }
+      choose-one:
+        - { id: death, label: Death, save: { ability: con, success: half }, damage: { dice: 10d10, type: necrotic } }
+        - { id: discord, label: Discord, save: { ability: wis }, apply: { text: "Bickers; Disadvantage on attack rolls and checks", duration: { amount: 1, unit: minute } } }
+        - { id: fear, label: Fear, save: { ability: wis }, apply: { condition: frightened, duration: { amount: 1, unit: minute } } }
+        - { id: pain, label: Pain, save: { ability: con }, apply: { condition: incapacitated, duration: { amount: 1, unit: minute } } }
+        - { id: sleep, label: Sleep, save: { ability: wis }, apply: { condition: unconscious, duration: { amount: 10, unit: minute } } }
+        - { id: stunning, label: Stunning, save: { ability: wis }, apply: { condition: stunned, duration: { amount: 1, unit: minute } } }
+suggestion:
+  - action: { targets: { count: 1 }, save: { ability: wis }, apply: { condition: charmed, duration: spell, ends-when: damage-by-you-or-allies,
+              text: "Pursues the suggested course of activity." } }
+telekinesis:
+  - action:
+      repeat: { activation: magic }
+      choose-one:
+        - { id: creature, label: Creature, save: { ability: str }, on-failure: { move: { target: 30 }, apply: { condition: restrained, duration: { until: end-of-next-turn } } } }
+        - { id: object, label: Object, text: "Move or manipulate an object up to 1,000 pounds (a check if held)." }
+telepathic-bond:
+  - narrative: true
+teleport:
+  - action: { targets: { count: 8, creature: willing }, roll-table: { dice: 1d100, table: Teleportation Outcome },
+              text: "A mishap deals 3d10 Force damage and the GM rerolls." }
+teleportation-circle:
+  - narrative: true
+thaumaturgy:
+  - action: { limit: 3, choose-one: [ { id: eyes, label: Altered Eyes },
+                                      { id: voice, label: Booming Voice, effects: [ { advantage: { roll: skill:intimidation } } ] },
+                                      { id: fire, label: Fire Play }, { id: hand, label: Invisible Hand },
+                                      { id: sounds, label: Phantom Sound }, { id: tremors, label: Tremors } ] }
+thunderwave:
+  - action: { area: { shape: cube, size: 15 }, save: { ability: con, success: half }, damage: { dice: 2d8, type: thunder },
+              on-failure: { move: { target: 10, direction: away } } }
+  - scaling: { per-slot-above: 1, add: { damage: 1d8 } }
+time-stop:
+  - self-effects: { effects: [ { trait: { text: "Take 1d4 + 1 turns in a row; ends if you affect another creature or move 1,000+ feet away." } } ] }
+tiny-hut:
+  - zone: { area: { shape: emanation, size: 10 }, effects: [ { defense: { immunity: { spell: { level: "<= 3", from: outside } } } } ],
+            text: "Comfortable dome; only those inside at casting can pass through; dim light or darkness inside (your choice)." }
+tongues:
+  - action: { range: touch, targets: { count: 1 } }
+  - target-effects: { effects: [ { trait: [understand-all-languages, understood-by-all] } ] }
+transport-via-plants:
+  - narrative: true

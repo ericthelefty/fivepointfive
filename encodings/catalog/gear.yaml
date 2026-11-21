@@ -1,0 +1,99 @@
+# Adventuring gear with mechanics (equipment/gear). The other 43 gear entries are `reference` (cost, weight, description only).
+acid:
+  - action: { activation: replace-attack, range: 20, consume: true, save: { ability: dex, dc: 8 + mod:dex + prof }, on-failure: { damage: { dice: 2d6, type: acid } } }
+alchemists-fire:
+  - action: { activation: replace-attack, range: 20, consume: true, save: { ability: dex, dc: 8 + mod:dex + prof },
+              on-failure: { damage: { dice: 1d4, type: fire }, apply: { condition: burning } } }
+antitoxin:
+  - action: { activation: bonus, consume: true, duration: { amount: 1, unit: hour }, effects: [ { advantage: { roll: save:all, scope: { against: { condition: poisoned } } } } ] }
+ball-bearings:
+  - action: { activation: utilize, consume: true, zone: { area: { shape: square, size: 10 }, event: [enter-area], per: turn, save: { ability: dex, dc: 10 }, apply: { condition: prone } } }
+bedroll:
+  - trait: { text: "Auto-succeed on saves against extreme cold while in it." }
+bell:
+  - narrative: true
+blanket:
+  - advantage: { roll: save:all, scope: { against: { hazard: extreme-cold } }, when: { player: "Wrapped in the blanket" } }
+book:
+  - bonus: { to: [skill:arcana, skill:history, skill:nature, skill:religion], value: 5, when: { player: "Consulting an accurate book on the topic" } }
+caltrops:
+  - action: { activation: utilize, consume: true, zone: { area: { shape: square, size: 5 }, event: [enter-area], per: turn, save: { ability: dex, dc: 15 },
+              on-failure: { damage: { dice: 1, type: piercing }, apply: { text: "Speed 0", duration: { until: start-of-target-next-turn } } } } }
+chain:
+  - action: { activation: utilize, range: 5, targets: { count: 1, condition: [grappled, incapacitated, restrained] }, check: { skill: athletics, dc: 13 },
+              on-success: { apply: { condition: restrained, escape: { check: skill:acrobatics, dc: 18 }, text: "Burst: DC 20 Str (Athletics)" } } }
+climbers-kit:
+  - action: { activation: utilize, text: "Anchor: you can't fall more than 25 feet or move more than 25 feet from the anchor (Bonus Action to undo)." }
+costume:
+  - advantage: { roll: check:all, when: { player: "Impersonating the person or type it represents" } }
+crowbar:
+  - advantage: { roll: check:str, when: { player: "Leverage applies" } }
+grappling-hook:
+  - action: { activation: utilize, range: 50, check: { skill: acrobatics, dc: 13 }, text: "The hook catches; climb a tied Rope." }
+healers-kit:
+  - charges: { max: 10, destroy-on: { when: last-charge } }
+  - action: { activation: utilize, cost: { charges: 1 }, targets: { count: 1, condition: zero-hp }, stabilize: true }
+holy-water:
+  - action: { activation: replace-attack, range: 20, consume: true, save: { ability: dex, dc: 8 + mod:dex + prof },
+              on-failure: { damage: { dice: 2d8, type: radiant }, if: "The target is a Fiend or Undead" } }
+hunting-trap:
+  - action: { activation: utilize, zone: { area: { shape: square, size: 5 }, event: [enter-area], save: { ability: dex, dc: 13 },
+              on-failure: { damage: { dice: 1d4, type: piercing }, apply: { text: "Speed 0, then held by the chain", escape: { check: skill:athletics, dc: 13, on-failure: { damage: { dice: 1, type: piercing } } } } } } }
+lamp:
+  - toggle: { activation: utilize, effects: [ { trait: { light: { bright: 15, dim: 30 } } } ] }
+lantern-bullseye:
+  - toggle: { activation: utilize, effects: [ { trait: { light: { bright: 60, dim: 60, shape: cone } } } ] }
+lantern-hooded:
+  - toggle: { activation: utilize, effects: [ { trait: { light: { bright: 30, dim: 30 } } } ] }
+  - action: { activation: bonus, text: "Lower the hood (Dim Light 5 ft) or raise it." }
+lock:
+  - trait: { text: "Pick without the key: Thieves' Tools, DC 15 Dex (Sleight of Hand)." }
+magnifying-glass:
+  - advantage: { roll: check:all, when: { player: "Appraising or inspecting a highly detailed item" } }
+manacles:
+  - action: { activation: utilize, range: 5, targets: { count: 1, size-max: medium, condition: [grappled, incapacitated, restrained] }, check: { skill: sleight-of-hand, dc: 13 },
+              on-success: { apply: { effects: [ { disadvantage: { roll: attack } } ], escape: { check: skill:sleight-of-hand, dc: 20 },
+                                     text: "Restrained if chained to something fixed. Burst: DC 25 Str (Athletics); pick: DC 15 with Thieves' Tools." } } }
+map:
+  - bonus: { to: skill:survival, value: 5, when: { player: "Finding your way in the mapped place" } }
+net:
+  - action: { activation: replace-attack, range: 15, consume: true, save: { ability: dex, dc: 8 + mod:dex + prof, auto-succeed: { size-min: huge } },
+              on-failure: { apply: { condition: restrained, escape: { check: skill:athletics, dc: 10, others-can-help: true }, text: "Destroying the net (AC 10, 5 HP) frees it." } } }
+oil:
+  - action:
+      choose-one:
+        - { id: douse-creature, label: Douse a creature, activation: replace-attack, range: 20, save: { ability: dex, dc: 8 + mod:dex + prof },
+            on-failure: { apply: { duration: { amount: 1, unit: minute }, text: "Covered in oil: +5 Fire damage the next time it takes Fire damage" } } }
+        - { id: douse-space, label: Douse a space, activation: utilize, zone: { area: { shape: square, size: 5 }, event: [enter-area, end-of-turn], damage: { dice: 5, type: fire }, text: "Burns 2 rounds if lit." } }
+        - { id: fuel, label: Fuel, text: "Fuels a lamp or lantern for 6 hours." }
+      consume: true
+perfume:
+  - action: { activation: utilize, consume: true, duration: { amount: 1, unit: hour },
+              effects: [ { advantage: { roll: skill:persuasion, when: { player: "Influencing an Indifferent Humanoid within 5 feet" } } } ] }
+poison-basic:
+  - action: { activation: bonus, consume: true, duration: { amount: 1, unit: minute },
+              effects: [ { trigger: { event: hit, auto: true, scope: { against: { damage: [piercing, slashing] } }, offer: { damage: { dice: 1d4, type: poison }, end-effect: true } } } ] }
+pole:
+  - advantage: { roll: skill:athletics, when: { player: "Vaulting for a High or Long Jump" } }
+potion-of-healing:
+  - action: { activation: bonus, range: 5, consume: true, heal: 2d4 + 2 }
+ram-portable:
+  - bonus: { to: check:str, value: 4, when: { player: "Breaking down a door" } }
+rope:
+  - action: { activation: utilize, check: { skill: sleight-of-hand, dc: 10 }, text: "Tie a knot; bind a Grappled, Incapacitated or Restrained creature (legs bound: Restrained; escape DC 15 Dex (Acrobatics)). Burst: DC 20 Str (Athletics)." }
+signal-whistle:
+  - narrative: true
+spell-scroll:
+  - variant: { id: level, by: name, values: { cantrip: { dc: 13, attack: 5 }, level-1: { dc: 13, attack: 5 } } }
+  - action: { cast: variant:spell, consume: true, requires: { spell-on-list: true }, overrides: { components.material: false, dc: 13, attack: 5 } }
+spikes-iron:
+  - narrative: true
+string:
+  - narrative: true
+tinderbox:
+  - action: { activation: bonus, text: "Light a candle, lamp, lantern or torch (1 minute for other fires)." }
+torch:
+  - toggle: { activation: utilize, duration: { amount: 1, unit: hour }, effects: [ { trait: { light: { bright: 20, dim: 20 } } } ] }
+  - weapon-rule: { as: simple-melee, damage: { dice: 1, type: fire } }
+candle:
+  - toggle: { activation: utilize, duration: { amount: 1, unit: hour }, effects: [ { trait: { light: { bright: 5, dim: 5 } } } ] }

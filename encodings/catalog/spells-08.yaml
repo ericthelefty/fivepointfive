@@ -1,0 +1,95 @@
+# Spells batch 8 (hallucinatory-terrain … jump)
+hallucinatory-terrain:
+  - narrative: true
+harm:
+  - action: { targets: { count: 1 }, save: { ability: con, success: half }, damage: { dice: 14d6, type: necrotic },
+              on-failure: { reduce-hp-max: damage-dealt, min: 1 } }
+heal:
+  - action: { targets: { count: 1 }, heal: 70, remove-condition: [blinded, deafened, poisoned] }
+  - scaling: { per-slot-above: 6, add: { heal: 10 } }
+healing-word:
+  - action: { targets: { count: 1 }, heal: 2d4 + spell-ability }
+  - scaling: { per-slot-above: 1, add: { heal: 2d4 } }
+heat-metal:
+  - action: { targets: { text: "A manufactured metal object" }, damage: { dice: 2d8, type: fire }, repeat: { activation: bonus },
+              save: { ability: con, text: "Only a creature holding or wearing it" },
+              on-failure: { text: "Drops it, or has Disadvantage on attack rolls and checks until the start of your next turn." } }
+  - scaling: { per-slot-above: 2, add: { damage: 1d8 } }
+hellish-rebuke:
+  - trigger: { event: damaged, reaction: true, if: "The damage came from a creature you can see within 60 feet", offer: { cast: self } }
+  - action: { targets: { count: 1 }, save: { ability: dex, success: half }, damage: { dice: 2d10, type: fire } }
+  - scaling: { per-slot-above: 1, add: { damage: 1d10 } }
+heroes-feast:
+  - action: { targets: { count: 12 }, delay: { amount: 1, unit: hour } }
+  - target-effects: { duration: { amount: 24, unit: hour }, effects: [ { defense: { resistance: [poison], condition-immunity: [frightened, poisoned] } },
+                                                                    { bonus: { to: hp:max, value: 2d10, also-current: true } } ] }
+hex:
+  - action: { targets: { count: 1 }, choose: { id: hex-ability, kind: ability } }
+  - target-effects: { effects: [ { disadvantage: { roll: check:chosen } } ] }
+  - trigger: { event: hit, scope: { against: { target: marked } }, auto: true, offer: { damage: { dice: 1d6, type: necrotic } } }
+  - trigger: { event: { target-drops: zero }, offer: { text: "Bonus Action on a later turn: curse a new creature." } }
+  - scaling: { slots: { "2": { duration: { amount: 4, unit: hour, concentration: true } }, "3-4": { duration: { amount: 8, unit: hour, concentration: true } },
+                        "5+": { duration: { amount: 24, unit: hour, concentration: true } } } }
+hideous-laughter:
+  - action: { targets: { count: 1 }, save: { ability: wis }, apply: { condition: [prone, incapacitated], duration: spell,
+              save-ends: [end-of-turn, { on-damage: true, advantage: true }], text: "Can't end Prone on itself." } }
+  - scaling: { per-slot-above: 1, add: { targets: 1 } }
+hold-monster:
+  - action: { targets: { count: 1 }, save: { ability: wis }, apply: { condition: paralyzed, duration: spell, save-ends: end-of-turn } }
+  - scaling: { per-slot-above: 5, add: { targets: 1 } }
+holy-aura:
+  - aura: { id: holy-aura, area: { shape: emanation, size: 30 }, affects: [chosen],
+            effects: [ { advantage: { roll: save:all } }, { disadvantage: { roll: attacks-against-you } },
+                       { trigger: { event: hit-by, auto: true, if: "A Fiend or Undead hits with a melee attack roll",
+                                    offer: { save: { ability: con, dc: spell:dc }, apply: { condition: blinded, duration: { until: end-of-target-next-turn } } } } } ] }
+hypnotic-pattern:
+  - action: { area: { shape: cube, size: 30 }, save: { ability: wis },
+              apply: { condition: [charmed, incapacitated], duration: spell, effects: [ { set: { to: speed:all, value: 0, mode: override } } ], ends-when: [damage, shaken-awake] } }
+ice-knife:
+  - action: { attack: { kind: ranged-spell }, damage: { dice: 1d10, type: piercing },
+              then: { always: true, area: { shape: emanation, size: 5, from: target }, save: { ability: dex }, damage: { dice: 2d6, type: cold } } }
+  - scaling: { per-slot-above: 1, add: { then.damage: 1d6 } }
+ice-storm:
+  - action: { area: { shape: cylinder, size: 20, height: 40 }, save: { ability: dex, success: half },
+              damage: [ { dice: 2d10, type: bludgeoning }, { dice: 4d6, type: cold } ], text: "Difficult Terrain until the end of your next turn." }
+  - scaling: { per-slot-above: 4, add: { damage: [1d10, 0] } }
+identify:
+  - narrative: true
+illusory-script:
+  - narrative: true
+imprisonment:
+  - action:
+      targets: { count: 1 }
+      save: { ability: wis }
+      on-success: { text: "Immune to this spell for 24 hours." }
+      choose-one:
+        - { id: burial, label: Burial }
+        - { id: chaining, label: Chaining, apply: { condition: restrained } }
+        - { id: hedged-prison, label: Hedged Prison }
+        - { id: minimus, label: Minimus Containment }
+        - { id: slumber, label: Slumber, apply: { condition: unconscious } }
+      text: "Imprisoned: needs no air, food or drink; can't be located or teleport. Each option has an ending condition you set."
+incendiary-cloud:
+  - zone: { area: { shape: sphere, size: 20 }, event: [cast, enter-area, end-of-turn, moved-into], per: turn, save: { ability: dex, success: half },
+            damage: { dice: 10d8, type: fire }, moves: { distance: 10, at: start-of-your-turn }, effects: [ { trait: [heavily-obscured] } ] }
+inflict-wounds:
+  - action: { range: touch, save: { ability: con, success: half }, damage: { dice: 2d10, type: necrotic } }
+  - scaling: { per-slot-above: 1, add: { damage: 1d10 } }
+insect-plague:
+  - zone: { area: { shape: sphere, size: 20 }, event: [cast, enter-area, end-of-turn], per: turn, save: { ability: con, success: half },
+            damage: { dice: 4d10, type: piercing }, effects: [ { trait: [lightly-obscured, difficult-terrain] } ] }
+  - scaling: { per-slot-above: 5, add: { damage: 1d10 } }
+instant-summons:
+  - narrative: true
+invisibility:
+  - action: { range: touch, targets: { count: 1 }, apply: { condition: invisible, duration: spell, ends-when: [attack, damage, cast] } }
+  - scaling: { per-slot-above: 2, add: { targets: 1 } }
+irresistible-dance:
+  - action: { targets: { count: 1 }, save: { ability: wis },
+              on-success: { apply: { text: "Spends all movement dancing", duration: { until: end-of-target-next-turn } } },
+              on-failure: { apply: { condition: charmed, duration: spell, save-ends: action,
+                effects: [ { disadvantage: { roll: [save:dex, attack] } }, { advantage: { roll: attacks-against-you } } ] } } }
+jump:
+  - action: { range: touch, targets: { count: 1, creature: willing } }
+  - target-effects: { effects: [ { trait: { text: "Once each turn: jump up to 30 feet for 10 feet of movement." } } ] }
+  - scaling: { per-slot-above: 1, add: { targets: 1 } }

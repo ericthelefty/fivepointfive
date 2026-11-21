@@ -1,0 +1,102 @@
+# entry: srd/monk
+Core Monk Traits:
+  - hit-die: d8
+  - proficiency: [save:str, save:dex, weapon:simple, { weapon: { category: martial, property: light } }]
+  - choose: { id: skills, kind: skill, count: 2, grants: proficiency, from: [acrobatics, athletics, history, insight, religion, stealth] }
+  - choose: { id: tool, kind: tool, count: 1, grants: proficiency,
+              from: { any: [ { tool: { category: artisans-tools } }, { tool: { category: musical-instrument } } ] } }
+  - multiclass: [hit-die]
+  - equipment:
+      options:
+        - { id: a, items: [spear, { dagger: 5 }, choice:tool, explorers-pack], gp: 11 }
+        - { id: b, gp: 50 }
+Martial Arts:
+  # all three benefits share one condition
+  - action: { id: bonus-unarmed-strike, activation: bonus, attack: { weapon: unarmed },
+              when: { armor: none, shield: false, wielding: [monk-weapon, none] } }
+  - damage-die: { die: table:Martial Arts, if-higher: true, scope: { any: [ { weapon: { monk: true } }, { weapon: { unarmed: true } } ] },
+                  when: { armor: none, shield: false, wielding: [monk-weapon, none] } }
+  - use-ability: { ability: dex, instead-of: str, for: [attack, damage, grapple-dc, shove-dc],
+                   scope: { any: [ { weapon: { monk: true } }, { weapon: { unarmed: true } } ] },
+                   when: { armor: none, shield: false, wielding: [monk-weapon, none] } }
+Unarmored Defense:
+  - base: { to: ac, value: 10 + mod:dex + mod:wis, when: { armor: none, shield: false } }
+Monk’s Focus:
+  - resource: { id: focus, max: table:Focus Points, reset: short }
+  - set: { to: save-dc:monk, value: 8 + mod:wis + prof, mode: override }
+  - action: { id: flurry-of-blows, activation: bonus, cost: { resource: $#focus }, attack: { weapon: unarmed, count: 2 } }
+  - action: { id: patient-defense, activation: bonus,
+              choose-one: [ { id: basic, take: disengage }, { id: focused, take: [disengage, dodge], cost: { resource: $#focus } } ] }
+  - action: { id: step-of-the-wind, activation: bonus,
+              choose-one: [ { id: basic, take: dash }, { id: focused, take: [disengage, dash], cost: { resource: $#focus }, effects: [ { set: { to: jump, value: 2, mode: multiply } } ] } ] }
+Unarmored Movement:
+  - bonus: { to: speed:walk, value: table:Unarmored Movement, when: { armor: none, shield: false } }
+Uncanny Metabolism:
+  - trigger: { id: uncanny-metabolism, event: { roll: initiative }, per: long,
+               offer: { regain: { resource: $#focus, to: max }, heal: table:Martial Arts + level:monk } }
+Deflect Attacks:
+  - trigger:
+      id: deflect-attacks
+      event: hit-by
+      reaction: true
+      scope: { against: { damage: [bludgeoning, piercing, slashing] } }
+      offer:
+        damage-taken: { reduce: 1d10 + mod:dex + level:monk }
+        then:
+          if: "The damage was reduced to 0"
+          cost: { resource: $#focus }
+          save: { ability: dex, dc: save-dc:monk }
+          damage: { dice: "dice(2, table:Martial Arts) + mod:dex", type: attack }
+          text: "One creature within 5 feet (melee) or 60 feet not behind Total Cover (ranged)."
+Monk Subclass:
+  - choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/monk } } }
+Ability Score Improvement:
+  - choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+Slow Fall:
+  - trigger: { event: fall, reaction: true, offer: { damage-taken: { reduce: 5 * level:monk } } }
+Extra Attack:
+  - extra-attack: { total: 2 }
+Stunning Strike:
+  - trigger:
+      event: hit
+      scope: { any: [ { weapon: { monk: true } }, { weapon: { unarmed: true } } ] }
+      per: turn
+      offer:
+        cost: { resource: $#focus }
+        save: { ability: con, dc: save-dc:monk }
+        apply: { condition: stunned, duration: { until: start-of-next-turn } }
+        on-success: { text: "Speed halved and the next attack roll against it has Advantage, until the start of your next turn." }
+Empowered Strikes:
+  - damage-type: { add-option: force, scope: { weapon: { unarmed: true } } }
+Evasion:
+  - save-rule: { ability: dex, success: none, failure: half, when: { not: { condition: incapacitated } } }
+Acrobatic Movement:
+  - trait: { id: acrobatic-movement, text: "Move along vertical surfaces and across liquids on your turn without falling.",
+             when: { armor: none, shield: false } }
+Heightened Focus:
+  - modify: { target: $#flurry-of-blows, set: { attack.count: 3 } }
+  - modify: { target: $#patient-defense, add: { choose-one.focused.temp-hp: "dice(2, table:Martial Arts)" } }
+  - modify: { target: $#step-of-the-wind, add: { choose-one.focused.text: "Bring a willing Large or smaller creature within 5 feet along; its movement doesn't provoke Opportunity Attacks." } }
+Self-Restoration:
+  - trigger: { event: end-of-turn, offer: { text: "End one of these on yourself: Charmed, Frightened, Poisoned." } }
+  - trait: { text: "Going without food and drink doesn't give you Exhaustion." }
+Deflect Energy:
+  - modify: { target: $#deflect-attacks, set: { scope: {} } }
+Disciplined Survivor:
+  - proficiency: [save:all]
+  - trigger: { event: { fail: save }, offer: { reroll: true, must-use-new: true, cost: { resource: $#focus } } }
+Perfect Focus:
+  - trigger: { event: { roll: initiative }, if: "You didn't use Uncanny Metabolism", auto: true,
+               offer: { regain: { resource: $#focus, to: 4, only-up: true } } }
+Superior Defense:
+  - toggle:
+      activation: start-of-turn
+      cost: { resource: $#focus, amount: 3 }
+      duration: { amount: 1, unit: minute }
+      ends-when: [{ condition: incapacitated }]
+      effects:
+        - defense: { resistance: [all], except: [force] }
+Epic Boon:
+  - choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-irresistible-offense }
+Body and Mind:
+  - score: { dex: 4, wis: 4, max: 25 }

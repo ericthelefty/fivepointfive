@@ -1,0 +1,39 @@
+# entry: srd/oath-of-devotion
+Oath of Devotion Spells:
+  - spell-list: { prepared: always, by-level: {
+      3: [$srd/spells/protection-from-evil-and-good, $srd/spells/shield-of-faith],
+      5: [$srd/spells/aid, $srd/spells/zone-of-truth],
+      9: [$srd/spells/beacon-of-hope, $srd/spells/dispel-magic],
+      13: [$srd/spells/freedom-of-movement, $srd/spells/guardian-of-faith],
+      17: [$srd/spells/commune, $srd/spells/flame-strike] } }
+Sacred Weapon:
+  - toggle:
+      id: sacred-weapon
+      activation: attack-action
+      cost: { resource: $srd/paladin#channel-divinity }
+      choose: { id: sacred-weapon-target, kind: item, from: { weapon: { kind: melee } }, at: use }
+      duration: { amount: 10, unit: minute }
+      ends-when: [{ text: "You aren't carrying the weapon" }]
+      effects:
+        - bonus: { to: attack, value: "max(1, mod:cha)", scope: { weapon: { id: choice:sacred-weapon-target } } }
+        - damage-type: { add-option: radiant, scope: { weapon: { id: choice:sacred-weapon-target } } }
+        - sense: { light: { bright: 20, dim: 20 } }
+Aura of Devotion:
+  - modify: { target: $srd/paladin#aura-of-protection, add: { effects: [ { defense: { condition-immunity: [charmed] } } ] } }
+Smite of Protection:
+  - trigger: { event: cast, scope: { spell: { id: $srd/spells/divine-smite } }, auto: true,
+               offer: { text: "You and allies in your Aura of Protection have Half Cover until the start of your next turn." } }
+Holy Nimbus:
+  - resource: { id: holy-nimbus, max: 1, reset: long }
+  - convert: { from: { slot: 5 }, to: { resource: $#holy-nimbus, amount: 1 }, activation: none, if-empty: true }
+  - toggle:
+      id: holy-nimbus
+      activation: bonus
+      cost: { resource: $#holy-nimbus }
+      duration: { amount: 10, unit: minute }
+      effects:
+        - advantage: { roll: save:all, scope: { against: { creature: [fiend, undead] } } }
+        - modify: { target: $srd/paladin#aura-of-protection, add: {
+            effects: [ { trigger: { event: start-of-turn, who: { creature: enemy }, auto: true,
+                                    offer: { damage: { dice: mod:cha + prof, type: radiant } } } } ],
+            light: { bright: sunlight } } }

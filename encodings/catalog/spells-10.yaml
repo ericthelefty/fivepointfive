@@ -1,0 +1,80 @@
+# Spells batch 10 (message … power-word-heal)
+message:
+  - narrative: true
+meteor-swarm:
+  - action: { area: { shape: sphere, size: 40, count: 4 }, save: { ability: dex, success: half },
+              damage: [ { dice: 20d6, type: fire }, { dice: 20d6, type: bludgeoning } ], text: "A creature in several spheres is affected once." }
+mind-blank:
+  - action: { range: touch, targets: { count: 1, creature: willing } }
+  - target-effects: { effects: [ { defense: { immunity: [psychic], condition-immunity: [charmed] } }, { trait: [immune-divination, immune-mind-reading] } ] }
+mind-spike:
+  - action: { targets: { count: 1 }, save: { ability: wis, success: half }, damage: { dice: 3d8, type: psychic },
+              on-failure: { apply: { duration: spell, text: "You always know its location; it can't hide from you or benefit from Invisible against you." } } }
+  - scaling: { per-slot-above: 2, add: { damage: 1d8 } }
+minor-illusion:
+  - action: { choose-one: [ { id: sound, label: Sound }, { id: image, label: Image, area: { shape: cube, size: 5 } } ],
+              text: "Study + Int (Investigation) vs your spell save DC reveals it." }
+mirage-arcane:
+  - narrative: true
+mirror-image:
+  - self-effects:
+      effects:
+        - resource: { id: duplicates, max: 3, reset: never }
+        - trigger: { event: hit-by, auto: true, if: "The attacker isn't Blinded and lacks Blindsight and Truesight",
+                     offer: { roll: "dice(duplicates, d6)", if-roll: "any >= 3", text: "A duplicate is hit instead and destroyed." } }
+mislead:
+  - self-effects: { effects: [ { condition: [invisible] } ], ends-when: [{ text: "Invisibility ends after you attack, deal damage or cast a spell" }] }
+  - summon: { creature: { text: "Illusory double, intangible and invulnerable" }, control: { activation: magic, move: "2 * speed:walk" } }
+misty-step:
+  - action: { move: { teleport: 30 } }
+modify-memory:
+  - action: { targets: { count: 1 }, save: { ability: wis, advantage: { text: "You are fighting it" } },
+              apply: { condition: [charmed, incapacitated], duration: spell, ends-when: [damage, targeted-by-spell] },
+              text: "Rewrite memory of an event from the last 24 hours lasting up to 10 minutes." }
+  - scaling: { slots: { "6": { text: "memories up to 7 days old" }, "7": { text: "up to 30 days" }, "8": { text: "up to 365 days" }, "9": { text: "any time" } } }
+moonbeam:
+  - zone: { area: { shape: cylinder, size: 5, height: 40 }, event: [cast, enter-area, end-of-turn, moved-into], per: turn,
+            save: { ability: con, success: half }, damage: { dice: 2d10, type: radiant },
+            on-failure: { text: "A shape-shifted creature reverts and can't shape-shift while inside." },
+            moves: { activation: magic, distance: 60 }, effects: [ { trait: { light: { dim: fill } } } ] }
+  - scaling: { per-slot-above: 2, add: { damage: 1d10 } }
+move-earth:
+  - narrative: true
+nondetection:
+  - action: { range: touch, targets: { count: 1, creature: willing } }
+  - target-effects: { effects: [ { trait: [immune-divination] } ] }
+pass-without-trace:
+  - aura: { id: pass-without-trace, area: { shape: emanation, size: 30 }, affects: [self, chosen],
+            effects: [ { bonus: { to: skill:stealth, value: 10 } }, { trait: [leaves-no-tracks] } ] }
+passwall:
+  - narrative: true
+phantasmal-force:
+  - action: { targets: { count: 1 }, save: { ability: int },
+              on-failure: { apply: { duration: spell, escape: { activation: study, check: skill:investigation, dc: spell:dc },
+                text: "A phantasm only it perceives (up to a 10-foot Cube)." } },
+              then: { at: each-of-your-turns, damage: { dice: 2d8, type: psychic }, if: "The target is in or within 5 feet of the phantasm" } }
+phantasmal-killer:
+  - action: { targets: { count: 1 }, save: { ability: wis, success: half }, damage: { dice: 4d10, type: psychic },
+              on-failure: { apply: { duration: spell, effects: [ { disadvantage: { roll: [check:all, attack] } } ] } },
+              then: { at: end-of-target-turn, save: { ability: wis }, on-failure: { damage: { dice: 4d10, type: psychic } }, on-success: { end-effect: true } } }
+  - scaling: { per-slot-above: 4, add: { damage: 1d10, then.on-failure.damage: 1d10 } }
+phantom-steed:
+  - summon: { creature: $srd/monsters/riding-horse, overrides: { speed: 100 }, text: "Ends if it takes damage." }
+planar-ally:
+  - narrative: true
+planar-binding:
+  - action: { targets: { count: 1, creature: [celestial, elemental, fey, fiend] }, save: { ability: cha },
+              apply: { text: "Bound to serve you", duration: spell } }
+  - scaling: { slots: { "6": { duration: { amount: 10, unit: day } }, "7": { duration: { amount: 30, unit: day } },
+                        "8": { duration: { amount: 180, unit: day } }, "9": { duration: { amount: 366, unit: day } } } }
+plane-shift:
+  - narrative: true
+plant-growth:
+  - action: { choose-one: [ { id: overgrowth, label: Overgrowth, area: { shape: sphere, size: 100 }, effects: [ { trait: { text: "Moving costs 4 feet per foot." } } ] },
+                            { id: enrichment, label: Enrichment, activation: { amount: 8, unit: hour } } ] }
+poison-spray:
+  - action: { attack: { kind: ranged-spell }, damage: { dice: 1d12, type: poison } }
+  - scaling: { cantrip: [5, 11, 17], add: { damage: 1d12 } }
+power-word-heal:
+  - action: { targets: { count: 1 }, heal: all, remove-condition: [charmed, frightened, paralyzed, poisoned, stunned],
+              text: "A Prone target can use its Reaction to stand." }

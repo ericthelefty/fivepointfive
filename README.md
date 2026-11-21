@@ -27,6 +27,7 @@ npm run build    # production build in dist/ (what Vercel runs)
 | [`content/srd-5.2.1/`](content/srd-5.2.1/) | The complete SRD 5.2.1 as 1,317 Markdown entries: classes, subclasses, species, backgrounds, feats, spells, equipment, magic items, creatures, the rules glossary and the rules chapters. Wording is unchanged from the source. |
 | [`docs/CONTENT_FORMAT.md`](docs/CONTENT_FORMAT.md) | How content files are written. The same format is used for the SRD and for anything users import. |
 | [`docs/MODIF.md`](docs/MODIF.md) | Modif, the YAML format for `## Effects` blocks that lets the sheet apply rules automatically (draft spec). |
+| [`docs/CONVERTING_TO_MODIF.md`](docs/CONVERTING_TO_MODIF.md) | How to convert entries to Modif (written as a prompt for an agent), with the tools in `tools/` and drafts in `encodings/`. |
 | [`src/`](src/) | The web app (Vite + React + TypeScript). `src/lib/parse.ts` reads content files, `src/lib/fix.ts` checks and fixes imports, `src/lib/rules.ts` turns entries into builder choices. |
 | [`tools/pdf2md/`](tools/pdf2md/) | The converter that turned the SRD PDF into those files, written to be reused for other source documents. |
 

@@ -1,0 +1,58 @@
+# Environmental effects and poisons (rules/gameplay-toolbox). Character-facing: hazards a character suffers and poisons a
+# character can buy, harvest (Poisoner's Kit) or apply. Delivery type is a header field: contact | ingested | inhaled | injury.
+deep-water:
+  - trigger: { event: { every: 1 hour }, when: { all: [ { player: "Swimming in deep water" }, { not: { has: { speed: swim } } } ] }, offer: { save: { ability: con, dc: 10 }, on-failure: { exhaustion: 1 } } }
+extreme-cold:
+  - trigger: { event: { every: 1 hour }, when: { player: "Exposed to 0°F or lower" }, offer: { save: { ability: con, dc: 10, auto-succeed: { text: "Resistance or Immunity to Cold" } }, on-failure: { exhaustion: 1 } } }
+extreme-heat:
+  - trigger: { event: { every: 1 hour }, when: { player: "Exposed to 100°F or higher without drinkable water" }, counter: { reset: { text: "Out of the heat" } },
+               offer: { save: { ability: con, dc: 5 + uses, disadvantage: { when: { armor: [medium, heavy] } }, auto-succeed: { text: "Resistance or Immunity to Fire" } }, on-failure: { exhaustion: 1 } } }
+frigid-water:
+  - trigger: { event: { every: 1 minute }, when: { player: "Immersed longer than your Constitution score in minutes" }, offer: { save: { ability: con, dc: 10, auto-succeed: { text: "Resistance or Immunity to Cold" } }, on-failure: { exhaustion: 1 } } }
+heavy-precipitation:
+  - disadvantage: { roll: skill:perception, when: { player: "In heavy rain or snow" } }
+high-altitude:
+  - trait: { text: "Each hour traveling above 10,000 feet counts as 2 hours of travel (until acclimated after 30 days)." }
+slippery-ice:
+  - zone: { area: { text: "The ice" }, event: [enter-area, start-of-turn], per: turn, save: { ability: dex, dc: 10 }, on-failure: { apply: { condition: prone } }, effects: [ { trait: [difficult-terrain] } ] }
+strong-wind:
+  - disadvantage: { roll: attack, scope: { attack: ranged-weapon }, when: { player: "In strong wind" } }
+thin-ice:
+  - narrative: true
+# --- Poisons (one dose each) ---
+assassins-blood:
+  - poison: { delivery: ingested, save: { ability: con, dc: 10, success: half }, damage: { dice: 1d12, type: poison }, on-failure: { apply: { condition: poisoned, duration: { amount: 24, unit: hour } } } }
+burnt-othur-fumes:
+  - poison: { delivery: inhaled, save: { ability: con, dc: 13 }, on-failure: { damage: { dice: 3d6, type: poison } },
+              then: { at: start-of-target-turn, save: { ability: con, dc: 13 }, on-failure: { damage: { dice: 1d6, type: poison } }, ends-after: { successes: 3 } } }
+crawler-mucus:
+  - poison: { delivery: contact, save: { ability: con, dc: 13 }, on-failure: { apply: { condition: [poisoned, paralyzed], duration: { amount: 1, unit: minute }, save-ends: end-of-turn } } }
+essence-of-ether:
+  - poison: { delivery: inhaled, save: { ability: con, dc: 15 }, on-failure: { apply: { condition: [poisoned, unconscious], duration: { amount: 8, unit: hour }, ends-when: [damage, shaken-awake] } } }
+malice:
+  - poison: { delivery: inhaled, save: { ability: con, dc: 15 }, on-failure: { apply: { condition: [poisoned, blinded], duration: { amount: 1, unit: hour } } } }
+midnight-tears:
+  - poison: { delivery: ingested, delay: { until: midnight }, neutralized-by: [remove-condition-poisoned], save: { ability: con, dc: 17, success: half }, damage: { dice: 9d6, type: poison } }
+oil-of-taggit:
+  - poison: { delivery: contact, save: { ability: con, dc: 13 }, on-failure: { apply: { condition: [poisoned, unconscious], duration: { amount: 24, unit: hour }, ends-when: damage } } }
+pale-tincture:
+  - poison: { delivery: ingested, save: { ability: con, dc: 16 }, on-failure: { damage: { dice: 1d6, type: poison }, apply: { condition: poisoned,
+              save-ends: { every: 24 hour, successes: 7 }, effects: [ { trait: [poison-damage-cant-be-healed] } ] } },
+              then: { every: 24 hour, on-failure: { damage: { dice: 1d6, type: poison } } } }
+purple-worm-poison:
+  - poison: { delivery: injury, save: { ability: con, dc: 21, success: half }, damage: { dice: 10d6, type: poison } }
+serpent-venom:
+  - poison: { delivery: injury, save: { ability: con, dc: 11, success: half }, damage: { dice: 3d6, type: poison } }
+spiders-sting:
+  - poison: { delivery: injury, save: { ability: con, dc: 13 }, on-failure: { apply: { condition: poisoned, duration: { amount: 1, unit: hour } } },
+              on-fail-by: { 5: { apply: { condition: unconscious, while: poisoned, ends-when: [damage, shaken-awake] } } } }
+torpor:
+  - poison: { delivery: ingested, save: { ability: con, dc: 15 }, on-failure: { apply: { condition: poisoned, duration: { amount: 4d6, unit: hour },
+              effects: [ { set: { to: speed:all, value: 0.5, mode: multiply } } ] } } }
+truth-serum:
+  - poison: { delivery: ingested, save: { ability: con, dc: 11 }, on-failure: { apply: { condition: poisoned, duration: { amount: 1, unit: hour }, effects: [ { trait: [cant-lie] } ] } } }
+wyvern-poison:
+  - poison: { delivery: injury, save: { ability: con, dc: 14, success: half }, damage: { dice: 7d6, type: poison } }
+harvesting-poison:
+  - action: { activation: { amount: 1d6, unit: minute }, requires: { item: poisoners-kit }, targets: { text: "A dead or Incapacitated venomous creature" },
+              check: { skill: nature, ability: int, dc: 20 }, on-success: { creates: { item: poison-dose, count: 1 } }, on-failure: { text: "See the rule: failing by 5+ exposes you." } }

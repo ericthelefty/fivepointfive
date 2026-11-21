@@ -1,0 +1,83 @@
+# Spells batch 6 (etherealness … forbiddance)
+etherealness:
+  - self-effects: { effects: [ { trait: { text: "On the Border Ethereal: you can affect and be affected only by things on that plane. Returning into an occupied space shunts you and deals Force damage equal to twice the feet moved." } } ] }
+  - scaling: { per-slot-above: 7, add: { targets: 3, text: "three willing creatures within 10 feet per slot level above 7" } }
+expeditious-retreat:
+  - action: { take: dash }
+  - self-effects: { effects: [ { action: { activation: bonus, take: dash } } ] }
+eyebite:
+  - action:
+      targets: { count: 1, within: 60 }
+      save: { ability: wis }
+      repeat: { activation: magic, text: "Not a creature that succeeded on its save" }
+      choose-one:
+        - { id: asleep, label: Asleep, apply: { condition: unconscious, duration: spell, ends-when: [damage, shaken-awake] } }
+        - { id: panicked, label: Panicked, apply: { condition: frightened, duration: spell, text: "Dashes away each turn; can end the effect 60+ feet away out of sight." } }
+        - { id: sickened, label: Sickened, apply: { condition: poisoned, duration: spell, save-ends: end-of-turn } }
+fabricate:
+  - narrative: true
+faerie-fire:
+  - action: { area: { shape: cube, size: 20 }, save: { ability: dex } }
+  - target-effects: { effects: [ { advantage: { roll: attacks-against-you, when: { player: "The attacker can see it" } } },
+                                 { trait: [cant-be-invisible] }, { trait: { light: { dim: 10 } } } ] }
+faithful-hound:
+  - summon: { creature: { text: "Invisible phantom watchdog; Truesight 30 ft; intangible and invulnerable" }, control: { activation: magic, move: 30 } }
+  - trigger: { event: start-of-turn, auto: true, offer: { save: { ability: dex }, damage: { dice: 4d8, type: force }, text: "One enemy within 5 feet of the hound." } }
+fear:
+  - action: { area: { shape: cone, size: 30 }, save: { ability: wis },
+              apply: { condition: frightened, duration: spell, text: "Drops what it holds; Dashes away each turn; saves again when out of sight of you." } }
+feather-fall:
+  - trigger: { event: fall, who: { creature: any, range: 60, see: true }, reaction: true, offer: { cast: self } }
+  - action: { targets: { count: 5 }, apply: { text: "Falls 60 feet per round and takes no falling damage." } }
+find-steed:
+  - summon: { creature: $srd/spells/find-steed#otherworldly-steed, limit: 1, type-override: { choose: [celestial, fey, fiend] }, initiative: shared,
+              text: "A controlled mount while you ride it." }
+find-the-path:
+  - narrative: true
+find-traps:
+  - narrative: true
+finger-of-death:
+  - action: { targets: { count: 1 }, save: { ability: con, success: half }, damage: { dice: 7d8 + 30, type: necrotic },
+              text: "A Humanoid killed by it rises as a Zombie under your orders." }
+fire-shield:
+  - toggle:
+      id: fire-shield
+      choose-one:
+        - { id: warm, label: Warm Shield, effects: [ { defense: { resistance: [cold] } },
+            { trigger: { event: hit-by, auto: true, if: "A melee attack from within 5 feet", offer: { damage: { dice: 2d8, type: fire } } } } ] }
+        - { id: chill, label: Chill Shield, effects: [ { defense: { resistance: [fire] } },
+            { trigger: { event: hit-by, auto: true, if: "A melee attack from within 5 feet", offer: { damage: { dice: 2d8, type: cold } } } } ] }
+      effects: [ { trait: { light: { bright: 10, dim: 10 } } } ]
+fire-storm:
+  - action: { area: { shape: cube, size: 10, count: 10 }, save: { ability: dex, success: half }, damage: { dice: 7d10, type: fire } }
+flame-blade:
+  - self-effects: { effects: [ { action: { activation: magic, attack: { kind: melee-spell }, damage: { dice: 3d6 + spell-ability, type: fire } } },
+                               { trait: { light: { bright: 10, dim: 10 } } } ] }
+  - scaling: { per-slot-above: 2, add: { self-effects.action.damage: 1d6 } }
+flame-strike:
+  - action: { area: { shape: cylinder, size: 10, height: 40 }, save: { ability: dex, success: half },
+              damage: [ { dice: 5d6, type: fire }, { dice: 5d6, type: radiant } ] }
+  - scaling: { per-slot-above: 5, add: { damage: [1d6, 1d6] } }
+flaming-sphere:
+  - zone: { area: { shape: emanation, size: 5 }, event: [end-of-turn, moved-into], save: { ability: dex, success: half }, damage: { dice: 2d6, type: fire },
+            moves: { activation: bonus, distance: 30 }, effects: [ { trait: { light: { bright: 20, dim: 20 } } } ] }
+  - scaling: { per-slot-above: 2, add: { damage: 1d6 } }
+flesh-to-stone:
+  - action: { targets: { count: 1 }, save: { ability: con, auto-succeed: { creature: construct } },
+              on-failure: { apply: { condition: restrained, duration: spell,
+                save-ends: { at: end-of-turn, successes: 3, failures: 3, on-fail-out: { condition: petrified } } } },
+              on-success: { apply: { text: "Speed 0", duration: { until: start-of-next-turn } } } }
+floating-disk:
+  - narrative: true
+fly:
+  - action: { range: touch, targets: { count: 1, creature: willing } }
+  - target-effects: { effects: [ { speed: { fly: 60 } }, { trait: [hover] } ] }
+  - scaling: { per-slot-above: 3, add: { targets: 1 } }
+fog-cloud:
+  - zone: { area: { shape: sphere, size: 20 }, effects: [ { trait: [heavily-obscured] } ] }
+  - scaling: { per-slot-above: 1, add: { area.size: 20 } }
+forbiddance:
+  - zone: { area: { text: "Up to 40,000 square feet, 30 feet high" }, choose: { id: forbidden, kind: option, count: any,
+            options: [ { id: aberration }, { id: celestial }, { id: elemental }, { id: fey }, { id: fiend }, { id: undead } ] },
+            event: [enter-area, end-of-turn], per: turn, damage: { dice: 5d10, type: { choose-on-cast: [radiant, necrotic] } },
+            effects: [ { trait: [no-teleport-in, no-planar-travel] } ] }

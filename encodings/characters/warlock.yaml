@@ -1,0 +1,92 @@
+# entry: srd/warlock
+Core Warlock Traits:
+  - hit-die: d8
+  - proficiency: [save:wis, save:cha]
+  - choose: { id: skills, kind: skill, count: 2, grants: proficiency,
+              from: [arcana, deception, history, intimidation, investigation, nature, religion] }
+  - proficiency: [weapon:simple, armor:light]
+  - multiclass: [hit-die, armor:light]
+  - equipment:
+      options:
+        - { id: a, items: [leather-armor, sickle, { dagger: 2 }, arcane-focus-orb, book-occult-lore, scholars-pack], gp: 15 }
+        - { id: b, gp: 100 }
+Eldritch Invocations:
+  - choose: { id: invocations, kind: option, count: table:Eldritch Invocations, swap: { at: level-up, count: 1 },
+              options: { headings-under: Eldritch Invocation Options } }
+Pact Magic:
+  - spellcasting: { ability: cha, progression: pact, list: warlock, focus: arcane-focus, slots: table:Spell Slots, slot-level: table:Slot Level,
+                    cantrips: table:Cantrips, prepared: table:Prepared Spells, change: { prepared: level-up, cantrips: level-up } }
+  - choose: { id: cantrips, kind: spell, count: table:Cantrips, from: { spell: { list: warlock, level: 0 } }, swap: { at: level-up, count: 1 } }
+Magical Cunning:
+  - resource: { id: magical-cunning, max: 1, reset: long }
+  - action: { id: magical-cunning, activation: { amount: 1, unit: minute }, cost: { resource: $#magical-cunning },
+              regain: { resource: pact-slots, amount: "ceil(table:Spell Slots / 2)" } }
+Warlock Subclass:
+  - choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/warlock } } }
+Ability Score Improvement:
+  - choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+Contact Patron:
+  - grant-spell: { spell: $srd/spells/contact-other-plane, prepared: always, free: { per: long, count: 1 }, auto-succeed: save }
+Mystic Arcanum:
+  - grant-spell: { level: 11, choose: { id: arcanum-6, count: 1, from: { spell: { list: warlock, level: 6 } }, swap: { at: level-up, count: 1 } }, free: { per: long, count: 1 }, uses-slot: false }
+  - grant-spell: { level: 13, choose: { id: arcanum-7, count: 1, from: { spell: { list: warlock, level: 7 } }, swap: { at: level-up, count: 1 } }, free: { per: long, count: 1 }, uses-slot: false }
+  - grant-spell: { level: 15, choose: { id: arcanum-8, count: 1, from: { spell: { list: warlock, level: 8 } }, swap: { at: level-up, count: 1 } }, free: { per: long, count: 1 }, uses-slot: false }
+  - grant-spell: { level: 17, choose: { id: arcanum-9, count: 1, from: { spell: { list: warlock, level: 9 } }, swap: { at: level-up, count: 1 } }, free: { per: long, count: 1 }, uses-slot: false }
+Epic Boon:
+  - choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-fate }
+Eldritch Master:
+  - modify: { target: $#magical-cunning, set: { regain.amount: table:Spell Slots } }
+
+# --- Invocation options (each under its own ### heading in the source) ---
+Agonizing Blast:
+  - option: { of: $#invocations, prerequisite: { level: 2, known: { spell: { list: warlock, level: 0, deals: any } } },
+              repeatable: { distinct: choice:agonizing-cantrip } }
+  - choose: { id: agonizing-cantrip, kind: spell, count: 1, from: { known: { spell: { list: warlock, level: 0, deals: any } } } }
+  - bonus: { to: damage, value: mod:cha, scope: { spell: { id: choice:agonizing-cantrip } } }
+Armor of Shadows:
+  - option: { of: $#invocations }
+  - grant-spell: { spell: $srd/spells/mage-armor, at-will: true, target: self }
+Devil’s Sight:
+  - option: { of: $#invocations, prerequisite: { level: 2 } }
+  - sense: { devils-sight: 120 }
+Eldritch Mind:
+  - option: { of: $#invocations }
+  - advantage: { roll: concentration }
+Eldritch Smite:
+  - option: { of: $#invocations, prerequisite: { level: 5, has: { option: $#pact-of-the-blade } } }
+  - trigger: { event: hit, per: turn, scope: { weapon: { id: choice:pact-weapon } },
+               offer: { cost: { slot: pact }, damage: { dice: "dice(1 + slot-level, d8)", type: force },
+                        apply: { condition: prone, text: "If the target is Huge or smaller" } } }
+Fiendish Vigor:
+  - option: { of: $#invocations, prerequisite: { level: 2 } }
+  - grant-spell: { spell: $srd/spells/false-life, at-will: true, target: self, maximize: true }
+Gift of the Depths:
+  - option: { of: $#invocations, prerequisite: { level: 5 } }
+  - speed: { swim: speed:walk }
+  - trait: [breathe-underwater]
+  - grant-spell: { spell: $srd/spells/water-breathing, free: { per: long, count: 1 } }
+Lessons of the First Ones:
+  - option: { of: $#invocations, prerequisite: { level: 2 }, repeatable: { distinct: choice:origin-feat } }
+  - choose: { id: origin-feat, kind: feat, count: 1, from: { feat: { category: origin } } }
+One with Shadows:
+  - option: { of: $#invocations, prerequisite: { level: 5 } }
+  - grant-spell: { spell: $srd/spells/invisibility, at-will: true, target: self, when: { player: "In Dim Light or Darkness" } }
+Pact of the Blade:
+  - option: { of: $#invocations }
+  - choose: { id: pact-weapon, kind: item, count: 1, from: { weapon: { kind: melee, category: [simple, martial] } }, swap: { at: use } }
+  - action: { id: pact-of-the-blade, activation: bonus, text: "Conjure or bond your pact weapon (ends if 5+ ft away for 1 minute)." }
+  - proficiency: [{ weapon: { id: choice:pact-weapon } }]
+  - use-ability: { ability: cha, instead-of: [str, dex], scope: { weapon: { id: choice:pact-weapon } } }
+  - damage-type: { add-option: [necrotic, psychic, radiant], scope: { weapon: { id: choice:pact-weapon } } }
+Pact of the Tome:
+  - option: { of: $#invocations }
+  - grant-spell: { choose: { id: tome-cantrips, count: 3, from: { spell: { level: 0 } }, swap: { at: [short, long], count: all } },
+                   prepared: always, when: { has: { item: book-of-shadows } } }
+  - grant-spell: { choose: { id: tome-rituals, count: 2, from: { spell: { level: 1, ritual: true } }, swap: { at: [short, long], count: all } },
+                   prepared: always, when: { has: { item: book-of-shadows } } }
+Thirsting Blade:
+  - option: { of: $#invocations, prerequisite: { level: 5, has: { option: $#pact-of-the-blade } } }
+  - extra-attack: { total: 2, scope: { weapon: { id: choice:pact-weapon } } }
+Witch Sight:
+  - option: { of: $#invocations, prerequisite: { level: 15 } }
+  - sense: { truesight: 30 }

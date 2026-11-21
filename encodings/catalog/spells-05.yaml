@@ -1,0 +1,84 @@
+# Spells batch 5 (disguise-self … enthrall)
+disguise-self:
+  - self-effects: { effects: [ { trait: { text: "Disguised: seeing through it takes a Study action and an Int (Investigation) check vs your spell save DC." } } ] }
+disintegrate:
+  - action: { targets: { count: 1 }, save: { ability: dex }, damage: { dice: 10d6 + 40, type: force },
+              text: "Reduced to 0 HP: disintegrated. Auto-disintegrates Large or smaller nonmagical objects and magical force." }
+  - scaling: { per-slot-above: 6, add: { damage: 3d6 } }
+dispel-evil-and-good:
+  - self-effects: { effects: [ { disadvantage: { roll: attacks-against-you, scope: { against: { creature: [celestial, elemental, fey, fiend, undead] } } } } ] }
+  - action:
+      activation: magic
+      end-effect: true
+      choose-one:
+        - { id: break-enchantment, label: Break Enchantment, range: touch, remove-condition: [charmed, frightened], text: "Also ends possession by those creature types." }
+        - { id: dismissal, label: Dismissal, range: 5, save: { ability: cha }, text: "Sent back to its home plane." }
+dispel-magic:
+  - action: { targets: { count: 1 }, dispel: { auto-max-level: 3, check: { ability: spell-ability, dc: 10 + spell.level } } }
+  - scaling: { per-slot-above: 3, add: { dispel.auto-max-level: 1 } }
+dissonant-whispers:
+  - action: { targets: { count: 1 }, save: { ability: wis, success: half }, damage: { dice: 3d6, type: psychic },
+              on-failure: { text: "It must use its Reaction to move away from you." } }
+  - scaling: { per-slot-above: 1, add: { damage: 1d6 } }
+divination:
+  - narrative: true
+divine-favor:
+  - self-effects: { effects: [ { trigger: { event: hit, scope: { weapon: {} }, auto: true, offer: { damage: { dice: 1d4, type: radiant } } } } ] }
+divine-smite:
+  - trigger: { event: hit, scope: { any: [ { weapon: { kind: melee } }, { weapon: { unarmed: true } } ] }, offer: { cast: self } }
+  - action: { damage: [ { dice: 2d8, type: radiant }, { dice: 1d8, type: radiant, if: "The target is a Fiend or Undead" } ] }
+  - scaling: { per-slot-above: 1, add: { damage: 1d8 } }
+divine-word:
+  - action: { targets: { count: any, choose: true }, save: { ability: cha }, on-failure: { table: Divine Word Effects,
+              text: "By current HP: 0–20 dies; 21–30 Blinded, Deafened, Stunned 1 hour; 31–40 Blinded, Deafened 10 minutes; 41–50 Deafened 1 minute. Celestials, Elementals, Fey and Fiends are banished for 24 hours." } }
+dominate-beast:
+  - action: { targets: { count: 1, creature: beast }, save: { ability: wis, advantage: { text: "You or your allies are fighting it" } },
+              apply: { condition: charmed, duration: spell, save-ends: on-damage, text: "You command it telepathically (no action)." } }
+  - scaling: { slots: { "5": { duration: { amount: 10, unit: minute, concentration: true } }, "6": { duration: { amount: 1, unit: hour, concentration: true } },
+                        "7+": { duration: { amount: 8, unit: hour, concentration: true } } } }
+dominate-monster:
+  - action: { targets: { count: 1 }, save: { ability: wis, advantage: { text: "You or your allies are fighting it" } },
+              apply: { condition: charmed, duration: spell, save-ends: on-damage, text: "You command it telepathically (no action)." } }
+  - scaling: { slots: { "9": { duration: { amount: 8, unit: hour, concentration: true } } } }
+dominate-person:
+  - action: { targets: { count: 1, creature: humanoid }, save: { ability: wis, advantage: { text: "You or your allies are fighting it" } },
+              apply: { condition: charmed, duration: spell, save-ends: on-damage, text: "You command it telepathically (no action)." } }
+  - scaling: { slots: { "6": { duration: { amount: 10, unit: minute, concentration: true } }, "7": { duration: { amount: 1, unit: hour, concentration: true } },
+                        "8+": { duration: { amount: 8, unit: hour, concentration: true } } } }
+dragons-breath:
+  - action: { range: touch, targets: { count: 1, creature: willing }, choose: { id: breath-type, kind: damage-type, from: [acid, cold, fire, lightning, poison] } }
+  - target-effects: { effects: [ { action: { activation: magic, area: { shape: cone, size: 15 }, save: { ability: dex, dc: spell:dc, success: half },
+                                             damage: { dice: 3d6, type: choice:breath-type } } } ] }
+  - scaling: { per-slot-above: 2, add: { target-effects.action.damage: 1d6 } }
+dream:
+  - action: { text: "A messenger (Incapacitated, Speed 0) speaks to a sleeping target in its dreams.",
+              choose-one: [ { id: message, label: Message }, { id: nightmare, label: Nightmare, save: { ability: wis },
+                              on-failure: { damage: { dice: 3d6, type: psychic }, text: "No benefit from its rest." } } ] }
+druidcraft:
+  - action: { choose-one: [ { id: weather, label: Weather Sensor }, { id: bloom, label: Bloom }, { id: sensory, label: Sensory Effect }, { id: fire, label: Fire Play } ] }
+earthquake:
+  - zone: { area: { shape: circle, size: 100 }, event: [cast, end-of-your-turn], save: { ability: dex },
+            on-failure: { apply: { condition: prone }, breaks-concentration: true }, effects: [ { trait: [difficult-terrain] } ],
+            text: "Also: 1d6 fissures (Dex save or fall in); structures take 50 Bludgeoning damage each turn and can collapse (Dex save or 12d6 Bludgeoning, half on success)." }
+eldritch-blast:
+  - action: { attack: { kind: ranged-spell, count: 1 }, damage: { dice: 1d10, type: force } }
+  - scaling: { cantrip: [5, 11, 17], add: { attack.count: 1 } }
+elementalism:
+  - action: { choose-one: [ { id: air, label: Beckon Air }, { id: earth, label: Beckon Earth }, { id: fire, label: Beckon Fire },
+                            { id: water, label: Beckon Water }, { id: sculpt, label: Sculpt Element } ] }
+enhance-ability:
+  - action: { range: touch, targets: { count: 1 }, choose: { id: enhanced, kind: ability, from: [str, dex, int, wis, cha], per-target: true } }
+  - target-effects: { effects: [ { advantage: { roll: check:chosen } } ] }
+  - scaling: { per-slot-above: 2, add: { targets: 1 } }
+ensnaring-strike:
+  - trigger: { event: hit, scope: { weapon: {} }, offer: { cast: self } }
+  - action: { save: { ability: str, advantage: { text: "The target is Large or larger" } },
+              apply: { condition: restrained, duration: spell, escape: { check: skill:athletics, dc: spell:dc, others-can-help: true } },
+              then: { at: start-of-target-turn, while: restrained, damage: { dice: 1d6, type: piercing } } }
+  - scaling: { per-slot-above: 1, add: { then.damage: 1d6 } }
+entangle:
+  - zone: { area: { shape: square, size: 20 }, event: [cast], save: { ability: str },
+            apply: { condition: restrained, duration: spell, escape: { check: skill:athletics, dc: spell:dc } }, effects: [ { trait: [difficult-terrain] } ] }
+enthrall:
+  - action: { targets: { count: any, choose: true }, save: { ability: wis, auto-succeed: { text: "You or your companions are fighting it" } } }
+  - target-effects: { effects: [ { bonus: { to: [skill:perception, passive:perception], value: -10 } } ] }

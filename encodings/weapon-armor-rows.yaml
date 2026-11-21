@@ -1,0 +1,292 @@
+club:
+  header: {category: simple, kind: melee, damage: 1d4, damage-type: bludgeoning, mastery: slow, weight: 2 lb., cost: 1 SP}
+  properties: [light]
+dagger:
+  header: {category: simple, kind: melee, damage: 1d4, damage-type: piercing, mastery: nick, weight: 1 lb., cost: 2 GP}
+  properties:
+  - finesse
+  - light
+  - thrown: {range: 20/60}
+greatclub:
+  header: {category: simple, kind: melee, damage: 1d8, damage-type: bludgeoning, mastery: push, weight: 10 lb., cost: 2 SP}
+  properties: [two-handed]
+handaxe:
+  header: {category: simple, kind: melee, damage: 1d6, damage-type: slashing, mastery: vex, weight: 2 lb., cost: 5 GP}
+  properties:
+  - light
+  - thrown: {range: 20/60}
+javelin:
+  header: {category: simple, kind: melee, damage: 1d6, damage-type: piercing, mastery: slow, weight: 2 lb., cost: 5 SP}
+  properties:
+  - thrown: {range: 30/120}
+light-hammer:
+  header: {category: simple, kind: melee, damage: 1d4, damage-type: bludgeoning, mastery: nick, weight: 2 lb., cost: 2 GP}
+  properties:
+  - light
+  - thrown: {range: 20/60}
+mace:
+  header: {category: simple, kind: melee, damage: 1d6, damage-type: bludgeoning, mastery: sap, weight: 4 lb., cost: 5 GP}
+  properties: []
+quarterstaff:
+  header: {category: simple, kind: melee, damage: 1d6, damage-type: bludgeoning, mastery: topple, weight: 4 lb., cost: 2 SP}
+  properties:
+  - versatile: {two-handed-damage: 1d8}
+sickle:
+  header: {category: simple, kind: melee, damage: 1d4, damage-type: slashing, mastery: nick, weight: 2 lb., cost: 1 GP}
+  properties: [light]
+spear:
+  header: {category: simple, kind: melee, damage: 1d6, damage-type: piercing, mastery: sap, weight: 3 lb., cost: 1 GP}
+  properties:
+  - thrown: {range: 20/60}
+  - versatile: {two-handed-damage: 1d8}
+dart:
+  header: {category: simple, kind: ranged, damage: 1d4, damage-type: piercing, mastery: vex, weight: 1/4 lb., cost: 5 CP}
+  properties:
+  - finesse
+  - thrown: {range: 20/60}
+light-crossbow:
+  header: {category: simple, kind: ranged, damage: 1d8, damage-type: piercing, mastery: slow, weight: 5 lb., cost: 25 GP}
+  properties:
+  - ammunition: {range: 80/320}
+  - loading
+  - two-handed
+shortbow:
+  header: {category: simple, kind: ranged, damage: 1d6, damage-type: piercing, mastery: vex, weight: 2 lb., cost: 25 GP}
+  properties:
+  - ammunition: {range: 80/320}
+  - two-handed
+sling:
+  header: {category: simple, kind: ranged, damage: 1d4, damage-type: bludgeoning, mastery: slow, weight: —, cost: 1 SP}
+  properties:
+  - ammunition: {range: 30/120}
+battleaxe:
+  header: {category: martial, kind: melee, damage: 1d8, damage-type: slashing, mastery: topple, weight: 4 lb., cost: 10 GP}
+  properties:
+  - versatile: {two-handed-damage: 1d10}
+flail:
+  header: {category: martial, kind: melee, damage: 1d8, damage-type: bludgeoning, mastery: sap, weight: 2 lb., cost: 10 GP}
+  properties: []
+glaive:
+  header: {category: martial, kind: melee, damage: 1d10, damage-type: slashing, mastery: graze, weight: 6 lb., cost: 20 GP}
+  properties: [heavy, reach, two-handed]
+greataxe:
+  header: {category: martial, kind: melee, damage: 1d12, damage-type: slashing, mastery: cleave, weight: 7 lb., cost: 30 GP}
+  properties: [heavy, two-handed]
+greatsword:
+  header: {category: martial, kind: melee, damage: 2d6, damage-type: slashing, mastery: graze, weight: 6 lb., cost: 50 GP}
+  properties: [heavy, two-handed]
+halberd:
+  header: {category: martial, kind: melee, damage: 1d10, damage-type: slashing, mastery: cleave, weight: 6 lb., cost: 20 GP}
+  properties: [heavy, reach, two-handed]
+lance:
+  header: {category: martial, kind: melee, damage: 1d10, damage-type: piercing, mastery: topple, weight: 6 lb., cost: 10 GP}
+  properties:
+  - heavy
+  - reach
+  - {two-handed: unless mounted}
+longsword:
+  header: {category: martial, kind: melee, damage: 1d8, damage-type: slashing, mastery: sap, weight: 3 lb., cost: 15 GP}
+  properties:
+  - versatile: {two-handed-damage: 1d10}
+maul:
+  header: {category: martial, kind: melee, damage: 2d6, damage-type: bludgeoning, mastery: topple, weight: 10 lb., cost: 10 GP}
+  properties: [heavy, two-handed]
+morningstar:
+  header: {category: martial, kind: melee, damage: 1d8, damage-type: piercing, mastery: sap, weight: 4 lb., cost: 15 GP}
+  properties: []
+pike:
+  header: {category: martial, kind: melee, damage: 1d10, damage-type: piercing, mastery: push, weight: 18 lb., cost: 5 GP}
+  properties: [heavy, reach, two-handed]
+rapier:
+  header: {category: martial, kind: melee, damage: 1d8, damage-type: piercing, mastery: vex, weight: 2 lb., cost: 25 GP}
+  properties: [finesse]
+scimitar:
+  header: {category: martial, kind: melee, damage: 1d6, damage-type: slashing, mastery: nick, weight: 3 lb., cost: 25 GP}
+  properties: [finesse, light]
+shortsword:
+  header: {category: martial, kind: melee, damage: 1d6, damage-type: piercing, mastery: vex, weight: 2 lb., cost: 10 GP}
+  properties: [finesse, light]
+trident:
+  header: {category: martial, kind: melee, damage: 1d8, damage-type: piercing, mastery: topple, weight: 4 lb., cost: 5 GP}
+  properties:
+  - thrown: {range: 20/60}
+  - versatile: {two-handed-damage: 1d10}
+warhammer:
+  header: {category: martial, kind: melee, damage: 1d8, damage-type: bludgeoning, mastery: push, weight: 5 lb., cost: 15 GP}
+  properties:
+  - versatile: {two-handed-damage: 1d10}
+war-pick:
+  header: {category: martial, kind: melee, damage: 1d8, damage-type: piercing, mastery: sap, weight: 2 lb., cost: 5 GP}
+  properties:
+  - versatile: {two-handed-damage: 1d10}
+whip:
+  header: {category: martial, kind: melee, damage: 1d4, damage-type: slashing, mastery: slow, weight: 3 lb., cost: 2 GP}
+  properties: [finesse, reach]
+blowgun:
+  header: {category: martial, kind: ranged, damage: '1', damage-type: piercing, mastery: vex, weight: 1 lb., cost: 10 GP}
+  properties:
+  - ammunition: {range: 25/100}
+  - loading
+hand-crossbow:
+  header: {category: martial, kind: ranged, damage: 1d6, damage-type: piercing, mastery: vex, weight: 3 lb., cost: 75 GP}
+  properties:
+  - ammunition: {range: 30/120}
+  - light
+  - loading
+heavy-crossbow:
+  header: {category: martial, kind: ranged, damage: 1d10, damage-type: piercing, mastery: push, weight: 18 lb., cost: 50 GP}
+  properties:
+  - ammunition: {range: 100/400}
+  - heavy
+  - loading
+  - two-handed
+longbow:
+  header: {category: martial, kind: ranged, damage: 1d8, damage-type: piercing, mastery: slow, weight: 2 lb., cost: 50 GP}
+  properties:
+  - ammunition: {range: 150/600}
+  - heavy
+  - two-handed
+musket:
+  header: {category: martial, kind: ranged, damage: 1d12, damage-type: piercing, mastery: slow, weight: 10 lb., cost: 500 GP}
+  properties:
+  - ammunition: {range: 40/120}
+  - loading
+  - two-handed
+pistol:
+  header: {category: martial, kind: ranged, damage: 1d10, damage-type: piercing, mastery: vex, weight: 3 lb., cost: 250 GP}
+  properties:
+  - ammunition: {range: 30/90}
+  - loading
+padded-armor:
+  header: {category: light, weight: 8 lb., cost: 5 GP}
+  blocks:
+  - base:
+      to: ac
+      value: 11 + mod:dex
+      when: {equipped: self}
+  - disadvantage:
+      roll: skill:stealth
+      when: {equipped: self}
+leather-armor:
+  header: {category: light, weight: 10 lb., cost: 10 GP}
+  blocks:
+  - base:
+      to: ac
+      value: 11 + mod:dex
+      when: {equipped: self}
+studded-leather-armor:
+  header: {category: light, weight: 13 lb., cost: 45 GP}
+  blocks:
+  - base:
+      to: ac
+      value: 12 + mod:dex
+      when: {equipped: self}
+hide-armor:
+  header: {category: medium, weight: 12 lb., cost: 10 GP}
+  blocks:
+  - base:
+      to: ac
+      value: 12 + min(mod:dex, 2)
+      when: {equipped: self}
+chain-shirt:
+  header: {category: medium, weight: 20 lb., cost: 50 GP}
+  blocks:
+  - base:
+      to: ac
+      value: 13 + min(mod:dex, 2)
+      when: {equipped: self}
+scale-mail:
+  header: {category: medium, weight: 45 lb., cost: 50 GP}
+  blocks:
+  - base:
+      to: ac
+      value: 14 + min(mod:dex, 2)
+      when: {equipped: self}
+  - disadvantage:
+      roll: skill:stealth
+      when: {equipped: self}
+breastplate:
+  header: {category: medium, weight: 20 lb., cost: 400 GP}
+  blocks:
+  - base:
+      to: ac
+      value: 14 + min(mod:dex, 2)
+      when: {equipped: self}
+half-plate-armor:
+  header: {category: medium, weight: 40 lb., cost: 750 GP}
+  blocks:
+  - base:
+      to: ac
+      value: 15 + min(mod:dex, 2)
+      when: {equipped: self}
+  - disadvantage:
+      roll: skill:stealth
+      when: {equipped: self}
+ring-mail:
+  header: {category: heavy, weight: 40 lb., cost: 30 GP}
+  blocks:
+  - base:
+      to: ac
+      value: '14'
+      when: {equipped: self}
+  - disadvantage:
+      roll: skill:stealth
+      when: {equipped: self}
+chain-mail:
+  header: {category: heavy, weight: 55 lb., cost: 75 GP}
+  blocks:
+  - base:
+      to: ac
+      value: '16'
+      when: {equipped: self}
+  - bonus:
+      to: speed:walk
+      value: -10
+      when:
+        all:
+        - {equipped: self}
+        - score: {str: < 13}
+  - disadvantage:
+      roll: skill:stealth
+      when: {equipped: self}
+splint-armor:
+  header: {category: heavy, weight: 60 lb., cost: 200 GP}
+  blocks:
+  - base:
+      to: ac
+      value: '17'
+      when: {equipped: self}
+  - bonus:
+      to: speed:walk
+      value: -10
+      when:
+        all:
+        - {equipped: self}
+        - score: {str: < 15}
+  - disadvantage:
+      roll: skill:stealth
+      when: {equipped: self}
+plate-armor:
+  header: {category: heavy, weight: 65 lb., cost: '1,500 GP'}
+  blocks:
+  - base:
+      to: ac
+      value: '18'
+      when: {equipped: self}
+  - bonus:
+      to: speed:walk
+      value: -10
+      when:
+        all:
+        - {equipped: self}
+        - score: {str: < 15}
+  - disadvantage:
+      roll: skill:stealth
+      when: {equipped: self}
+shield:
+  header: {category: shield, weight: 6 lb., cost: 10 GP}
+  blocks:
+  - bonus:
+      to: ac
+      value: 2
+      when: {equipped: self}

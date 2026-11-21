@@ -1,0 +1,20 @@
+# entry: srd/evoker
+Evocation Savant:
+  - choose: { id: savant, kind: spell, count: 2, grants: spellbook, from: { spell: { list: wizard, school: evocation, level: [1, 2] } } }
+  - choose: { id: savant-more, kind: spell, count: 1, grants: spellbook, at: new-slot-level,
+              from: { spell: { list: wizard, school: evocation, slot: available } } }
+Potent Cantrip:
+  - save-rule: { scope: { spell: { level: 0 } }, success: half, miss: half, text: "No additional effect on a miss or successful save." }
+Sculpt Spells:
+  - trigger: { event: cast, scope: { spell: { school: evocation } },
+               offer: { text: "Up to 1 + spell level creatures you can see auto-succeed on the save and take no damage on a half-on-success save." } }
+Empowered Evocation:
+  - bonus: { to: damage, value: mod:int, once: true, scope: { spell: { list: wizard, school: evocation } } }
+Overchannel:
+  - trigger:
+      event: cast
+      scope: { spell: { list: wizard, slot: [1, 2, 3, 4, 5], deals: any } }
+      counter: { reset: long }
+      offer:
+        maximize: true
+        self-damage: { if: "uses >= 1", dice: "dice((uses + 1) * slot-level, d12)", type: necrotic, ignore: [resistance, immunity] }

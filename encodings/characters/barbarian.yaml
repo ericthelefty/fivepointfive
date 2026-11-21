@@ -1,0 +1,105 @@
+# entry: srd/barbarian
+Core Barbarian Traits:
+  - hit-die: d12
+  - proficiency: [save:str, save:con]
+  - choose: { id: skills, kind: skill, count: 2, grants: proficiency,
+              from: [animal-handling, athletics, intimidation, nature, perception, survival] }
+  - proficiency: [weapon:simple, weapon:martial, armor:light, armor:medium, armor:shield]
+  - multiclass: [hit-die, armor:shield, weapon:martial]
+  - equipment:
+      options:
+        - { id: a, items: [greataxe, { handaxe: 4 }, explorers-pack], gp: 15 }
+        - { id: b, gp: 75 }
+Rage:
+  - resource: { id: rages, max: table:Rages, reset: long, partial: { at: short, amount: 1 } }
+  - toggle:
+      id: rage
+      activation: bonus
+      cost: { resource: $#rages }
+      if: "You aren't wearing Heavy armor"
+      duration: { until: end-of-next-turn, extend: "attack an enemy, force an enemy to save, or take a Bonus Action", max: { amount: 10, unit: minute } }
+      ends-when: [{ armor: heavy }, { condition: incapacitated }]
+      blocks: [concentration, spellcasting]
+      effects:
+        - defense: { resistance: [bludgeoning, piercing, slashing] }
+        - bonus: { to: damage, value: table:Rage Damage, scope: { ability: str } }
+        - advantage: { roll: [check:str, save:str] }
+Unarmored Defense:
+  - base: { to: ac, value: 10 + mod:dex + mod:con, when: { armor: none }, allow-shield: true }
+Weapon Mastery:
+  - choose: { id: mastery, kind: weapon, count: table:Weapon Mastery, grants: mastery,
+              from: { weapon: { kind: melee, category: [simple, martial] } }, swap: { at: long, count: 1 } }
+Danger Sense:
+  - advantage: { roll: save:dex, when: { not: { condition: incapacitated } } }
+Reckless Attack:
+  - toggle:
+      id: reckless-attack
+      activation: none
+      if: "You're making your first attack roll on your turn"
+      duration: { until: start-of-next-turn }
+      effects:
+        - advantage: { roll: attack, scope: { ability: str } }
+        - advantage: { roll: attacks-against-you }
+Barbarian Subclass:
+  - choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/barbarian } } }
+Primal Knowledge:
+  - choose: { id: primal-skill, kind: skill, count: 1, grants: proficiency, from: $#skills }
+  - use-ability: { ability: str, instead-of: any, for: [skill:acrobatics, skill:intimidation, skill:perception, skill:stealth, skill:survival],
+                   when: { active: $#rage } }
+Ability Score Improvement:
+  - choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+Extra Attack:
+  - extra-attack: { total: 2 }
+Fast Movement:
+  - bonus: { to: speed:walk, value: 10, when: { not: { armor: heavy } } }
+Feral Instinct:
+  - advantage: { roll: initiative }
+Instinctive Pounce:
+  - modify: { target: $#rage, set: { move: { distance: half-speed } } }
+Brutal Strike:
+  - trigger:
+      id: brutal-strike
+      event: attack
+      scope: { ability: str }
+      when: { active: $#reckless-attack }
+      per: turn
+      if: "The roll has Advantage and no Disadvantage; you give up the Advantage"
+      offer:
+        damage: { dice: 1d10, type: weapon, applies-to: hit }
+        pick: 1
+        choose-one:
+          - { id: forceful-blow, label: Forceful Blow,
+              text: "Push the target 15 feet away; you can then move up to half your Speed toward it without provoking Opportunity Attacks." }
+          - { id: hamstring-blow, label: Hamstring Blow,
+              text: "The target's Speed drops by 15 feet until the start of your next turn (only the most recent Hamstring Blow applies)." }
+Relentless Rage:
+  - trigger:
+      id: relentless-rage
+      event: zero-hp
+      when: { active: $#rage }
+      if: "You don't die outright"
+      counter: { reset: short }
+      dc: 10 + 5 * uses
+      offer: { save: { ability: con }, on-success: { set-hp: 2 * level:barbarian } }
+Improved Brutal Strike:
+  # level 13 heading
+  - modify:
+      target: $#brutal-strike
+      at: 13
+      add:
+        offer.choose-one:
+          - { id: staggering-blow, label: Staggering Blow,
+              text: "The target has Disadvantage on its next saving throw and can't make Opportunity Attacks until the start of your next turn." }
+          - { id: sundering-blow, label: Sundering Blow,
+              text: "The next attack roll by another creature against the target before your next turn gains +5." }
+  # level 17 heading (same name)
+  - modify: { target: $#brutal-strike, at: 17, set: { offer.damage.dice: 2d10, offer.pick: 2 } }
+Persistent Rage:
+  - trigger: { event: { roll: initiative }, per: long, offer: { regain: { resource: $#rages, to: max } } }
+  - modify: { target: $#rage, set: { duration: { amount: 10, unit: minute }, ends-when: [{ armor: heavy }, { condition: unconscious }] } }
+Indomitable Might:
+  - roll-floor: { roll: [check:str, save:str], total-min: score:str }
+Epic Boon:
+  - choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-irresistible-offense }
+Primal Champion:
+  - score: { str: 4, con: 4, max: 25 }

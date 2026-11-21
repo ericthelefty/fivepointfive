@@ -1,0 +1,27 @@
+# entry: srd/hunter
+Hunter’s Lore:
+  - modify: { target: $srd/spells/hunters-mark, add: { text: "You know the marked creature's Immunities, Resistances and Vulnerabilities." } }
+Hunter’s Prey:
+  - choose: { id: hunters-prey, kind: option, swap: { at: [short, long], count: all }, options: { headings-under: Hunter’s Prey } }
+Colossus Slayer:
+  - option: { of: $#hunters-prey }
+  - trigger: { event: hit, scope: { weapon: {} }, per: turn, auto: true, if: "The target is missing any of its Hit Points",
+               offer: { damage: { dice: 1d8, type: weapon } } }
+Horde Breaker:
+  - option: { of: $#hunters-prey }
+  - trigger: { event: attack, scope: { weapon: {} }, per: turn,
+               offer: { text: "Make another attack with the same weapon against a different creature within 5 feet of the original target that you haven't attacked this turn." } }
+Defensive Tactics:
+  - choose: { id: defensive-tactics, kind: option, swap: { at: [short, long], count: all }, options: { headings-under: Defensive Tactics } }
+Escape the Horde:
+  - option: { of: $#defensive-tactics }
+  - disadvantage: { roll: attacks-against-you, scope: { source: opportunity-attack } }
+Multiattack Defense:
+  - option: { of: $#defensive-tactics }
+  - trigger: { event: hit-by, auto: true, offer: { text: "That creature has Disadvantage on its other attack rolls against you this turn." } }
+Superior Hunter’s Prey:
+  - trigger: { event: deal-damage, scope: { against: { target: { marked-by: $srd/spells/hunters-mark } } }, per: turn,
+               offer: { text: "Deal Hunter's Mark's extra damage to a different creature you can see within 30 feet of the first." } }
+Superior Hunter’s Defense:
+  - trigger: { event: damaged, reaction: true,
+               offer: { apply: { duration: { until: end-of-turn }, effects: [ { defense: { resistance: [damage-taken.type] } } ] } } }

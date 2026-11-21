@@ -1,0 +1,96 @@
+# entry: srd/sorcerer
+Core Sorcerer Traits:
+  - hit-die: d6
+  - proficiency: [save:con, save:cha, weapon:simple]
+  - choose: { id: skills, kind: skill, count: 2, grants: proficiency, from: [arcana, deception, insight, intimidation, persuasion, religion] }
+  - multiclass: [hit-die]
+  - equipment:
+      options:
+        - { id: a, items: [spear, { dagger: 2 }, arcane-focus, dungeoneers-pack], gp: 28 }
+        - { id: b, gp: 50 }
+Spellcasting:
+  - spellcasting: { ability: cha, progression: full, list: sorcerer, focus: arcane-focus,
+                    cantrips: table:Cantrips, prepared: table:Prepared Spells, change: { prepared: level-up, cantrips: level-up } }
+  - choose: { id: cantrips, kind: spell, count: table:Cantrips, from: { spell: { list: sorcerer, level: 0 } }, swap: { at: level-up, count: 1 },
+              default: [$srd/spells/light, $srd/spells/prestidigitation, $srd/spells/shocking-grasp, $srd/spells/sorcerous-burst] }
+Innate Sorcery:
+  - resource: { id: innate-sorcery, max: 2, reset: long }
+  - toggle:
+      id: innate-sorcery
+      activation: bonus
+      cost: { resource: $#innate-sorcery }
+      duration: { amount: 1, unit: minute }
+      effects:
+        - bonus: { to: spell:dc, value: 1, scope: { spell: { list: sorcerer } } }
+        - advantage: { roll: attack, scope: { spell: { list: sorcerer } } }
+Font of Magic:
+  - resource: { id: sorcery-points, max: table:Sorcery Points, reset: long }
+  - convert: { from: { slot: any }, to: { resource: $#sorcery-points, amount: cost.slot }, activation: none }
+  - convert:
+      from: { resource: $#sorcery-points, amount: "table:Creating Spell Slots.Sorcery Point Cost" }
+      to: { slot: "table:Creating Spell Slots.Spell Slot Level", max-slot: 5, min-level: "table:Creating Spell Slots.Min. Sorcerer Level", expires: long }
+      activation: bonus
+Metamagic:
+  - choose: { id: metamagic, kind: option, count: { steps: { 2: 2, 10: 4, 17: 6 } }, swap: { at: level-up, count: 1 },
+              options: { headings-under: Metamagic Options }, limit: { per: cast, count: 1 } }
+Sorcerer Subclass:
+  - choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/sorcerer } } }
+Ability Score Improvement:
+  - choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+Sorcerous Restoration:
+  - trigger: { event: { rest: short }, per: long, offer: { regain: { resource: $#sorcery-points, amount: half(level:sorcerer) } } }
+Sorcery Incarnate:
+  - convert: { from: { resource: $#sorcery-points, amount: 2 }, to: { resource: $#innate-sorcery, amount: 1 }, activation: none, if-empty: true }
+  - modify: { target: $#metamagic, set: { limit.count: 2 }, when: { active: $#innate-sorcery } }
+Epic Boon:
+  - choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-dimensional-travel }
+Arcane Apotheosis:
+  - modify: { target: $#metamagic, set: { free: { per: turn, count: 1 } }, when: { active: $#innate-sorcery } }
+
+# --- Metamagic options (each under its own ### heading) ---
+Careful Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: cast, group: metamagic, scope: { spell: { save: any } },
+               offer: { cost: { resource: $#sorcery-points, amount: 1 },
+                        text: "Up to max(1, CHA mod) creatures auto-succeed on the save and take no damage on a half-on-success save." } }
+Distant Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: cast, group: metamagic, scope: { spell: { range: ">= 5" } },
+               offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { range: "2 * spell.range" } } }
+  - trigger: { event: cast, group: metamagic, scope: { spell: { range: touch } },
+               offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { range: 30 } } }
+Empowered Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: { roll: damage }, group: metamagic, group-exempt: true, scope: { spell: {} },
+               offer: { cost: { resource: $#sorcery-points, amount: 1 }, reroll: { dice: "max(1, mod:cha)" }, must-use-new: true } }
+Extended Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: cast, group: metamagic, scope: { spell: { duration: ">= 1 minute" } },
+               offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { duration: "min(2 * spell.duration, 24 hour)" },
+                        text: "Advantage on saves to keep Concentration on it." } }
+Heightened Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: cast, group: metamagic, scope: { spell: { save: any } },
+               offer: { cost: { resource: $#sorcery-points, amount: 2 }, text: "One target has Disadvantage on saves against the spell." } }
+Quickened Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: cast, group: metamagic, scope: { spell: { casting-time: action } },
+               if: "You haven't cast a level 1+ spell this turn (and can't after)",
+               offer: { cost: { resource: $#sorcery-points, amount: 2 }, spell: { casting-time: bonus } } }
+Seeking Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: miss, group: metamagic, group-exempt: true, scope: { spell: {} },
+               offer: { cost: { resource: $#sorcery-points, amount: 1 }, reroll: true, must-use-new: true } }
+Subtle Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: cast, group: metamagic,
+               offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { components: [], keep-costly-material: true } } }
+Transmuted Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: cast, group: metamagic, scope: { spell: { deals: [acid, cold, fire, lightning, poison, thunder] } },
+               offer: { cost: { resource: $#sorcery-points, amount: 1 },
+                        spell: { damage-type: { choose-on-use: [acid, cold, fire, lightning, poison, thunder] } } } }
+Twinned Spell:
+  - option: { of: $#metamagic }
+  - trigger: { event: cast, group: metamagic, scope: { spell: { scales: targets } },
+               offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { slot-level: slot-level + 1 } } }

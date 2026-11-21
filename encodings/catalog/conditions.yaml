@@ -1,0 +1,67 @@
+# Conditions (glossary). Blocks apply to the creature that has the condition. `condition: [x]` elsewhere switches these on.
+blinded:
+  - auto-fail: { roll: check:all, when: { player: "Requires sight" } }
+  - advantage: { roll: attacks-against-you }
+  - disadvantage: { roll: attack }
+charmed:
+  - trait: [cant-harm-charmer]
+  - note: { stat: check:cha, text: "The charmer has Advantage on social checks against you." }
+deafened:
+  - auto-fail: { roll: check:all, when: { player: "Requires hearing" } }
+exhaustion:
+  - resource: { id: exhaustion-level, builtin: exhaustion, max: 6, on-max: death, regain: { event: { rest: long }, amount: -1 } }
+  - bonus: { to: d20, value: "-2 * exhaustion" }
+  - bonus: { to: speed:all, value: "-5 * exhaustion" }
+frightened:
+  - disadvantage: { roll: [check:all, attack], when: { player: "The source of fear is in line of sight" } }
+  - trait: [cant-approach-fear-source]
+grappled:
+  - set: { to: speed:all, value: 0, mode: override, locked: true }
+  - disadvantage: { roll: attack, scope: { against: { target: not-grappler } } }
+incapacitated:
+  - trait: [no-action, no-bonus-action, no-reaction, cant-speak]
+  - breaks-concentration: true
+  - disadvantage: { roll: initiative }
+invisible:
+  - advantage: { roll: initiative }
+  - disadvantage: { roll: attacks-against-you, when: { player: "The attacker can't see you" } }
+  - advantage: { roll: attack, when: { player: "The target can't see you" } }
+  - trait: [concealed]
+paralyzed:
+  - condition: [incapacitated]
+  - set: { to: speed:all, value: 0, mode: override, locked: true }
+  - auto-fail: { roll: [save:str, save:dex] }
+  - advantage: { roll: attacks-against-you }
+  - treat-roll: { roll: hits-against-you, as: crit, when: { player: "The attacker is within 5 feet" } }
+petrified:
+  - condition: [incapacitated]
+  - set: { to: speed:all, value: 0, mode: override, locked: true }
+  - advantage: { roll: attacks-against-you }
+  - auto-fail: { roll: [save:str, save:dex] }
+  - defense: { resistance: [all], condition-immunity: [poisoned] }
+  - trait: { text: "Turned to stone with nonmagical gear; weight ×10; doesn't age." }
+poisoned:
+  - disadvantage: { roll: [attack, check:all] }
+prone:
+  - trait: { text: "Only crawl, or spend half your Speed to stand (not at Speed 0)." }
+  - disadvantage: { roll: attack }
+  - advantage: { roll: attacks-against-you, when: { player: "The attacker is within 5 feet" } }
+  - disadvantage: { roll: attacks-against-you, when: { player: "The attacker is more than 5 feet away" } }
+restrained:
+  - set: { to: speed:all, value: 0, mode: override, locked: true }
+  - advantage: { roll: attacks-against-you }
+  - disadvantage: { roll: [attack, save:dex] }
+stunned:
+  - condition: [incapacitated]
+  - auto-fail: { roll: [save:str, save:dex] }
+  - advantage: { roll: attacks-against-you }
+unconscious:
+  - condition: [incapacitated, prone]
+  - set: { to: speed:all, value: 0, mode: override, locked: true }
+  - auto-fail: { roll: [save:str, save:dex] }
+  - advantage: { roll: attacks-against-you }
+  - treat-roll: { roll: hits-against-you, as: crit, when: { player: "The attacker is within 5 feet" } }
+  - trait: [drops-held-items, unaware]
+burning:
+  - trigger: { event: start-of-turn, auto: true, offer: { damage: { dice: 1d4, type: fire } } }
+  - action: { activation: action, effects: [ { condition: [prone] } ], end-effect: true, text: "Roll on the ground to put out the fire." }

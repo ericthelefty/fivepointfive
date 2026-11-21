@@ -1,0 +1,2428 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ericthelefty/fivepointfive/modif/modif.schema.json",
+ "title": "Modif effects (one entry: feature heading -> list of blocks)",
+ "type": "object",
+ "additionalProperties": {
+  "type": "array",
+  "items": {
+   "$ref": "#/$defs/block"
+  }
+ },
+ "$defs": {
+  "timed": {
+   "type": "object",
+   "properties": {
+    "amount": {},
+    "unit": {
+     "enum": [
+      "round",
+      "turn",
+      "minute",
+      "hour",
+      "day",
+      "year",
+      "hp",
+      "feet-of-movement"
+     ]
+    }
+   },
+   "required": [
+    "amount",
+    "unit"
+   ],
+   "additionalProperties": false
+  },
+  "block": {
+   "type": "object",
+   "minProperties": 1,
+   "maxProperties": 1,
+   "additionalProperties": false,
+   "properties": {
+    "action": {
+     "type": "object",
+     "properties": {
+      "ability": {
+       "anyOf": [
+        {
+         "anyOf": [
+          {
+           "enum": [
+            "str",
+            "dex",
+            "con",
+            "int",
+            "wis",
+            "cha"
+           ]
+          },
+          {
+           "type": "string",
+           "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+          },
+          {
+           "type": "object"
+          }
+         ]
+        },
+        {
+         "type": "array",
+         "items": {
+          "anyOf": [
+           {
+            "enum": [
+             "str",
+             "dex",
+             "con",
+             "int",
+             "wis",
+             "cha"
+            ]
+           },
+           {
+            "type": "string",
+            "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+           },
+           {
+            "type": "object"
+           }
+          ]
+         }
+        }
+       ]
+      },
+      "activation": {
+       "anyOf": [
+        {
+         "enum": [
+          "action",
+          "bonus",
+          "reaction",
+          "magic",
+          "none",
+          "replace-attack",
+          "attack-action",
+          "forgo-attack",
+          "start-of-turn",
+          "attack",
+          "dash",
+          "disengage",
+          "dodge",
+          "help",
+          "hide",
+          "influence",
+          "magic",
+          "ready",
+          "search",
+          "study",
+          "utilize"
+         ]
+        },
+        {
+         "$ref": "#/$defs/timed"
+        },
+        {
+         "type": "array",
+         "items": {
+          "enum": [
+           "action",
+           "bonus",
+           "reaction",
+           "magic",
+           "none",
+           "replace-attack",
+           "attack-action",
+           "forgo-attack",
+           "start-of-turn",
+           "attack",
+           "dash",
+           "disengage",
+           "dodge",
+           "help",
+           "hide",
+           "influence",
+           "magic",
+           "ready",
+           "search",
+           "study",
+           "utilize"
+          ]
+         }
+        }
+       ]
+      },
+      "apply": {
+       "$ref": "#/$defs/apply"
+      },
+      "area": {},
+      "at": {},
+      "attack": {},
+      "auto-succeed": {},
+      "becomes": {},
+      "branch": {},
+      "cast": {},
+      "cast-at": {},
+      "cast-options": {},
+      "check": {},
+      "choose": {},
+      "choose-one": {},
+      "consume": {},
+      "cost": {
+       "$ref": "#/$defs/cost"
+      },
+      "counter": {},
+      "creates": {},
+      "damage": {},
+      "damage-ability-mod": {},
+      "damage-type": {},
+      "dc": {},
+      "delay": {},
+      "dispel": {},
+      "duration": {},
+      "effects": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "end-effect": {},
+      "ends-when": {},
+      "exhaustion": {},
+      "give": {},
+      "grant-rest": {},
+      "grows": {},
+      "heal": {},
+      "id": {},
+      "if": {},
+      "label": {},
+      "level": {},
+      "limit": {},
+      "lockout": {},
+      "move": {},
+      "on-failure": {},
+      "on-hit": {},
+      "on-miss": {},
+      "on-success": {},
+      "overrides": {},
+      "per": {},
+      "preset": {},
+      "range": {},
+      "reduce-hp-max": {},
+      "regain": {},
+      "remove-condition": {},
+      "repeat": {},
+      "requires": {},
+      "revive": {},
+      "roll-table": {},
+      "save": {
+       "$ref": "#/$defs/save"
+      },
+      "scope": {},
+      "stabilize": {},
+      "summon": {},
+      "table": {},
+      "take": {
+       "anyOf": [
+        {
+         "enum": [
+          "attack",
+          "dash",
+          "disengage",
+          "dodge",
+          "help",
+          "hide",
+          "influence",
+          "magic",
+          "ready",
+          "search",
+          "study",
+          "utilize"
+         ]
+        },
+        {
+         "type": "array",
+         "items": {
+          "enum": [
+           "attack",
+           "dash",
+           "disengage",
+           "dodge",
+           "help",
+           "hide",
+           "influence",
+           "magic",
+           "ready",
+           "search",
+           "study",
+           "utilize"
+          ]
+         }
+        }
+       ]
+      },
+      "target": {},
+      "targets": {
+       "$ref": "#/$defs/targets"
+      },
+      "temp-hp": {},
+      "text": {},
+      "then": {},
+      "use-ability": {},
+      "variant": {},
+      "when": {},
+      "zone": {}
+     },
+     "additionalProperties": false
+    },
+    "advantage": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "once": {},
+      "per": {},
+      "roll": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "aura": {
+     "type": "object",
+     "properties": {
+      "affects": {},
+      "area": {},
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "effects": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "id": {},
+      "inactive-when": {},
+      "label": {},
+      "level": {},
+      "moves": {},
+      "per": {},
+      "scope": {},
+      "stacking": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "auto-fail": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "roll": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "base": {
+     "type": "object",
+     "properties": {
+      "allow-shield": {},
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "to": {},
+      "value": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "bonus": {
+     "type": "object",
+     "properties": {
+      "also-current": {},
+      "at": {},
+      "counter": {},
+      "decays": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "once": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "to": {},
+      "type": {},
+      "value": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "breaks-concentration": {},
+    "cancel-advantage": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "roll": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "cast-list": {
+     "type": "object",
+     "properties": {
+      "ability": {
+       "anyOf": [
+        {
+         "anyOf": [
+          {
+           "enum": [
+            "str",
+            "dex",
+            "con",
+            "int",
+            "wis",
+            "cha"
+           ]
+          },
+          {
+           "type": "string",
+           "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+          },
+          {
+           "type": "object"
+          }
+         ]
+        },
+        {
+         "type": "array",
+         "items": {
+          "anyOf": [
+           {
+            "enum": [
+             "str",
+             "dex",
+             "con",
+             "int",
+             "wis",
+             "cha"
+            ]
+           },
+           {
+            "type": "string",
+            "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+           },
+           {
+            "type": "object"
+           }
+          ]
+         }
+        }
+       ]
+      },
+      "at": {},
+      "counter": {},
+      "dc": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "pay-from": {},
+      "per": {},
+      "scope": {},
+      "spells": {},
+      "table": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "charges": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "destroy-on": {},
+      "duration": {},
+      "id": {},
+      "kinds": {},
+      "label": {},
+      "level": {},
+      "max": {},
+      "per": {},
+      "recharge": {},
+      "scope": {},
+      "start": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "choose": {
+     "type": "object",
+     "properties": {
+      "amounts": {},
+      "at": {},
+      "count": {},
+      "counter": {},
+      "default": {},
+      "distinct": {},
+      "duration": {},
+      "from": {},
+      "grants": {},
+      "id": {},
+      "kind": {},
+      "label": {},
+      "level": {},
+      "limit": {},
+      "max": {},
+      "options": {},
+      "per": {},
+      "scope": {},
+      "swap": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "condition": {},
+    "container": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "capacity": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "weight": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "convert": {
+     "type": "object",
+     "properties": {
+      "activation": {
+       "anyOf": [
+        {
+         "enum": [
+          "action",
+          "bonus",
+          "reaction",
+          "magic",
+          "none",
+          "replace-attack",
+          "attack-action",
+          "forgo-attack",
+          "start-of-turn",
+          "attack",
+          "dash",
+          "disengage",
+          "dodge",
+          "help",
+          "hide",
+          "influence",
+          "magic",
+          "ready",
+          "search",
+          "study",
+          "utilize"
+         ]
+        },
+        {
+         "$ref": "#/$defs/timed"
+        },
+        {
+         "type": "array",
+         "items": {
+          "enum": [
+           "action",
+           "bonus",
+           "reaction",
+           "magic",
+           "none",
+           "replace-attack",
+           "attack-action",
+           "forgo-attack",
+           "start-of-turn",
+           "attack",
+           "dash",
+           "disengage",
+           "dodge",
+           "help",
+           "hide",
+           "influence",
+           "magic",
+           "ready",
+           "search",
+           "study",
+           "utilize"
+          ]
+         }
+        }
+       ]
+      },
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "from": {},
+      "id": {},
+      "if-empty": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "to": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "craft": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "items": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "crit-range": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "value": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "curse": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "effects": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "ends": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "prevents": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "damage-die": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "die": {},
+      "duration": {},
+      "id": {},
+      "if-higher": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "type": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "damage-type": {
+     "type": "object",
+     "properties": {
+      "add-option": {},
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "replace": {},
+      "scope": {},
+      "text": {},
+      "when": {},
+      "with": {}
+     },
+     "additionalProperties": false
+    },
+    "defense": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "condition-immunity": {},
+      "counter": {},
+      "duration": {},
+      "except": {},
+      "id": {},
+      "immunity": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "resistance": {},
+      "scope": {},
+      "text": {},
+      "vulnerability": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "die-floor": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "min": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "disadvantage": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "once": {},
+      "per": {},
+      "roll": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "equipment": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "options": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "expertise": {},
+    "extra-attack": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "total": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "form": {
+     "type": "object",
+     "properties": {
+      "activation": {
+       "anyOf": [
+        {
+         "enum": [
+          "action",
+          "bonus",
+          "reaction",
+          "magic",
+          "none",
+          "replace-attack",
+          "attack-action",
+          "forgo-attack",
+          "start-of-turn",
+          "attack",
+          "dash",
+          "disengage",
+          "dodge",
+          "help",
+          "hide",
+          "influence",
+          "magic",
+          "ready",
+          "search",
+          "study",
+          "utilize"
+         ]
+        },
+        {
+         "$ref": "#/$defs/timed"
+        },
+        {
+         "type": "array",
+         "items": {
+          "enum": [
+           "action",
+           "bonus",
+           "reaction",
+           "magic",
+           "none",
+           "replace-attack",
+           "attack-action",
+           "forgo-attack",
+           "start-of-turn",
+           "attack",
+           "dash",
+           "disengage",
+           "dodge",
+           "help",
+           "hide",
+           "influence",
+           "magic",
+           "ready",
+           "search",
+           "study",
+           "utilize"
+          ]
+         }
+        }
+       ]
+      },
+      "at": {},
+      "blocks": {},
+      "choose": {},
+      "choose-one": {},
+      "cost": {
+       "$ref": "#/$defs/cost"
+      },
+      "counter": {},
+      "duration": {},
+      "effects": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "ends-when": {},
+      "id": {},
+      "if": {},
+      "keeps": {},
+      "label": {},
+      "leave": {},
+      "level": {},
+      "per": {},
+      "repeat": {},
+      "replaces": {},
+      "save": {
+       "$ref": "#/$defs/save"
+      },
+      "scope": {},
+      "target": {},
+      "targets": {
+       "$ref": "#/$defs/targets"
+      },
+      "temp-hp": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "grant-spell": {
+     "type": "object",
+     "properties": {
+      "ability": {
+       "anyOf": [
+        {
+         "anyOf": [
+          {
+           "enum": [
+            "str",
+            "dex",
+            "con",
+            "int",
+            "wis",
+            "cha"
+           ]
+          },
+          {
+           "type": "string",
+           "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+          },
+          {
+           "type": "object"
+          }
+         ]
+        },
+        {
+         "type": "array",
+         "items": {
+          "anyOf": [
+           {
+            "enum": [
+             "str",
+             "dex",
+             "con",
+             "int",
+             "wis",
+             "cha"
+            ]
+           },
+           {
+            "type": "string",
+            "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+           },
+           {
+            "type": "object"
+           }
+          ]
+         }
+        }
+       ]
+      },
+      "at": {},
+      "at-will": {},
+      "auto-succeed": {},
+      "cast-at": {},
+      "choose": {},
+      "counter": {},
+      "counts-as": {},
+      "counts-as-known": {},
+      "duration": {},
+      "free": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "maximize": {},
+      "overrides": {},
+      "per": {},
+      "prepared": {},
+      "ritual": {},
+      "scope": {},
+      "spell": {},
+      "target": {},
+      "text": {},
+      "uses-slot": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "half-proficiency": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "unless": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "hit-die": {},
+    "ignore-resistance": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "damage": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "language": {},
+    "limit": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "of": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {},
+      "worn": {}
+     },
+     "additionalProperties": false
+    },
+    "mastery": {},
+    "maximize": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "modify": {
+     "type": "object",
+     "properties": {
+      "add": {},
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "max": {},
+      "per": {},
+      "scope": {},
+      "set": {},
+      "target": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "multiclass": {},
+    "narrative": {},
+    "note": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "stat": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "option": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "of": {},
+      "per": {},
+      "prerequisite": {},
+      "repeatable": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "poison": {
+     "type": "object",
+     "properties": {
+      "apply": {
+       "$ref": "#/$defs/apply"
+      },
+      "at": {},
+      "counter": {},
+      "damage": {},
+      "delay": {},
+      "delivery": {
+       "enum": [
+        "contact",
+        "ingested",
+        "inhaled",
+        "injury"
+       ]
+      },
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "neutralized-by": {},
+      "on-fail-by": {},
+      "on-failure": {},
+      "on-success": {},
+      "per": {},
+      "save": {
+       "$ref": "#/$defs/save"
+      },
+      "scope": {},
+      "text": {},
+      "then": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "proficiency": {},
+    "remove-condition": {},
+    "replace": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "optional": {},
+      "per": {},
+      "scope": {},
+      "target": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "reroll": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "dice": {},
+      "duration": {},
+      "id": {},
+      "if": {},
+      "keep": {},
+      "label": {},
+      "level": {},
+      "must-use-new": {},
+      "per": {},
+      "roll": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "resource": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "builtin": {},
+      "counter": {},
+      "die": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "lifetime": {},
+      "max": {},
+      "on-max": {},
+      "partial": {},
+      "per": {},
+      "per-property": {},
+      "regain": {},
+      "reset": {},
+      "scope": {},
+      "shared-with": {},
+      "spend": {},
+      "start": {},
+      "text": {},
+      "unit": {
+       "enum": [
+        "round",
+        "turn",
+        "minute",
+        "hour",
+        "day",
+        "year",
+        "hp",
+        "feet-of-movement"
+       ]
+      },
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "rest": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "kind": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "regain": {},
+      "scope": {},
+      "spend": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "roll-floor": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "min": {},
+      "optional": {},
+      "per": {},
+      "roll": {},
+      "scope": {},
+      "text": {},
+      "total-min": {},
+      "when": {},
+      "when-proficient": {}
+     },
+     "additionalProperties": false
+    },
+    "save-rule": {
+     "type": "object",
+     "properties": {
+      "ability": {
+       "anyOf": [
+        {
+         "anyOf": [
+          {
+           "enum": [
+            "str",
+            "dex",
+            "con",
+            "int",
+            "wis",
+            "cha"
+           ]
+          },
+          {
+           "type": "string",
+           "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+          },
+          {
+           "type": "object"
+          }
+         ]
+        },
+        {
+         "type": "array",
+         "items": {
+          "anyOf": [
+           {
+            "enum": [
+             "str",
+             "dex",
+             "con",
+             "int",
+             "wis",
+             "cha"
+            ]
+           },
+           {
+            "type": "string",
+            "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+           },
+           {
+            "type": "object"
+           }
+          ]
+         }
+        }
+       ]
+      },
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "failure": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "miss": {},
+      "per": {},
+      "scope": {},
+      "success": {
+       "enum": [
+        "half",
+        "none",
+        "special"
+       ]
+      },
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "scaling": {
+     "type": "object",
+     "properties": {
+      "add": {},
+      "at": {},
+      "cantrip": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "multiply": {},
+      "per": {},
+      "per-slot-above": {},
+      "scope": {},
+      "slots": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "score": {},
+    "score-max": {},
+    "self-effects": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "effects": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "ends-when": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "on-end": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "sense": {},
+    "set": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "locked": {},
+      "mode": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "to": {},
+      "value": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "size": {},
+    "speed": {},
+    "spell-list": {
+     "type": "object",
+     "properties": {
+      "add-to": {},
+      "at": {},
+      "by-choice": {},
+      "by-level": {},
+      "choose-again": {},
+      "class": {},
+      "count": {},
+      "counter": {},
+      "duration": {},
+      "from": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "prepared": {},
+      "scope": {},
+      "table": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "spellcasting": {
+     "type": "object",
+     "properties": {
+      "ability": {
+       "anyOf": [
+        {
+         "anyOf": [
+          {
+           "enum": [
+            "str",
+            "dex",
+            "con",
+            "int",
+            "wis",
+            "cha"
+           ]
+          },
+          {
+           "type": "string",
+           "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+          },
+          {
+           "type": "object"
+          }
+         ]
+        },
+        {
+         "type": "array",
+         "items": {
+          "anyOf": [
+           {
+            "enum": [
+             "str",
+             "dex",
+             "con",
+             "int",
+             "wis",
+             "cha"
+            ]
+           },
+           {
+            "type": "string",
+            "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+           },
+           {
+            "type": "object"
+           }
+          ]
+         }
+        }
+       ]
+      },
+      "at": {},
+      "cantrips": {},
+      "change": {},
+      "class": {},
+      "counter": {},
+      "duration": {},
+      "focus": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "limit": {},
+      "list": {},
+      "per": {},
+      "prepared": {},
+      "progression": {},
+      "ritual": {},
+      "scope": {},
+      "slot-level": {},
+      "slots": {},
+      "spellbook": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "summon": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "control": {},
+      "count": {},
+      "count-rule": {},
+      "counter": {},
+      "creature": {},
+      "duration": {},
+      "id": {},
+      "initiative": {},
+      "label": {},
+      "level": {},
+      "limit": {},
+      "overrides": {},
+      "per": {},
+      "scope": {},
+      "stat-level": {},
+      "text": {},
+      "type-override": {},
+      "variant": {},
+      "via": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "suppress": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "target": {},
+      "text": {},
+      "until": {
+       "anyOf": [
+        {
+         "enum": [
+          "dawn",
+          "end-of-next-turn",
+          "end-of-target-next-turn",
+          "end-of-target-turn",
+          "end-of-turn",
+          "long-rest",
+          "midnight",
+          "start-of-next-turn",
+          "start-of-target-next-turn"
+         ]
+        },
+        {
+         "type": "object"
+        }
+       ]
+      },
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "target-effects": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "choose-one": {},
+      "counter": {},
+      "duration": {},
+      "effects": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "ends-when": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "on-end": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "toggle": {
+     "type": "object",
+     "properties": {
+      "activation": {
+       "anyOf": [
+        {
+         "enum": [
+          "action",
+          "bonus",
+          "reaction",
+          "magic",
+          "none",
+          "replace-attack",
+          "attack-action",
+          "forgo-attack",
+          "start-of-turn",
+          "attack",
+          "dash",
+          "disengage",
+          "dodge",
+          "help",
+          "hide",
+          "influence",
+          "magic",
+          "ready",
+          "search",
+          "study",
+          "utilize"
+         ]
+        },
+        {
+         "$ref": "#/$defs/timed"
+        },
+        {
+         "type": "array",
+         "items": {
+          "enum": [
+           "action",
+           "bonus",
+           "reaction",
+           "magic",
+           "none",
+           "replace-attack",
+           "attack-action",
+           "forgo-attack",
+           "start-of-turn",
+           "attack",
+           "dash",
+           "disengage",
+           "dodge",
+           "help",
+           "hide",
+           "influence",
+           "magic",
+           "ready",
+           "search",
+           "study",
+           "utilize"
+          ]
+         }
+        }
+       ]
+      },
+      "at": {},
+      "blocks": {},
+      "choose": {},
+      "choose-one": {},
+      "cost": {
+       "$ref": "#/$defs/cost"
+      },
+      "counter": {},
+      "duration": {},
+      "effects": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "ends-when": {},
+      "id": {},
+      "if": {},
+      "label": {},
+      "leave": {},
+      "level": {},
+      "lockout": {},
+      "move": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "trait": {},
+    "treat-roll": {
+     "type": "object",
+     "properties": {
+      "as": {},
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "optional": {},
+      "per": {},
+      "range": {},
+      "roll": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "trigger": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "auto": {},
+      "counter": {},
+      "dc": {},
+      "duration": {},
+      "event": {},
+      "group": {},
+      "group-exempt": {},
+      "id": {},
+      "if": {},
+      "if-roll": {},
+      "label": {},
+      "level": {},
+      "offer": {},
+      "per": {},
+      "pick": {},
+      "reaction": {},
+      "scope": {},
+      "text": {},
+      "when": {},
+      "who": {
+       "$ref": "#/$defs/who"
+      }
+     },
+     "additionalProperties": false
+    },
+    "use-ability": {
+     "type": "object",
+     "properties": {
+      "ability": {
+       "anyOf": [
+        {
+         "anyOf": [
+          {
+           "enum": [
+            "str",
+            "dex",
+            "con",
+            "int",
+            "wis",
+            "cha"
+           ]
+          },
+          {
+           "type": "string",
+           "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+          },
+          {
+           "type": "object"
+          }
+         ]
+        },
+        {
+         "type": "array",
+         "items": {
+          "anyOf": [
+           {
+            "enum": [
+             "str",
+             "dex",
+             "con",
+             "int",
+             "wis",
+             "cha"
+            ]
+           },
+           {
+            "type": "string",
+            "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+           },
+           {
+            "type": "object"
+           }
+          ]
+         }
+        }
+       ]
+      },
+      "at": {},
+      "choose": {},
+      "counter": {},
+      "duration": {},
+      "for": {},
+      "id": {},
+      "instead-of": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "same-for-both": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "variant": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "by": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "roll": {},
+      "scope": {},
+      "table": {},
+      "text": {},
+      "values": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "weapon-property": {
+     "type": "object",
+     "properties": {
+      "add": {},
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "remove": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
+    "weapon-rule": {},
+    "zone": {
+     "type": "object",
+     "properties": {
+      "affects": {},
+      "apply": {
+       "$ref": "#/$defs/apply"
+      },
+      "area": {},
+      "at": {},
+      "by-turn": {},
+      "choose": {},
+      "choose-one": {},
+      "counter": {},
+      "damage": {},
+      "duration": {},
+      "effects": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/block"
+       }
+      },
+      "ends-after": {},
+      "event": {},
+      "heal": {},
+      "id": {},
+      "if": {},
+      "label": {},
+      "level": {},
+      "moves": {},
+      "on-failure": {},
+      "on-success": {},
+      "per": {},
+      "reach": {},
+      "save": {
+       "$ref": "#/$defs/save"
+      },
+      "scope": {},
+      "side": {},
+      "table": {},
+      "text": {},
+      "then": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    }
+   }
+  },
+  "save": {
+   "type": "object",
+   "properties": {
+    "ability": {
+     "anyOf": [
+      {
+       "anyOf": [
+        {
+         "enum": [
+          "str",
+          "dex",
+          "con",
+          "int",
+          "wis",
+          "cha"
+         ]
+        },
+        {
+         "type": "string",
+         "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+        },
+        {
+         "type": "object"
+        }
+       ]
+      },
+      {
+       "type": "array",
+       "items": {
+        "anyOf": [
+         {
+          "enum": [
+           "str",
+           "dex",
+           "con",
+           "int",
+           "wis",
+           "cha"
+          ]
+         },
+         {
+          "type": "string",
+          "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+         },
+         {
+          "type": "object"
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "advantage": {},
+    "auto-fail": {},
+    "auto-succeed": {},
+    "dc": {},
+    "disadvantage": {},
+    "ignore-cover": {},
+    "modifiers": {},
+    "self": {},
+    "success": {
+     "enum": [
+      "half",
+      "none",
+      "special"
+     ]
+    },
+    "text": {},
+    "unwilling-only": {}
+   },
+   "additionalProperties": false
+  },
+  "apply": {
+   "type": "object",
+   "properties": {
+    "condition": {
+     "anyOf": [
+      {
+       "anyOf": [
+        {
+         "enum": [
+          "blinded",
+          "charmed",
+          "deafened",
+          "exhaustion",
+          "frightened",
+          "grappled",
+          "incapacitated",
+          "invisible",
+          "paralyzed",
+          "petrified",
+          "poisoned",
+          "prone",
+          "restrained",
+          "stunned",
+          "unconscious",
+          "burning",
+          "magical-sleep",
+          "bloodied",
+          "zero-hp"
+         ]
+        },
+        {
+         "type": "string",
+         "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+        },
+        {
+         "type": "object"
+        }
+       ]
+      },
+      {
+       "type": "array",
+       "items": {
+        "anyOf": [
+         {
+          "enum": [
+           "blinded",
+           "charmed",
+           "deafened",
+           "exhaustion",
+           "frightened",
+           "grappled",
+           "incapacitated",
+           "invisible",
+           "paralyzed",
+           "petrified",
+           "poisoned",
+           "prone",
+           "restrained",
+           "stunned",
+           "unconscious",
+           "burning",
+           "magical-sleep",
+           "bloodied",
+           "zero-hp"
+          ]
+         },
+         {
+          "type": "string",
+          "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+         },
+         {
+          "type": "object"
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "duration": {},
+    "effects": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/block"
+     }
+    },
+    "ends-when": {},
+    "escape": {},
+    "if": {},
+    "limit": {},
+    "save-ends": {},
+    "table": {},
+    "text": {},
+    "while": {}
+   },
+   "additionalProperties": false
+  },
+  "cost": {
+   "type": "object",
+   "properties": {
+    "amount": {},
+    "any": {},
+    "charges": {},
+    "count": {},
+    "dice-from": {},
+    "lockout": {},
+    "per-pick": {},
+    "resource": {},
+    "slot": {}
+   },
+   "additionalProperties": false
+  },
+  "targets": {
+   "type": "object",
+   "properties": {
+    "choose": {},
+    "condition": {
+     "anyOf": [
+      {
+       "anyOf": [
+        {
+         "enum": [
+          "blinded",
+          "charmed",
+          "deafened",
+          "exhaustion",
+          "frightened",
+          "grappled",
+          "incapacitated",
+          "invisible",
+          "paralyzed",
+          "petrified",
+          "poisoned",
+          "prone",
+          "restrained",
+          "stunned",
+          "unconscious",
+          "burning",
+          "magical-sleep",
+          "bloodied",
+          "zero-hp"
+         ]
+        },
+        {
+         "type": "string",
+         "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+        },
+        {
+         "type": "object"
+        }
+       ]
+      },
+      {
+       "type": "array",
+       "items": {
+        "anyOf": [
+         {
+          "enum": [
+           "blinded",
+           "charmed",
+           "deafened",
+           "exhaustion",
+           "frightened",
+           "grappled",
+           "incapacitated",
+           "invisible",
+           "paralyzed",
+           "petrified",
+           "poisoned",
+           "prone",
+           "restrained",
+           "stunned",
+           "unconscious",
+           "burning",
+           "magical-sleep",
+           "bloodied",
+           "zero-hp"
+          ]
+         },
+         {
+          "type": "string",
+          "pattern": "^(choice:|variant:|\\$|chosen$|spell-ability$)"
+         },
+         {
+          "type": "object"
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "count": {},
+    "creature": {},
+    "include-self": {},
+    "repeat": {},
+    "size": {},
+    "size-max": {},
+    "text": {},
+    "within": {}
+   },
+   "additionalProperties": false
+  },
+  "who": {
+   "type": "object",
+   "properties": {
+    "creature": {},
+    "range": {},
+    "see": {}
+   },
+   "additionalProperties": false
+  },
+  "enums": {
+   "conditions": [
+    "blinded",
+    "charmed",
+    "deafened",
+    "exhaustion",
+    "frightened",
+    "grappled",
+    "incapacitated",
+    "invisible",
+    "paralyzed",
+    "petrified",
+    "poisoned",
+    "prone",
+    "restrained",
+    "stunned",
+    "unconscious",
+    "burning",
+    "magical-sleep"
+   ],
+   "damage-types": [
+    "acid",
+    "bludgeoning",
+    "cold",
+    "fire",
+    "force",
+    "lightning",
+    "necrotic",
+    "piercing",
+    "poison",
+    "psychic",
+    "radiant",
+    "slashing",
+    "thunder",
+    "all"
+   ],
+   "abilities": [
+    "str",
+    "dex",
+    "con",
+    "int",
+    "wis",
+    "cha"
+   ],
+   "activation": [
+    "action",
+    "bonus",
+    "reaction",
+    "magic",
+    "none",
+    "replace-attack",
+    "attack-action",
+    "forgo-attack",
+    "start-of-turn",
+    "attack",
+    "dash",
+    "disengage",
+    "dodge",
+    "help",
+    "hide",
+    "influence",
+    "magic",
+    "ready",
+    "search",
+    "study",
+    "utilize"
+   ],
+   "shapes": [
+    "sphere",
+    "cube",
+    "cone",
+    "line",
+    "cylinder",
+    "emanation",
+    "square",
+    "circle",
+    "wall",
+    "ring",
+    "dome",
+    "globe",
+    "panels"
+   ],
+   "units": [
+    "round",
+    "turn",
+    "minute",
+    "hour",
+    "day",
+    "year",
+    "hp",
+    "feet-of-movement"
+   ],
+   "until": [
+    "dawn",
+    "end-of-next-turn",
+    "end-of-target-next-turn",
+    "end-of-target-turn",
+    "end-of-turn",
+    "long-rest",
+    "midnight",
+    "start-of-next-turn",
+    "start-of-target-next-turn"
+   ],
+   "reset": [
+    "short",
+    "long",
+    "dawn",
+    "dusk",
+    "initiative",
+    "never"
+   ],
+   "delivery": [
+    "contact",
+    "ingested",
+    "inhaled",
+    "injury"
+   ],
+   "events": [
+    "attack",
+    "cast",
+    "crit",
+    "damaged",
+    "deal-damage",
+    "end-of-turn",
+    "enter-area",
+    "every",
+    "fail",
+    "fall",
+    "forced-move",
+    "hit",
+    "hit-by",
+    "hit-first",
+    "leaves-reach",
+    "miss",
+    "reduce-to-zero",
+    "rest",
+    "roll",
+    "spend",
+    "start-of-turn",
+    "succeed",
+    "target-drops",
+    "targeted",
+    "use",
+    "zero-hp"
+   ],
+   "payloads": [
+    "add-roll",
+    "advantage",
+    "apply",
+    "attack",
+    "bonus",
+    "cast",
+    "check",
+    "choose-one",
+    "consume",
+    "cost",
+    "damage",
+    "damage-taken",
+    "effects",
+    "end-effect",
+    "exhaustion",
+    "heal",
+    "id",
+    "if",
+    "if-roll",
+    "instead-of-damage",
+    "label",
+    "maximize",
+    "move",
+    "must-use-new",
+    "on-failure",
+    "on-hit",
+    "on-success",
+    "pick",
+    "reaction",
+    "refund",
+    "regain",
+    "remove-condition",
+    "requires",
+    "reroll",
+    "roll",
+    "save",
+    "self-damage",
+    "set-hp",
+    "shift-bonus",
+    "spell",
+    "suppress",
+    "temp-hp",
+    "text",
+    "then",
+    "treat-as",
+    "turn-on"
+   ],
+   "when": [
+    "active",
+    "all",
+    "any",
+    "armor",
+    "armor-untrained",
+    "attuned",
+    "choice",
+    "class",
+    "condition",
+    "equipped",
+    "has",
+    "hp",
+    "in-combat",
+    "level",
+    "not",
+    "player",
+    "score",
+    "shield",
+    "species",
+    "speed",
+    "variant",
+    "weapon",
+    "wielding"
+   ],
+   "choose-kinds": [
+    "ability",
+    "damage-type",
+    "equipment",
+    "feat",
+    "item",
+    "language",
+    "option",
+    "size",
+    "skill",
+    "spell",
+    "subclass",
+    "tool",
+    "weapon"
+   ]
+  }
+ }
+}

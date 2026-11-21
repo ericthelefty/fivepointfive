@@ -1,0 +1,119 @@
+# Magic items batch 4 (iron-bands … potion-of-animal-friendship)
+iron-bands:
+  - resource: { id: iron-bands, max: 1, reset: dawn }
+  - action: { activation: magic, cost: { resource: $#iron-bands }, range: 60, targets: { count: 1, size-max: huge }, attack: { kind: ranged, bonus: mod:dex + prof },
+              on-hit: { apply: { condition: restrained, escape: { check: skill:athletics, dc: 20 }, text: "Until you release it (Bonus Action)" } } }
+iron-flask:
+  - action: { activation: magic, range: 60, targets: { count: 1, text: "Native to another plane" }, save: { ability: wis, dc: 17, advantage: { text: "Trapped by this flask before" } },
+              on-failure: { text: "Trapped in the flask." } }
+lantern-of-revealing:
+  - toggle: { activation: utilize, effects: [ { trait: { light: { bright: 30, dim: 30 } } }, { trait: { text: "Invisible creatures and objects in its Bright Light are visible." } } ] }
+luck-blade:
+  - bonus: { to: [attack, damage], value: 1, scope: { weapon: { id: self } } }
+  - bonus: { to: save:all, value: 1, when: { has: { item: self } } }
+  - resource: { id: luck, max: 1, reset: dawn }
+  - trigger: { event: { fail: d20 }, when: { not: { condition: incapacitated } }, offer: { reroll: true, must-use-new: true, cost: { resource: $#luck } } }
+  - charges: { max: 1d3, start: 1d3 }
+  - resource: { id: luck-wish, max: 1, reset: dawn }
+  - action: { cost: { charges: 1, resource: $#luck-wish }, cast: $srd/spells/wish }
+mace-of-disruption:
+  - trigger: { event: hit, scope: { weapon: { id: self }, against: { creature: [fiend, undead] } }, auto: true,
+               offer: { damage: { dice: 2d6, type: radiant }, then: { if: "target.hp <= 25", save: { ability: wis, dc: 15 },
+                        on-failure: { text: "Destroyed." }, on-success: { apply: { condition: frightened, duration: { until: end-of-next-turn } } } } } }
+  - trait: { light: { bright: 20, dim: 20 }, when: { wielding: self } }
+mace-of-smiting:
+  - bonus: { to: [attack, damage], value: 1, scope: { weapon: { id: self } } }
+  - bonus: { to: [attack, damage], value: 2, scope: { weapon: { id: self }, against: { creature: construct } } }
+  - trigger: { event: { roll: attack }, if-roll: 20, scope: { weapon: { id: self } }, auto: true,
+               offer: { damage: [ { dice: 7, type: bludgeoning }, { dice: 7, type: bludgeoning, if: "The target is a Construct" } ],
+                        then: { if: "A Construct with 25 HP or fewer", text: "Destroyed." } } }
+mace-of-terror:
+  - charges: { max: 3, recharge: { dice: 1d3, at: dawn } }
+  - action: { activation: magic, cost: { charges: 1 }, area: { shape: emanation, size: 30 }, targets: { choose: true }, save: { ability: wis, dc: 15 },
+              on-failure: { apply: { condition: frightened, duration: { amount: 1, unit: minute }, save-ends: end-of-turn,
+                text: "Moves away from you; no Opportunity Attacks; uses its action only to Dash or escape." } } }
+mantle-of-spell-resistance:
+  - advantage: { roll: save:all, scope: { source: spell } }
+manual-of-bodily-health:
+  - action: { activation: { amount: 48, unit: hour }, consume: true, effects: [ { score: { con: 2, max: 30 } } ] }
+manual-of-gainful-exercise:
+  - action: { activation: { amount: 48, unit: hour }, consume: true, effects: [ { score: { str: 2, max: 30 } } ] }
+manual-of-golems:
+  - narrative: true
+manual-of-quickness-of-action:
+  - action: { activation: { amount: 48, unit: hour }, consume: true, effects: [ { score: { dex: 2, max: 30 } } ] }
+marvelous-pigments:
+  - narrative: true
+medallion-of-thoughts:
+  - charges: { max: 5, recharge: { dice: 1d4, at: dawn } }
+  - action: { cost: { charges: 1 }, cast: $srd/spells/detect-thoughts, overrides: { dc: 13 } }
+mirror-of-life-trapping:
+  - narrative: true
+mysterious-deck:
+  - narrative: true
+necklace-of-adaptation:
+  - trait: [breathe-any-environment]
+  - advantage: { roll: save:all, scope: { against: { condition: poisoned } } }
+necklace-of-fireballs:
+  - charges: { max: 1d6 + 3, start: 1d6 + 3, destroy-on: { when: last-charge } }
+  - action: { activation: magic, cost: { charges: { min: 1 } }, cast: $srd/spells/fireball, cast-at: 3, overrides: { dc: 15 },
+              text: "+1d6 damage per extra bead thrown (max 12d6)." }
+necklace-of-prayer-beads:
+  - charges: { max: 1d4 + 2, start: 1d4 + 2, kinds: true, recharge: { at: dawn, to: max } }
+  - spellcasting: { focus: self }
+  - action: { activation: bonus, cost: { charges: { kind: blessing } }, cast: $srd/spells/bless }
+  - action: { activation: bonus, cost: { charges: { kind: curing } }, cast: { choose-on-use: [$srd/spells/cure-wounds, $srd/spells/lesser-restoration] }, cast-at: 2 }
+  - action: { activation: bonus, cost: { charges: { kind: favor } }, cast: $srd/spells/greater-restoration }
+  - action: { activation: bonus, cost: { charges: { kind: smiting } }, cast: $srd/spells/shining-smite }
+  - action: { activation: bonus, cost: { charges: { kind: summons } }, cast: $srd/spells/guardian-of-faith }
+  - action: { activation: bonus, cost: { charges: { kind: wind-walking } }, cast: $srd/spells/wind-walk }
+nine-lives-stealer:
+  - bonus: { to: [attack, damage], value: 2, scope: { weapon: { id: self } } }
+  - charges: { max: 1d8 + 1, start: 1d8 + 1 }
+  - trigger: { event: { roll: attack }, if-roll: 20, scope: { weapon: { id: self } }, if: "The target has fewer than 100 HP",
+               offer: { save: { ability: con, dc: 15, auto-succeed: { creature: [construct, undead] } }, on-failure: { text: "Slain instantly." }, cost: { charges: 1 } } }
+oathbow:
+  - action: { activation: none, if: "When you make a ranged attack with it", text: "Name the target your sworn enemy (until it dies or dawn 7 days later; one at a time)." }
+  - advantage: { roll: attack, scope: { weapon: { id: self }, against: { target: sworn-enemy } } }
+  - trigger: { event: hit, scope: { weapon: { id: self }, against: { target: sworn-enemy } }, auto: true, offer: { damage: { dice: 3d6, type: piercing } } }
+  - trait: { text: "Against your sworn enemy: ignore Half and Three-Quarters Cover and long-range Disadvantage." }
+  - disadvantage: { roll: attack, scope: { weapon: { not: { id: self } } }, when: { player: "Your sworn enemy lives" } }
+oil-of-etherealness:
+  - action: { activation: { amount: 10, unit: minute }, consume: true, cast: $srd/spells/etherealness, overrides: { duration: { amount: 1, unit: hour } } }
+oil-of-sharpness:
+  - action: { activation: { amount: 1, unit: minute }, consume: true, targets: { text: "A nonmagical Slashing or Piercing melee weapon, or 20 ammunition" },
+              text: "It becomes a +3 Weapon or +3 Ammunition.", becomes: $srd/magic-items/weapon-1-2-or-3, variant: { plus: 3 } }
+oil-of-slipperiness:
+  - action: { consume: true, choose-one: [
+                { id: coat, label: Coat a creature, activation: { amount: 10, unit: minute }, cast: $srd/spells/freedom-of-movement, overrides: { duration: { amount: 8, unit: hour } } },
+                { id: pour, label: Pour on the ground, activation: magic, cast: $srd/spells/grease, overrides: { duration: { amount: 8, unit: hour } } } ] }
+pearl-of-power:
+  - resource: { id: pearl, max: 1, reset: dawn }
+  - action: { activation: magic, cost: { resource: $#pearl }, regain: { resource: spell-slots, amount: 1, max-slot: 3 } }
+periapt-of-health:
+  - resource: { id: periapt, max: 1, reset: dawn }
+  - action: { activation: magic, cost: { resource: $#periapt }, heal: 2d4 + 2 }
+  - advantage: { roll: save:all, scope: { against: { condition: poisoned } } }
+periapt-of-proof-against-poison:
+  - defense: { immunity: [poison], condition-immunity: [poisoned] }
+periapt-of-wound-closure:
+  - treat-roll: { roll: death-save, range: [1, 9], as: 10, optional: true }
+  - set: { to: hit-die-healing, value: 2, mode: multiply }
+philter-of-love:
+  - action: { activation: bonus, consume: true, apply: { condition: charmed, duration: { amount: 1, unit: hour }, text: "By the next creature you see within 10 minutes." } }
+pipes-of-haunting:
+  - charges: { max: 3, recharge: { dice: 1d3, at: dawn } }
+  - action: { activation: magic, cost: { charges: 1 }, area: { shape: emanation, size: 30 }, targets: { choose: true }, save: { ability: wis, dc: 15 },
+              on-failure: { apply: { condition: frightened, duration: { amount: 1, unit: minute }, save-ends: end-of-turn } }, on-success: { text: "Immune for 24 hours." } }
+pipes-of-the-sewers:
+  - trait: { text: "Ordinary rats and giant rats are Indifferent toward you." }
+  - charges: { max: 3, recharge: { dice: 1d3, at: dawn } }
+  - action: { activation: magic, cost: { charges: { min: 1, max: 3 } }, summon: { creature: $srd/monsters/swarm-of-rats, count: cost.charges } }
+plate-armor-of-etherealness:
+  - resource: { id: ethereal, max: 1, reset: dawn }
+  - action: { activation: magic, cost: { resource: $#ethereal }, cast: $srd/spells/etherealness }
+portable-hole:
+  - container: { capacity: { text: "A 10-foot-deep extradimensional hole, 6 feet across" } }
+  - action: { activation: magic, text: "Unfold or fold the hole. Placing it in a Bag of Holding (or vice versa) destroys both." }
+potion-of-animal-friendship:
+  - action: { activation: bonus, consume: true, cast: $srd/spells/animal-friendship, cast-at: 3, overrides: { dc: 13 } }

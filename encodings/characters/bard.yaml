@@ -1,0 +1,59 @@
+# entry: srd/bard
+Core Bard Traits:
+  - hit-die: d8
+  - proficiency: [save:dex, save:cha, weapon:simple, armor:light]
+  - choose: { id: skills, kind: skill, count: 3, grants: proficiency, from: any }
+  - choose: { id: instruments, kind: tool, count: 3, grants: proficiency, from: { tool: { category: musical-instrument } } }
+  - multiclass: [hit-die, armor:light,
+                 { choose: { kind: skill, count: 1, from: any } },
+                 { choose: { kind: tool, count: 1, from: { tool: { category: musical-instrument } } } }]
+  - equipment:
+      options:
+        - { id: a, items: [leather-armor, { dagger: 2 }, { choose: { tool: { category: musical-instrument } } }, entertainers-pack], gp: 19 }
+        - { id: b, gp: 90 }
+Bardic Inspiration:
+  - resource: { id: bardic-inspiration, max: "max(1, mod:cha)", reset: long, die: table:Bardic Die }
+  - action:
+      id: bardic-inspiration
+      activation: bonus
+      cost: { resource: $#bardic-inspiration }
+      range: 60
+      targets: { count: 1, creature: other }
+      give:
+        die: table:Bardic Die
+        limit: 1
+        duration: { amount: 1, unit: hour }
+        use: { event: { fail: d20 }, offer: { add-roll: table:Bardic Die } }
+Spellcasting:
+  - spellcasting: { ability: cha, progression: full, list: bard, focus: musical-instrument,
+                    cantrips: table:Cantrips, prepared: table:Prepared Spells, change: { prepared: level-up, cantrips: level-up } }
+  - choose: { id: cantrips, kind: spell, count: table:Cantrips, from: { spell: { list: bard, level: 0 } }, swap: { at: level-up, count: 1 },
+              default: [$srd/spells/dancing-lights, $srd/spells/vicious-mockery] }
+Expertise:
+  - choose: { id: expertise-1, kind: skill, count: 2, grants: expertise, from: { proficient: skill } }
+  - choose: { id: expertise-2, kind: skill, count: 2, grants: expertise, from: { proficient: skill }, at: 9 }
+Jack of All Trades:
+  - half-proficiency: { scope: check:all, unless: proficient }
+Bard Subclass:
+  - choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/bard } } }
+Ability Score Improvement:
+  - choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+Font of Inspiration:
+  - modify: { target: $#bardic-inspiration, set: { reset: short } }
+  - convert: { from: { slot: any }, to: { resource: $#bardic-inspiration, amount: 1 }, activation: none }
+Countercharm:
+  - trigger:
+      event: { fail: save }
+      reaction: true
+      scope: { against: { condition: [charmed, frightened] } }
+      if: "You or a creature within 30 feet of you failed the save"
+      offer: { reroll: true, must-use-new: true, advantage: true }
+Magical Secrets:
+  - spell-list: { add-to: bard, from: [cleric, druid, wizard], by-choice: true }
+Superior Inspiration:
+  - trigger: { event: { roll: initiative }, auto: true, offer: { regain: { resource: $#bardic-inspiration, to: 2, only-up: true } } }
+Epic Boon:
+  - choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-spell-recall }
+Words of Creation:
+  - grant-spell: { spell: [$srd/spells/power-word-heal, $srd/spells/power-word-kill], prepared: always,
+                   overrides: { targets: { count: 2, within: 10 } } }

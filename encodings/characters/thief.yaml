@@ -1,0 +1,18 @@
+# entry: srd/subclasses/thief (parent srd/rogue)
+Fast Hands:
+  - action: { id: fast-hands, activation: bonus, choose-one: [
+      { check: skill:sleight-of-hand, text: "Pick a lock, disarm a trap (Thieves' Tools) or pick a pocket" },
+      { take: utilize }, { take: magic, scope: { item: magic } } ] }
+Second-Story Work:
+  - speed: { climb: speed:walk }
+  - use-ability: { ability: dex, instead-of: str, for: jump }
+Supreme Sneak:
+  - modify: { target: $srd/rogue#cunning-strike, add: { offer.choose-one: [
+      { id: stealth-attack, label: Stealth Attack, cost: { dice-from: $srd/rogue#sneak-attack, count: 1 },
+        text: "If you have the Hide action's Invisible condition, this attack doesn't end it if you end the turn behind Three-Quarters or Total Cover." } ] } }
+Use Magic Device:
+  - set: { to: attunement:slots, value: 4 }
+  - trigger: { event: { spend: charges }, auto: true, offer: { roll: 1d6, if-roll: 6, refund: spent } }
+  - note: { stat: spell:attack, text: "Any Spell Scroll: use Int; level 2+ needs Arcana DC 10 + spell level" }
+Thief’s Reflexes:
+  - note: { stat: initiative, text: "First round: take a second turn at Initiative − 10" }
