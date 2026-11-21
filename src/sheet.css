@@ -146,27 +146,109 @@
 .sheetv .empty { color: var(--s-mut); font-size: 13px; padding: 8px; }
 .sheetv .note { font-size: 12.5px; color: var(--s-mut); }
 
+.sheetv .mobonly, .sheetv .logshow, .sheetv .rolltoast, .sheetv .tabmore { display: none; }
+.sheetv .tabsw { position: relative; }
+
+/* layout modal */
+.sheetv .smodal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 70; padding: 16px; }
+.sheetv .mbox { background: var(--s-panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; width: min(520px, 100%); max-height: 88vh; overflow: auto; }
+.sheetv .mhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sheetv .mhead h3 { margin: 0; color: var(--s-gold); }
+.sheetv .arrlist { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 14px; }
+.sheetv .arritem { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 9px; padding: 6px 8px; background: var(--s-well2); }
+.sheetv .arritem span { flex: 1; font-weight: 600; }
+.sheetv .arritem .sbtn { min-width: 40px; font-size: 15px; }
+
 @media (max-width: 1100px) {
-  .sheetv { grid-template-columns: 1fr; padding-bottom: 220px; }
   .sheetv .cols { grid-template-columns: 1fr; }
-  .sheetv .abil { grid-template-columns: repeat(3, 1fr); }
-  .sheetv .skills { columns: 2; column-gap: 10px; }
+  .sheetv .abil { grid-template-columns: repeat(6, 1fr); }
+  .sheetv .skills { columns: 3; column-gap: 12px; }
   .sheetv .skills h3 { column-span: all; }
   .sheetv .sk { break-inside: avoid; }
-  .sheetv .side { position: static; max-height: none; order: -1; }
-  .sheetv .log { position: fixed; left: 8px; right: 8px; bottom: 8px; max-height: 190px; min-height: 0; z-index: 50; box-shadow: 0 -6px 30px rgba(0,0,0,.5); }
-  .sheetv .log.open { max-height: 72vh; }
-  .sheetv .log:not(.open) .tray { display: none; }
-  .sheetv .log:not(.open) .lc.old { display: none; }
 }
-@media (max-width: 560px) {
-  .sheetv .abil { grid-template-columns: repeat(2, 1fr); }
+
+/* phones and tablets: one column, boxes in the order picked under Layout, the log docked at the bottom */
+@media (max-width: 900px) {
+  .sheetv { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding-bottom: 220px; }
+  .sheetv [data-box] { min-width: 0; }
+  .sheetv .smain, .sheetv .cols, .sheetv .left, .sheetv .right, .sheetv .side { display: contents; }
+  .sheetv [data-box] { order: var(--o, 0); }
+  .sheetv .ident, .sheetv .stats, .sheetv .abil { margin-bottom: 12px; }
+  .sheetv .stats { margin-top: 0; }
+  .sheetv .abil { grid-template-columns: repeat(3, 1fr); }
+  .sheetv .skills { columns: 2; }
+  .sheetv .mobonly { display: inline-flex; align-items: center; }
+
+  /* roll bar sits in the page flow (last by default) instead of beside the log */
+  .sheetv .rollbar { margin: 0 0 14px; padding: 8px; gap: 6px; }
+  .sheetv .rollbar .seg { flex: 1 1 100%; display: flex; }
+  .sheetv .rollbar .seg button { flex: 1; padding: 6px 4px; }
+  .sheetv .rollbar .nb { flex: 1 1 100%; }
+  .sheetv .rollbar .nb input { flex: 1; width: auto; min-width: 0; }
+  .sheetv .rests { margin-left: auto; }
+
+  /* the log: docked strip showing the newest entry; Expand fills the screen; Hide puts it away */
+  .sheetv .log { position: fixed; left: 8px; right: 8px; bottom: 8px; max-height: 144px; min-height: 0; z-index: 50; box-shadow: 0 -6px 30px rgba(0,0,0,.5); }
+  .sheetv .log:not(.open) .tray, .sheetv .log:not(.open) .lc.old, .sheetv .log:not(.open) .empty { display: none; }
+  .sheetv .log:not(.open) .cards { padding: 6px 8px; overflow: hidden; }
+  .sheetv .log .logh { padding: 6px 10px; }
+  .sheetv .log.open { inset: 0; max-height: none; height: 100vh; height: 100dvh; border-radius: 0; z-index: 60; }
+  .sheetv .log.open .cards { flex: 1; min-height: 0; overflow: auto; }
+  .sheetv .log.hid { display: none; }
+  .sheetv.loghid { padding-bottom: 70px; }
+  .sheetv .logshow { display: inline-flex; position: fixed; right: 10px; bottom: 12px; z-index: 51; box-shadow: 0 4px 14px rgba(0,0,0,.5); background: var(--s-panel); }
+
+  /* a roll made while the log is hidden pops up, then drops toward the Log button */
+  .sheetv .rolltoast { display: flex; align-items: center; gap: 12px; position: fixed; left: 50%; top: 42%; z-index: 65; transform: translate(-50%, -50%);
+    background: var(--s-panel); border: 1px solid var(--s-gold2); border-left: 4px solid var(--s-mut); border-radius: 12px; padding: 10px 18px; max-width: calc(100vw - 32px);
+    box-shadow: 0 10px 40px rgba(0,0,0,.6); animation: rtoast 2.6s ease-in forwards; text-align: left; }
+  .sheetv .rolltoast .big { font-size: 40px; min-width: 0; }
+  .sheetv .rolltoast .rtt { font-weight: 700; font-size: 14px; }
+  .sheetv .rolltoast.crit { border-left-color: var(--s-gold); } .sheetv .rolltoast.crit .big { color: var(--s-gold); }
+  .sheetv .rolltoast.heal { border-left-color: var(--s-grn); } .sheetv .rolltoast.heal .big { color: var(--s-grn); }
+  .sheetv .rolltoast.dmg { border-left-color: var(--s-red); } .sheetv .rolltoast.dmg .big { color: #f0a196; }
+  .sheetv .rolltoast.atk { border-left-color: var(--s-blu); } .sheetv .rolltoast.test { border-left-color: var(--s-pur); }
+  .sheetv .rolltoast.fumble .big { color: var(--s-red); }
+
+  /* tabs: one swipeable line with arrows */
+  .sheetv .stabs { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .sheetv .stabs::-webkit-scrollbar { display: none; }
+  .sheetv .stabs button { flex: 0 0 auto; white-space: nowrap; }
+  .sheetv .tabsw.more-r .tabmore.r, .sheetv .tabsw.more-l .tabmore.l { display: flex; position: absolute; top: 0; bottom: 1px; width: 44px; align-items: center; border: 0;
+    color: var(--s-gold); font-size: 26px; font-weight: 700; line-height: 1; padding: 0 4px 2px; z-index: 2; }
+  .sheetv .tabsw .tabmore.r { right: 0; justify-content: flex-end; background: linear-gradient(90deg, rgba(0,0,0,0), var(--bg) 62%); animation: tabnudge 1.6s ease-in-out 2; }
+  .sheetv .tabsw .tabmore.l { left: 0; justify-content: flex-start; background: linear-gradient(270deg, rgba(0,0,0,0), var(--bg) 62%); }
+
+  /* wide tables scroll sideways instead of squashing */
+  .sheetv table.atks { display: block; max-width: 100%; overflow-x: auto; }
+  .sheetv .mbox { width: calc(100vw - 20px); }
+}
+@keyframes rtoast {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.85); }
+  8% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+  14%, 72% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(calc(50vw - 110%), 40vh) scale(.3); }
+}
+@keyframes tabnudge { 0%, 100% { padding-right: 4px; } 50% { padding-right: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sheetv .rolltoast { animation: none; }
+  .sheetv .tabsw .tabmore.r { animation: none; }
+}
+@media (max-width: 620px) {
+  .sheetv .abil { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sheetv .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .sheetv .stat { padding: 8px 4px; }
+  .sheetv .sl { font-size: 9.5px; }
+  .sheetv .sv2 { font-size: 22px; }
   .sheetv .skills { columns: 1; }
   .sheetv .ident h1 { font-size: 24px; }
+  .sheetv .spanel { padding: 12px; }
+  .sheetv .hpc input { flex: 1 1 90px; width: auto; }
+  .sheetv .hpv { white-space: nowrap; }
 }
 @media print {
   .sheetv { grid-template-columns: 1fr; }
-  .sheetv .side { display: none; }
+  .sheetv .side, .sheetv .logshow, .sheetv .rolltoast, .sheetv .mobonly, .sheetv .tabmore { display: none !important; }
 }
 
 /* ---------------------------------------------------------------- inventory */

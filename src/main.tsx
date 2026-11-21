@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, NavLink, Link, Route, Routes, useLocation } from "react-router-dom";
 import "./styles.css";
@@ -31,9 +31,10 @@ function Gate({ children }: { children: React.ReactNode }) {
 function Shell() {
   const { ready, error } = useContent();
   const session = useSession();
+  const [menu, setMenu] = useState(false);
   return (
     <div className="app">
-      <header className="topbar">
+      <header className={`topbar ${menu ? "menuopen" : ""}`}>
         <Link to="/" className="brand">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e3b45a" strokeWidth="1.6" aria-hidden="true">
             <path d="M12 2l8.5 5v10L12 22l-8.5-5V7z" />
@@ -42,7 +43,10 @@ function Shell() {
           <b>fivepointfive</b>
           <span className="badge">5E compatible</span>
         </Link>
-        <nav className="topnav" aria-label="Main">
+        <button className="btn small menubtn" aria-expanded={menu} aria-controls="topnav" aria-label={menu ? "Close menu" : "Menu"} onClick={() => setMenu(!menu)}>
+          {menu ? <span aria-hidden="true" style={{ fontSize: 22, lineHeight: 1 }}>−</span> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>}
+        </button>
+        <nav className="topnav" id="topnav" aria-label="Main" onClick={(e) => { if ((e.target as HTMLElement).closest("a,button")) setMenu(false); }}>
           <NavLink to="/" end>Characters</NavLink>
           <NavLink to="/library">Library</NavLink>
           <NavLink to="/content">Content packs</NavLink>

@@ -19,6 +19,8 @@ import {
 } from "../lib/play.ts";
 import { catalog, inventoryOf, isActive, magicInfo, type Coins, type Item } from "../lib/inventory.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
+import { ScrollRow } from "../components/ScrollRow.tsx";
+import { NARROW, useMedia } from "../lib/useMedia.ts";
 import {
   advantageFor, computeModif, disadvantageFor, spellcastingOf, spellMinutes, spellPlan, statusOf, treatRoll, weaponProficient,
   type ModifAction, type ModifCost, type ModifCtx, type ModifToggle,
@@ -27,6 +29,21 @@ import { casterKind, classFeatures, classInfos, classLabel, hitDicePools, spellS
 
 type Tab = "actions" | "effects" | "spells" | "features" | "conditions" | "inventory" | "notes";
 type CardAction = { label: string; run: () => void };
+
+/** Boxes on the sheet that can be put in a different order on phones (Layout button). */
+const BOXES: [string, string][] = [
+  ["ident", "Name & conditions"], ["stats", "AC, initiative, speed…"], ["abil", "Ability scores & saves"], ["skills", "Skills"],
+  ["hp", "Hit points"], ["slots", "Spell slots & uses"], ["tabs", "Actions, Spells & other tabs"], ["rollbar", "Advantage, bonus & rests"],
+];
+const LAYOUT_KEY = "fpf.layout";
+function loadLayout(): string[] {
+  let saved: unknown = null;
+  try { saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "null"); } catch { /* ignore */ }
+  const def = BOXES.map((b) => b[0]);
+  const L = Array.isArray(saved) ? saved.filter((k): k is string => def.includes(k)) : [];
+  def.forEach((k) => { if (!L.includes(k)) L.push(k); });
+  return L;
+}
 
 export default function Sheet() {
   const { id } = useParams();
@@ -55,6 +72,32 @@ export default function Sheet() {
   const [hpAmt, setHpAmt] = useState("");
   const [custom, setCustom] = useState("");
   const [logOpen, setLogOpen] = useState(false);
+  // phones and tablets open with the Game Log hidden (desktop always shows it)
+  const narrow = useMedia(NARROW);
+  const [logHidden, setLogHidden] = useState(() => typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches);
+  const [layout, setLayout] = useState<string[]>(loadLayout);
+  const [layoutOpen, setLayoutOpen] = useState(false);
+  const [toast, setToast] = useState<LogEntry>();
+  const logGone = useRef(false);
+  logGone.current = narrow && logHidden;
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(undefined), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
+  const saveLayout = (L: string[] | null) => {
+    try { if (L) localStorage.setItem(LAYOUT_KEY, JSON.stringify(L)); else localStorage.removeItem(LAYOUT_KEY); } catch { /* ignore */ }
+    setLayout(L || loadLayout());
+  };
+  const moveBox = (k: string, d: number) => {
+    const L = [...layout];
+    const i = L.indexOf(k), j = i + d;
+    if (i < 0 || j < 0 || j >= L.length) return;
+    [L[i], L[j]] = [L[j], L[i]];
+    saveLayout(L);
+  };
+  /** props that let a box be reordered on phones */
+  const bo = (k: string) => ({ "data-box": k, style: { "--o": layout.indexOf(k) } as React.CSSProperties });
   const [flash, setFlash] = useState<string>();
   const actions = useRef<Record<string, CardAction[]>>({});
 
@@ -221,6 +264,8 @@ export default function Sheet() {
     if (acts?.length) actions.current[entry.id] = acts;
     setPlay((cur) => ({ log: [entry, ...cur.log].slice(0, 150) }));
     setFlash(entry.id);
+    // with the log hidden on a phone, show the result briefly so the roll isn't lost
+    if (logGone.current) setToast(entry);
     if (sharedLog && supabase && editable) {
       supabase.from("log").insert({ character_id: c.id, entry: { ...entry, who: c.name || "Unnamed" } }).then(() => undefined);
     }
@@ -569,9 +614,9 @@ export default function Sheet() {
   const pct = Math.max(0, Math.min(100, (hpCur / hpMax) * 100));
 
   return (
-    <div className="sheetv">
-      <div>
-        <section className="ident">
+    <div className={`sheetv ${narrow && logHidden ? "loghid" : ""}`}>
+      <div className="smain">
+        <section className="ident" {...bo("ident")}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
             <div>
               <h1 className="disp">{c.name || "Unnamed character"}</h1>
@@ -583,6 +628,7 @@ export default function Sheet() {
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               {editable && <Link className="sbtn ghost sm" to={`/build/${c.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Edit in builder</Link>}
+              <button className="sbtn ghost sm mobonly" title="Change the order of the boxes on the sheet (phone layout)" onClick={() => setLayoutOpen(true)}>Layout</button>
               <button className="sbtn ghost sm" onClick={() => window.print()}>Print</button>
             </div>
           </div>
@@ -608,7 +654,7 @@ export default function Sheet() {
           </div>
         </section>
 
-        <section className="stats">
+        <section className="stats" {...bo("stats")}>
           <div className="stat"><div className="sl">Armor Class</div><div className="sv2">{d.ac}</div><div className="ss">{d.acNote}</div></div>
           <button className="stat" onClick={() => test("Initiative", d.initiative, { kind: "init", ability: "Dexterity" })}><div className="sl">Initiative</div><div className="sv2">{fmt(d.initiative)}</div><div className="ss">click to roll</div></button>
           <div className="stat"><div className="sl">Speed</div><div className="sv2">{speed} ft</div><div className="ss">{speed === 0 && d.speed ? "conditions" : ""}</div></div>
@@ -623,8 +669,8 @@ export default function Sheet() {
         </section>
 
         <div className="cols">
-          <div>
-            <section className="abil">
+          <div className="left">
+            <section className="abil" {...bo("abil")}>
               {ABILITIES.map((a) => (
                 <div key={a} className="ab">
                   <div className="abn">{a}</div>
@@ -636,7 +682,7 @@ export default function Sheet() {
                 </div>
               ))}
             </section>
-            <section className="spanel skills">
+            <section className="spanel skills" {...bo("skills")}>
               <h3>Skills</h3>
               {SKILLS.map((s) => (
                 <button key={s} className="sk" onClick={() => test(`${s} check`, d.skills[s].value, { kind: "check", ability: SKILL_ABILITY[s], skill: s })}>
@@ -649,8 +695,8 @@ export default function Sheet() {
             </section>
           </div>
 
-          <div>
-            <section className="spanel hp">
+          <div className="right">
+            <section className="spanel hp" {...bo("hp")}>
               <div>
                 <div className="sl">Hit Points</div>
                 <div className="hpv">
@@ -684,7 +730,7 @@ export default function Sheet() {
             </section>
 
             {(slots.length > 0 || resources.length > 0) && (
-              <section className="spanel slotbar">
+              <section className="spanel slotbar" {...bo("slots")}>
                 {slots.length > 0 && (
                   <>
                     <span className="sl">{slots.every((s) => s.pact) ? "Pact Magic" : "Spell Slots"}</span>
@@ -718,8 +764,8 @@ export default function Sheet() {
               </section>
             )}
 
-            <div>
-              <nav className="stabs">
+            <div {...bo("tabs")}>
+              <ScrollRow className="stabs" label="Sheet tabs" more="More tabs" active={tab}>
                 {([["actions", "Actions"], ["effects", "Effects"], ["spells", "Spells"], ["features", "Features & Feats"], ["conditions", "Conditions"], ["inventory", "Inventory"], ["notes", "Notes"]] as [Tab, string][])
                   .filter(([k]) => k !== "spells" || anyCaster || fx.grantedSpells.length > 0)
                   .map(([k, l]) => (
@@ -728,7 +774,7 @@ export default function Sheet() {
                       {k === "effects" && activeList.length > 0 && <span className="badge">{activeList.length}</span>}
                     </button>
                   ))}
-              </nav>
+              </ScrollRow>
 
               {tab === "actions" && (
                 <div className="spanel" style={{ overflowX: "auto" }}>
@@ -1004,7 +1050,7 @@ export default function Sheet() {
       </div>
 
       <div className="side">
-        <div className="rollbar">
+        <div className="rollbar" {...bo("rollbar")}>
           <div className="seg" role="group" aria-label="Roll mode">
             <button className={mode === "dis" ? "on dis" : ""} onClick={() => setMode("dis")}>Disadvantage</button>
             <button className={mode === "normal" ? "on" : ""} onClick={() => setMode("normal")}>Normal</button>
@@ -1023,7 +1069,16 @@ export default function Sheet() {
           </div>
         </div>
 
-        <aside className={`log ${logOpen ? "open" : ""}`}>
+        {narrow && logHidden && (
+          <button className="sbtn sm logshow" title="Show the Game Log" onClick={() => { setLogHidden(false); setToast(undefined); }}>📜 Log</button>
+        )}
+        {toast && narrow && logHidden && (
+          <button key={toast.id} className={`rolltoast ${toast.cls}`} onClick={() => { setLogHidden(false); setToast(undefined); }} aria-live="polite" title="Show the Game Log">
+            {toast.total !== "" && <span className="big">{toast.total}</span>}
+            <span className="rtt">{toast.title}</span>
+          </button>
+        )}
+        <aside className={`log ${logOpen ? "open" : ""} ${narrow && logHidden ? "hid" : ""}`}>
           <div className="logh">
             <span className="disp">{logView === "table" ? "Table Log" : "Game Log"}</span>
             {sharedLog && (
@@ -1032,7 +1087,8 @@ export default function Sheet() {
                 <button className={logView === "table" ? "on" : ""} onClick={() => setLogView("table")}>Table</button>
               </span>
             )}
-            <button className="sbtn sm ghost" onClick={() => setLogOpen(!logOpen)}>{logOpen ? "Collapse" : "Expand"}</button>
+            <button className="sbtn sm ghost mobonly" onClick={() => setLogOpen(!logOpen)}>{logOpen ? "Collapse" : "Expand"}</button>
+            <button className="sbtn sm ghost mobonly" title="Hide the Game Log" onClick={() => { setLogHidden(true); setLogOpen(false); }}>Hide</button>
             {logView === "mine" && <button className="sbtn sm ghost" onClick={() => { if (confirm("Clear this character’s game log?")) setPlay({ log: [] }); }}>Clear</button>}
           </div>
           <div className="tray">
@@ -1088,6 +1144,28 @@ export default function Sheet() {
           </div>
         </aside>
       </div>
+
+      {layoutOpen && (
+        <div className="smodal" role="dialog" aria-modal="true" aria-label="Layout" onClick={(e) => { if (e.target === e.currentTarget) setLayoutOpen(false); }}>
+          <div className="mbox">
+            <div className="mhead"><h3 className="disp">Layout</h3><button className="sbtn sm ghost" onClick={() => setLayoutOpen(false)}>✕ Close</button></div>
+            <p className="note">Move boxes up or down to change their order on the sheet on this device. Changes apply right away. The wide-screen layout doesn’t change.</p>
+            <div className="arrlist">
+              {layout.map((k, i) => (
+                <div key={k} className="arritem">
+                  <span>{BOXES.find((b) => b[0] === k)?.[1] || k}</span>
+                  <button className="sbtn sm ghost" aria-label="Move up" disabled={i === 0} onClick={() => moveBox(k, -1)}>▲</button>
+                  <button className="sbtn sm ghost" aria-label="Move down" disabled={i === layout.length - 1} onClick={() => moveBox(k, 1)}>▼</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="sbtn gold" onClick={() => setLayoutOpen(false)}>Done</button>
+              <button className="sbtn ghost" onClick={() => saveLayout(null)}>Reset to default</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

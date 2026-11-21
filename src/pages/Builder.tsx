@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ScrollRow } from "../components/ScrollRow.tsx";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { weaponTable } from "../lib/play.ts";
 import { catalog, inventoryOf } from "../lib/inventory.ts";
@@ -69,14 +70,15 @@ export default function Builder() {
         <h1>{c.name || "New character"}</h1>
         <Link className="btn" to={`/sheet/${c.id}`}>View sheet</Link>
       </div>
-      <nav className="steps" aria-label="Builder steps">
+      <ScrollRow className="steps" label="Builder steps" more="More steps" active={step}>
         {STEPS.map((s, i) => (
           <button key={s} className={`${i === step ? "on" : ""} ${done[i] && i !== step ? "done" : ""}`} onClick={() => setStep(i)} aria-current={i === step ? "step" : undefined}>
             <span className="n">{done[i] && i !== step ? "✓" : i + 1}</span>
             {s}
           </button>
         ))}
-      </nav>
+      </ScrollRow>
+      <div className="stepcap">Step {step + 1} of {STEPS.length} · swipe the steps for more</div>
       {step === 0 && <ClassStep c={c} update={update} />}
       {step === 1 && <SpeciesStep c={c} update={update} />}
       {step === 2 && <BackgroundStep c={c} update={update} />}

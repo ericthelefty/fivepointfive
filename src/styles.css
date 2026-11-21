@@ -123,6 +123,36 @@ table.data td { padding: 9px 10px; border-bottom: 1px solid var(--line-2); verti
 .drop.over { border-color: var(--accent); background: var(--accent-bg); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 details summary { cursor: pointer; }
+.menubtn { display: none; }
+.tabsw { position: relative; }
+.tabsw .tabmore, .stepcap { display: none; }
+
+/* phones and tablets (same breakpoint as the original app) */
+@media (max-width: 900px) {
+  /* 16px stops iOS from zooming the page when a field gets focus */
+  input:not([type=checkbox]):not([type=radio]), select, textarea { font-size: 16px !important; }
+  html, body { overflow-x: hidden; }
+  .topbar { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; }
+  .topbar .brand { min-width: 0; }
+  .topbar .brand b { font-size: 17px; white-space: nowrap; }
+  .menubtn { display: inline-flex; margin-left: auto; padding: 0 12px; }
+  .topnav { display: none; }
+  .topbar.menuopen { flex-wrap: wrap; }
+  .topbar.menuopen .topnav { display: flex; flex-basis: 100%; flex-direction: column; gap: 2px; }
+  .topbar.menuopen .topnav a { min-height: 44px; }
+  main.page { padding: 12px; }
+
+  /* builder steps: one swipeable line with arrows and a "Step N of M" caption */
+  .tabsw .steps { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 8px 36px 4px 0; }
+  .tabsw .steps::-webkit-scrollbar { display: none; }
+  .tabsw .steps button { flex: 0 0 auto; white-space: nowrap; }
+  .tabsw.more-r .tabmore.r, .tabsw.more-l .tabmore.l { display: flex; position: absolute; top: 0; bottom: 0; width: 44px; align-items: center; border: 0; cursor: pointer;
+    color: var(--accent); font-size: 26px; font-weight: 700; line-height: 1; padding: 0 4px 2px; z-index: 2; }
+  .tabsw .tabmore.r { right: 0; justify-content: flex-end; background: linear-gradient(90deg, rgba(0,0,0,0), var(--bg) 62%); }
+  .tabsw .tabmore.l { left: 0; justify-content: flex-start; background: linear-gradient(270deg, rgba(0,0,0,0), var(--bg) 62%); }
+  .stepcap { display: block; font-size: 11.5px; color: var(--muted); margin: 0 0 12px 2px; }
+}
+
 @media print { .topbar, .steps, footer.attrib, .noprint { display: none !important; } body { background: #fff; color: #000; } .panel, .inset { border-color: #999; background: #fff; } }
 
 /* Text-style button, for small secondary actions like "Forgot your password?" */
