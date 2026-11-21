@@ -9,7 +9,8 @@
  */
 import { features, parseTables, stripMd, type Entry } from "./parse.ts";
 import { ABILITIES, SKILLS } from "./fix.ts";
-import { casterInfo, classTable, hitDie, listOf, skillChoice, type Character, type Scores } from "./rules.ts";
+import { casterInfo, classTable, hitDie, listOf, type Character, type Scores } from "./rules.ts";
+import { spellcastingOf } from "./modif.ts";
 
 export interface ClassLevel {
   classId: string;
@@ -131,44 +132,15 @@ export function prerequisiteProblems(classes: Entry[], scores: Scores): string[]
 }
 
 // ---------------------------------------------------------------- grants
-export interface MulticlassGrants {
-  text: string; // the class's own wording
-  martial: boolean;
-  skill?: { count: number; from: string[] };
-  armor?: string;
-  tools: string[];
-}
 
-/** What a class gives when it isn't your starting class ("As a Multiclass Character"). */
-export function multiclassGrants(cls: Entry): MulticlassGrants {
-  const sec = cls.sections.find((s) => /^As a Multiclass Character$/i.test(s.title));
-  const first = (sec?.md || "").split("\n").find((l) => /^\s*-\s*Gain/.test(l)) || "";
-  const text = first.replace(/^\s*-\s*/, "").trim();
-  const skillM = text.match(/proficiency in (one|two|\d+) skills? of your choice(?: from the [^’']+[’']s skill list)?/i);
-  let skill: MulticlassGrants["skill"];
-  if (skillM) {
-    const count = /two/i.test(skillM[1]) ? 2 : /^\d+$/.test(skillM[1]) ? +skillM[1] : 1;
-    const fromList = /skill list/i.test(skillM[0]);
-    skill = { count, from: fromList ? skillChoice(cls.fields["skill proficiencies"]).from : [...SKILLS] };
-  }
-  const armor = text.match(/training with ([^.]+?)(?:\.|$)/i)?.[1];
-  const tools = [...text.matchAll(/proficiency with ((?:one )?[A-Z][^,.]*?(?:Tools|Instrument[^,.]*))/g)].map((m) => m[1].trim());
-  return { text, martial: /proficiency with Martial weapons/i.test(text), skill, armor, tools };
-}
 
 // ------------------------------------------------------------ spellcasting
 export type CasterKind = "full" | "half" | "third" | "pact";
 
-/** From the class table: Pact Magic columns, or how high its spell slots go. */
+/** From the class's `spellcasting` block: full, half, third or pact progression. */
 export function casterKind(cls: Entry): CasterKind | null {
-  const t = classTable(cls);
-  if (!t || !t.header.includes("Prepared Spells")) return null;
-  if (t.header.includes("Slot Level")) return "pact";
-  const top = Math.max(0, ...t.header.map((h) => +(h.match(/Spell Level (\d+)$/)?.[1] || 0)));
-  if (top >= 9) return "full";
-  if (top >= 5) return "half";
-  if (top >= 1) return "third";
-  return null;
+  const p = spellcastingOf(cls)?.progression;
+  return p === "full" || p === "half" || p === "third" || p === "pact" ? p : null;
 }
 
 /** The Multiclass Spellcaster table from the Multiclassing rule: level -> slots by spell level. */
@@ -238,12 +210,3 @@ export function classFeatures(infos: ClassInfo[]): { level: number; name: string
   ]);
 }
 
-/** Weapon proficiencies across classes: the starting class's, plus Martial weapons a multiclass grants. */
-export function weaponProficiencyEntry(infos: ClassInfo[]): Entry | undefined {
-  const start = infos.find((i) => i.starting)?.cls;
-  if (!start) return undefined;
-  const martial = infos.some((i) => !i.starting && multiclassGrants(i.cls).martial);
-  if (!martial) return start;
-  const base = start.fields["weapon proficiencies"] || "";
-  return { ...start, fields: { ...start.fields, "weapon proficiencies": `${base}${base ? ", " : ""}Martial weapons` } };
-}

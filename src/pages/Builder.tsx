@@ -3,16 +3,16 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { weaponTable } from "../lib/play.ts";
 import { catalog, inventoryOf } from "../lib/inventory.ts";
 import {
-  MAX_LEVEL, SUBCLASS_LEVEL, addClass, casterKind, classInfos, extraClasses, multiclassGrants, patchClass, prerequisiteProblems, removeClass, startingLevel,
+  MAX_LEVEL, SUBCLASS_LEVEL, addClass, casterKind, classInfos, extraClasses, patchClass, prerequisiteProblems, removeClass, startingLevel,
 } from "../lib/multiclass.ts";
 import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
-import { modifFor, setSlotFeat, validIncreases, type PendingChoice } from "../lib/modif.ts";
+import { modifFor, multiclassSkillChoice, setSlotFeat, skillChoiceOf, speciesSkillChoice, validIncreases, type PendingChoice } from "../lib/modif.ts";
 import { Md, MdInline } from "../lib/md.tsx";
 import { features, stripMd, type Entry } from "../lib/parse.ts";
 import {
   ABBR, ABILITIES, POINT_COST, SKILLS, STANDARD_ARRAY, abilityList, armorTable, casterInfo, classSpells,
-  derive, equipmentOptions, featName, finalScores, fmt, listOf, mod, pointBuyUsed, skillChoice, speciesChoice,
+  derive, equipmentOptions, featName, finalScores, fmt, listOf, mod, pointBuyUsed, speciesChoice,
   traits, intro, type Character,
 } from "../lib/rules.ts";
 
@@ -57,7 +57,8 @@ export default function Builder() {
     !!c.speciesId,
     !!c.backgroundId,
     Object.keys(c.bonus).length > 0,
-    c.classSkills.length >= skillChoice(cls?.fields["skill proficiencies"]).count && c.classSkills.length > 0,
+    // a class without a skill choice in its Effects (homebrew without Effects) has nothing to pick
+    !!cls && c.classSkills.length >= skillChoiceOf(cls).count,
     !!c.equipClass,
     !!c.name,
   ];
@@ -340,7 +341,9 @@ function MulticlassPanel({ c, update }: StepProps) {
           const index = k + 1;
           const xc = byId(x.classId);
           if (!xc) return <div key={k} className="inset">Unknown class {x.classId}. <button className="linkish" onClick={() => update(removeClass(c, index))}>Remove</button></div>;
-          const grants = multiclassGrants(xc);
+          // what a second class grants: shown from its text, chosen from its `multiclass` block
+          const grantsText = (xc.sections.find((sec) => /^As a Multiclass Character$/i.test(sec.title))?.md || "").split("\n").find((l) => /^\s*-\s*Gain/.test(l))?.replace(/^\s*-\s*/, "").trim();
+          const mcSkill = multiclassSkillChoice(xc);
           const subs = byType("Subclass").filter((s) => stripMd(s.fields["parent"] || "").replace(/^[\w-]+:class\//, "").toLowerCase() === xc.name.toLowerCase());
           const room = MAX_LEVEL - (c.level - x.level);
           const skills = x.skills || [];
@@ -358,13 +361,13 @@ function MulticlassPanel({ c, update }: StepProps) {
                   <button className="btn small" onClick={() => update(removeClass(c, index))}>Remove</button>
                 </div>
               </div>
-              <div className="faint" style={{ marginTop: 4 }}><MdInline md={grants.text || "Gain the Hit Point Die and level 1 features."} /></div>
-              {grants.skill && (
+              <div className="faint" style={{ marginTop: 4 }}><MdInline md={grantsText || "Gain the Hit Point Die and level 1 features."} /></div>
+              {mcSkill && (
                 <div style={{ marginTop: 8 }}>
-                  <div className="faint">Choose {grants.skill.count} skill{grants.skill.count > 1 ? "s" : ""} ({skills.length}/{grants.skill.count})</div>
+                  <div className="faint">Choose {mcSkill.count} skill{mcSkill.count > 1 ? "s" : ""} ({skills.length}/{mcSkill.count})</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                    {grants.skill.from.map((s) => (
-                      <button key={s} className="pill" aria-pressed={skills.includes(s)} onClick={() => update(patchClass(c, index, { skills: toggle(skills, s, grants.skill!.count) }))}>{s}</button>
+                    {mcSkill.from.map((s) => (
+                      <button key={s} className="pill" aria-pressed={skills.includes(s)} onClick={() => update(patchClass(c, index, { skills: toggle(skills, s, mcSkill.count) }))}>{s}</button>
                     ))}
                   </div>
                 </div>
@@ -395,22 +398,13 @@ function MulticlassPanel({ c, update }: StepProps) {
   );
 }
 
-function skillTraitChoice(sp?: Entry): { count: number; from: string[] } | null {
-  for (const t of traits(sp)) {
-    const any = t.md.match(/proficiency in one skill of your choice/i);
-    if (any) return { count: 1, from: [...SKILLS] };
-    const m = t.md.match(/proficiency in the ([A-Z][\w ,]+?),? or ([A-Z][\w ]+?) skill/);
-    if (m) return { count: 1, from: [...listOf(m[1]), m[2]].filter((s) => SKILLS.includes(s)) };
-  }
-  return null;
-}
 
 function SpeciesStep({ c, update }: StepProps) {
   const { byType, byId } = useContent();
   const list = byType("Species");
   const sp = byId(c.speciesId);
   const choice = speciesChoice(sp);
-  const skillPick = skillTraitChoice(sp);
+  const skillPick = speciesSkillChoice(sp);
   return (
     <div className="row">
       <section className="side">
@@ -665,7 +659,7 @@ function SkillsStep({ c, update }: StepProps) {
   const content = useContent();
   const cls = content.byId(c.classId);
   const bg = content.byId(c.backgroundId);
-  const pick = skillChoice(cls?.fields["skill proficiencies"]);
+  const pick = skillChoiceOf(cls);
   const fromBg = listOf(bg?.fields["skill proficiencies"] || "");
   const casting = classInfos(c, content.byId).filter((i) => casterKind(i.cls));
   const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);

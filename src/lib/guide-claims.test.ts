@@ -5,8 +5,8 @@ import { join } from "node:path";
 import guide from "../../docs/CONTENT_FORMAT.md?raw";
 import { checkFile } from "./fix.ts";
 import { parseFile, type Entry } from "./parse.ts";
-import { classSpells, newCharacter, skillChoice, speciesChoice, traits } from "./rules.ts";
-import { classResources, proficientWith, spellRoll } from "./play.ts";
+import { classSpells, newCharacter, speciesChoice, traits } from "./rules.ts";
+import { computeModif, skillChoiceOf, spellPlan, weaponProficient } from "./modif.ts";
 import { applyReplacements } from "./store.tsx";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
@@ -52,39 +52,39 @@ describe("spells and classes", () => {
     expect(list.get(2)).toContain(hb);
   });
 
-  it("spell wording the guide lists becomes roll buttons", () => {
+  it("spell Effects the guide shows become roll buttons (Fireball)", () => {
     const fireball = spells.find((s) => s.name === "Fireball")!;
-    const r = spellRoll(fireball);
-    expect(r.damage).toBe("8d6");
-    expect(r.save).toBe("Dexterity");
-    expect(r.perSlot).toEqual({ dice: "1d6", above: 3 });
+    expect(spellPlan(fireball, { slot: 4, charLevel: 7, spell: { mod: 3, dc: 14, attack: 6 } })).toMatchObject({
+      save: { ability: "Dexterity", success: "half" }, damage: [{ dice: "9d6", type: "fire" }],
+    });
   });
 
-  it("skill choice wordings from the guide", () => {
-    expect(skillChoice("Choose 2: Athletics, History, or Survival")).toEqual({ count: 2, from: ["Athletics", "History", "Survival"] });
-    expect(skillChoice("Choose any 3 skills").count).toBe(3);
-  });
-
-  it("weapon proficiency wordings from the guide", () => {
-    const cls = (w: string) => parseFile(`# X\n**Type:** Class\n**Weapon Proficiencies:** ${w}\n`, "t")[0];
-    const dagger = { name: "Dagger", category: "Simple Melee Weapons", properties: "Finesse, Light, Thrown" } as never;
-    const scimitar = { name: "Scimitar", category: "Martial Melee Weapons", properties: "Finesse, Light" } as never;
-    const maul = { name: "Maul", category: "Martial Melee Weapons", properties: "Heavy, Two-Handed" } as never;
-    expect(proficientWith(dagger, cls("Simple weapons"))).toBe(true);
-    expect(proficientWith(maul, cls("Simple weapons"))).toBe(false);
-    expect(proficientWith(maul, cls("Simple and Martial weapons"))).toBe(true);
-    const light = cls("Simple weapons and Martial weapons that have the Light property");
-    expect(proficientWith(scimitar, light)).toBe(true);
-    expect(proficientWith(maul, light)).toBe(false);
-  });
-
-  it("a numeric class column becomes a tracker that recovers as its feature says", () => {
+  it("a homebrew class's Effects drive saves, its skill choice, weapon proficiency and trackers", () => {
     const [cls] = parseFile(
-      "# Warden\n**Type:** Class\n\n## Warden Features\n\n| Level | Proficiency Bonus | Class Features | Vigils | Martial Arts |\n|---|---|---|---|---|\n| 1 | +2 | Vigil | 2 | 1d6 |\n\n## Level 1: Vigil\nYou regain all expended uses when you finish a Short or Long Rest.\n",
+      "# Warden\n**Type:** Class\n\n## Core Warden Traits\n\n**Hit Point Die:** D8 per Warden level\n\n## Effects\n```yaml\n" +
+        "- proficiency: [save:wis, save:con, weapon:simple, { weapon: { category: martial, property: light } }]\n" +
+        "- choose: { id: skills, kind: skill, count: 2, grants: proficiency, from: [athletics, history, survival] }\n```\n\n" +
+        "## Warden Features\n\n| Level | Proficiency Bonus | Class Features | Vigils |\n|---|---|---|---|\n| 1 | +2 | Vigil | 2 |\n\n" +
+        "### Level 1: Vigil\nYou regain all expended uses when you finish a Short or Long Rest.\n\n## Effects\n```yaml\n- resource: { id: vigils, max: table:Vigils, reset: short }\n```\n",
       "t",
     );
-    const res = classResources({ ...newCharacter(), level: 1 }, cls);
-    expect(res).toEqual([{ key: "Vigils", name: "Vigil", max: 2, recover: "short" }]);
+    expect(skillChoiceOf(cls)).toEqual({ count: 2, from: ["Athletics", "History", "Survival"] });
+    const c = { ...newCharacter(), classId: cls.id, level: 1 };
+    const fx = computeModif({ c, classes: [{ cls, level: 1, starting: true, skills: [] }], entries: [cls], byId: (id) => (id === cls.id ? cls : undefined) });
+    expect([...fx.saves]).toEqual(["Wisdom", "Constitution"]);
+    expect(fx.resources).toEqual([expect.objectContaining({ key: "vigils", name: "Vigil", max: 2, recover: "short" })]);
+    const scimitar = { name: "Scimitar", category: "Martial Melee Weapons", properties: "Finesse, Light" };
+    const maul = { name: "Maul", category: "Martial Melee Weapons", properties: "Heavy, Two-Handed" };
+    expect(weaponProficient(fx, scimitar)).toBe(true);
+    expect(weaponProficient(fx, maul)).toBe(false);
+  });
+
+  it("without Effects, the class text is shown but nothing is read from it", () => {
+    const [cls] = parseFile("# Plain\n**Type:** Class\n\n## Core Plain Traits\n\n**Saving Throw Proficiencies:** Strength and Constitution\n**Skill Proficiencies:** Choose 2: Athletics or History\n", "t");
+    const c = { ...newCharacter(), classId: cls.id, level: 1 };
+    const fx = computeModif({ c, classes: [{ cls, level: 1, starting: true, skills: [] }], entries: [cls], byId: () => cls });
+    expect(fx.saves.size).toBe(0);
+    expect(skillChoiceOf(cls).count).toBe(0);
   });
 });
 

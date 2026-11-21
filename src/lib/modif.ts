@@ -415,6 +415,8 @@ export interface ModifResult {
   damageBonuses: { value: number; ranged?: boolean; melee?: boolean; itemId?: string; ability?: string; source: string }[];
   advantages: { roll: string; source: string }[];
   disadvantages: { roll: string; source: string }[];
+  /** Weapon proficiencies with a filter (Monk: Martial weapons that have the Light property). */
+  weaponFilters: { category?: string; property?: string }[];
   /** Skills with Expertise (twice the Proficiency Bonus). */
   expertise: Set<string>;
   /** Half the Proficiency Bonus on checks you're not proficient in (Jack of All Trades). */
@@ -437,7 +439,7 @@ export function emptyResult(): ModifResult {
   return {
     encoded: new Set(), saves: new Set(), skills: new Set(), weapons: new Set(), armor: new Set(), tools: new Set(),
     masteries: [], feats: [], featPicks: [], scores: {}, scoreSteps: [], resources: [], actions: [], toggles: [], triggers: [],
-    activeSpells: [], grantedSpells: [], notes: [], expertise: new Set(), acBonuses: [], acBases: [], bonuses: [], attackBonuses: [], damageBonuses: [],
+    activeSpells: [], grantedSpells: [], notes: [], expertise: new Set(), weaponFilters: [], acBonuses: [], acBases: [], bonuses: [], attackBonuses: [], damageBonuses: [],
     advantages: [], disadvantages: [], critRange: 20, attacksPerAction: 1, treatRolls: [], onLongRest: [], reminders: [], pending: [],
     features: [], problems: [],
   };
@@ -1323,8 +1325,15 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
   switch (b.type) {
     case "proficiency": {
       const items: Val[] = Array.isArray(v) ? v : [v];
-      // a filtered proficiency ("Martial weapons that have the Light property") is shown in words
-      return items.every((x) => (typeof x === "string" && grant(r, x)) || (x && typeof x === "object" && note(a.item ? `Proficient with this ${Object.keys(x)[0]}` : `Proficient with ${words(x)}`)));
+      // a filtered weapon proficiency ("Martial weapons that have the Light property") counts for those weapons
+      return items.every((x) => {
+        if (typeof x === "string") return grant(r, x);
+        if (x && typeof x === "object" && x.weapon && typeof x.weapon === "object" && !a.item) {
+          r.weaponFilters.push({ category: x.weapon.category, property: x.weapon.property });
+          return true;
+        }
+        return !!x && typeof x === "object" && note(a.item ? `Proficient with this ${Object.keys(x)[0]}` : `Proficient with ${words(x)}`);
+      });
     }
     case "multiclass": {
       if (!a.multiOnly) return true; // only matters when this class isn't the first
@@ -1902,4 +1911,51 @@ export function spellPlan(s: Entry, o: { slot: number; charLevel: number; spell:
   plan.lines = plan.lines.filter(Boolean);
   void level;
   return plan;
+}
+
+
+// ------------------------------------------------------------------ reading one entry's blocks
+/** Every block in an entry's Effects (all features), in order. */
+export function blocksOf(e: Entry | undefined, type?: string): Block[] {
+  const out = (e?.effects || []).flatMap((fx) => readBlocks(fx.yaml).blocks);
+  return type ? out.filter((b) => b.type === type) : out;
+}
+
+/** A class's `spellcasting` block: its ability (full name) and progression (full, half, third, pact). */
+export function spellcastingOf(e?: Entry): { ability: string; progression: string; list?: string } | null {
+  const v = blocksOf(e, "spellcasting")[0]?.v;
+  if (!v || typeof v !== "object") return null;
+  return { ability: ABBR3[String(v.ability)] || String(v.ability), progression: String(v.progression || "full"), list: v.list };
+}
+
+const skillNames = (from: Val): string[] =>
+  from === "any" || from === undefined ? [...SKILLS] : ([] as Val[]).concat(from).map((x) => skillBySlug(String(x)) || "").filter(Boolean);
+
+/** A class's skill choice (its `choose` with id `skills`): how many and from which. */
+export function skillChoiceOf(cls?: Entry): { count: number; from: string[] } {
+  const v = blocksOf(cls, "choose").find((b) => b.v?.id === "skills")?.v;
+  return v ? { count: typeof v.count === "number" ? v.count : 1, from: skillNames(v.from) } : { count: 0, from: [] };
+}
+
+/** The skill a class grants when it isn't your first class (its `multiclass` block). */
+export function multiclassSkillChoice(cls?: Entry): { count: number; from: string[] } | null {
+  const list = blocksOf(cls, "multiclass")[0]?.v;
+  const ch = (Array.isArray(list) ? list : []).find((x: Val) => x?.choose?.kind === "skill")?.choose;
+  if (!ch) return null;
+  const from = typeof ch.from === "string" && ch.from.startsWith("$#") ? skillChoiceOf(cls).from : skillNames(ch.from);
+  return { count: typeof ch.count === "number" ? ch.count : 1, from };
+}
+
+/** A species' skill choice (Human's Skillful, Elf's Keen Senses). */
+export function speciesSkillChoice(sp?: Entry): { count: number; from: string[] } | null {
+  const v = blocksOf(sp, "choose").find((b) => b.v?.kind === "skill" && b.v?.grants === "proficiency")?.v;
+  return v ? { count: typeof v.count === "number" ? v.count : 1, from: skillNames(v.from) } : null;
+}
+
+/** Is the character proficient with this weapon (from the Effects read for them)? */
+export function weaponProficient(r: ModifResult | undefined, w: { name: string; category: string; properties: string }): boolean {
+  if (!r) return false;
+  const cat = /martial/i.test(w.category) ? "martial" : "simple";
+  if (r.weapons.has(cat) || r.weapons.has(slug(w.name))) return true;
+  return r.weaponFilters.some((f) => (!f.category || f.category === cat) && (!f.property || new RegExp(`\\b${f.property}\\b`, "i").test(w.properties)));
 }

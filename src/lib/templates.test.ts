@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { TEMPLATES } from "./templates.ts";
 import { checkFile } from "./fix.ts";
 import { parseFile, features } from "./parse.ts";
-import { classTable, equipmentOptions, skillChoice } from "./rules.ts";
+import { classTable, equipmentOptions, newCharacter } from "./rules.ts";
+import { computeModif, skillChoiceOf, spellPlan } from "./modif.ts";
 
 const KNOWN = { classes: ["Fighter", "Paladin", "Wizard"] };
 const TYPE_OF: Record<string, string> = { Equipment: "Gear" };
@@ -30,12 +31,22 @@ describe("format guide templates", () => {
       .replaceAll("[Resource]", "Vigil");
     const [cls] = parseFile(text, "t", "class.md");
     expect(cls.fields["hit point die"]).toMatch(/D8 per Warden level/);
-    expect(skillChoice(cls.fields["skill proficiencies"])).toEqual({ count: 2, from: ["Athletics", "Nature", "Perception", "Survival"] });
+    expect(skillChoiceOf(cls)).toEqual({ count: 2, from: ["Athletics", "Nature", "Perception", "Survival"] });
+    const c = { ...newCharacter(), classId: cls.id, level: 4 };
+    const fx = computeModif({ c, classes: [{ cls, level: 4, starting: true, skills: [] }], entries: [cls], byId: (id) => (id === cls.id ? cls : undefined) });
+    expect([...fx.saves]).toEqual(["Strength", "Constitution"]);
+    expect(fx.resources.map((r) => [r.key, r.max])).toEqual([["uses", 3]]);
+    expect(fx.pending.filter((p) => p.level !== undefined).map((p) => p.level)).toEqual([4]);
     expect(equipmentOptions(cls.fields["starting equipment"]).map((o) => o.key)).toEqual(["A", "B"]);
     const table = classTable(cls);
     expect(table?.header).toContain("Vigil");
     expect(table?.rows.length).toBe(4);
     expect(features(cls).map((f) => f.level)).toEqual([1, 1, 2, 3, 4]);
+  });
+
+  it("the Spell template's Effects give roll buttons", () => {
+    const [sp] = parseFile(TEMPLATES.Spell.text, "t", "spell.md");
+    expect(spellPlan(sp, { slot: 2, charLevel: 3, spell: { mod: 3, dc: 13, attack: 5 } })).toMatchObject({ save: { ability: "Dexterity", success: "half" }, damage: [{ dice: "4d6", type: "fire" }] });
   });
 });
 

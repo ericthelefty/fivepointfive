@@ -89,15 +89,6 @@ export function abilityList(s?: string): string[] {
   return listOf(s).filter((a) => ABILITIES.includes(a));
 }
 
-/** "Choose 2: Athletics, ... or Survival" / "Choose any 3 skills" */
-export function skillChoice(s?: string): { count: number; from: string[] } {
-  if (!s) return { count: 0, from: [] };
-  const t = stripMd(s);
-  const m = t.match(/Choose (?:any )?(\d+)(?: skills)?(?::\s*(.*))?/i);
-  if (!m) return { count: 0, from: [] };
-  const from = m[2] ? listOf(m[2]).filter((x) => SKILLS.includes(x)) : [...SKILLS];
-  return { count: +m[1], from };
-}
 
 /** "(A) items; (B) items; or (C) 155 GP" */
 export function equipmentOptions(s?: string): { key: string; text: string }[] {
@@ -353,7 +344,8 @@ export function derive(
   const mods = Object.fromEntries(ABILITIES.map((a) => [a, mod(scores[a])]));
   const pb = profBonus(c.level);
   const fx = lib.modif;
-  const saveProf = fx && lib.cls && fx.encoded.has(lib.cls.id) ? [...fx.saves] : abilityList(lib.cls?.fields["saving throw proficiencies"]);
+  // saving throw proficiencies come from the starting class's Effects (proficiency: [save:…])
+  const saveProf = fx ? [...fx.saves] : [];
   // Modif bonuses by path ("save:all", "skill:stealth", "initiative"…)
   const plus = (to: string) => (fx?.bonuses || []).filter((b) => b.to === to).reduce((n, b) => n + b.value, 0);
   const ab3 = (a: string) => a.slice(0, 3).toLowerCase();
@@ -379,24 +371,15 @@ export function derive(
       }, 0))
     : Math.max(1, hd + mods.Constitution + (c.level - 1) * (hd / 2 + 1 + mods.Constitution));
 
-  // AC: equipped armor and shield, else class Unarmored Defense, else 10 + Dex.
+  // AC: equipped armor and shield, else the best Modif formula (Unarmored Defense, Mage Armor), else 10 + Dex.
   const { worn, shield, label: wornLabel } = wornGear(c, lib);
   let ac = 10 + mods.Dexterity;
   let acNote = "10 + Dex";
-  // Unarmored Defense from whichever class has it (only one way to calculate AC applies)
-  const hasFeature = (className: string, feature: string) =>
-    classes.some((k) => k.cls.name === className && features(k.cls).some((f) => f.name === feature && f.level <= k.level));
   if (worn) {
     const base = +(worn.ac.match(/^(\d+)/)?.[1] || 10);
     const dex = /Dex modifier \(max 2\)/.test(worn.ac) ? Math.min(2, mods.Dexterity) : /Dex/.test(worn.ac) ? mods.Dexterity : 0;
     ac = base + dex;
     acNote = wornLabel || worn.name;
-  } else if (hasFeature("Barbarian", "Unarmored Defense")) {
-    ac = 10 + mods.Dexterity + mods.Constitution;
-    acNote = "Unarmored Defense (10 + Dex + Con)";
-  } else if (hasFeature("Monk", "Unarmored Defense") && !shield) {
-    ac = 10 + mods.Dexterity + mods.Wisdom;
-    acNote = "Unarmored Defense (10 + Dex + Wis)";
   }
   // Modif: alternative AC formulas (best one wins) and AC bonuses
   if (fx && !worn) {

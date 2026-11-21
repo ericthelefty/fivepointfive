@@ -3,10 +3,11 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { parseFile, type Entry } from "./parse.ts";
 import { armorTable, derive, newCharacter, type Character } from "./rules.ts";
-import { proficientWith, weaponTable } from "./play.ts";
+import { weaponTable } from "./play.ts";
+import { computeModif, multiclassSkillChoice, weaponProficient } from "./modif.ts";
 import {
-  addClass, casterKind, classInfos, classLabel, hitDicePools, hitPoints, multiclassGrants, patchClass, prerequisiteProblems,
-  removeClass, spellSlots, startingLevel, weaponProficiencyEntry,
+  addClass, casterKind, classInfos, classLabel, hitDicePools, hitPoints, patchClass, prerequisiteProblems,
+  removeClass, spellSlots, startingLevel,
 } from "./multiclass.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
@@ -55,23 +56,22 @@ describe("prerequisites", () => {
 });
 
 describe("what a multiclass grants", () => {
-  it("reads each class's 'As a Multiclass Character' text", () => {
-    expect(multiclassGrants(byId(cls("fighter"))!)).toMatchObject({ martial: true, armor: "Light and Medium armor and Shields" });
-    expect(multiclassGrants(byId(cls("wizard"))!)).toMatchObject({ martial: false, skill: undefined });
-    const rogue = multiclassGrants(byId(cls("rogue"))!);
-    expect(rogue.skill?.count).toBe(1);
-    expect(rogue.skill?.from).toContain("Stealth");
-    expect(rogue.skill?.from).not.toContain("Arcana");
-    expect(rogue.tools).toEqual(["Thieves’ Tools"]);
-    expect(multiclassGrants(byId(cls("bard"))!).skill?.from.length).toBe(18);
-    expect(multiclassGrants(byId(cls("ranger"))!).skill?.from).toContain("Survival");
+  it("reads each class's `multiclass` block for its skill choice", () => {
+    expect(multiclassSkillChoice(byId(cls("fighter"))!)).toBeNull();
+    expect(multiclassSkillChoice(byId(cls("wizard"))!)).toBeNull();
+    const rogue = multiclassSkillChoice(byId(cls("rogue"))!)!;
+    expect(rogue.count).toBe(1);
+    expect(rogue.from).toContain("Stealth");
+    expect(rogue.from).not.toContain("Arcana");
+    expect(multiclassSkillChoice(byId(cls("bard"))!)!.from.length).toBe(18);
+    expect(multiclassSkillChoice(byId(cls("ranger"))!)!.from).toContain("Survival");
   });
 
   it("a Wizard who takes a Fighter level is proficient with martial weapons", () => {
-    const infos = classInfos(char("wizard", 3, [["fighter", 1]]), byId);
     const longsword = weaponTable(all).find((w) => w.name === "Longsword")!;
-    expect(proficientWith(longsword, byId(cls("wizard")))).toBe(false);
-    expect(proficientWith(longsword, weaponProficiencyEntry(infos))).toBe(true);
+    const fxFor = (c: Character) => computeModif({ c, classes: classInfos(c, byId), entries: all, byId });
+    expect(weaponProficient(fxFor(char("wizard", 3)), longsword)).toBe(false);
+    expect(weaponProficient(fxFor(char("wizard", 3, [["fighter", 1]])), longsword)).toBe(true);
   });
 });
 

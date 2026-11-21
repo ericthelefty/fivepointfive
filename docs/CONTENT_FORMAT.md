@@ -8,6 +8,8 @@ The app reads a small set of conventions (headings, bold labels, a few fixed phr
 
 This guide marks what each convention does. **Used** means the builder or play sheet acts on it (works out HP, offers a choice, adds a roll button). **Shown** means it's displayed in the Library and builder for players to read and apply themselves.
 
+The app doesn't read rules from prose. What an entry *does* (proficiencies, choices, limited uses, bonuses, spell rolls) is automated only through its `## Effects` blocks (section 4); header fields such as Hit Point Die, Speed and a spell's Duration are read as data. An entry without Effects still imports and shows its text, and players apply it by hand.
+
 ---
 
 ## 1. The basics
@@ -58,7 +60,7 @@ A heading may end with a bracketed tag, as the rules glossary does: `# Blinded [
 ### Rules for writing labels
 
 - Labels are case-insensitive and the colon goes **inside** the bold: `**Casting Time:** Action`. The colon is optional — creature stat blocks print labels without one (`**AC** 16`), and both forms are read the same way. If you write the colon outside the bold (`**Range**: 60 feet`), the importer moves it for you.
-- Use the same words the rules use. Several fields are read by their wording (section 3 says which), so copying the SRD's phrasing is the safest choice.
+- Use the same words the rules use. A few header fields are read by their wording (section 3 says which), so copying the SRD's phrasing is the safest choice.
 - Prerequisites such as `Level 4+` or `Strength 13+` are **shown**, not checked: the app doesn't stop a character from taking a feat they don't qualify for.
 
 ---
@@ -106,16 +108,14 @@ Each type lists the fields the app understands. Only `**Type:**` is required. Ev
 
 - The class fields go in a sub-section named `## Core <Class> Traits` (mirroring the book's table), one field per line.
 - **Used**, so write them the way the SRD does:
+  - Primary Ability: `Strength or Dexterity` (the multiclass prerequisite).
   - Hit Point Die: `D10 per Fighter level` (HP on the sheet).
-  - Saving Throw Proficiencies: `Strength and Constitution`.
-  - Skill Proficiencies: `Choose 2: Athletics, History, or Survival`, or `Choose any 3 skills` (a choice in the builder). Skill names must be spelled as in the rules.
-  - Weapon Proficiencies: `Simple weapons`, `Simple and Martial weapons`, or `Simple weapons and Martial weapons that have the Light property` (decides which attacks add your Proficiency Bonus).
   - Starting Equipment: `Choose A or B: (A) …; or (B) 50 GP` (a choice in the builder).
-- **Shown:** Primary Ability, Tool Proficiencies, Armor Training.
+- **Shown:** Saving Throw Proficiencies, Skill Proficiencies, Weapon Proficiencies, Tool Proficiencies, Armor Training. What they grant comes from the core traits' Effects: `proficiency: [save:str, save:con, weapon:simple, armor:light]`, the skill choice as `choose: { id: skills, kind: skill, count: 2, grants: proficiency, from: [athletics, history, survival] }` (the builder's skill step reads this one), and `multiclass: [hit-die, …]` for what a second class grants.
 - Features are any heading of the form `Level N: Feature Name`, at any depth (the SRD nests them under `## <Class> Class Features`).
 - The progression table is a Markdown table whose first column is `Level`, with one row per level from 1 to 20.
-- **Trackers on the play sheet:** any other column with a plain number (Rages, Second Wind, Channel Divinity…) becomes a resource players can tick off, named after the feature whose name starts with the same word. The feature's text decides how it comes back: "regain all expended uses when you finish a Short or Long Rest" means a Short Rest restores all of them, and "regain one expended use when you finish a Short Rest" means one; anything else comes back on a Long Rest. Columns with dice or words (Martial Arts `1d6`, Sneak Attack `2d6`) are shown in the table only.
-- **Spellcasting classes** add the columns `Cantrips`, `Prepared Spells` and `Spell Slots per Spell Level 1` through `Spell Slots per Spell Level 9` (use `—` where there are no slots), and their Spellcasting feature says "Intelligence is your spellcasting ability" (or Wisdom, or Charisma). The class's spells go under `## <Class> Spell List`, with one sub-section per level (`### Cantrips (Level 0 <Class> Spells)`, `### Level 1 <Class> Spells`, …), each holding a `Spell | School | Special` table. Spell names must match spell entries. Without a spell list, the class gets every spell whose tagline names it.
+- **Trackers on the play sheet** come from `resource` blocks, which can read a table column: `resource: { id: vigils, max: table:Vigils, reset: long, partial: { at: short, amount: 1 } }`.
+- **Spellcasting classes** add the columns `Cantrips`, `Prepared Spells` and `Spell Slots per Spell Level 1` through `Spell Slots per Spell Level 9` (use `—` where there are no slots), and their Spellcasting feature has a `spellcasting` block naming the ability and progression: `spellcasting: { ability: int, progression: full, list: wizard }` (`half` for a Paladin-style class; `pact` with `Spell Slots` and `Slot Level` columns for a Warlock-style one). The class's spells go under `## <Class> Spell List`, with one sub-section per level (`### Cantrips (Level 0 <Class> Spells)`, `### Level 1 <Class> Spells`, …), each holding a `Spell | School | Special` table. Spell names must match spell entries. Without a spell list, the class gets every spell whose tagline names it.
 
 ### Subclass
 `**Type:** Subclass` · **Parent** (the class name) · optional tagline (the subclass motto) · features as `Level N: Feature Name` headings. Players choose a subclass at level 3, so features start at level 3.
@@ -125,7 +125,7 @@ Each type lists the fields the app understands. Only `**Type:**` is required. Ev
 
 - **Used:** Speed (`30 feet`) on the sheet. Size is shown in the builder.
 - **Shown:** Creature Type.
-- **Traits must be run-ins:** `***Trait Name.*** What it does.` Each one becomes a trait in the builder and on the sheet. Text under a `##` heading is kept but isn't listed as a trait.
+- **Traits:** write each as its own `##` heading with its Effects under it, as the SRD species do; each heading is listed as a trait in the builder and on the sheet. A species skill choice is a `choose` of kind `skill`. (In a species with no Effects at all, traits are written as run-ins, `***Trait Name.*** What it does.`, and `##` headings aren't listed as traits.)
 - A table with options (like the Dragonborn's Draconic Ancestry table) becomes a choice in the builder. Put it under a `##` heading: the first such table with more than one row is used, so put other tables after it.
 
 ### Background
@@ -139,20 +139,19 @@ Each type lists the fields the app understands. Only `**Type:**` is required. Ev
 - **Shown:** Tool Proficiency.
 
 ### Feat
-`**Type:** Feat` · tagline gives the category (`*Origin Feat*`, `*General Feat (Prerequisite: Level 4+)*`, `*Fighting Style Feat*`, `*Epic Boon Feat*`) · Repeatable · benefits as `***Name.***` run-ins. Shown in the Library, and on the sheet when a background grants it.
+`**Type:** Feat` · tagline gives the category (`*Origin Feat*`, `*General Feat (Prerequisite: Level 4+)*`, `*Fighting Style Feat*`, `*Epic Boon Feat*`) and prerequisites (level, ability scores, a feature) · Repeatable · benefits as `##` headings with their Effects. Offered in the builder's feat choices, and on the sheet when the character has it.
 
 ### Spell
 `**Type:** Spell` · tagline `*Level N School (Class, Class)*` or `*School Cantrip (Class)*` · Casting Time · Range · Components · Duration
 
 - **Used:** the tagline gives the spell's level, school and classes. Naming a class there adds the spell to that class's list, including SRD classes, so a homebrew spell tagged `(Wizard)` shows up for Wizards.
 - **Used:** a Duration that starts with `Concentration` marks the spell as Concentration on the sheet.
-- **Roll buttons** on the sheet come from the spell's wording, so phrase it like the SRD:
-  - damage: `takes 8d6 Fire damage` (dice, then damage type, then "damage")
-  - saving throw: `a Dexterity saving throw`
-  - attack: `make a ranged spell attack` (or melee)
-  - healing: `regains Hit Points equal to 2d8`
-  - upcasting: in a `***Using a Higher-Level Spell Slot.***` run-in, `the damage increases by 1d6 for each spell slot level above 3`
-  - cantrip scaling: a `***Cantrip Upgrade.***` run-in adds a die at levels 5, 11 and 17.
+- **Roll buttons** on the sheet come from the spell's Effects:
+  - attack, save, damage and healing: `action: { save: { ability: dex, success: half }, damage: { dice: 8d6, type: fire } }`, `action: { attack: { kind: ranged-spell }, damage: … }`, `action: { heal: 2d8 + spell-ability }`
+  - upcasting: `scaling: { per-slot-above: 3, add: { damage: 1d6 } }` (the number is the spell's own level)
+  - cantrip scaling: `scaling: { cantrip: [5, 11, 17], add: { damage: 1d10 } }`
+  - effects on you while it lasts: `self-effects: { effects: [ … ] }`; on its target: `target-effects`.
+  A spell without Effects can still be cast (it uses a slot and is tracked while it lasts), but players roll from its text.
 - **Shown:** Casting Time, Range, Components.
 
 ### Equipment (Gear, Tool, Weapon, Armor)
@@ -173,9 +172,9 @@ For now, attack rolls and Armor Class on the play sheet come from the SRD's Weap
 
 ---
 
-## 4. Automating rules (Effects) — optional
+## 4. Automating rules (Effects)
 
-Every entry works without this section: players read the rules text and apply it by hand. An `## Effects` section restates the rules as **Modif** blocks, a small YAML format the app can act on. The full list of blocks is in the Modif spec (`docs/MODIF.md`).
+Every entry imports without this section: players read the rules text and apply it by hand. Effects are how an entry gets automated: the app doesn't read rules from prose. An `## Effects` section restates the rules as **Modif** blocks, a small YAML format the app can act on. The full list of blocks is in the Modif spec (`docs/MODIF.md`).
 
 **Where they go.** Put a `## Effects` heading right after the text of the feature it belongs to, then a fenced `yaml` block. Each list item (`- `) is one block. A class gives each `Level N:` feature its own Effects; an entry with one rule has one Effects section. The app hides Effects from the rules text that players read.
 

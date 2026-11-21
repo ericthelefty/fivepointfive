@@ -58,13 +58,13 @@ Convert the entries the user names. The whole SRD 5.2.1 character side is alread
 
 ## Rules the app depends on (break these and the sheet breaks)
 
-Once an entry has any Effects block, the app trusts its blocks over its text. So a class must be encoded **completely** in one go.
+The app reads rules only from Effects blocks, never from the text. Anything a class's blocks leave out simply isn't on the sheet, so a class must be encoded **completely** in one go.
 
 - **Saving throws:** core traits need `proficiency: [save:…, save:…]`. Without it the class shows no save proficiencies.
 - **Skill choice:** the class skill choice must be `choose: { id: skills, kind: skill, count: N, grants: proficiency, from: [...] }`, using the id `skills` exactly. The builder stores it in its existing class-skills field.
 - **Multiclass grants:** include `multiclass: [...]` with exactly what the "As a Multiclass Character" text grants.
 - **Switchable features:** Rage, Wild Shape, Bladesong and the like are a `toggle` (or `form`) with an `id`, its `cost`, `duration` and `effects`. Effects elsewhere that apply only while it's on use `when: { active: $#<id> }`. The sheet turns these into switches on its Effects tab, so they must be complete.
-- **Limited-use features:** every one, Rage, Bardic Inspiration, Channel Divinity, Wild Shape, Focus Points and so on, needs a `resource` block. The app stops reading resources from the class table once the class has Effects. Use `table:<Column>` where the class table has a column, and `steps` where uses change at levels without a column.
+- **Limited-use features:** every one, Rage, Bardic Inspiration, Channel Divinity, Wild Shape, Focus Points and so on, needs a `resource` block. Use `table:<Column>` where the class table has a column, and `steps` where uses change at levels without a column.
 - **Feat slots:** Ability Score Improvement is `choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [levels] }` under the first ASI heading. Epic Boon is `choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: <the boon the class text recommends, if any> }`. Copy `fighter.md`.
 - **Species skill choices:** a species "skill of your choice" is a single-kind `choose` with `kind: skill`. The builder stores it in its species-skill field.
 - **Choice ids are permanent:** players' saved choices are keyed by `<entry id>#<choice id>`. Don't rename an id that already exists in the pack.

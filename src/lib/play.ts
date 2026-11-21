@@ -143,17 +143,6 @@ export function weaponsCarried(gear: string, table: Weapon[]): Weapon[] {
   return table.filter((w) => new RegExp(`\\b${escRx(w.name)}s?\\b`, "i").test(gear));
 }
 
-export function proficientWith(w: Weapon, cls?: Entry): boolean {
-  const t = stripMd(cls?.fields["weapon proficiencies"] || "");
-  if (/simple/i.test(w.category) && /Simple/i.test(t)) return true;
-  if (/martial/i.test(w.category)) {
-    const m = t.match(/Martial weapons(?: that have the (.+?) propert)?/i);
-    if (!m) return false;
-    if (!m[1]) return true;
-    return m[1].split(/ or | and |, /).some((p) => new RegExp(`\\b${escRx(p.trim())}\\b`, "i").test(w.properties));
-  }
-  return false;
-}
 
 export interface Attack {
   name: string;
@@ -168,13 +157,13 @@ export interface Attack {
   versatile?: string;
 }
 
-export function attackFor(w: Weapon, d: Derived, cls?: Entry): Attack {
+/** An attack with a weapon; `prof` comes from the Effects read for the character (modif.weaponProficient). */
+export function attackFor(w: Weapon, d: Derived, prof: boolean): Attack {
   const ranged = /ranged/i.test(w.category);
   const finesse = /finesse/i.test(w.properties);
   const str = d.mods.Strength;
   const dex = d.mods.Dexterity;
   const abil = ranged ? dex : finesse ? Math.max(str, dex) : str;
-  const prof = proficientWith(w, cls);
   const [dice, ...typeParts] = w.damage.split(" ");
   const sign = (n: number) => (n === 0 ? "" : n > 0 ? `+${n}` : `${n}`);
   const vers = w.properties.match(/Versatile \((\d+d\d+)\)/);
@@ -203,84 +192,12 @@ export interface Resource {
   regain?: string;
 }
 
-const SKIP_COLS = /^(level|proficiency bonus|class features|cantrips|prepared spells|spell slots|slot level|.*spell level \d+|.*die|martial arts|sneak attack|unarmored movement|eldritch invocations|weapon mastery|favored enemy)$/i;
 
-/** Class resources from numeric columns in the class table (Rages, Second Wind, ...). */
-export function classResources(c: Character, cls?: Entry, level = c.level): Resource[] {
-  if (!cls) return [];
-  const row = tableRow(classTable(cls), level);
-  const feats = features(cls);
-  const out: Resource[] = [];
-  for (const [col, v] of Object.entries(row)) {
-    if (SKIP_COLS.test(col) || !/^\d+$/.test(v || "") || +v === 0) continue;
-    const word = col.split(" ")[0].toLowerCase().replace(/s$/, "");
-    const f = feats.find((x) => x.name.toLowerCase().includes(word));
-    const txt = f?.md || "";
-    const recover: Resource["recover"] = /regain one expended use when you finish a Short Rest/i.test(txt)
-      ? "shortOne"
-      : /regain all expended[^.]*Short or Long Rest/i.test(txt) ? "short" : "long";
-    out.push({ key: col, name: f ? f.name : col, max: +v, recover });
-  }
-  return out;
-}
 
 // ------------------------------------------------------------------ spells
-export interface SpellRoll {
-  attack: boolean;
-  save?: string; // ability name
-  damage?: string; // base dice
-  damageFlat: number; // e.g. Magic Missile's + 1
-  damageType?: string;
-  heal?: string;
-  perSlot?: { dice: string; above: number };
-  cantripScales: boolean;
-  concentration: boolean;
-}
 
-export function spellRoll(s: Entry): SpellRoll {
-  const body = s.body;
-  const dmg = body.match(/(\d+d\d+)(?:\s*\+\s*(\d+))?(?:\s*(?:\+|plus)\s*your spellcasting ability modifier)?\s+(\w+) damage/);
-  const heal = body.match(/regains? (?:a number of )?Hit Points equal to (\d+d\d+)/);
-  const save = body.match(/(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) saving throw/);
-  const per = body.match(/increases by (\d+d\d+) for each spell slot level above (\d+)/);
-  return {
-    attack: /(?:make|Make) (?:a |one )?(?:ranged|melee) spell attack/i.test(body) || /spell attack/i.test(body.slice(0, 400)),
-    save: save?.[1],
-    damage: dmg?.[1],
-    damageFlat: dmg?.[2] ? +dmg[2] : 0,
-    damageType: dmg?.[3],
-    heal: heal?.[1],
-    perSlot: per ? { dice: per[1], above: +per[2] } : undefined,
-    cantripScales: /Cantrip Upgrade/.test(body),
-    concentration: /Concentration/i.test(s.fields["duration"] || ""),
-  };
-}
 
-/** Damage dice for a spell cast at a slot level by a character of a given level. */
-export function spellDamage(s: Entry, base: string, slot: number, charLevel: number): string {
-  const info = spellInfo(s);
-  const r = spellRoll(s);
-  const m = base.match(/^(\d+)d(\d+)$/);
-  if (!m) return base;
-  let n = +m[1];
-  if (info?.level === 0 && r.cantripScales) n *= charLevel >= 17 ? 4 : charLevel >= 11 ? 3 : charLevel >= 5 ? 2 : 1;
-  let expr = `${n}d${m[2]}`;
-  if (r.perSlot && info && slot > r.perSlot.above) {
-    const pm = r.perSlot.dice.match(/^(\d+)d(\d+)$/)!;
-    const extra = +pm[1] * (slot - r.perSlot.above);
-    expr = pm[2] === m[2] ? `${n + extra}d${m[2]}` : `${expr}+${extra}d${pm[2]}`;
-  }
-  return r.damageFlat ? `${expr}+${r.damageFlat}` : expr;
-}
 
-export function castingAbility(cls?: Entry): string | null {
-  if (!cls) return null;
-  for (const f of features(cls)) {
-    const m = f.md.match(/(Intelligence|Wisdom|Charisma) is your spellcasting ability/);
-    if (m) return m[1];
-  }
-  return null;
-}
 
 export function slotTotals(c: Character, cls?: Entry): { level: number; max: number; pact: boolean }[] {
   const ci = casterInfo(cls, c.level);

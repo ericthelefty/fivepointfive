@@ -88,7 +88,8 @@ describe("import checks", () => {
 });
 
 import core from "../../public/data/srd-core.json";
-import { speciesChoice, traits, classTable, casterInfo, skillChoice, equipmentOptions } from "./rules.ts";
+import { speciesChoice, traits, classTable, casterInfo, equipmentOptions } from "./rules.ts";
+import { skillChoiceOf } from "./modif.ts";
 import type { Entry } from "./parse.ts";
 
 describe("rules on SRD data", () => {
@@ -105,7 +106,7 @@ describe("rules on SRD data", () => {
   it("reads class tables, casting, skills and equipment", () => {
     expect(classTable(get("Class", "Fighter"))!.rows).toHaveLength(20);
     expect(casterInfo(get("Class", "Warlock"), 5)).toMatchObject({ cantrips: 3, prepared: 6, maxSpellLevel: 3 });
-    expect(skillChoice(get("Class", "Rogue").fields["skill proficiencies"]).count).toBe(4);
+    expect(skillChoiceOf(get("Class", "Rogue")).count).toBe(4);
     expect(equipmentOptions(get("Class", "Fighter").fields["starting equipment"]).map((o) => o.key)).toEqual(["A", "B", "C"]);
   });
 });

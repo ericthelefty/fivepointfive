@@ -13,17 +13,17 @@ import {
 } from "../lib/rules.ts";
 import { combineModes, d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import {
-  CONDITION_EFFECTS, attackFor, castingAbility, classResources, conditionMods, esc, playOf,
-  spellDamage, spellRoll, timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
+  CONDITION_EFFECTS, attackFor, conditionMods, esc, playOf,
+  timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
   type ActiveEffect, type PlayState, type RollContext,
 } from "../lib/play.ts";
 import { catalog, inventoryOf, isActive, magicInfo, type Coins, type Item } from "../lib/inventory.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
 import {
-  advantageFor, computeModif, disadvantageFor, spellMinutes, spellPlan, statusOf, treatRoll,
+  advantageFor, computeModif, disadvantageFor, spellcastingOf, spellMinutes, spellPlan, statusOf, treatRoll, weaponProficient,
   type ModifAction, type ModifCost, type ModifCtx, type ModifToggle,
 } from "../lib/modif.ts";
-import { casterKind, classFeatures, classInfos, classLabel, hitDicePools, spellSlots, weaponProficiencyEntry, type ClassInfo, type Slot } from "../lib/multiclass.ts";
+import { casterKind, classFeatures, classInfos, classLabel, hitDicePools, spellSlots, type ClassInfo, type Slot } from "../lib/multiclass.ts";
 
 type Tab = "actions" | "effects" | "spells" | "features" | "conditions" | "inventory" | "notes";
 type CardAction = { label: string; run: () => void };
@@ -128,7 +128,7 @@ export default function Sheet() {
   const fx0 = computeModif(fxCtx);
   const d0 = derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos, modif: fx0 });
   const firstCaster = infos.find((i) => casterKind(i.cls));
-  const ab0 = firstCaster ? castingAbility(firstCaster.cls) : null;
+  const ab0 = firstCaster ? spellcastingOf(firstCaster.cls)?.ability ?? null : null;
   const fx = ab0 ? computeModif({ ...fxCtx, spell: { mod: d0.mods[ab0], dc: 8 + d0.pb + d0.mods[ab0], attack: d0.pb + d0.mods[ab0] } }) : fx0;
   const d = fx === fx0 ? d0 : derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos, modif: fx });
   const fxPlus = (to: string) => fx.bonuses.filter((b) => b.to === to).reduce((n, b) => n + b.value, 0);
@@ -145,7 +145,7 @@ export default function Sheet() {
   const casters = infos
     .filter((i) => casterKind(i.cls))
     .map((i) => {
-      const ab = castingAbility(i.cls);
+      const ab = spellcastingOf(i.cls)?.ability ?? null;
       const m = ab ? d.mods[ab] : 0;
       return { info: i, ab, mod: m, dc: 8 + d.pb + m + fxPlus("spell:dc"), atk: d.pb + m + fxPlus("spell:attack"), ci: casterInfo(i.cls, i.level) };
     });
@@ -155,9 +155,8 @@ export default function Sheet() {
   const spellAtk = casters[0]?.atk ?? 0;
   const slots: Slot[] = spellSlots(infos, content.entries);
   const slotKey = (s: Slot) => (s.pact ? `p${s.level}` : String(s.level));
-  // classes with Effects get their resources from Modif blocks; others from their class table
+  // limited uses all come from Effects (class features, feats, species, items)
   const resources = [
-    ...infos.flatMap((i) => (fx.encoded.has(i.cls.id) ? [] : classResources(c, i.cls, i.level).map((r) => (i.starting ? r : { ...r, key: `${i.cls.name}:${r.key}` })))),
     ...fx.resources.map((r) => {
       const owner = infos.find((i) => r.entryId === i.cls.id || r.entryId === i.sub?.id);
       return owner && !owner.starting ? { ...r, key: `${owner.cls.name}:${r.key}` } : r;
@@ -193,7 +192,7 @@ export default function Sheet() {
   const attacks: Attack[] = [
     ...inv.items.flatMap((it) => {
       const w = it.equipped && it.qty > 0 && it.base ? weapons.find((x) => x.name === it.base) : undefined;
-      return w ? [withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficiencyEntry(infos) || cls), itemId: it.id }, /ranged/i.test(w.category))] : [];
+      return w ? [withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficient(fx, w)), itemId: it.id }, /ranged/i.test(w.category))] : [];
     }),
     withBonuses(unarmedStrike(d), false),
   ];
@@ -495,9 +494,8 @@ export default function Sheet() {
     const spellAtk = opt.attack ?? k?.atk ?? d.pb + castMod;
     const spellDC = opt.dc ?? k?.dc ?? 8 + d.pb + castMod;
     const plan = spellPlan(s, { slot, charLevel: c!.level, spell: { mod: castMod, dc: spellDC, attack: spellAtk } });
-    const r = spellRoll(s);
     const minutes = plan ? plan.minutes : spellMinutes(s.fields["duration"]);
-    const conc = plan ? plan.concentration : r.concentration;
+    const conc = plan ? plan.concentration : /concentration/i.test(s.fields["duration"] || "");
     let slotPatch: (cur: PlayState) => Partial<PlayState> = () => ({});
     if (info && info.level > 0 && !opt.free) {
       const use = [...slots].sort((a, b) => Number(a.pact) - Number(b.pact)).find((x) => x.level === slot && x.max - (p.slotsUsed[slotKey(x)] || 0) > 0);
@@ -528,11 +526,8 @@ export default function Sheet() {
       if (plan.save) lines.push(`${plan.save.ability} save DC <b>${spellDC}</b>${plan.save.success === "half" ? " (half on a success)" : ""}`);
       lines.push(...plan.lines.map(esc));
     } else {
-      const dmgExpr = r.damage ? spellDamage(s, r.damage, slot, c!.level) : undefined;
-      if (r.attack) acts.push({ label: `Spell attack (${fmt(spellAtk)})`, run: () => attack({ name: s.name, toHit: spellAtk, damage: dmgExpr || "0", type: r.damageType || "", note: "" }) });
-      if (dmgExpr && !r.attack) acts.push({ label: `Roll damage (${dmgExpr})`, run: () => rollDamage(s.name, dmgExpr, false, r.damageType) });
-      if (r.heal) acts.push({ label: `Roll healing (${r.heal}+${castMod})`, run: () => rollDamage(s.name, `${r.heal}+${castMod}`, false, "", true) });
-      if (r.save) lines.push(`${esc(r.save)} save DC <b>${spellDC}</b>`);
+      // content without Effects: the sheet doesn't read its text, so the player applies it
+      lines.push(`Spell attack ${fmt(spellAtk)} · save DC <b>${spellDC}</b>. This spell has no Effects, so apply its rolls from its description.`);
     }
     log({
       title: `Cast ${s.name}`,
@@ -1105,11 +1100,10 @@ function SpellRow({ s, slots, slotLeft, onCast }: {
   const options = slots.filter((x) => x.level >= lvl).map((x) => x.level);
   const firstOpen = options.find((l) => slotLeft(l) > 0) ?? options[0] ?? lvl;
   const [slot, setSlot] = useState(firstOpen);
-  const r = spellRoll(s);
   const plan = spellPlan(s, { slot, charLevel: 1, spell: { mod: 0, dc: 0, attack: 0 } });
   const tags = plan
     ? { c: plan.concentration, save: plan.save?.ability, attack: !!plan.attack, heal: !!plan.heal }
-    : { c: r.concentration, save: r.save, attack: r.attack, heal: !!r.heal };
+    : { c: /concentration/i.test(s.fields["duration"] || ""), save: undefined, attack: false, heal: false };
   const canCast = lvl === 0 || slotLeft(slot) > 0;
   return (
     <details className="feat">
