@@ -11,3 +11,10 @@ While you have the Exhaustion condition, you experience the following effects.
 ***Speed Reduced.*** Your Speed is reduced by a number of feet equal to 5 times your Exhaustion level.
 
 ***Removing Exhaustion Levels.*** Finishing a Long Rest removes 1 of your Exhaustion levels. When your Exhaustion level reaches 0, the condition ends.
+
+## Effects
+```yaml
+- resource: { id: exhaustion-level, builtin: exhaustion, max: 6, on-max: death, regain: { event: { rest: long }, amount: -1 } }
+- bonus: { to: d20, value: "-2 * exhaustion" }
+- bonus: { to: speed:all, value: "-5 * exhaustion" }
+```

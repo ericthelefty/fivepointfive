@@ -9,3 +9,10 @@ While you have the Stunned condition, you experience the following effects.
 ***Saving Throws Affected.*** You automatically fail Strength and Dexterity saving throws.
 
 ***Attacks Affected.*** Attack rolls against you have Advantage.
+
+## Effects
+```yaml
+- condition: [incapacitated]
+- auto-fail: { roll: [save:str, save:dex] }
+- advantage: { roll: attacks-against-you }
+```

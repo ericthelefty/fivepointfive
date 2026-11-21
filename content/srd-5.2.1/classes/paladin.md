@@ -12,6 +12,18 @@
 **Armor Training:** Light, Medium, and Heavy armor and Shields
 **Starting Equipment:** Choose A or B: (A) Chain Mail, Shield, Longsword, 6 Javelins, Holy Symbol, Priest’s Pack, and 9 GP; or (B) 150 GP
 
+## Effects
+```yaml
+- hit-die: d10
+- proficiency: [save:wis, save:cha, weapon:simple, weapon:martial, armor:light, armor:medium, armor:heavy, armor:shield]
+- choose: { id: skills, kind: skill, count: 2, grants: proficiency, from: [athletics, insight, intimidation, medicine, persuasion, religion] }
+- multiclass: [hit-die, weapon:martial, armor:light, armor:medium, armor:shield]
+- equipment:
+    options:
+      - { id: a, items: [chain-mail, shield, longsword, { javelin: 6 }, holy-symbol, priests-pack], gp: 9 }
+      - { id: b, gp: 150 }
+```
+
 ## Becoming a Paladin …
 
 ### As a Level 1 Character
@@ -31,6 +43,19 @@ As a Paladin, you gain the following class features when you reach the specified
 ### Level 1: Lay On Hands
 
 Your blessed touch can heal wounds. You have a pool of healing power that replenishes when you finish a Long Rest. With that pool, you can restore a total number of Hit Points equal to five times your Paladin level.
+
+## Effects
+```yaml
+- resource: { id: lay-on-hands, max: 5 * level:paladin, reset: long, unit: hp }
+- action:
+    id: lay-on-hands
+    activation: bonus
+    range: touch
+    targets: { count: 1, include-self: true }
+    choose-one:
+      - { id: heal, cost: { resource: $#lay-on-hands, any: true }, heal: cost.amount }
+      - { id: cure-poison, cost: { resource: $#lay-on-hands, amount: 5 }, effects: [ { remove-condition: [poisoned] } ] }
+```
 
 #### Paladin Features
 
@@ -87,11 +112,22 @@ If another Paladin feature gives you spells that you always have prepared, those
 
 ***Spellcasting Focus.*** You can use a Holy Symbol as a Spellcasting Focus for your Paladin spells.
 
+## Effects
+```yaml
+- spellcasting: { ability: cha, progression: half, list: paladin, focus: holy-symbol,
+                  prepared: table:Prepared Spells, change: { prepared: { at: long, count: 1 } } }
+```
+
 ### Level 1: Weapon Mastery
 
 Your training with weapons allows you to use the mastery properties of two kinds of weapons of your choice with which you have proficiency, such as Longswords and Javelins.
 
 Whenever you finish a Long Rest, you can change the kinds of weapons you chose. For example, you could switch to using the mastery properties of Halberds and Flails.
+
+## Effects
+```yaml
+- choose: { id: mastery, kind: weapon, count: 2, grants: mastery, from: { proficient: weapon }, swap: { at: long, count: all } }
+```
 
 ### Level 2: Fighting Style
 
@@ -99,9 +135,30 @@ You gain a Fighting Style feat of your choice (see “Feats” for feats). Inste
 
 ***Blessed Warrior.*** You learn two Cleric cantrips of your choice (see the Cleric class’s section for a list of Cleric spells). *Guidance* and *Sacred Flame* are recommended. The chosen cantrips count as Paladin spells for you, and Charisma is your spellcasting ability for them. Whenever you gain a Paladin level, you can replace one of these cantrips with another Cleric cantrip.
 
+## Effects
+```yaml
+- choose:
+    id: fighting-style
+    kind: feat
+    count: 1
+    from: { feat: { category: fighting-style } }
+    swap: level-up
+    options:
+      - id: blessed-warrior
+        label: Blessed Warrior
+        effects:
+          - grant-spell: { choose: { id: blessed-cantrips, count: 2, from: { spell: { list: cleric, level: 0 } }, swap: { at: level-up, count: 1 } },
+                           ability: cha, counts-as: paladin }
+```
+
 ### Level 2: Paladin’s Smite
 
 You always have the *Divine Smite* spell prepared. In addition, you can cast it without expending a spell slot, but you must finish a Long Rest before you can cast it in this way again.
+
+## Effects
+```yaml
+- grant-spell: { spell: $srd/spells/divine-smite, prepared: always, free: { per: long, count: 1 } }
+```
 
 ### Level 3: Channel Divinity
 
@@ -113,23 +170,55 @@ If a Channel Divinity effect requires a saving throw, the DC equals the spell sa
 
 ***Divine Sense.*** As a Bonus Action, you can open your awareness to detect Celestials, Fiends, and Undead. For the next 10 minutes or until you have the Incapacitated condition, you know the location of any creature of those types within 60 feet of yourself, and you know its creature type. Within the same radius, you also detect the presence of any place or object that has been consecrated or desecrated, as with the *Hallow* spell.
 
+## Effects
+```yaml
+- resource: { id: channel-divinity, max: table:Channel Divinity, reset: long, partial: { at: short, amount: 1 } }
+- action:
+    id: divine-sense
+    activation: bonus
+    cost: { resource: $#channel-divinity }
+    duration: { amount: 10, unit: minute }
+    text: "Know the location and type of Celestials, Fiends and Undead within 60 feet, and sense consecrated or desecrated places and objects."
+    effects: [ { note: { stat: sense:divine-sense, text: "60 ft: Celestials, Fiends, Undead" } } ]
+```
+
 ### Level 3: Paladin Subclass
 
 You gain a Paladin subclass of your choice. The Oath of Devotion subclass is detailed after this class’s description. A subclass is a specialization that grants you features at certain Paladin levels. For the rest of your career, you gain each of your subclass’s features that are of your Paladin level or lower.
+
+## Effects
+```yaml
+- choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/paladin } } }
+```
 
 ### Level 4: Ability Score Improvement
 
 You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify. You gain this feature again at Paladin levels 8, 12, and 16.
 
+## Effects
+```yaml
+- choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+```
+
 ### Level 5: Extra Attack
 
 You can attack twice instead of once whenever you take the Attack action on your turn.
+
+## Effects
+```yaml
+- extra-attack: { total: 2 }
+```
 
 ### Level 5: Faithful Steed
 
 You can call on the aid of an otherworldly steed. You always have the *Find Steed* spell prepared.
 
 You can also cast the spell once without expending a spell slot, and you regain the ability to do so when you finish a Long Rest.
+
+## Effects
+```yaml
+- grant-spell: { spell: $srd/spells/find-steed, prepared: always, free: { per: long, count: 1 } }
+```
 
 ### Level 6: Aura of Protection
 
@@ -139,29 +228,85 @@ You and your allies in the aura gain a bonus to saving throws equal to your Char
 
 If another Paladin is present, a creature can benefit from only one Aura of Protection at a time; the creature chooses which aura while in them.
 
+## Effects
+```yaml
+- aura:
+    id: aura-of-protection
+    area: { shape: emanation, size: 10 }
+    affects: [self, allies]
+    inactive-when: [{ condition: incapacitated }]
+    stacking: one-per-type
+    effects:
+      - bonus: { to: save:all, value: "max(1, mod:cha)" }
+```
+
 ### Level 9: Abjure Foes
 
 As a Magic action, you can expend one use of this class’s Channel Divinity to overwhelm foes with awe. As you present your Holy Symbol or weapon, you can target a number of creatures equal to your Charisma modifier (minimum of one creature) that you can see within 60 feet of yourself. Each target must succeed on a Wisdom saving throw or have the Frightened condition for 1 minute or until it takes any damage. While Frightened in this way, a target can do only one of the following on its turns: move, take an action, or take a Bonus Action.
+
+## Effects
+```yaml
+- action:
+    id: abjure-foes
+    activation: magic
+    cost: { resource: $#channel-divinity }
+    range: 60
+    targets: { count: "max(1, mod:cha)" }
+    save: { ability: wis, dc: spell:dc }
+    apply: { condition: frightened, duration: { amount: 1, unit: minute }, ends-when: damage,
+             text: "On its turns it can only move, take an action, or take a Bonus Action." }
+```
 
 ### Level 10: Aura of Courage
 
 You and your allies have Immunity to the Frightened condition while in your Aura of Protection. If a Frightened ally enters the aura, that condition has no effect on that ally while there.
 
+## Effects
+```yaml
+- modify: { target: $#aura-of-protection, add: { effects: [ { defense: { condition-immunity: [frightened] } } ] } }
+```
+
 ### Level 11: Radiant Strikes
 
 Your strikes now carry supernatural power. When you hit a target with an attack roll using a Melee weapon or an Unarmed Strike, the target takes an extra 1d8 Radiant damage.
+
+## Effects
+```yaml
+- trigger: { event: hit, auto: true, scope: { any: [ { weapon: { kind: melee } }, { weapon: { unarmed: true } } ] },
+             offer: { damage: { dice: 1d8, type: radiant } } }
+```
 
 ### Level 14: Restoring Touch
 
 When you use Lay On Hands on a creature, you can also remove one or more of the following conditions from the creature: Blinded, Charmed, Deafened, Frightened, Paralyzed, or Stunned. You must expend 5 Hit Points from the healing pool of Lay On Hands for each of these conditions you remove; those points don’t also restore Hit Points to the creature.
 
+## Effects
+```yaml
+- modify:
+    target: $#lay-on-hands
+    add:
+      choose-one:
+        - { id: restoring-touch, cost: { resource: $#lay-on-hands, amount: 5, per-pick: true },
+            pick: any, effects: [ { remove-condition: [blinded, charmed, deafened, frightened, paralyzed, stunned] } ] }
+```
+
 ### Level 18: Aura Expansion
 
 Your Aura of Protection is now a 30-foot Emanation.
 
+## Effects
+```yaml
+- modify: { target: $#aura-of-protection, set: { area.size: 30 } }
+```
+
 ### Level 19: Epic Boon
 
 You gain an Epic Boon feat (see “Feats”) or another feat of your choice for which you qualify. Boon of Truesight is recommended.
+
+## Effects
+```yaml
+- choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-truesight }
+```
 
 ## Paladin Spell List
 

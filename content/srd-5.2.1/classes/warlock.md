@@ -12,6 +12,20 @@
 **Armor Training:** Light armor
 **Starting Equipment:** Choose A or B: (A) Leather Armor, Sickle, 2 Daggers, Arcane Focus (orb), Book (occult lore), Scholar’s Pack, and 15 GP; or (B) 100 GP
 
+## Effects
+```yaml
+- hit-die: d8
+- proficiency: [save:wis, save:cha]
+- choose: { id: skills, kind: skill, count: 2, grants: proficiency,
+            from: [arcana, deception, history, intimidation, investigation, nature, religion] }
+- proficiency: [weapon:simple, armor:light]
+- multiclass: [hit-die, armor:light]
+- equipment:
+    options:
+      - { id: a, items: [leather-armor, sickle, { dagger: 2 }, arcane-focus-orb, book-occult-lore, scholars-pack], gp: 15 }
+      - { id: b, gp: 100 }
+```
+
 ## Becoming a Warlock …
 
 ### As a Level 1 Character
@@ -40,6 +54,12 @@ When you gain certain Warlock levels, you gain more invocations of your choice, 
 
 You can’t pick the same invocation more than once unless its description says otherwise.
 
+## Effects
+```yaml
+- choose: { id: invocations, kind: option, count: table:Eldritch Invocations, swap: { at: level-up, count: 1 },
+            options: { headings-under: Eldritch Invocation Options } }
+```
+
 ### Level 1: Pact Magic
 
 Through occult ceremony, you have formed a pact with a mysterious entity to gain magical powers. The entity is a voice in the shadows—its identity unclear—but its boon to you is concrete: the ability to cast spells. See “Spells” for the rules on spellcasting. The information below details how you use those rules with Warlock spells, which appear in the Warlock spell list later in the class’s description.
@@ -57,6 +77,13 @@ For example, when you’re a level 5 Warlock, you have two level 3 spell slots. 
 The number of spells on your list increases as you gain Warlock levels, as shown in the Prepared Spells column of the Warlock Features table. Whenever that number increases, choose additional Warlock spells until the number of spells on your list matches the number in the table. The chosen spells must be of a level no higher than what’s shown in the table’s Slot Level column for your level. When you reach level 6, for example, you learn a new Warlock spell, which can be of levels 1–3.
 
 If another Warlock feature gives you spells that you always have prepared, those spells don’t count against the number of spells you can prepare with this feature, but those spells otherwise count as Warlock spells for you.
+
+## Effects
+```yaml
+- spellcasting: { ability: cha, progression: pact, list: warlock, focus: arcane-focus, slots: table:Spell Slots, slot-level: table:Slot Level,
+                  cantrips: table:Cantrips, prepared: table:Prepared Spells, change: { prepared: level-up, cantrips: level-up } }
+- choose: { id: cantrips, kind: spell, count: table:Cantrips, from: { spell: { list: warlock, level: 0 } }, swap: { at: level-up, count: 1 } }
+```
 
 #### Warlock Features
 
@@ -93,19 +120,41 @@ If another Warlock feature gives you spells that you always have prepared, those
 
 You can perform an esoteric rite for 1 minute. At the end of it, you regain expended Pact Magic spell slots but no more than a number equal to half your maximum (round up). Once you use this feature, you can’t do so again until you finish a Long Rest.
 
+## Effects
+```yaml
+- resource: { id: magical-cunning, max: 1, reset: long }
+- action: { id: magical-cunning, activation: { amount: 1, unit: minute }, cost: { resource: $#magical-cunning },
+            regain: { resource: pact-slots, amount: "ceil(table:Spell Slots / 2)" } }
+```
+
 ### Level 3: Warlock Subclass
 
 You gain a Warlock subclass of your choice. The Fiend Patron subclass is detailed after this class’s description. A subclass is a specialization that grants you features at certain Warlock levels. For the rest of your career, you gain each of your subclass’s features that are of your Warlock level or lower.
 
+## Effects
+```yaml
+- choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/warlock } } }
+```
+
 ### Level 4: Ability Score Improvement
 
 You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify. You gain this feature again at Warlock levels 8, 12, and 16.
+
+## Effects
+```yaml
+- choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+```
 
 ### Level 9: Contact Patron
 
 In the past, you usually contacted your patron through intermediaries. Now you can communicate directly; you always have the *Contact Other Plane* spell prepared. With this feature, you can cast the spell without expending a spell slot to contact your patron, and you automatically succeed on the spell’s saving throw.
 
 Once you cast the spell with this feature, you can’t do so in this way again until you finish a Long Rest.
+
+## Effects
+```yaml
+- grant-spell: { spell: $srd/spells/contact-other-plane, prepared: always, free: { per: long, count: 1 }, auto-succeed: save }
+```
 
 ### Level 11: Mystic Arcanum
 
@@ -117,13 +166,31 @@ As shown in the Warlock Features table, you gain another Warlock spell of your c
 
 Whenever you gain a Warlock level, you can replace one of your arcanum spells with another Warlock spell of the same level.
 
+## Effects
+```yaml
+- grant-spell: { level: 11, choose: { id: arcanum-6, count: 1, from: { spell: { list: warlock, level: 6 } }, swap: { at: level-up, count: 1 } }, free: { per: long, count: 1 }, uses-slot: false }
+- grant-spell: { level: 13, choose: { id: arcanum-7, count: 1, from: { spell: { list: warlock, level: 7 } }, swap: { at: level-up, count: 1 } }, free: { per: long, count: 1 }, uses-slot: false }
+- grant-spell: { level: 15, choose: { id: arcanum-8, count: 1, from: { spell: { list: warlock, level: 8 } }, swap: { at: level-up, count: 1 } }, free: { per: long, count: 1 }, uses-slot: false }
+- grant-spell: { level: 17, choose: { id: arcanum-9, count: 1, from: { spell: { list: warlock, level: 9 } }, swap: { at: level-up, count: 1 } }, free: { per: long, count: 1 }, uses-slot: false }
+```
+
 ### Level 19: Epic Boon
 
 You gain an Epic Boon feat (see “Feats”) or another feat of your choice for which you qualify. Boon of Fate is recommended.
 
+## Effects
+```yaml
+- choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-fate }
+```
+
 ### Level 20: Eldritch Master
 
 When you use your Magical Cunning feature, you regain all your expended Pact Magic spell slots.
+
+## Effects
+```yaml
+- modify: { target: $#magical-cunning, set: { regain.amount: table:Spell Slots } }
+```
 
 ## Eldritch Invocation Options
 
@@ -137,9 +204,23 @@ Choose one of your known Warlock cantrips that deals damage. You can add your Ch
 
 ***Repeatable.*** You can gain this invocation more than once. Each time you do so, choose a different eligible cantrip.
 
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 2, known: { spell: { list: warlock, level: 0, deals: any } } },
+            repeatable: { distinct: choice:agonizing-cantrip } }
+- choose: { id: agonizing-cantrip, kind: spell, count: 1, from: { known: { spell: { list: warlock, level: 0, deals: any } } } }
+- bonus: { to: damage, value: mod:cha, scope: { spell: { id: choice:agonizing-cantrip } } }
+```
+
 ### Armor of Shadows
 
 You can cast *Mage Armor* on yourself without expending a spell slot.
+
+## Effects
+```yaml
+- option: { of: $#invocations }
+- grant-spell: { spell: $srd/spells/mage-armor, at-will: true, target: self }
+```
 
 ### Ascendant Step
 
@@ -153,6 +234,12 @@ You can cast *Levitate* on yourself without expending a spell slot.
 
 You can see normally in Dim Light and Darkness— both magical and nonmagical—within 120 feet of yourself.
 
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 2 } }
+- sense: { devils-sight: 120 }
+```
+
 ### Devouring Blade
 
 *Prerequisite: Level 12+ Warlock, Thirsting Blade Invocation*
@@ -163,11 +250,25 @@ The Extra Attack of your Thirsting Blade invocation confers two extra attacks ra
 
 You have Advantage on Constitution saving throws that you make to maintain Concentration.
 
+## Effects
+```yaml
+- option: { of: $#invocations }
+- advantage: { roll: concentration }
+```
+
 ### Eldritch Smite
 
 *Prerequisite: Level 5+ Warlock, Pact of the Blade Invocation*
 
 Once per turn when you hit a creature with your pact weapon, you can expend a Pact Magic spell slot to deal an extra 1d8 Force damage to the target, plus another 1d8 per level of the spell slot, and you can give the target the Prone condition if it is Huge or smaller.
+
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 5, has: { option: $#pact-of-the-blade } } }
+- trigger: { event: hit, per: turn, scope: { weapon: { id: choice:pact-weapon } },
+             offer: { cost: { slot: pact }, damage: { dice: "dice(1 + slot-level, d8)", type: force },
+                      apply: { condition: prone, text: "If the target is Huge or smaller" } } }
+```
 
 ### Eldritch Spear
 
@@ -182,6 +283,12 @@ Choose one of your known Warlock cantrips that deals damage and has a range of 1
 *Prerequisite: Level 2+ Warlock*
 
 You can cast *False Life* on yourself without expending a spell slot. When you cast the spell with this feature, you don’t roll the die for the Temporary Hit Points; you automatically get the highest number on the die.
+
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 2 } }
+- grant-spell: { spell: $srd/spells/false-life, at-will: true, target: self, maximize: true }
+```
 
 ### Gaze of Two Minds
 
@@ -198,6 +305,14 @@ While perceiving through the other creature’s senses, you benefit from any spe
 You can breathe underwater, and you gain a Swim Speed equal to your Speed.
 
 You can also cast *Water Breathing* once without expending a spell slot. You regain the ability to cast it in this way again when you finish a Long Rest.
+
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 5 } }
+- speed: { swim: speed:walk }
+- trait: [breathe-underwater]
+- grant-spell: { spell: $srd/spells/water-breathing, free: { per: long, count: 1 } }
+```
 
 ### Gift of the Protectors
 
@@ -233,6 +348,12 @@ You have received knowledge from an elder entity of the multiverse, allowing you
 
 ***Repeatable.*** You can gain this invocation more than once. Each time you do so, choose a different Origin feat.
 
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 2 }, repeatable: { distinct: choice:origin-feat } }
+- choose: { id: origin-feat, kind: feat, count: 1, from: { feat: { category: origin } } }
+```
+
 ### Lifedrinker
 
 *Prerequisite: Level 9+ Warlock, Pact of the Blade Invocation*
@@ -263,6 +384,12 @@ You can cast *Silent Image* without expending a spell slot.
 
 While you’re in an area of Dim Light or Darkness, you can cast *Invisibility* on yourself without expending a spell slot.
 
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 5 } }
+- grant-spell: { spell: $srd/spells/invisibility, at-will: true, target: self, when: { player: "In Dim Light or Darkness" } }
+```
+
 ### Otherworldly Leap
 
 *Prerequisite: Level 2+ Warlock*
@@ -276,6 +403,16 @@ As a Bonus Action, you can conjure a pact weapon in your hand—a Simple or Mart
 Whenever you attack with the bonded weapon, you can use your Charisma modifier for the attack and damage rolls instead of using Strength or Dexterity; and you can cause the weapon to deal Necrotic, Psychic, or Radiant damage or its normal damage type.
 
 Your bond with the weapon ends if you use this feature’s Bonus Action again, if the weapon is more than 5 feet away from you for 1 minute or more, or if you die. A conjured weapon disappears when the bond ends.
+
+## Effects
+```yaml
+- option: { of: $#invocations }
+- choose: { id: pact-weapon, kind: item, count: 1, from: { weapon: { kind: melee, category: [simple, martial] } }, swap: { at: use } }
+- action: { id: pact-of-the-blade, activation: bonus, text: "Conjure or bond your pact weapon (ends if 5+ ft away for 1 minute)." }
+- proficiency: [{ weapon: { id: choice:pact-weapon } }]
+- use-ability: { ability: cha, instead-of: [str, dex], scope: { weapon: { id: choice:pact-weapon } } }
+- damage-type: { add-option: [necrotic, psychic, radiant], scope: { weapon: { id: choice:pact-weapon } } }
+```
 
 ### Pact of the Chain
 
@@ -293,6 +430,15 @@ Stitching together strands of shadow, you conjure forth a book in your hand at t
 
 ***Spellcasting Focus.*** You can use the book as a Spellcasting Focus.
 
+## Effects
+```yaml
+- option: { of: $#invocations }
+- grant-spell: { choose: { id: tome-cantrips, count: 3, from: { spell: { level: 0 } }, swap: { at: [short, long], count: all } },
+                 prepared: always, when: { has: { item: book-of-shadows } } }
+- grant-spell: { choose: { id: tome-rituals, count: 2, from: { spell: { level: 1, ritual: true } }, swap: { at: [short, long], count: all } },
+                 prepared: always, when: { has: { item: book-of-shadows } } }
+```
+
 ### Repelling Blast
 
 *Prerequisite: Level 2+ Warlock, a Warlock Cantrip That Deals Damage via an Attack Roll*
@@ -306,6 +452,12 @@ Choose one of your known Warlock cantrips that requires an attack roll. When you
 *Prerequisite: Level 5+ Warlock, Pact of the Blade Invocation*
 
 You gain the Extra Attack feature for your pact weapon only. With that feature, you can attack twice with the weapon instead of once when you take the Attack action on your turn.
+
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 5, has: { option: $#pact-of-the-blade } } }
+- extra-attack: { total: 2, scope: { weapon: { id: choice:pact-weapon } } }
+```
 
 ### Visions of Distant Realms
 
@@ -324,6 +476,12 @@ You can cast *Speak with Dead* without expending a spell slot.
 *Prerequisite: Level 15+ Warlock*
 
 You have Truesight with a range of 30 feet.
+
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 15 } }
+- sense: { truesight: 30 }
+```
 
 ## Warlock Spell List
 

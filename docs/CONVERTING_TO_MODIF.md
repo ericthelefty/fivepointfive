@@ -6,7 +6,7 @@ You are converting entries in the fivepointfive SRD content pack to **Modif**, t
 
 1. `docs/MODIF.md`: the Modif 0.6 spec. It is the authority on block names, fields and values. Read §2 (where effects live), §3 (values, paths, scopes, conditions), §4 (block index) and the sections for every block you use.
 2. `docs/CONTENT_FORMAT.md` §4: the user-facing summary of Effects.
-3. Files that are already converted. Copy their style exactly:
+3. Files that are already converted (all of the SRD pack's character content). Copy their style exactly, for example:
    - `content/srd-5.2.1/classes/fighter.md`
    - `content/srd-5.2.1/subclasses/champion.md`
    - `content/srd-5.2.1/species/human.md`
@@ -17,17 +17,12 @@ You are converting entries in the fivepointfive SRD content pack to **Modif**, t
 ## Tools
 
 - **Validator:** `tools/modif_check.py` with `tools/modif.schema.json` next to it (see `tools/README.md`). Run `python3 tools/modif_check.py`. It reads the Effects blocks out of the Markdown files and must report **0 issues**. Install `jsonschema` (`pip install jsonschema`) so the schema checks run too.
-- **Inserter:** `tools/insert_effects.py <entry.md> <draft.yaml>` puts a draft's blocks under the right headings. Turn run-in traits into headings first, then review the result by eye.
-- **Draft encodings:** `encodings/` (see `encodings/README.md`) holds hand-encoded YAML for every unconverted class, subclass and species and the backgrounds (`characters/`), plus the equipment, conditions and rules (`catalog/`). In each file, top-level keys are feature headings. Treat these as drafts to check against the text, not as finished work. When an entry is converted, delete its draft in the same change.
+- **Converter:** `tools/convert_entry.py <entry.md> <draft.yaml>` puts a draft's blocks under the right headings, turning run-in traits and bold option labels into headings as it goes (see `tools/README.md`). Review the result by eye.
+- **Drafts:** write drafts in `encodings/` while you work (see `encodings/README.md`): top-level keys are feature headings. Delete a draft in the same change that moves it into the pack.
 
 ## The task
 
-Convert the entries the user names. If they don't name any, convert in this order, one batch at a time, finishing each batch completely before starting the next:
-
-1. **Classes with their subclass:** Barbarian + Berserker, Bard + Lore, Cleric + Life, Druid + Land, Monk + Open Hand, Paladin + Devotion, Ranger + Hunter, Rogue + Thief, Sorcerer + Draconic, Warlock + Fiend, Wizard + Evoker.
-2. **Species:** Dragonborn, Dwarf, Elf, Gnome, Goliath, Halfling, Orc, Tiefling.
-3. **Backgrounds:** Acolyte, Criminal, Sage.
-4. **Equipment, conditions and rules.** (Spells and magic items are already in the pack.) The app doesn't act on most of these blocks yet, but encode them faithfully.
+Convert the entries the user names. The whole SRD 5.2.1 character side is already converted, so this is for homebrew content packs and for content the SRD pack doesn't cover yet (monsters, once Modif covers them). Work one entry, or one class with its subclasses, at a time, finishing each completely before starting the next. The SRD files are the examples to copy: every class, subclass, species, background, feat, spell and magic item there has Effects.
 
 ## How to write Effects
 

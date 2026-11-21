@@ -9,3 +9,8 @@ First, you decide what perceivable circumstance will trigger your Reaction. Then
 When the trigger occurs, you can either take your Reaction right after the trigger finishes or ignore the trigger.
 
 When you Ready a spell, you cast it as normal (expending any resources used to cast it) but hold its energy, which you release with your Reaction when the trigger occurs. To be readied, a spell must have a casting time of an action, and holding on to the spell’s magic requires Concentration, which you can maintain up to the start of your next turn. If your Concentration is broken, the spell dissipates without taking effect.
+
+## Effects
+```yaml
+- action: { id: ready, activation: action, text: "Choose a trigger and a response; take it as a Reaction before your next turn. A readied spell holds its energy (Concentration)." }
+```

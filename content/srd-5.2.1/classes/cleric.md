@@ -12,6 +12,19 @@
 **Armor Training:** Light and Medium armor and Shields
 **Starting Equipment:** Choose A or B: (A) Chain Shirt, Shield, Mace, Holy Symbol, Priest’s Pack, and 7 GP; or (B) 110 GP
 
+## Effects
+```yaml
+- hit-die: d8
+- proficiency: [save:wis, save:cha]
+- choose: { id: skills, kind: skill, count: 2, grants: proficiency, from: [history, insight, medicine, persuasion, religion] }
+- proficiency: [weapon:simple, armor:light, armor:medium, armor:shield]
+- multiclass: [hit-die, armor:light, armor:medium, armor:shield]
+- equipment:
+    options:
+      - { id: a, items: [chain-shirt, shield, mace, holy-symbol, priests-pack], gp: 7 }
+      - { id: b, gp: 110 }
+```
+
 ## Becoming a Cleric …
 
 ### As a Level 1 Character
@@ -35,6 +48,14 @@ You have learned to cast spells through prayer and meditation. See “Spells” 
 ***Cantrips.*** You know three cantrips of your choice from the Cleric spell list. *Guidance, Sacred Flame,* and *Thaumaturgy* are recommended.
 
 Whenever you gain a Cleric level, you can replace one of your cantrips with another cantrip of your choice from the Cleric spell list.
+
+## Effects
+```yaml
+- spellcasting: { ability: wis, progression: full, list: cleric, focus: holy-symbol,
+                  cantrips: table:Cantrips, prepared: table:Prepared Spells, change: { prepared: long, cantrips: level-up } }
+- choose: { id: cantrips, kind: spell, count: table:Cantrips, from: { spell: { list: cleric, level: 0 } }, swap: { at: level-up, count: 1 },
+            default: [$srd/spells/guidance, $srd/spells/sacred-flame, $srd/spells/thaumaturgy] }
+```
 
 #### Cleric Features
 
@@ -85,6 +106,21 @@ You have dedicated yourself to one of the following sacred roles of your choice.
 
 ***Thaumaturge.*** You know one extra cantrip from the Cleric spell list. In addition, your mystical connection to the divine gives you a bonus to your Intelligence (Arcana or Religion) checks. The bonus equals your Wisdom modifier (minimum of +1).
 
+## Effects
+```yaml
+- choose:
+    id: divine-order
+    kind: option
+    options:
+      - id: protector
+        effects:
+          - proficiency: [weapon:martial, armor:heavy]
+      - id: thaumaturge
+        effects:
+          - grant-spell: { choose: { id: order-cantrip, count: 1, from: { spell: { list: cleric, level: 0 } } } }
+          - bonus: { to: [skill:arcana, skill:religion], value: "max(1, mod:wis)" }
+```
+
 ### Level 2: Channel Divinity
 
 You can channel divine energy directly from the Outer Planes to fuel magical effects. You start with two such effects: Divine Spark and Turn Undead, each of which is described below. Each time you use this class’s Channel Divinity, choose which Channel Divinity effect from this class to create. You gain additional effect options at higher Cleric levels.
@@ -99,17 +135,55 @@ You roll an additional d8 when you reach Cleric levels 7 (2d8), 13 (3d8), and 18
 
 ***Turn Undead.*** As a Magic action, you present your Holy Symbol and censure Undead creatures. Each Undead of your choice within 30 feet of you must make a Wisdom saving throw. If the creature fails its save, it has the Frightened and Incapacitated conditions for 1 minute. For that duration, it tries to move as far from you as it can on its turns. This effect ends early on the creature if it takes any damage, if you have the Incapacitated condition, or if you die.
 
+## Effects
+```yaml
+- resource: { id: channel-divinity, max: table:Channel Divinity, reset: long, partial: { at: short, amount: 1 } }
+- action:
+    id: divine-spark
+    activation: magic
+    range: 30
+    cost: { resource: $#channel-divinity }
+    choose-one:
+      - { label: Heal, heal: "steps(2: 1d8, 7: 2d8, 13: 3d8, 18: 4d8) + mod:wis" }
+      - { label: Harm, save: { ability: con, dc: spell:dc, success: half },
+          damage: { dice: "steps(2: 1d8, 7: 2d8, 13: 3d8, 18: 4d8) + mod:wis", type: { choose-on-use: [necrotic, radiant] } } }
+- action:
+    id: turn-undead
+    activation: magic
+    cost: { resource: $#channel-divinity }
+    area: { shape: emanation, size: 30 }
+    targets: { creature: undead, choose: true }
+    save: { ability: wis, dc: spell:dc }
+    apply: { condition: [frightened, incapacitated], duration: { amount: 1, unit: minute }, ends-when: damage,
+             text: "It moves as far from you as it can. Ends early if you're Incapacitated or die." }
+```
+
 ### Level 3: Cleric Subclass
 
 You gain a Cleric subclass of your choice. The Life Domain subclass is detailed after this class’s description. A subclass is a specialization that grants you features at certain Cleric levels. For the rest of your career, you gain each of your subclass’s features that are of your Cleric level or lower.
+
+## Effects
+```yaml
+- choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/cleric } } }
+```
 
 ### Level 4: Ability Score Improvement
 
 You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify. You gain this feature again at Cleric levels 8, 12, and 16.
 
+## Effects
+```yaml
+- choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+```
+
 ### Level 5: Sear Undead
 
 Whenever you use Turn Undead, you can roll a number of d8s equal to your Wisdom modifier (minimum of 1d8) and add the rolls together. Each Undead that fails its saving throw against that use of Turn Undead takes Radiant damage equal to the roll’s total. This damage doesn’t end the turn effect.
+
+## Effects
+```yaml
+- modify: { target: $#turn-undead, add: { damage: { dice: "dice(max(1, mod:wis), d8)", type: radiant, applies-to: failed-save } } }
+```
 
 ### Level 7: Blessed Strikes
 
@@ -119,9 +193,35 @@ Divine power infuses you in battle. You gain one of the following options of you
 
 ***Potent Spellcasting.*** Add your Wisdom modifier to the damage you deal with any Cleric cantrip.
 
+## Effects
+```yaml
+- choose:
+    id: blessed-strikes
+    kind: option
+    options:
+      - id: divine-strike
+        effects:
+          - trigger: { id: divine-strike, event: hit, scope: { weapon: {} }, per: turn,
+                       offer: { damage: { dice: 1d8, type: { choose-on-use: [necrotic, radiant] } } } }
+      - id: potent-spellcasting
+        effects:
+          - bonus: { to: damage, value: mod:wis, scope: { spell: { list: cleric, level: 0 } } }
+```
+
 ### Level 10: Divine Intervention
 
 You can call on your deity or pantheon to intervene on your behalf. As a Magic action, choose any Cleric spell of level 5 or lower that doesn’t require a Reaction to cast. As part of the same action, you cast that spell without expending a spell slot or needing Material components. You can’t use this feature again until you finish a Long Rest.
+
+## Effects
+```yaml
+- resource: { id: divine-intervention, max: 1, reset: long }
+- action:
+    id: divine-intervention
+    activation: magic
+    cost: { resource: $#divine-intervention }
+    cast: { choose-on-use: { spell: { list: cleric, level: "<= 5", casting-time: { not: reaction } } } }
+    cast-options: { slot: false, material: false }
+```
 
 ### Level 14: Improved Blessed Strikes
 
@@ -131,13 +231,31 @@ The option you chose for Blessed Strikes grows more powerful.
 
 ***Potent Spellcasting.*** When you cast a Cleric cantrip and deal damage to a creature with it, you can give vitality to yourself or another creature within 60 feet of yourself, granting a number of Temporary Hit Points equal to twice your Wisdom modifier.
 
+## Effects
+```yaml
+- modify: { target: $#divine-strike, set: { offer.damage.dice: 2d8 }, when: { choice: { id: blessed-strikes, is: divine-strike } } }
+- trigger: { event: cast, scope: { spell: { list: cleric, level: 0, deals: any } }, when: { choice: { id: blessed-strikes, is: potent-spellcasting } },
+             if: "The cantrip dealt damage to a creature", offer: { temp-hp: 2 * mod:wis, text: "You or a creature within 60 feet" } }
+```
+
 ### Level 19: Epic Boon
 
 You gain an Epic Boon feat (see “Feats”) or another feat of your choice for which you qualify. Boon of Fate is recommended.
 
+## Effects
+```yaml
+- choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-fate }
+```
+
 ### Level 20: Greater Divine Intervention
 
 You can call on even more powerful divine intervention. When you use your Divine Intervention feature, you can choose *Wish* when you select a spell. If you do so, you can’t use Divine Intervention again until you finish 2d4 Long Rests.
+
+## Effects
+```yaml
+- modify: { target: $#divine-intervention, add: { cast.choose-on-use: [$srd/spells/wish] } }
+- modify: { target: $#divine-intervention, add: { cost.lockout: { if-cast: $srd/spells/wish, long-rests: 2d4 } } }
+```
 
 ## Cleric Spell List
 

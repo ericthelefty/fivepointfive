@@ -4,3 +4,9 @@
 **Source:** SRD 5.2.1, p. 94
 
 When you take the Attack action, you can replace one of your attacks with throwing a flask of Alchemist’s Fire. Target one creature or object you can see within 20 feet of yourself. The target must succeed on a Dexterity saving throw (DC 8 plus your Dexterity modifier and Proficiency Bonus) or take 1d4 Fire damage and start burning (see “Rules Glossary”).
+
+## Effects
+```yaml
+- action: { activation: replace-attack, range: 20, consume: true, save: { ability: dex, dc: 8 + mod:dex + prof },
+            on-failure: { damage: { dice: 1d4, type: fire }, apply: { condition: burning } } }
+```

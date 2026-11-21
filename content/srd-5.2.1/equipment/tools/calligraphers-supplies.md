@@ -6,3 +6,13 @@
 **Weight:** 5 lb.
 **Utilize:** Write text with impressive flourishes that guard against forgery (DC 15)
 **Craft:** Ink, *Spell Scroll*
+
+## Effects
+```yaml
+- action:
+    activation: utilize
+    label: Write text with impressive flourishes that guard against forgery
+    check: {tool: self, ability: dex, dc: 15}
+- craft:
+    items: [ink, spell-scroll]
+```

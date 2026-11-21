@@ -6,3 +6,11 @@
 **Skill Proficiencies:** Sleight of Hand and Stealth
 **Tool Proficiency:** Thieves’ Tools
 **Equipment:** *Choose A or B:* (A) 2 Daggers, Thieves’ Tools, Crowbar, 2 Pouches, Traveler’s Clothes, 16 GP; or (B) 50 GP
+
+## Effects
+```yaml
+- equipment:
+    options:
+      - { id: a, items: [{ dagger: 2 }, thieves-tools, crowbar, { pouch: 2 }, travelers-clothes], gp: 16 }
+      - { id: b, gp: 50 }
+```

@@ -6,3 +6,13 @@
 **Weight:** 3 lb.
 **Utilize:** Apply makeup (DC 10)
 **Craft:** Costume
+
+## Effects
+```yaml
+- action:
+    activation: utilize
+    label: Apply makeup
+    check: {tool: self, ability: cha, dc: 10}
+- craft:
+    items: [costume]
+```

@@ -12,3 +12,8 @@ A space is Difficult Terrain if the space contains any of the following or somet
 - Liquid that’s between shin- and waist-deep
 - A narrow opening sized for a creature one size smaller than you
 - A slope of 20 degrees or more
+
+## Effects
+```yaml
+- trait: { text: "Each foot of movement costs 1 extra foot." }
+```

@@ -6,3 +6,13 @@
 **Weight:** 6 lb.
 **Utilize:** Draft a map of a small area (DC 15)
 **Craft:** Map
+
+## Effects
+```yaml
+- action:
+    activation: utilize
+    label: Draft a map of a small area
+    check: {tool: self, ability: wis, dc: 15}
+- craft:
+    items: [map]
+```

@@ -3,3 +3,8 @@
 **Source:** SRD 5.2.1, p. 181
 
 If you take the Disengage action, your movement doesn’t provoke Opportunity Attacks for the rest of the current turn.
+
+## Effects
+```yaml
+- action: { id: disengage, activation: action, duration: { until: end-of-turn }, effects: [ { trait: [no-opportunity-attacks-on-you] } ] }
+```

@@ -12,6 +12,18 @@
 **Armor Training:** None
 **Starting Equipment:** Choose A or B: (A) 2 Daggers, Arcane Focus (Quarterstaff), Robe, Spellbook, Scholar’s Pack, and 5 GP; or (B) 55 GP
 
+## Effects
+```yaml
+- hit-die: d6
+- proficiency: [save:int, save:wis, weapon:simple]
+- choose: { id: skills, kind: skill, count: 2, grants: proficiency, from: [arcana, history, insight, investigation, medicine, nature, religion] }
+- multiclass: [hit-die]
+- equipment:
+    options:
+      - { id: a, items: [{ dagger: 2 }, quarterstaff, robe, spellbook, scholars-pack], gp: 5 }
+      - { id: b, gp: 55 }
+```
+
 ## Becoming a Wizard …
 
 ### As a Level 1 Character
@@ -33,6 +45,19 @@ As a Wizard, you gain the following class features when you reach the specified 
 As a student of arcane magic, you have learned to cast spells. See “Spells” for the rules on spellcasting. The information below details how you use those rules with Wizard spells, which appear in the Wizard spell list later in the class’s description.
 
 ***Cantrips.*** You know three Wizard cantrips of your choice. *Light, Mage Hand*, and *Ray of Frost* are recommended. Whenever you finish a Long Rest, you can replace one of your cantrips from this feature with another Wizard cantrip of your choice.
+
+## Effects
+```yaml
+- spellcasting: { ability: int, progression: full, list: wizard, focus: [arcane-focus, spellbook],
+                  cantrips: table:Cantrips, prepared: table:Prepared Spells,
+                  spellbook: { start: 6, start-level: 1, per-level: 2, copy: { hours-per-level: 2, gp-per-level: 50 } },
+                  change: { prepared: { at: long, count: all }, cantrips: { at: long, count: 1 } } }
+- choose: { id: cantrips, kind: spell, count: table:Cantrips, from: { spell: { list: wizard, level: 0 } }, swap: { at: long, count: 1 },
+            default: [$srd/spells/light, $srd/spells/mage-hand, $srd/spells/ray-of-frost] }
+- choose: { id: spellbook, kind: spell, count: { steps: { 1: 6 } }, grants: spellbook,
+            from: { spell: { list: wizard, slot: available, not: { level: 0 } } },
+            default: [$srd/spells/detect-magic, $srd/spells/feather-fall, $srd/spells/mage-armor, $srd/spells/magic-missile, $srd/spells/sleep, $srd/spells/thunderwave] }
+```
 
 #### Wizard Features
 
@@ -95,27 +120,59 @@ If another Wizard feature gives you spells that you always have prepared, those 
 
 You can cast any spell as a Ritual if that spell has the Ritual tag and the spell is in your spellbook. You needn’t have the spell prepared, but you must read from the book to cast a spell in this way.
 
+## Effects
+```yaml
+- spellcasting: { ritual: from-spellbook }
+```
+
 ### Level 1: Arcane Recovery
 
 You can regain some of your magical energy by studying your spellbook. When you finish a Short Rest, you can choose expended spell slots to recover. The spell slots can have a combined level equal to no more than half your Wizard level (round up), and none of the slots can be level 6 or higher. For example, if you’re a level 4 Wizard, you can recover up to two levels’ worth of spell slots, regaining either one level 2 spell slot or two level 1 spell slots.
 
 Once you use this feature, you can’t do so again until you finish a Long Rest.
 
+## Effects
+```yaml
+- trigger: { event: { rest: short }, per: long,
+             offer: { regain: { resource: spell-slots, levels: "ceil(level:wizard / 2)", max-slot: 5 } } }
+```
+
 ### Level 2: Scholar
 
 While studying magic, you also specialized in another field of study. Choose one of the following skills in which you have proficiency: Arcana, History, Investigation, Medicine, Nature, or Religion. You have Expertise in the chosen skill.
+
+## Effects
+```yaml
+- choose: { id: scholar, kind: skill, count: 1, grants: expertise,
+            from: { all: [ { proficient: skill }, { any: [arcana, history, investigation, medicine, nature, religion] } ] } }
+```
 
 ### Level 3: Wizard Subclass
 
 You gain a Wizard subclass of your choice. The Evoker subclass is detailed after this class’s description. A subclass is a specialization that grants you features at certain Wizard levels. For the rest of your career, you gain each of your subclass’s features that are of your Wizard level or lower.
 
+## Effects
+```yaml
+- choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/wizard } } }
+```
+
 ### Level 4: Ability Score Improvement
 
 You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify. You gain this feature again at Wizard levels 8, 12, and 16.
 
+## Effects
+```yaml
+- choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+```
+
 ### Level 5: Memorize Spell
 
 Whenever you finish a Short Rest, you can study your spellbook and replace one of the level 1+ Wizard spells you have prepared for your Spellcasting feature with another level 1+ spell from the book.
+
+## Effects
+```yaml
+- modify: { target: $#spellcasting, add: { change.prepared-extra: { at: short, count: 1 } } }
+```
 
 ### Level 18: Spell Mastery
 
@@ -123,13 +180,32 @@ You have achieved such mastery over certain spells that you can cast them at wil
 
 Whenever you finish a Long Rest, you can study your spellbook and replace one of those spells with an eligible spell of the same level from the book.
 
+## Effects
+```yaml
+- grant-spell: { choose: { id: mastery-1, count: 1, from: { spell: { list: wizard, level: 1, in: spellbook, casting-time: action } }, swap: { at: long, count: 1 } },
+                 prepared: always, at-will: true, cast-at: lowest }
+- grant-spell: { choose: { id: mastery-2, count: 1, from: { spell: { list: wizard, level: 2, in: spellbook, casting-time: action } }, swap: { at: long, count: 1 } },
+                 prepared: always, at-will: true, cast-at: lowest }
+```
+
 ### Level 19: Epic Boon
 
 You gain an Epic Boon feat (see “Feats”) or another feat of your choice for which you qualify. Boon of Spell Recall is recommended.
 
+## Effects
+```yaml
+- choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-spell-recall }
+```
+
 ### Level 20: Signature Spells
 
 Choose two level 3 spells in your spellbook as your signature spells. You always have these spells prepared, and you can cast each of them once at level 3 without expending a spell slot. When you do so, you can’t cast them in this way again until you finish a Short or Long Rest. To cast either spell at a higher level, you must expend a spell slot.
+
+## Effects
+```yaml
+- grant-spell: { choose: { id: signature, count: 2, from: { spell: { list: wizard, level: 3, in: spellbook } } },
+                 prepared: always, free: { per: short, count: 1, each: true }, cast-at: 3 }
+```
 
 ## Wizard Spell List
 

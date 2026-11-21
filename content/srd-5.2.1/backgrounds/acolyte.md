@@ -6,3 +6,11 @@
 **Skill Proficiencies:** Insight and Religion
 **Tool Proficiency:** Calligrapher’s Supplies
 **Equipment:** *Choose A or B:* (A) Calligrapher’s Supplies, Book (prayers), Holy Symbol, Parchment (10 sheets), Robe, 8 GP; or (B) 50 GP
+
+## Effects
+```yaml
+- equipment:
+    options:
+      - { id: a, items: [calligraphers-supplies, book, holy-symbol, { parchment: 10 }, robe], gp: 8 }
+      - { id: b, gp: 50 }
+```

@@ -12,6 +12,19 @@
 **Armor Training:** Light and Medium armor and Shields
 **Starting Equipment:** Choose A or B: (A) Studded Leather Armor, Scimitar, Shortsword, Longbow, 20 Arrows, Quiver, Druidic Focus (sprig of mistletoe), Explorer’s Pack, and 7 GP; or (B) 150 GP
 
+## Effects
+```yaml
+- hit-die: d10
+- proficiency: [save:str, save:dex, weapon:simple, weapon:martial, armor:light, armor:medium, armor:shield]
+- choose: { id: skills, kind: skill, count: 3, grants: proficiency,
+            from: [animal-handling, athletics, insight, investigation, nature, perception, stealth, survival] }
+- multiclass: [hit-die, weapon:martial, armor:light, armor:medium, armor:shield, { choose: { kind: skill, count: 1, from: $#skills } }]
+- equipment:
+    options:
+      - { id: a, items: [studded-leather-armor, scimitar, shortsword, longbow, { arrows: 20 }, quiver, druidic-focus, explorers-pack], gp: 7 }
+      - { id: b, gp: 150 }
+```
+
 ## Becoming a Ranger …
 
 ### As a Level 1 Character
@@ -46,15 +59,31 @@ If another Ranger feature gives you spells that you always have prepared, those 
 
 ***Spellcasting Focus.*** You can use a Druidic Focus as a Spellcasting Focus for your Ranger spells.
 
+## Effects
+```yaml
+- spellcasting: { ability: wis, progression: half, list: ranger, focus: druidic-focus,
+                  prepared: table:Prepared Spells, change: { prepared: { at: long, count: 1 } } }
+```
+
 ### Level 1: Favored Enemy
 
 You always have the *Hunter’s Mark* spell prepared. You can cast it twice without expending a spell slot, and you regain all expended uses of this ability when you finish a Long Rest.
 
 The number of times you can cast the spell without a spell slot increases when you reach certain Ranger levels, as shown in the Favored Enemy column of the Ranger Features table.
 
+## Effects
+```yaml
+- grant-spell: { spell: $srd/spells/hunters-mark, prepared: always, free: { per: long, count: table:Favored Enemy } }
+```
+
 ### Level 1: Weapon Mastery
 
 Your training with weapons allows you to use the mastery properties of two kinds of weapons of your choice with which you have proficiency, such as Longbows and Shortswords.
+
+## Effects
+```yaml
+- choose: { id: mastery, kind: weapon, count: 2, grants: mastery, from: { proficient: weapon }, swap: { at: long, count: all } }
+```
 
 #### Ranger Features
 
@@ -91,31 +120,79 @@ Thanks to your travels, you gain the following benefits.
 
 ***Languages.*** You know two languages of your choice from the language tables in “Character Creation.”
 
+## Effects
+```yaml
+- choose: { id: deft-expertise, kind: skill, count: 1, grants: expertise, from: { proficient: skill, not: { expertise: skill } } }
+- choose: { id: deft-languages, kind: language, count: 2, grants: language, from: any }
+```
+
 ### Level 2: Fighting Style
 
 You gain a Fighting Style feat of your choice (see “Feats”). Instead of choosing one of those feats, you can choose the option below.
 
 ***Druidic Warrior.*** You learn two Druid cantrips of your choice (see the Druid class’s section for a list of Druid spells). *Guidance* and *Starry Wisp* are recommended. The chosen cantrips count as Ranger spells for you, and Wisdom is your spellcasting ability for them. Whenever you gain a Ranger level, you can replace one of these cantrips with another Druid cantrip.
 
+## Effects
+```yaml
+- choose:
+    id: fighting-style
+    kind: feat
+    count: 1
+    from: { feat: { category: fighting-style } }
+    swap: level-up
+    options:
+      - id: druidic-warrior
+        label: Druidic Warrior
+        effects:
+          - grant-spell: { choose: { id: druidic-cantrips, count: 2, from: { spell: { list: druid, level: 0 } }, swap: { at: level-up, count: 1 } },
+                           ability: wis, counts-as: ranger }
+```
+
 ### Level 3: Ranger Subclass
 
 You gain a Ranger subclass of your choice. The Hunter subclass is detailed after this class’s description. A subclass is a specialization that grants you features at certain Ranger levels. For the rest of your career, you gain each of your subclass’s features that are of your Ranger level or lower.
+
+## Effects
+```yaml
+- choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/ranger } } }
+```
 
 ### Level 4: Ability Score Improvement
 
 You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify. You gain this feature again at Ranger levels 8, 12, and 16.
 
+## Effects
+```yaml
+- choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+```
+
 ### Level 5: Extra Attack
 
 You can attack twice instead of once whenever you take the Attack action on your turn.
+
+## Effects
+```yaml
+- extra-attack: { total: 2 }
+```
 
 ### Level 6: Roving
 
 Your Speed increases by 10 feet while you aren’t wearing Heavy armor. You also have a Climb Speed and a Swim Speed equal to your Speed.
 
+## Effects
+```yaml
+- bonus: { to: speed:walk, value: 10, when: { not: { armor: heavy } } }
+- speed: { climb: speed:walk, swim: speed:walk }
+```
+
 ### Level 9: Expertise
 
 Choose two of your skill proficiencies with which you lack Expertise. You gain Expertise in those skills.
+
+## Effects
+```yaml
+- choose: { id: expertise-9, kind: skill, count: 2, grants: expertise, from: { proficient: skill, not: { expertise: skill } } }
+```
 
 ### Level 10: Tireless
 
@@ -125,9 +202,21 @@ Primal forces now help fuel you on your journeys, granting you the following ben
 
 ***Decrease Exhaustion.*** Whenever you finish a Short Rest, your Exhaustion level, if any, decreases by 1.
 
+## Effects
+```yaml
+- resource: { id: tireless, max: "max(1, mod:wis)", reset: long }
+- action: { id: tireless, activation: magic, cost: { resource: $#tireless }, temp-hp: "max(1, 1d8 + mod:wis)" }
+- trigger: { event: { rest: short }, auto: true, offer: { exhaustion: -1 } }
+```
+
 ### Level 13: Relentless Hunter
 
 Taking damage can’t break your Concentration on *Hunter’s Mark.*
+
+## Effects
+```yaml
+- modify: { target: $srd/spells/hunters-mark, set: { concentration.break-on-damage: false } }
+```
 
 ### Level 14: Nature’s Veil
 
@@ -135,21 +224,48 @@ You invoke spirits of nature to magically hide yourself. As a Bonus Action, you 
 
 You can use this feature a number of times equal to your Wisdom modifier (minimum of once), and you regain all expended uses when you finish a Long Rest.
 
+## Effects
+```yaml
+- resource: { id: natures-veil, max: "max(1, mod:wis)", reset: long }
+- action: { id: natures-veil, activation: bonus, cost: { resource: $#natures-veil }, targets: { count: 1, choose: self },
+            apply: { condition: invisible, duration: { until: end-of-next-turn } } }
+```
+
 ### Level 17: Precise Hunter
 
 You have Advantage on attack rolls against the creature currently marked by your *Hunter’s Mark.*
+
+## Effects
+```yaml
+- advantage: { roll: attack, scope: { against: { target: { marked-by: $srd/spells/hunters-mark } } } }
+```
 
 ### Level 18: Feral Senses
 
 Your connection to the forces of nature grants you Blindsight with a range of 30 feet.
 
+## Effects
+```yaml
+- sense: { blindsight: 30 }
+```
+
 ### Level 19: Epic Boon
 
 You gain an Epic Boon feat (see “Feats”) or another feat of your choice for which you qualify. Boon of Dimensional Travel is recommended.
 
+## Effects
+```yaml
+- choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-dimensional-travel }
+```
+
 ### Level 20: Foe Slayer
 
 The damage die of your *Hunter’s Mark* is a d10 rather than a d6.
+
+## Effects
+```yaml
+- modify: { target: $srd/spells/hunters-mark, set: { damage.dice: 1d10 } }
+```
 
 ## Ranger Spell List
 

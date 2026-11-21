@@ -13,6 +13,20 @@
 **Armor Training:** Light armor and Shields
 **Starting Equipment:** Choose A or B: (A) Leather Armor, Shield, Sickle, Druidic Focus (Quarterstaff), Explorer’s Pack, Herbalism Kit, and 9 GP; or (B) 50 GP
 
+## Effects
+```yaml
+- hit-die: d8
+- proficiency: [save:int, save:wis]
+- choose: { id: skills, kind: skill, count: 2, grants: proficiency,
+            from: [animal-handling, arcana, insight, medicine, nature, perception, religion, survival] }
+- proficiency: [weapon:simple, tool:herbalism-kit, armor:light, armor:shield]
+- multiclass: [hit-die, armor:light, armor:shield]
+- equipment:
+    options:
+      - { id: a, items: [leather-armor, shield, sickle, quarterstaff, explorers-pack, herbalism-kit], gp: 9 }
+      - { id: b, gp: 50 }
+```
+
 ## Becoming a Druid …
 
 ### As a Level 1 Character
@@ -32,6 +46,13 @@ As a Druid, you gain the following class features when you reach the specified D
 ### Level 1: Spellcasting
 
 You have learned to cast spells through studying the mystical forces of nature. See “Spells” for the rules on spellcasting. The information below details how you use those rules with Druid spells, which appear on the Druid spell list later in the class’s description.
+
+## Effects
+```yaml
+- spellcasting: { ability: wis, progression: full, list: druid, focus: druidic-focus,
+                  cantrips: table:Cantrips, prepared: table:Prepared Spells, change: { prepared: long, cantrips: level-up } }
+- choose: { id: cantrips, kind: spell, count: table:Cantrips, from: { spell: { list: druid, level: 0 } }, swap: { at: level-up, count: 1 } }
+```
 
 #### Druid Features
 
@@ -84,6 +105,12 @@ You know Druidic, the secret language of Druids. While learning this ancient ton
 
 You can use Druidic to leave hidden messages. You and others who know Druidic automatically spot such a message. Others spot the message’s presence with a successful DC 15 Intelligence (Investigation) check but can’t decipher it without magic.
 
+## Effects
+```yaml
+- language: [druidic]
+- grant-spell: { spell: $srd/spells/speak-with-animals, prepared: always }
+```
+
 ### Level 1: Primal Order
 
 You have dedicated yourself to one of the following sacred roles of your choice.
@@ -91,6 +118,21 @@ You have dedicated yourself to one of the following sacred roles of your choice.
 ***Magician.*** You know one extra cantrip from the Druid spell list. In addition, your mystical connection to nature gives you a bonus to your Intelligence (Arcana or Nature) checks. The bonus equals your Wisdom modifier (minimum bonus of +1).
 
 ***Warden.*** Trained for battle, you gain proficiency with Martial weapons and training with Medium armor.
+
+## Effects
+```yaml
+- choose:
+    id: primal-order
+    kind: option
+    options:
+      - id: magician
+        effects:
+          - grant-spell: { choose: { id: order-cantrip, count: 1, from: { spell: { list: druid, level: 0 } } } }
+          - bonus: { to: [skill:arcana, skill:nature], value: "max(1, mod:wis)" }
+      - id: warden
+        effects:
+          - proficiency: [weapon:martial, armor:medium]
+```
 
 ### Level 2: Wild Shape
 
@@ -105,6 +147,25 @@ You gain additional uses when you reach certain Druid levels, as shown in the Wi
 When you reach certain Druid levels, your number of known forms and the maximum Challenge Rating for those forms increases, as shown in the Beast Shapes table. In addition, starting at level 8, you can adopt a form that has a Fly Speed.
 
 When choosing known forms, you may look in other sources for eligible Beasts if the Game Master permits you to do so.
+
+## Effects
+```yaml
+- resource: { id: wild-shape, max: table:Wild Shape, reset: long, partial: { at: short, amount: 1 } }
+- form:
+    id: wild-shape
+    activation: bonus
+    cost: { resource: $#wild-shape }
+    choose: { id: forms, count: "table:Beast Shapes.Known Forms", swap: { at: long, count: 1 },
+              from: { creature: { type: beast, cr-max: "table:Beast Shapes.Max CR", fly: "table:Beast Shapes.Fly Speed" } } }
+    keeps: [hp, hit-dice, score:int, score:wis, score:cha, creature-type, features, feats, languages, proficiencies]
+    replaces: [ac, speed, senses, attacks, score:str, score:dex, score:con, size]
+    temp-hp: level:druid
+    duration: { amount: half(level:druid), unit: hour }
+    ends-when: [{ condition: incapacitated }]
+    blocks: [spellcasting]
+    leave: bonus
+    text: "Use the higher of your own or the form's skill and save modifiers. Equipment falls, merges or is worn (GM decides)."
+```
 
 #### Beast Shapes
 
@@ -130,19 +191,46 @@ You can summon a nature spirit that assumes an animal form to aid you. As a Magi
 
 When you cast the spell in this way, the familiar is Fey and disappears when you finish a Long Rest.
 
+## Effects
+```yaml
+- action:
+    id: wild-companion
+    activation: magic
+    cost: { any: [ { slot: any }, { resource: $#wild-shape } ] }
+    cast: $srd/spells/find-familiar
+    cast-options: { slot: false, material: false }
+    text: "The familiar is Fey and disappears when you finish a Long Rest."
+```
+
 ### Level 3: Druid Subclass
 
 You gain a Druid subclass of your choice. The Circle of the Land subclass is detailed after this class’s description. A subclass is a specialization that grants you features at certain Druid levels. For the rest of your career, you gain each of your subclass’s features that are of your Druid level or lower.
 
+## Effects
+```yaml
+- choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/druid } } }
+```
+
 ### Level 4: Ability Score Improvement
 
 You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify. You gain this feature again at Druid levels 8, 12, and 16.
+
+## Effects
+```yaml
+- choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+```
 
 ### Level 5: Wild Resurgence
 
 Once on each of your turns, if you have no uses of Wild Shape left, you can give yourself one use by expending a spell slot (no action required).
 
 In addition, you can expend one use of Wild Shape (no action required) to give yourself a level 1 spell slot, but you can’t do so again until you finish a Long Rest.
+
+## Effects
+```yaml
+- convert: { from: { slot: any }, to: { resource: $#wild-shape, amount: 1 }, activation: none, per: turn, if-empty: true }
+- convert: { from: { resource: $#wild-shape, amount: 1 }, to: { slot: 1 }, activation: none, per: long }
+```
 
 ### Level 7: Elemental Fury
 
@@ -152,6 +240,22 @@ The might of the elements flows through you. You gain one of the following optio
 
 ***Primal Strike.*** Once on each of your turns when you hit a creature with an attack roll using a weapon or a Beast form’s attack in Wild Shape, you can cause the target to take an extra 1d8 Cold, Fire, Lightning, or Thunder damage (choose when you hit).
 
+## Effects
+```yaml
+- choose:
+    id: elemental-fury
+    kind: option
+    options:
+      - id: potent-spellcasting
+        effects:
+          - bonus: { to: damage, value: mod:wis, scope: { spell: { list: druid, level: 0 } } }
+      - id: primal-strike
+        effects:
+          - trigger: { id: primal-strike, event: hit, per: turn,
+                       scope: { any: [ { weapon: {} }, { source: $#wild-shape } ] },
+                       offer: { damage: { dice: 1d8, type: { choose-on-use: [cold, fire, lightning, thunder] } } } }
+```
+
 ### Level 15: Improved Elemental Fury
 
 The option you chose for Elemental Fury grows more powerful, as detailed below.
@@ -160,13 +264,30 @@ The option you chose for Elemental Fury grows more powerful, as detailed below.
 
 ***Primal Strike.*** The extra damage of your Primal Strike increases to 2d8.
 
+## Effects
+```yaml
+- bonus: { to: range, value: 300, scope: { spell: { list: druid, level: 0, range: ">= 10" } },
+           when: { choice: { id: elemental-fury, is: potent-spellcasting } } }
+- modify: { target: $#primal-strike, set: { offer.damage.dice: 2d8 }, when: { choice: { id: elemental-fury, is: primal-strike } } }
+```
+
 ### Level 18: Beast Spells
 
 While using Wild Shape, you can cast spells in Beast form, except for any spell that has a Material component with a cost specified or that consumes its Material component.
 
+## Effects
+```yaml
+- modify: { target: $#wild-shape, set: { blocks: [] }, text: "Except spells with a costed or consumed Material component." }
+```
+
 ### Level 19: Epic Boon
 
 You gain an Epic Boon feat (see “Feats”) or another feat of your choice for which you qualify. Boon of Dimensional Travel is recommended.
+
+## Effects
+```yaml
+- choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-dimensional-travel }
+```
 
 ### Level 20: Archdruid
 
@@ -177,6 +298,14 @@ The vitality of nature constantly blooms within you, granting you the following 
 ***Nature Magician.*** You can convert uses of Wild Shape into a spell slot (no action required). Choose a number of your unexpended uses of Wild Shape and convert them into a single spell slot, with each use contributing 2 spell levels. For example, if you convert two uses of Wild Shape, you produce a level 4 spell slot. Once you use this benefit, you can’t do so again until you finish a Long Rest.
 
 ***Longevity.*** The primal magic that you wield causes you to age more slowly. For every ten years that pass, your body ages only one year.
+
+## Effects
+```yaml
+- trigger: { event: { roll: initiative }, when: { has: { resource: $#wild-shape, is: 0 } }, auto: true,
+             offer: { regain: { resource: $#wild-shape, amount: 1 } } }
+- convert: { from: { resource: $#wild-shape, amount: { min: 1 } }, to: { slot: "2 * cost.resource" }, activation: none, per: long }
+- note: { stat: hp:max, text: "Longevity: you age one year for every ten that pass." }
+```
 
 ## Druid Spell List
 

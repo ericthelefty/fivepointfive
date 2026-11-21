@@ -436,6 +436,14 @@ export default function Sheet() {
       const items = inv.items.map((it) => (it.id === a.consume ? { ...it, qty: it.qty - 1 } : it)).filter((it) => it.qty > 0);
       setInventory(items, inv.coins);
     }
+    if (a.tempHp && !a.heal) {
+      const r = roll(a.tempHp);
+      const t = Math.max(p.hpTemp, Math.max(0, r?.total ?? 0));
+      patch.hpTemp = t;
+      log({ title: a.name, total: String(t), cls: "info", detail: `Temporary HP ${esc(r ? describeRolled(r) : a.tempHp)}${t === p.hpTemp ? " (you keep the higher amount)" : ""}${after}${a.text ? `<div>${esc(a.text)}</div>` : ""}` });
+      setPlay(patch);
+      return;
+    }
     if (a.heal) {
       const r = roll(a.heal);
       if (!r) return;
@@ -795,7 +803,7 @@ export default function Sheet() {
                   ))}
                   {fx.grantedSpells.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
-                      <h3>From feats, traits and items</h3>
+                      <h3>From features, feats and items</h3>
                       {fx.grantedSpells.map((g, i) => {
                         const free = g.free ? resources.find((r) => r.key === g.free) : undefined;
                         const freeLeft = free ? free.max - (p.resUsed[free.key] || 0) : 0;

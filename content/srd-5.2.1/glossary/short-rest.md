@@ -17,3 +17,8 @@ A Short Rest is a 1-hour period of downtime, during which a creature does nothin
 - Taking any damage
 
 An interrupted Short Rest confers no benefits.
+
+## Effects
+```yaml
+- rest: { kind: short, duration: { amount: 1, unit: hour }, spend: hit-dice }
+```

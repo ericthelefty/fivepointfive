@@ -18,6 +18,16 @@ These paladins share the following tenets:
 
 The magic of your oath ensures you always have certain spells ready; when you reach a Paladin level specified in the Oath of Devotion Spells table, you thereafter always have the listed spells prepared.
 
+## Effects
+```yaml
+- spell-list: { prepared: always, by-level: {
+    3: [$srd/spells/protection-from-evil-and-good, $srd/spells/shield-of-faith],
+    5: [$srd/spells/aid, $srd/spells/zone-of-truth],
+    9: [$srd/spells/beacon-of-hope, $srd/spells/dispel-magic],
+    13: [$srd/spells/freedom-of-movement, $srd/spells/guardian-of-faith],
+    17: [$srd/spells/commune, $srd/spells/flame-strike] } }
+```
+
 ### Oath of Devotion Spells
 
 | Paladin Level | Spells |
@@ -36,13 +46,39 @@ The weapon also emits Bright Light in a 20-foot radius and Dim Light 20 feet bey
 
 You can end this effect early (no action required). This effect also ends if you aren’t carrying the weapon.
 
+## Effects
+```yaml
+- toggle:
+    id: sacred-weapon
+    activation: attack-action
+    cost: { resource: $srd/paladin#channel-divinity }
+    choose: { id: sacred-weapon-target, kind: item, from: { weapon: { kind: melee } }, at: use }
+    duration: { amount: 10, unit: minute }
+    ends-when: [{ text: "You aren't carrying the weapon" }]
+    effects:
+      - bonus: { to: attack, value: "max(1, mod:cha)", scope: { weapon: { id: choice:sacred-weapon-target } } }
+      - damage-type: { add-option: radiant, scope: { weapon: { id: choice:sacred-weapon-target } } }
+      - sense: { light: { bright: 20, dim: 20 } }
+```
+
 ## Level 7: Aura of Devotion
 
 You and your allies have Immunity to the Charmed condition while in your Aura of Protection. If a Charmed ally enters the aura, that condition has no effect on that ally while there.
 
+## Effects
+```yaml
+- modify: { target: $srd/paladin#aura-of-protection, add: { effects: [ { defense: { condition-immunity: [charmed] } } ] } }
+```
+
 ## Level 15: Smite of Protection
 
 Your magical smite now radiates protective energy. Whenever you cast *Divine Smite*, you and your allies have Half Cover while in your Aura of Protection. The aura has this benefit until the start of your next turn.
+
+## Effects
+```yaml
+- trigger: { event: cast, scope: { spell: { id: $srd/spells/divine-smite } }, auto: true,
+             offer: { text: "You and allies in your Aura of Protection have Half Cover until the start of your next turn." } }
+```
 
 ## Level 20: Holy Nimbus
 
@@ -53,3 +89,20 @@ As a Bonus Action, you can imbue your Aura of Protection with holy power, granti
 ***Radiant Damage.*** Whenever an enemy starts its turn in the aura, that creature takes Radiant damage equal to your Charisma modifier plus your Proficiency Bonus.
 
 ***Sunlight.*** The aura is filled with Bright Light that is sunlight.
+
+## Effects
+```yaml
+- resource: { id: holy-nimbus, max: 1, reset: long }
+- convert: { from: { slot: 5 }, to: { resource: $#holy-nimbus, amount: 1 }, activation: none, if-empty: true }
+- toggle:
+    id: holy-nimbus
+    activation: bonus
+    cost: { resource: $#holy-nimbus }
+    duration: { amount: 10, unit: minute }
+    effects:
+      - advantage: { roll: save:all, scope: { against: { creature: [fiend, undead] } } }
+      - modify: { target: $srd/paladin#aura-of-protection, add: {
+          effects: [ { trigger: { event: start-of-turn, who: { creature: enemy }, auto: true,
+                                  offer: { damage: { dice: mod:cha + prof, type: radiant } } } } ],
+          light: { bright: sunlight } } }
+```

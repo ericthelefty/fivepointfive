@@ -14,6 +14,13 @@ As a Bonus Action, you can do one of the following.
 
 ***Use an Object.*** Take the Utilize action, or take the Magic action to use a magic item that requires that action.
 
+## Effects
+```yaml
+- action: { id: fast-hands, activation: bonus, choose-one: [
+    { check: skill:sleight-of-hand, text: "Pick a lock, disarm a trap (Thieves' Tools) or pick a pocket" },
+    { take: utilize }, { take: magic, scope: { item: magic } } ] }
+```
+
 ## Level 3: Second-Story Work
 
 You’ve trained to get into especially hard-to-reach places, granting you these benefits.
@@ -22,11 +29,24 @@ You’ve trained to get into especially hard-to-reach places, granting you these
 
 ***Jumper.*** You can determine your jump distance using your Dexterity rather than your Strength.
 
+## Effects
+```yaml
+- speed: { climb: speed:walk }
+- use-ability: { ability: dex, instead-of: str, for: jump }
+```
+
 ## Level 9: Supreme Sneak
 
 You gain the following Cunning Strike option.
 
 ***Stealth Attack (Cost: 1d6).*** If you have the Hide action’s Invisible condition, this attack doesn’t end that condition on you if you end the turn behind Three-Quarters Cover or Total Cover.
+
+## Effects
+```yaml
+- modify: { target: $srd/rogue#cunning-strike, add: { offer.choose-one: [
+    { id: stealth-attack, label: Stealth Attack, cost: { dice-from: $srd/rogue#sneak-attack, count: 1 },
+      text: "If you have the Hide action's Invisible condition, this attack doesn't end it if you end the turn behind Three-Quarters or Total Cover." } ] } }
+```
 
 ## Level 13: Use Magic Device
 
@@ -38,6 +58,18 @@ You’ve learned how to maximize use of magic items, granting you the following 
 
 ***Scrolls.*** You can use any *Spell Scroll*, using Intelligence as your spellcasting ability for the spell. If the spell is a cantrip or a level 1 spell, you can cast it reliably. If the scroll contains a higher-level spell, you must first succeed on an Intelligence (Arcana) check (DC 10 plus the spell’s level). On a successful check, you cast the spell from the scroll. On a failed check, the scroll disintegrates.
 
+## Effects
+```yaml
+- set: { to: attunement:slots, value: 4 }
+- trigger: { event: { spend: charges }, auto: true, offer: { roll: 1d6, if-roll: 6, refund: spent } }
+- note: { stat: spell:attack, text: "Any Spell Scroll: use Int; level 2+ needs Arcana DC 10 + spell level" }
+```
+
 ## Level 17: Thief’s Reflexes
 
 You are adept at laying ambushes and quickly escaping danger. You can take two turns during the first round of any combat. You take your first turn at your normal Initiative and your second turn at your Initiative minus 10.
+
+## Effects
+```yaml
+- note: { stat: initiative, text: "First round: take a second turn at Initiative − 10" }
+```

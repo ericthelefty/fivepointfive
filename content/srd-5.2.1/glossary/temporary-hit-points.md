@@ -3,3 +3,8 @@
 **Source:** SRD 5.2.1, p. 190
 
 Temporary Hit Points are granted by certain effects and act as a buffer against losing real Hit Points. *See also* “Playing the Game” (“Damage and Healing”).
+
+## Effects
+```yaml
+- trait: { text: "Temporary HP don't stack (keep the higher), are lost first, and last until depleted or a Long Rest." }
+```

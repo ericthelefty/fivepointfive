@@ -11,3 +11,8 @@ An improvised weapon is an object wielded as a makeshift weapon, such as broken 
 ***Range.*** If you throw the weapon, it has a normal range of 20 feet and a long range of 60 feet.
 
 ***Weapon Equivalents.*** If an improvised weapon resembles a Simple or Martial weapon, the GM may say it functions as that weapon and uses that weapon’s rules. For example, the GM could treat a table leg as a Club.
+
+## Effects
+```yaml
+- weapon-rule: { proficient: false, damage: { dice: 1d4, type: gm-choice }, thrown: { range: 20/60 } }
+```

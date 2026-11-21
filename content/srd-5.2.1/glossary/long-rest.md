@@ -26,3 +26,9 @@ During sleep, you have the Unconscious condition. After you finish a Long Rest, 
 If you rested at least 1 hour before the interruption, you gain the benefits of a Short Rest. *See also* “Short Rest.”
 
 You can resume a Long Rest immediately after an interruption. If you do so, the rest requires 1 additional hour per interruption to finish.
+
+## Effects
+```yaml
+- rest: { kind: long, duration: { amount: 8, unit: hour }, regain: [ { resource: hp, to: max }, { resource: hit-dice, to: max }, { resource: exhaustion, amount: -1 } ],
+          text: "Restores lowered HP maximum; once per 24 hours." }
+```

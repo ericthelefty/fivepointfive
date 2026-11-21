@@ -15,3 +15,13 @@ While you have the Unconscious condition, you experience the following effects.
 ***Automatic Critical Hits.*** Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.
 
 ***Unaware.*** You’re unaware of your surroundings.
+
+## Effects
+```yaml
+- condition: [incapacitated, prone]
+- set: { to: speed:all, value: 0, mode: override, locked: true }
+- auto-fail: { roll: [save:str, save:dex] }
+- advantage: { roll: attacks-against-you }
+- treat-roll: { roll: hits-against-you, as: crit, when: { player: "The attacker is within 5 feet" } }
+- trait: [drops-held-items, unaware]
+```

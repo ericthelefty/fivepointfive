@@ -1,9 +1,0 @@
-# entry: srd/species/halfling
-Brave:
-  - advantage: { roll: save:all, scope: { against: { condition: frightened } } }
-Halfling Nimbleness:
-  - trait: { text: "You can move through the space of any creature a size larger than you, but can't stop there." }
-Luck:
-  - reroll: { roll: d20, if: 1, must-use-new: true }
-Naturally Stealthy:
-  - trait: { text: "You can take the Hide action when obscured only by a creature at least one size larger than you." }

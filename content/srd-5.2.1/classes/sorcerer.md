@@ -12,6 +12,18 @@
 **Armor Training:** None
 **Starting Equipment:** Choose A or B: (A) Spear, 2 Daggers, Arcane Focus (crystal), Dungeoneer’s Pack, and 28 GP; or (B) 50 GP
 
+## Effects
+```yaml
+- hit-die: d6
+- proficiency: [save:con, save:cha, weapon:simple]
+- choose: { id: skills, kind: skill, count: 2, grants: proficiency, from: [arcana, deception, insight, intimidation, persuasion, religion] }
+- multiclass: [hit-die]
+- equipment:
+    options:
+      - { id: a, items: [spear, { dagger: 2 }, arcane-focus, dungeoneers-pack], gp: 28 }
+      - { id: b, gp: 50 }
+```
+
 ## Becoming a Sorcerer …
 
 ### As a Level 1 Character
@@ -50,9 +62,30 @@ If another Sorcerer feature gives you spells that you always have prepared, thos
 
 ***Spellcasting Focus.*** You can use an Arcane Focus as a Spellcasting Focus for your Sorcerer spells.
 
+## Effects
+```yaml
+- spellcasting: { ability: cha, progression: full, list: sorcerer, focus: arcane-focus,
+                  cantrips: table:Cantrips, prepared: table:Prepared Spells, change: { prepared: level-up, cantrips: level-up } }
+- choose: { id: cantrips, kind: spell, count: table:Cantrips, from: { spell: { list: sorcerer, level: 0 } }, swap: { at: level-up, count: 1 },
+            default: [$srd/spells/light, $srd/spells/prestidigitation, $srd/spells/shocking-grasp, $srd/spells/sorcerous-burst] }
+```
+
 ### Level 1: Innate Sorcery
 
 An event in your past left an indelible mark on you, infusing you with simmering magic. As a Bonus Action, you can unleash that magic for 1 minute, during which you gain the following benefits:
+
+## Effects
+```yaml
+- resource: { id: innate-sorcery, max: 2, reset: long }
+- toggle:
+    id: innate-sorcery
+    activation: bonus
+    cost: { resource: $#innate-sorcery }
+    duration: { amount: 1, unit: minute }
+    effects:
+      - bonus: { to: spell:dc, value: 1, scope: { spell: { list: sorcerer } } }
+      - advantage: { roll: attack, scope: { spell: { list: sorcerer } } }
+```
 
 #### Sorcerer Features
 
@@ -98,6 +131,16 @@ You can use your Sorcery Points to fuel the options below, along with other feat
 
 Any spell slot you create with this feature vanishes when you finish a Long Rest.
 
+## Effects
+```yaml
+- resource: { id: sorcery-points, max: table:Sorcery Points, reset: long }
+- convert: { from: { slot: any }, to: { resource: $#sorcery-points, amount: cost.slot }, activation: none }
+- convert:
+    from: { resource: $#sorcery-points, amount: "table:Creating Spell Slots.Sorcery Point Cost" }
+    to: { slot: "table:Creating Spell Slots.Spell Slot Level", max-slot: 5, min-level: "table:Creating Spell Slots.Min. Sorcerer Level", expires: long }
+    activation: bonus
+```
+
 #### Creating Spell Slots
 
 | Spell Slot Level | Sorcery Point Cost | Min. Sorcerer Level |
@@ -116,17 +159,38 @@ You can use only one Metamagic option on a spell when you cast it unless otherwi
 
 Whenever you gain a Sorcerer level, you can replace one of your Metamagic options with one you don’t know. You gain two more options at Sorcerer level 10 and two more at Sorcerer level 17.
 
+## Effects
+```yaml
+- choose: { id: metamagic, kind: option, count: { steps: { 2: 2, 10: 4, 17: 6 } }, swap: { at: level-up, count: 1 },
+            options: { headings-under: Metamagic Options }, limit: { per: cast, count: 1 } }
+```
+
 ### Level 3: Sorcerer Subclass
 
 You gain a Sorcerer subclass of your choice. The Draconic Sorcery subclass is detailed after this class’s description. A subclass is a specialization that grants you features at certain Sorcerer levels. For the rest of your career, you gain each of your subclass’s features that are of your Sorcerer level or lower.
+
+## Effects
+```yaml
+- choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/sorcerer } } }
+```
 
 ### Level 4: Ability Score Improvement
 
 You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify. You gain this feature again at Sorcerer levels 8, 12, and 16.
 
+## Effects
+```yaml
+- choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+```
+
 ### Level 5: Sorcerous Restoration
 
 When you finish a Short Rest, you can regain expended Sorcery Points, but no more than a number equal to half your Sorcerer level (round down). Once you use this feature, you can’t do so again until you finish a Long Rest.
+
+## Effects
+```yaml
+- trigger: { event: { rest: short }, per: long, offer: { regain: { resource: $#sorcery-points, amount: half(level:sorcerer) } } }
+```
 
 ### Level 7: Sorcery Incarnate
 
@@ -134,13 +198,29 @@ If you have no uses of Innate Sorcery left, you can use it if you spend 2 Sorcer
 
 In addition, while your Innate Sorcery feature is active, you can use up to two of your Metamagic options on each spell you cast.
 
+## Effects
+```yaml
+- convert: { from: { resource: $#sorcery-points, amount: 2 }, to: { resource: $#innate-sorcery, amount: 1 }, activation: none, if-empty: true }
+- modify: { target: $#metamagic, set: { limit.count: 2 }, when: { active: $#innate-sorcery } }
+```
+
 ### Level 19: Epic Boon
 
 You gain an Epic Boon feat (see “Feats”) or another feat of your choice for which you qualify. Boon of Dimensional Travel is recommended.
 
+## Effects
+```yaml
+- choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-dimensional-travel }
+```
+
 ### Level 20: Arcane Apotheosis
 
 While your Innate Sorcery feature is active, you can use one Metamagic option on each of your turns without spending Sorcery Points on it.
+
+## Effects
+```yaml
+- modify: { target: $#metamagic, set: { free: { per: turn, count: 1 } }, when: { active: $#innate-sorcery } }
+```
 
 ## Metamagic Options
 
@@ -152,11 +232,28 @@ The following options are available to your Meta magic feature. The options are 
 
 When you cast a spell that forces other creatures to make a saving throw, you can protect some of those creatures from the spell’s full force. To do so, spend 1 Sorcery Point and choose a number of those creatures up to your Charisma modifier (minimum of one creature). A chosen creature automatically succeeds on its saving throw against the spell, and it takes no damage if it would normally take half damage on a successful save.
 
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: cast, group: metamagic, scope: { spell: { save: any } },
+             offer: { cost: { resource: $#sorcery-points, amount: 1 },
+                      text: "Up to max(1, CHA mod) creatures auto-succeed on the save and take no damage on a half-on-success save." } }
+```
+
 ### Distant Spell
 
 *Cost: 1 Sorcery Point*
 
 When you cast a spell that has a range of at least 5 feet, you can spend 1 Sorcery Point to double the spell’s range. Or when you cast a spell that has a range of Touch, you can spend 1 Sorcery Point to make the spell’s range 30 feet.
+
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: cast, group: metamagic, scope: { spell: { range: ">= 5" } },
+             offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { range: "2 * spell.range" } } }
+- trigger: { event: cast, group: metamagic, scope: { spell: { range: touch } },
+             offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { range: 30 } } }
+```
 
 ### Empowered Spell
 
@@ -166,6 +263,13 @@ When you roll damage for a spell, you can spend 1 Sorcery Point to reroll a numb
 
 You can use Empowered Spell even if you’ve already used a different Metamagic option during the casting of the spell.
 
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: { roll: damage }, group: metamagic, group-exempt: true, scope: { spell: {} },
+             offer: { cost: { resource: $#sorcery-points, amount: 1 }, reroll: { dice: "max(1, mod:cha)" }, must-use-new: true } }
+```
+
 ### Extended Spell
 
 *Cost: 1 Sorcery Point*
@@ -174,17 +278,40 @@ When you cast a spell that has a duration of 1 minute or longer, you can spend 1
 
 If the affected spell requires Concentration, you have Advantage on any saving throw you make to maintain that Concentration.
 
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: cast, group: metamagic, scope: { spell: { duration: ">= 1 minute" } },
+             offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { duration: "min(2 * spell.duration, 24 hour)" },
+                      text: "Advantage on saves to keep Concentration on it." } }
+```
+
 ### Heightened Spell
 
 *Cost: 2 Sorcery Points*
 
 When you cast a spell that forces a creature to make a saving throw, you can spend 2 Sorcery Points to give one target of the spell Disadvantage on saves against the spell.
 
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: cast, group: metamagic, scope: { spell: { save: any } },
+             offer: { cost: { resource: $#sorcery-points, amount: 2 }, text: "One target has Disadvantage on saves against the spell." } }
+```
+
 ### Quickened Spell
 
 *Cost: 2 Sorcery Points*
 
 When you cast a spell that has a casting time of an action, you can spend 2 Sorcery Points to change the casting time to a Bonus Action for this casting. You can’t modify a spell in this way if you’ve already cast a level 1+ spell on the current turn, nor can you cast a level 1+ spell on this turn after modifying a spell in this way.
+
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: cast, group: metamagic, scope: { spell: { casting-time: action } },
+             if: "You haven't cast a level 1+ spell this turn (and can't after)",
+             offer: { cost: { resource: $#sorcery-points, amount: 2 }, spell: { casting-time: bonus } } }
+```
 
 ### Seeking Spell
 
@@ -194,11 +321,25 @@ If you make an attack roll for a spell and miss, you can spend 1 Sorcery Point t
 
 You can use Seeking Spell even if you’ve already used a different Metamagic option during the casting of the spell.
 
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: miss, group: metamagic, group-exempt: true, scope: { spell: {} },
+             offer: { cost: { resource: $#sorcery-points, amount: 1 }, reroll: true, must-use-new: true } }
+```
+
 ### Subtle Spell
 
 *Cost: 1 Sorcery Point*
 
 When you cast a spell, you can spend 1 Sorcery Point to cast it without any Verbal, Somatic, or Material components, except Material components that are consumed by the spell or that have a cost specified in the spell.
+
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: cast, group: metamagic,
+             offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { components: [], keep-costly-material: true } } }
+```
 
 ### Transmuted Spell
 
@@ -206,11 +347,26 @@ When you cast a spell, you can spend 1 Sorcery Point to cast it without any Verb
 
 When you cast a spell that deals a type of damage from the following list, you can spend 1 Sorcery Point to change that damage type to one of the other listed types: Acid, Cold, Fire, Lightning, Poison, Thunder.
 
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: cast, group: metamagic, scope: { spell: { deals: [acid, cold, fire, lightning, poison, thunder] } },
+             offer: { cost: { resource: $#sorcery-points, amount: 1 },
+                      spell: { damage-type: { choose-on-use: [acid, cold, fire, lightning, poison, thunder] } } } }
+```
+
 ### Twinned Spell
 
 *Cost: 1 Sorcery Point*
 
 When you cast a spell, such as *Charm Person*, that can be cast with a higher-level spell slot to target an additional creature, you can spend 1 Sorcery Point to increase the spell’s effective level by 1.
+
+## Effects
+```yaml
+- option: { of: $#metamagic }
+- trigger: { event: cast, group: metamagic, scope: { spell: { scales: targets } },
+             offer: { cost: { resource: $#sorcery-points, amount: 1 }, spell: { slot-level: slot-level + 1 } } }
+```
 
 ## Sorcerer Spell List
 

@@ -13,6 +13,21 @@
 **Armor Training:** Light armor
 **Starting Equipment:** Choose A or B: (A) Leather Armor, 2 Daggers, Musical Instrument of your choice, Entertainer’s Pack, and 19 GP; or (B) 90 GP
 
+## Effects
+```yaml
+- hit-die: d8
+- proficiency: [save:dex, save:cha, weapon:simple, armor:light]
+- choose: { id: skills, kind: skill, count: 3, grants: proficiency, from: any }
+- choose: { id: instruments, kind: tool, count: 3, grants: proficiency, from: { tool: { category: musical-instrument } } }
+- multiclass: [hit-die, armor:light,
+               { choose: { kind: skill, count: 1, from: any } },
+               { choose: { kind: tool, count: 1, from: { tool: { category: musical-instrument } } } }]
+- equipment:
+    options:
+      - { id: a, items: [leather-armor, { dagger: 2 }, { choose: { tool: { category: musical-instrument } } }, entertainers-pack], gp: 19 }
+      - { id: b, gp: 90 }
+```
+
 ## Becoming a Bard …
 
 ### As a Level 1 Character
@@ -34,6 +49,22 @@ As a Bard, you gain the following class features when you reach the specified Ba
 You can supernaturally inspire others through words, music, or dance. This inspiration is represented by your Bardic Inspiration die, which is a d6.
 
 ***Using Bardic Inspiration.*** As a Bonus Action, you can inspire another creature within 60 feet of yourself who can see or hear you. That creature gains one of your Bardic Inspiration dice. A creature can have only one Bardic Inspiration die at a time.
+
+## Effects
+```yaml
+- resource: { id: bardic-inspiration, max: "max(1, mod:cha)", reset: long, die: table:Bardic Die }
+- action:
+    id: bardic-inspiration
+    activation: bonus
+    cost: { resource: $#bardic-inspiration }
+    range: 60
+    targets: { count: 1, creature: other }
+    give:
+      die: table:Bardic Die
+      limit: 1
+      duration: { amount: 1, unit: hour }
+      use: { event: { fail: d20 }, offer: { add-roll: table:Bardic Die } }
+```
 
 #### Bard Features
 
@@ -90,11 +121,25 @@ If another Bard feature gives you spells that you always have prepared, those sp
 
 ***Spellcasting Focus.*** You can use a Musical Instrument as a Spellcasting Focus for your Bard spells.
 
+## Effects
+```yaml
+- spellcasting: { ability: cha, progression: full, list: bard, focus: musical-instrument,
+                  cantrips: table:Cantrips, prepared: table:Prepared Spells, change: { prepared: level-up, cantrips: level-up } }
+- choose: { id: cantrips, kind: spell, count: table:Cantrips, from: { spell: { list: bard, level: 0 } }, swap: { at: level-up, count: 1 },
+            default: [$srd/spells/dancing-lights, $srd/spells/vicious-mockery] }
+```
+
 ### Level 2: Expertise
 
 You gain Expertise (see “Rules Glossary”) in two of your skill proficiencies of your choice. Performance and Persuasion are recommended if you have proficiency in them.
 
 At Bard level 9, you gain Expertise in two more of your skill proficiencies of your choice.
+
+## Effects
+```yaml
+- choose: { id: expertise-1, kind: skill, count: 2, grants: expertise, from: { proficient: skill } }
+- choose: { id: expertise-2, kind: skill, count: 2, grants: expertise, from: { proficient: skill }, at: 9 }
+```
 
 ### Level 2: Jack of All Trades
 
@@ -102,13 +147,28 @@ You can add half your Proficiency Bonus (round down) to any ability check you ma
 
 For example, if you make a Strength (Athletics) check and lack Athletics proficiency, you can add half your Proficiency Bonus to the check.
 
+## Effects
+```yaml
+- half-proficiency: { scope: check:all, unless: proficient }
+```
+
 ### Level 3: Bard Subclass
 
 You gain a Bard subclass of your choice. The College of Lore subclass is detailed after this class’s description. A subclass is a specialization that grants you features at certain Bard levels. For the rest of your career, you gain each of your subclass’s features that are of your Bard level or lower.
 
+## Effects
+```yaml
+- choose: { id: subclass, kind: subclass, from: { subclass: { parent: $srd/bard } } }
+```
+
 ### Level 4: Ability Score Improvement
 
 You gain the Ability Score Improvement feat (see “Feats”) or another feat of your choice for which you qualify. You gain this feature again at Bard levels 8, 12, and 16.
+
+## Effects
+```yaml
+- choose: { id: asi, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/ability-score-improvement, at: [4, 8, 12, 16] }
+```
 
 ### Level 5: Font of Inspiration
 
@@ -116,25 +176,62 @@ You now regain all your expended uses of Bardic Inspiration when you finish a Sh
 
 In addition, you can expend a spell slot (no action required) to regain one expended use of Bardic Inspiration.
 
+## Effects
+```yaml
+- modify: { target: $#bardic-inspiration, set: { reset: short } }
+- convert: { from: { slot: any }, to: { resource: $#bardic-inspiration, amount: 1 }, activation: none }
+```
+
 ### Level 7: Countercharm
 
 You can use musical notes or words of power to disrupt mind-influencing effects. If you or a creature within 30 feet of you fails a saving throw against an effect that applies the Charmed or Frightened condition, you can take a Reaction to cause the save to be rerolled, and the new roll has Advantage.
+
+## Effects
+```yaml
+- trigger:
+    event: { fail: save }
+    reaction: true
+    scope: { against: { condition: [charmed, frightened] } }
+    if: "You or a creature within 30 feet of you failed the save"
+    offer: { reroll: true, must-use-new: true, advantage: true }
+```
 
 ### Level 10: Magical Secrets
 
 You’ve learned secrets from various magical traditions. Whenever you reach a Bard level (including this level) and the Prepared Spells number in the Bard Features table increases, you can choose any of your new prepared spells from the Bard, Cleric, Druid, and Wizard spell lists, and the chosen spells count as Bard spells for you (see a class’s section for its spell list). In addition, whenever you replace a spell prepared for this class, you can replace it with a spell from those lists.
 
+## Effects
+```yaml
+- spell-list: { add-to: bard, from: [cleric, druid, wizard], by-choice: true }
+```
+
 ### Level 18: Superior Inspiration
 
 When you roll Initiative, you regain expended uses of Bardic Inspiration until you have two if you have fewer than that.
+
+## Effects
+```yaml
+- trigger: { event: { roll: initiative }, auto: true, offer: { regain: { resource: $#bardic-inspiration, to: 2, only-up: true } } }
+```
 
 ### Level 19: Epic Boon
 
 You gain an Epic Boon feat (see “Feats”) or another feat of your choice for which you qualify. Boon of Spell Recall is recommended.
 
+## Effects
+```yaml
+- choose: { id: epic-boon, kind: feat, from: { feat: { qualify: true } }, default: $srd/feats/boon-of-spell-recall }
+```
+
 ### Level 20: Words of Creation
 
 You have mastered two of the Words of Creation: the words of life and death. You therefore always have the *Power Word Heal* and *Power Word Kill* spells prepared. When you cast either spell, you can target a second creature with it if that creature is within 10 feet of the first target.
+
+## Effects
+```yaml
+- grant-spell: { spell: [$srd/spells/power-word-heal, $srd/spells/power-word-kill], prepared: always,
+                 overrides: { targets: { count: 2, within: 10 } } }
+```
 
 ## Bard Spell List
 

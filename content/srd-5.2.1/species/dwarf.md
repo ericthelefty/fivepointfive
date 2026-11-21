@@ -7,12 +7,43 @@
 
 As a Dwarf, you have these special traits.
 
-***Darkvision.*** You have Darkvision with a range of 120 feet.
+## Darkvision
 
-***Dwarven Resilience.*** You have Resistance to Poison damage. You also have Advantage on saving throws you make to avoid or end the Poisoned condition.
+You have Darkvision with a range of 120 feet.
 
-***Dwarven Toughness.*** Your Hit Point maximum increases by 1, and it increases by 1 again whenever you gain a level.
+## Effects
+```yaml
+- sense: { darkvision: 120 }
+```
 
-***Stonecunning.*** As a Bonus Action, you gain Tremorsense with a range of 60 feet for 10 minutes. You must be on a stone surface or touching a stone surface to use this Tremorsense. The stone can be natural or worked.
+## Dwarven Resilience
+
+You have Resistance to Poison damage. You also have Advantage on saving throws you make to avoid or end the Poisoned condition.
+
+## Effects
+```yaml
+- defense: { resistance: [poison] }
+- advantage: { roll: save:all, scope: { against: { condition: poisoned } } }
+```
+
+## Dwarven Toughness
+
+Your Hit Point maximum increases by 1, and it increases by 1 again whenever you gain a level.
+
+## Effects
+```yaml
+- bonus: { to: hp:max, value: level }
+```
+
+## Stonecunning
+
+As a Bonus Action, you gain Tremorsense with a range of 60 feet for 10 minutes. You must be on a stone surface or touching a stone surface to use this Tremorsense. The stone can be natural or worked.
 
 You can use this Bonus Action a number of times equal to your Proficiency Bonus, and you regain all expended uses when you finish a Long Rest.
+
+## Effects
+```yaml
+- resource: { id: stonecunning, max: prof, reset: long }
+- toggle: { id: stonecunning, activation: bonus, cost: { resource: $#stonecunning }, duration: { amount: 10, unit: minute },
+            if: "You're on or touching a stone surface", effects: [ { sense: { tremorsense: 60 } } ] }
+```

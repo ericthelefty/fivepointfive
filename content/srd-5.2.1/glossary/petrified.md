@@ -17,3 +17,13 @@ While you have the Petrified condition, you experience the following effects.
 ***Resist Damage.*** You have Resistance to all damage.
 
 ***Poison Immunity.*** You have Immunity to the Poisoned condition.
+
+## Effects
+```yaml
+- condition: [incapacitated]
+- set: { to: speed:all, value: 0, mode: override, locked: true }
+- advantage: { roll: attacks-against-you }
+- auto-fail: { roll: [save:str, save:dex] }
+- defense: { resistance: [all], condition-immunity: [poisoned] }
+- trait: { text: "Turned to stone with nonmagical gear; weight ×10; doesn't age." }
+```

@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { features, parseFile, type Entry } from "./parse.ts";
 import type { Item } from "./inventory.ts";
-import { armorTable, derive, newCharacter, traits, intro, type Character } from "./rules.ts";
+import { armorTable, classTable, derive, newCharacter, traits, intro, type Character } from "./rules.ts";
 import { classInfos } from "./multiclass.ts";
 import { advantageFor, computeModif, setSlotFeat, spellPlan, type ModifCtx, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
 
@@ -48,7 +48,7 @@ describe("Modif blocks in pack files", () => {
     const feats = all.filter((e) => e.type === "Feat");
     expect(feats.every((f) => f.effects?.length)).toBe(true); // every SRD feat
     expect(all.filter((e) => e.type === "Spell" || e.type === "Magic Item").every((e) => e.effects?.length)).toBe(true); // every spell and magic item
-    expect(withFx.filter((e) => !["Feat", "Spell", "Magic Item"].includes(e.type)).map((e) => e.name).sort()).toEqual(["Champion", "Fighter", "Human", "Soldier"]);
+    for (const t of ["Class", "Subclass"]) expect(all.filter((e) => e.type === t).every((e) => e.effects?.length), t).toBe(true);
     for (const e of withFx) for (const fx of e.effects!) expect(readBlocks(fx.yaml).problems, `${e.name} / ${fx.feature}`).toEqual([]);
   });
 
@@ -189,13 +189,12 @@ describe("Fighter (Champion), Human, Soldier", () => {
       multiclass: [{ classId: "srd:class/fighter", level: 1 }],
     };
     const { fx, d } = sheet(c);
-    expect(fx.saves.size).toBe(0);
-    expect([...fx.weapons]).toEqual(["martial"]);
+    expect([...fx.saves]).toEqual(["Intelligence", "Wisdom"]); // from the Wizard only
+    expect([...fx.weapons]).toEqual(["simple", "martial"]); // Wizard: simple; Fighter as a second class: martial
     expect([...fx.armor]).toEqual(["light", "medium", "shield"]);
     expect(fx.pending.some((p) => p.key === "srd:class/fighter#skills")).toBe(false);
-    // the wizard has no Effects yet, so its saves still come from its text
     expect(d.saves.Intelligence.prof).toBe(true);
-    expect(fx.resources.map((r) => r.key)).toEqual(["second-wind"]);
+    expect(fx.resources.map((r) => r.key)).toEqual(["srd:class/wizard#per:arcane-recovery", "second-wind"]);
   });
 });
 
@@ -268,13 +267,20 @@ describe("Ability Score Improvements", () => {
     expect(d.scores.Strength).toBe(21);
   });
 
-  it("classes not yet converted to Modif get their ASI levels from the class table", () => {
-    const c: Character = { ...champion(8), classId: "srd:class/wizard", subclassId: undefined, classSkills: ["Arcana", "History"] };
-    c.choices = { ...c.choices, ["srd:class/wizard#asi@4/srd:feat/ability-score-improvement#asi"]: ["Intelligence", "Intelligence"] };
+  it("classes without Effects (homebrew) get their ASI levels from the class table", () => {
+    const [brew] = parseFile(
+      "# Tinker\n**Type:** Class\n\n## Core Tinker Traits\n\n**Hit Point Die:** D8 per Tinker level\n**Saving Throw Proficiencies:** Intelligence and Dexterity\n\n" +
+        "### Tinker Features\n\n| Level | Proficiency Bonus | Class Features |\n|---|---|---|\n| 1 | +2 | Gadgets |\n| 4 | +2 | Ability Score Improvement |\n| 8 | +3 | Ability Score Improvement |\n| 19 | +6 | Epic Boon |\n",
+      "home",
+    );
+    index.set(brew.id, brew);
+    const c: Character = { ...champion(8), classId: brew.id, subclassId: undefined, classSkills: [] };
+    c.choices = { ...c.choices, [`${brew.id}#asi@4/srd:feat/ability-score-improvement#asi`]: ["Intelligence", "Intelligence"] };
     const { fx, d } = sheet(c);
-    expect(fx.pending.filter((p) => p.level !== undefined).map((p) => p.key)).toEqual(["srd:class/wizard#asi@4", "srd:class/wizard#asi@8"]);
+    expect(fx.pending.filter((p) => p.level !== undefined).map((p) => p.key)).toEqual([`${brew.id}#asi@4`, `${brew.id}#asi@8`]);
     expect(d.scores.Intelligence).toBe(10);
-    expect(fx.encoded.has("srd:class/wizard")).toBe(false);
+    expect(fx.encoded.has(brew.id)).toBe(false);
+    index.delete(brew.id);
   });
 
   it("changing a slot's feat drops the picks made for the old one", () => {
@@ -399,5 +405,97 @@ describe("Spells read from their Effects", () => {
   it("every SRD spell has a plan", () => {
     const spells = all.filter((e) => e.type === "Spell");
     for (const s of spells) expect(spellPlan(s, { slot: 9, charLevel: 20, spell: nums }), s.name).not.toBeNull();
+  });
+});
+
+describe("Every SRD class, species and background reads from Effects", () => {
+  const classes = all.filter((e) => e.type === "Class");
+  const base = { Strength: 14, Dexterity: 14, Constitution: 14, Intelligence: 14, Wisdom: 14, Charisma: 14 };
+  const build = (cls: Entry, level: number, extra: Partial<Character> = {}, ctx: Partial<ModifCtx> = {}) => {
+    const sub = all.find((s) => s.type === "Subclass" && (s.fields["parent"] || "").replace(/\*/g, "").trim() === cls.name);
+    const c: Character = {
+      ...newCharacter(), level, classId: cls.id, subclassId: sub?.id, speciesId: "srd:species/human", backgroundId: "srd:background/sage",
+      method: "manual", base, bonus: {}, classSkills: [], equipClass: "A", ...extra,
+    };
+    return sheet(c, ctx);
+  };
+
+  it.each(classes.map((c) => [c.name, c] as const))("%s: saves, skill choice, ASI slots and Epic Boon match its text", (_, cls) => {
+    const { fx, d } = build(cls, 20);
+    expect(fx.encoded.has(cls.id)).toBe(true);
+    const textSaves = cls.fields["saving throw proficiencies"].replace(/\*/g, "").split(/ and /).map((x) => x.trim());
+    for (const a of textSaves) expect(d.saves[a].prof, `${cls.name} ${a}`).toBe(true);
+    const skills = fx.pending.find((p) => p.key === `${cls.id}#skills`)!;
+    expect(skills.count).toBe(+cls.fields["skill proficiencies"].match(/Choose (?:any )?(\d+)/)![1]);
+    expect(skills.storedIn).toBe("classSkills");
+    const asiLevels = (classTable(cls)!.rows.filter((r) => /Ability Score Improvement/.test(r.join(" "))).map((r) => +r[0]));
+    expect(fx.pending.filter((p) => p.level !== undefined && p.key.includes("#asi@")).map((p) => p.level)).toEqual(asiLevels);
+    expect(fx.pending.some((p) => p.key === `${cls.id}#epic-boon@19`)).toBe(true);
+    expect(fx.problems).toEqual([]);
+  });
+
+  it("Barbarian: Rage is a switch that adds damage to Strength attacks and Advantage on Strength checks", () => {
+    const barb = byId("srd:class/barbarian")!;
+    const off = build(barb, 5).fx;
+    const rage = off.toggles.find((t) => t.name === "Rage")!;
+    expect(rage).toMatchObject({ key: "srd:class/barbarian#rage", cost: { key: "rages", amount: 1 } });
+    expect(off.resources.find((r) => r.key === "rages")).toMatchObject({ max: 3, recover: "shortOne" });
+    expect(off.attacksPerAction).toBe(2);
+    const on = build(barb, 5, {}, { active: [{ key: rage.key }] }).fx;
+    expect(on.damageBonuses).toContainEqual(expect.objectContaining({ value: 2, ability: "Strength" }));
+    expect(advantageFor(on, { kind: "check", ability: "Strength" })).toEqual(["Rage (Barbarian)"]);
+    expect(advantageFor(off, { kind: "check", ability: "Strength" })).toEqual([]);
+  });
+
+  it("Monk: Focus comes back on a Short Rest, AC uses Wisdom, all saves at 14", () => {
+    const monk = byId("srd:class/monk")!;
+    const { fx, d } = build(monk, 14, {}, { gear: { shield: false } });
+    expect(fx.resources.find((r) => r.key === "focus")).toMatchObject({ max: 14, recover: "short" });
+    expect(d.ac).toBe(14);
+    expect(Object.values(d.saves).every((s) => s.prof)).toBe(true);
+    expect(d.speed).toBe(30 + 25); // Unarmored Movement column at 14
+  });
+
+  it("Bard: Expertise doubles the bonus and Jack of All Trades adds half to the rest", () => {
+    const bard = byId("srd:class/bard")!;
+    const { d } = build(bard, 3, { classSkills: ["Performance", "Persuasion", "Deception"], choices: { "srd:class/bard#expertise-1": ["Performance", "Persuasion"] } });
+    expect(d.skills.Performance.value).toBe(2 + 2 + 2);
+    expect(d.skills.Deception.value).toBe(2 + 2);
+    expect(d.skills.Athletics.value).toBe(2 + 1);
+    expect(d.initiative).toBe(2 + 1);
+  });
+
+  it("subclass options apply only when chosen (Hunter's Prey)", () => {
+    const ranger = byId("srd:class/ranger")!;
+    const none = build(ranger, 3).fx;
+    expect(none.triggers.some((t) => t.name === "Colossus Slayer")).toBe(false);
+    expect(none.pending.find((p) => p.key === "srd:subclass/hunter#hunters-prey")!.options!.map((o) => o.value)).toEqual(["Colossus Slayer", "Horde Breaker"]);
+    const cs = build(ranger, 3, { choices: { "srd:subclass/hunter#hunters-prey": ["Colossus Slayer"] } }).fx;
+    expect(cs.triggers.find((t) => t.name === "Colossus Slayer")!.text).toBe("Deal 1d8 weapon damage");
+  });
+
+  it("species lineages come from the builder's species choice (Wood Elf, Red Dragonborn)", () => {
+    const wiz = byId("srd:class/wizard")!;
+    const elf = build(wiz, 5, { speciesId: "srd:species/elf", speciesChoice: "Wood Elf", choices: { "srd:species/elf#lineage-ability": ["Wisdom"] } });
+    expect(elf.d.speed).toBe(35);
+    expect(elf.fx.grantedSpells.map((g) => [g.spell.name, g.ability, !!g.free])).toEqual([["Druidcraft", "Wisdom", false], ["Longstrider", "Wisdom", true], ["Pass without Trace", "Wisdom", true]]);
+    const db = build(wiz, 5, { speciesId: "srd:species/dragonborn", speciesChoice: "Red" });
+    expect(db.fx.notes.map((n) => n.text)).toContain("Resistance to Fire");
+    const breath = db.fx.actions.find((a) => a.name === "Breath Weapon")!;
+    expect(breath).toMatchObject({ save: { ability: "Dexterity", dc: 8 + 2 + 3, success: "half" }, damage: [{ dice: "2d10", type: "fire" }] });
+  });
+
+  it("option headings in species traits are gated too (Goliath's Giant Ancestry)", () => {
+    const wiz = byId("srd:class/wizard")!;
+    const g = build(wiz, 5, { speciesId: "srd:species/goliath", choices: { "srd:species/goliath#giant-ancestry": ["Stone’s Endurance"] } }).fx;
+    expect(g.triggers.map((t) => t.name)).toEqual(expect.arrayContaining(["Stone’s Endurance (Stone Giant)"]));
+    expect(g.triggers.some((t) => t.name.startsWith("Fire’s Burn"))).toBe(false);
+    expect(g.toggles.map((t) => t.name)).toEqual(["Large Form"]);
+  });
+
+  it("every species, background and catalog entry has Effects", () => {
+    for (const t of ["Species", "Background"]) expect(all.filter((e) => e.type === t).every((e) => e.effects?.length), t).toBe(true);
+    for (const n of ["Blinded", "Dash", "Acid", "Thieves’ Tools"]) expect(all.find((e) => e.name === n)!.effects?.length, n).toBeGreaterThan(0);
+    expect(byId("srd:rule/weapons")!.effects!.map((f) => f.feature)).toContain("Finesse");
   });
 });

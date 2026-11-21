@@ -1,8 +1,0 @@
-# entry: srd/species/orc
-Adrenaline Rush:
-  - resource: { id: adrenaline-rush, max: prof, reset: short }
-  - action: { id: adrenaline-rush, activation: bonus, take: dash, cost: { resource: $#adrenaline-rush }, temp-hp: prof }
-Darkvision:
-  - sense: { darkvision: 120 }
-Relentless Endurance:
-  - trigger: { event: zero-hp, if: "You aren't killed outright", per: long, offer: { set-hp: 1 } }

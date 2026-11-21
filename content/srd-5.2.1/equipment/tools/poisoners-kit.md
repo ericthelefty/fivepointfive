@@ -6,3 +6,13 @@
 **Weight:** 2 lb.
 **Utilize:** Detect a poisoned object (DC 10)
 **Craft:** Basic Poison
+
+## Effects
+```yaml
+- action:
+    activation: utilize
+    label: Detect a poisoned object
+    check: {tool: self, ability: int, dc: 10}
+- craft:
+    items: [basic-poison]
+```

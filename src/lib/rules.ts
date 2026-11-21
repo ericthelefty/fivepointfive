@@ -225,7 +225,15 @@ export function traits(e?: Entry): { name: string; md: string }[] {
   }
   // Entries converted to Modif write each trait as its own heading (Modif §2.4)
   if (e.effects?.length && e.type !== "Class" && e.type !== "Subclass") {
-    for (const s of e.sections) if (s.level === 2 && !/^Level \d+:/.test(s.title)) out.push({ name: s.title, md: s.md });
+    e.sections.forEach((s, i) => {
+      if (s.level !== 2 || /^Level \d+:/.test(s.title)) return;
+      // a section that's only a table (Elven Lineages) is reference for a choice, not a trait
+      if (s.md.split("\n").every((l) => !l.trim() || l.trim().startsWith("|"))) return;
+      // nested headings (a trait's options, a lineage table) stay with their trait
+      let md = s.md;
+      for (let k = i + 1; k < e.sections.length && e.sections[k].level > 2; k++) md += `\n\n${"#".repeat(Math.min(6, e.sections[k].level + 1))} ${e.sections[k].title}\n\n${e.sections[k].md}`;
+      out.push({ name: s.title, md });
+    });
   }
   return out;
 }
@@ -358,7 +366,7 @@ export function derive(
   const skills = Object.fromEntries(
     SKILLS.map((s) => [s, {
       prof: prof.has(s),
-      value: mods[SKILL_ABILITY[s]] + (prof.has(s) ? pb : 0) + plus(`skill:${s.toLowerCase().replace(/ /g, "-")}`) + plus(`check:${ab3(SKILL_ABILITY[s])}`) + plus("check:all"),
+      value: mods[SKILL_ABILITY[s]] + (prof.has(s) ? pb : 0) + (prof.has(s) && fx?.expertise.has(s) ? pb : 0) + (!prof.has(s) && fx?.halfProficiency ? Math.floor(pb / 2) : 0) + plus(`skill:${s.toLowerCase().replace(/ /g, "-")}`) + plus(`check:${ab3(SKILL_ABILITY[s])}`) + plus("check:all"),
     }]),
   );
   // HP: the starting class's full die at level 1, then each class's average per level
@@ -424,8 +432,8 @@ export function derive(
     scores, mods, pb, saves, skills,
     hp: hp + plus("hp:max") + plus("hp:per-level") * c.level,
     ac, acNote,
-    initiative: mods.Dexterity + plus("initiative") + plus("check:dex") + plus("check:all"),
-    speed: speedOf(lib.species) + plus("speed:walk"),
+    initiative: mods.Dexterity + plus("initiative") + plus("check:dex") + plus("check:all") + (fx?.halfProficiency ? Math.floor(pb / 2) : 0),
+    speed: Math.max(speedOf(lib.species), fx?.speedSet ?? 0) + plus("speed:walk"),
     passivePerception: 10 + skills.Perception.value + plus("passive:perception"),
     hitDie: hd,
     critRange: fx?.critRange ?? 20,

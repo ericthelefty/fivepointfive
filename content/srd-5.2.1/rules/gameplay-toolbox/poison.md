@@ -22,6 +22,12 @@ In some settings, laws prohibit the possession and use of poison, but an illicit
 
 A character can attempt to harvest poison from a venomous creature that is dead or has the Incapacitated condition. The effort takes 1d6 minutes, after which the character makes a DC 20 Intelligence (Nature) check using a Poisoner’s Kit. On a successful check, the character harvests enough poison for a single dose, and no additional poison can be harvested from that creature. On a failed check, the character is unable to extract any poison. If the character fails the check by 5 or more, the character is subjected to the creature’s poison.
 
+## Effects
+```yaml
+- action: { activation: { amount: 1d6, unit: minute }, requires: { item: poisoners-kit }, targets: { text: "A dead or Incapacitated venomous creature" },
+            check: { skill: nature, ability: int, dc: 20 }, on-success: { creates: { item: poison-dose, count: 1 } }, on-failure: { text: "See the rule: failing by 5+ exposes you." } }
+```
+
 ## Sample Poisons
 
 Example poisons are detailed here in alphabetical order. Each poison’s description includes the suggested price for a single dose of the poison, its type (contact, ingested, inhaled, or injury), and a description of the poison’s debilitating effects.
@@ -32,11 +38,22 @@ Example poisons are detailed here in alphabetical order. Each poison’s descrip
 
 A creature subjected to Assassin’s Blood makes a DC 10 Constitution saving throw. On a failed save, the creature takes 6 (1d12) Poison damage and has the Poisoned condition for 24 hours. On a successful save, the creature takes half as much damage only.
 
+## Effects
+```yaml
+- poison: { delivery: ingested, save: { ability: con, dc: 10, success: half }, damage: { dice: 1d12, type: poison }, on-failure: { apply: { condition: poisoned, duration: { amount: 24, unit: hour } } } }
+```
+
 ### Burnt Othur Fumes (500 GP)
 
 *Inhaled Poison*
 
 A creature subjected to Burnt Othur Fumes must succeed on a DC 13 Constitution saving throw or take 10 (3d6) Poison damage, and it must repeat the save at the start of each of its turns. On each successive failed save, the creature takes 3 (1d6) Poison damage. After three successful saves, the poison ends.
+
+## Effects
+```yaml
+- poison: { delivery: inhaled, save: { ability: con, dc: 13 }, on-failure: { damage: { dice: 3d6, type: poison } },
+            then: { at: start-of-target-turn, save: { ability: con, dc: 13 }, on-failure: { damage: { dice: 1d6, type: poison } }, ends-after: { successes: 3 } } }
+```
 
 ### Crawler Mucus (200 GP)
 
@@ -44,11 +61,21 @@ A creature subjected to Burnt Othur Fumes must succeed on a DC 13 Constitution s
 
 A creature subjected to Crawler Mucus must succeed on a DC 13 Constitution saving throw or have the Poisoned condition for 1 minute. The creature also has the Paralyzed condition while Poisoned in this way. The creature repeats the save at the end of each of its turns, ending the effect on itself on a success.
 
+## Effects
+```yaml
+- poison: { delivery: contact, save: { ability: con, dc: 13 }, on-failure: { apply: { condition: [poisoned, paralyzed], duration: { amount: 1, unit: minute }, save-ends: end-of-turn } } }
+```
+
 ### Essence of Ether (300 GP)
 
 *Inhaled Poison*
 
 A creature subjected to Essence of Ether must succeed on a DC 15 Constitution saving throw or have the Poisoned condition for 8 hours. The creature also has the Unconscious condition while Poisoned in this way. The creature wakes up if it takes damage or if another creature takes an action to shake it awake.
+
+## Effects
+```yaml
+- poison: { delivery: inhaled, save: { ability: con, dc: 15 }, on-failure: { apply: { condition: [poisoned, unconscious], duration: { amount: 8, unit: hour }, ends-when: [damage, shaken-awake] } } }
+```
 
 ### Malice (250 GP)
 
@@ -56,11 +83,21 @@ A creature subjected to Essence of Ether must succeed on a DC 15 Constitution sa
 
 A creature subjected to Malice must succeed on a DC 15 Constitution saving throw or have the Poisoned condition for 1 hour. The creature also has the Blinded condition while Poisoned in this way.
 
+## Effects
+```yaml
+- poison: { delivery: inhaled, save: { ability: con, dc: 15 }, on-failure: { apply: { condition: [poisoned, blinded], duration: { amount: 1, unit: hour } } } }
+```
+
 ### Midnight Tears (1,500 GP)
 
 *Ingested Poison*
 
 A creature that ingests Midnight Tears suffers no effect until the stroke of midnight. Any effect that ends the Poisoned condition neutralizes this poison. If the poison hasn’t been neutralized before midnight, the creature makes a DC 17 Constitution saving throw, taking 31 (9d6) Poison damage on a failed save or half as much damage on a successful one.
+
+## Effects
+```yaml
+- poison: { delivery: ingested, delay: { until: midnight }, neutralized-by: [remove-condition-poisoned], save: { ability: con, dc: 17, success: half }, damage: { dice: 9d6, type: poison } }
+```
 
 ### Oil of Taggit (400 GP)
 
@@ -68,11 +105,23 @@ A creature that ingests Midnight Tears suffers no effect until the stroke of mid
 
 A creature subjected to Oil of Taggit must succeed on a DC 13 Constitution saving throw or have the Poisoned condition for 24 hours. The creature also has the Unconscious condition while Poisoned in this way. It wakes up if it takes damage.
 
+## Effects
+```yaml
+- poison: { delivery: contact, save: { ability: con, dc: 13 }, on-failure: { apply: { condition: [poisoned, unconscious], duration: { amount: 24, unit: hour }, ends-when: damage } } }
+```
+
 ### Pale Tincture (250 GP)
 
 *Ingested Poison*
 
 A creature subjected to Pale Tincture must succeed on a DC 16 Constitution saving throw or take 3 (1d6) Poison damage and have the Poisoned condition. The Poisoned creature repeats the save every 24 hours, taking 3 (1d6) Poison damage on a failed save. The damage the poison deals can’t be healed by any means while the creature remains Poisoned. After seven successful saves against the poison, the creature is no longer Poisoned.
+
+## Effects
+```yaml
+- poison: { delivery: ingested, save: { ability: con, dc: 16 }, on-failure: { damage: { dice: 1d6, type: poison }, apply: { condition: poisoned,
+            save-ends: { every: 24 hour, successes: 7 }, effects: [ { trait: [poison-damage-cant-be-healed] } ] } },
+            then: { every: 24 hour, on-failure: { damage: { dice: 1d6, type: poison } } } }
+```
 
 ### Purple Worm Poison (2,000 GP)
 
@@ -80,11 +129,21 @@ A creature subjected to Pale Tincture must succeed on a DC 16 Constitution savin
 
 A creature subjected to Purple Worm Poison makes a DC 21 Constitution saving throw, taking 35 (10d6) Poison damage on a failed save or half as much damage on a successful one.
 
+## Effects
+```yaml
+- poison: { delivery: injury, save: { ability: con, dc: 21, success: half }, damage: { dice: 10d6, type: poison } }
+```
+
 ### Serpent Venom (200 GP)
 
 *Injury Poison*
 
 A creature subjected to Serpent Venom must succeed on a DC 11 Constitution saving throw, taking 10 (3d6) Poison damage on a failed save or half as much damage on a successful one.
+
+## Effects
+```yaml
+- poison: { delivery: injury, save: { ability: con, dc: 11, success: half }, damage: { dice: 3d6, type: poison } }
+```
 
 ### Spider’s Sting (200 GP)
 
@@ -92,11 +151,23 @@ A creature subjected to Serpent Venom must succeed on a DC 11 Constitution savin
 
 A creature subjected to Spider’s Sting must succeed on a DC 13 Constitution saving throw or have the Poisoned condition for 1 hour. If the creature fails the save by 5 or more, the creature also has the Unconscious condition while Poisoned in this way. The creature wakes up if it takes damage or if another creature takes an action to shake it awake.
 
+## Effects
+```yaml
+- poison: { delivery: injury, save: { ability: con, dc: 13 }, on-failure: { apply: { condition: poisoned, duration: { amount: 1, unit: hour } } },
+            on-fail-by: { 5: { apply: { condition: unconscious, while: poisoned, ends-when: [damage, shaken-awake] } } } }
+```
+
 ### Torpor (600 GP)
 
 *Ingested Poison*
 
 A creature subjected to Torpor poison must succeed on a DC 15 Constitution saving throw or have the Poisoned condition for 4d6 hours. The creature’s Speed is halved while the creature is Poisoned in this way.
+
+## Effects
+```yaml
+- poison: { delivery: ingested, save: { ability: con, dc: 15 }, on-failure: { apply: { condition: poisoned, duration: { amount: 4d6, unit: hour },
+            effects: [ { set: { to: speed:all, value: 0.5, mode: multiply } } ] } } }
+```
 
 ### Truth Serum (150 GP)
 
@@ -104,8 +175,18 @@ A creature subjected to Torpor poison must succeed on a DC 15 Constitution savin
 
 A creature subjected to Truth Serum must succeed on a DC 11 Constitution saving throw or have the Poisoned condition for 1 hour. The Poisoned creature can’t knowingly communicate a lie.
 
+## Effects
+```yaml
+- poison: { delivery: ingested, save: { ability: con, dc: 11 }, on-failure: { apply: { condition: poisoned, duration: { amount: 1, unit: hour }, effects: [ { trait: [cant-lie] } ] } } }
+```
+
 ### Wyvern Poison (1,200 GP)
 
 *Injury Poison*
 
 A creature subjected to Wyvern Poison makes a DC 14 Constitution saving throw, taking 24 (7d6) Poison damage on a failed save or half as much damage on a successful one.
+
+## Effects
+```yaml
+- poison: { delivery: injury, save: { ability: con, dc: 14, success: half }, damage: { dice: 7d6, type: poison } }
+```

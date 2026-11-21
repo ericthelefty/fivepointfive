@@ -11,3 +11,10 @@ While you have the Incapacitated condition, you experience the following effects
 ***Speechless.*** You can’t speak.
 
 ***Surprised.*** If you’re Incapacitated when you roll Initiative, you have Disadvantage on the roll.
+
+## Effects
+```yaml
+- trait: [no-action, no-bonus-action, no-reaction, cant-speak]
+- breaks-concentration: true
+- disadvantage: { roll: initiative }
+```

@@ -6,6 +6,11 @@ When you take the Study action, you make an Intelligence check to study your mem
 
 The Areas of Knowledge table suggests which skills are applicable to various areas of knowledge.
 
+## Effects
+```yaml
+- action: { id: study, activation: action, check: { ability: int, skill: { choose: [arcana, history, investigation, nature, religion] } } }
+```
+
 ## Areas of Knowledge
 
 | Skill | Areas |
