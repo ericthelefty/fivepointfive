@@ -11,7 +11,7 @@
  * Entries without Effects keep working the old way (rules.ts reads their text).
  */
 import { parse as parseYaml, YAMLParseError } from "yaml";
-import { features, slug, stripMd, type Entry } from "./parse.ts";
+import { features, parseTables, slug, stripMd, type Entry } from "./parse.ts";
 import { classTable, tableRow, mod, profBonus, finalScores, speciesChoice, type Character } from "./rules.ts";
 import { ABILITIES, SKILLS, closest } from "./fix.ts";
 import { SUBCLASS_LEVEL, classInfos } from "./multiclass.ts";
@@ -129,6 +129,17 @@ export function evalAmount(expr: Val, env: Env): Amount | null {
     return typeof best === "number" ? { dice: [], flat: best } : evalAmount(String(best), env);
   }
   if (typeof expr !== "string") return null;
+  // "steps(1: d8, 5: d10, 11: d12)": the value at the highest level reached (cantrips: character level)
+  const st = expr.trim().match(/^steps\((.*)\)$/);
+  if (st) {
+    const steps: Record<string, string> = {};
+    for (const part of st[1].split(",")) {
+      const m = part.match(/^\s*(\d+)\s*:\s*(.+?)\s*$/);
+      if (!m) return null;
+      steps[m[1]] = m[2];
+    }
+    return evalAmount({ steps }, env);
+  }
   const src = expr.trim();
   let pos = 0;
   const peek = () => {
@@ -428,6 +439,16 @@ export interface ModifResult {
   critRange: number;
   attacksPerAction: number;
   treatRolls: { roll: string; min: number; max: number; as: number; source: string }[];
+  /** Weapon rules the sheet applies per attack: another ability, a bigger die, a die floor, maximum dice, extra damage types. */
+  weaponRules: WeaponRule[];
+  /** d20 or total floors (Reliable Talent, Indomitable Might). */
+  rollFloors: RollFloor[];
+  /** Skills that can use another ability (Primal Knowledge while raging). */
+  skillAbilities: { skill: string; ability: string; source: string }[];
+  /** Dice for healing spells use their maximum (Supreme Healing). */
+  maxHealing?: string;
+  /** Trade one pool for another: spell slots, Sorcery Points, Wild Shape… (player presses the button). */
+  converts: ModifConvert[];
   onLongRest: { regain: string; source: string }[];
   reminders: Reminder[];
   pending: PendingChoice[];
@@ -435,12 +456,87 @@ export interface ModifResult {
   problems: { entry: string; feature: string | null; problem: EffectProblem }[];
 }
 
+/** Which weapons a weapon rule covers; read by the sheet with weaponFits(). */
+export interface WeaponRule {
+  type: "use-ability" | "damage-die" | "die-floor" | "maximize" | "damage-type";
+  scope?: Val;
+  /** "while unarmed or wielding only Monk weapons": checked by the sheet against what's equipped */
+  wielding?: string[];
+  /** use-ability: full ability names, or "spell" for the spellcasting ability */
+  abilities?: string[];
+  die?: string;
+  ifHigher?: boolean;
+  min?: number;
+  /** die-floor on a Versatile weapon: only when it's used with two hands */
+  twoHands?: boolean;
+  types?: string[];
+  itemId?: string;
+  source: string;
+}
+
+export interface RollFloor {
+  /** "check:all", "check:str", "save:str" */
+  rolls: string[];
+  /** a d20 lower than this counts as this */
+  die?: number;
+  /** the total can't be lower than this */
+  total?: number;
+  /** only for checks you're proficient in */
+  proficient?: boolean;
+  source: string;
+}
+
+/** One side of a trade: a spell slot (level, or "pact") or uses of a resource. */
+export interface ConvertSide { slot?: number | "pact"; resource?: string; amount: number }
+export interface ModifConvert {
+  id: string;
+  name: string;
+  source: string;
+  activation: string;
+  /** the trades on offer; the sheet hides the ones the character can't make */
+  options: { spend: ConvertSide; gain: ConvertSide }[];
+  /** only when the gained pool is empty */
+  ifEmpty?: boolean;
+  /** once per Long Rest */
+  perLong?: boolean;
+  /** created slots vanish on a Long Rest (they're extra slots) */
+  expires?: boolean;
+}
+
+/** A weapon the sheet attacks with, as weaponFits() sees it. */
+export interface WeaponInfo { id: string; name: string; category: string; properties: string; unarmed?: boolean; monk?: boolean; itemId?: string; twoHands?: boolean }
+
+/** Does a Modif weapon scope (`{ weapon: { id, monk, unarmed, kind, hands, property, category } }`, `{ any: [...] }`) cover this weapon? */
+export function weaponFits(scope: Val, w: WeaponInfo, itemId?: string): boolean {
+  if (!scope) return true;
+  if (Array.isArray(scope.any)) return scope.any.some((x: Val) => weaponFits(x, w, itemId));
+  if (scope.against || scope.spell || scope.source) return false;
+  const q = scope.weapon;
+  if (!q || typeof q !== "object") return false;
+  const props = w.properties.toLowerCase();
+  const ranged = /ranged/i.test(w.category);
+  for (const [k, x] of Object.entries(q)) {
+    const list = ([] as Val[]).concat(x).map((y) => String(y).toLowerCase());
+    if (k === "id") {
+      if (list.includes("self")) { if (!itemId || w.itemId !== itemId) return false; continue; }
+      if (!list.includes(w.id) && !list.includes(slug(w.name))) return false;
+    } else if (k === "unarmed") { if (!!w.unarmed !== !!x) return false; }
+    else if (k === "monk") { if (!!w.monk !== !!x) return false; }
+    else if (k === "kind") { if (w.unarmed ? x !== "melee" : (x === "ranged") !== ranged) return false; }
+    else if (k === "category") { if (!list.some((c) => w.category.toLowerCase().includes(c))) return false; }
+    else if (k === "property") { if (!list.some((pr) => props.includes(pr.replace(/-/g, " ")) || props.includes(pr))) return false; }
+    else if (k === "hands") { if (x === "two" && !(props.includes("two-handed") || props.includes("versatile"))) return false; }
+    else return false;
+  }
+  return true;
+}
+
 export function emptyResult(): ModifResult {
   return {
     encoded: new Set(), saves: new Set(), skills: new Set(), weapons: new Set(), armor: new Set(), tools: new Set(),
     masteries: [], feats: [], featPicks: [], scores: {}, scoreSteps: [], resources: [], actions: [], toggles: [], triggers: [],
     activeSpells: [], grantedSpells: [], notes: [], expertise: new Set(), weaponFilters: [], acBonuses: [], acBases: [], bonuses: [], attackBonuses: [], damageBonuses: [],
-    advantages: [], disadvantages: [], critRange: 20, attacksPerAction: 1, treatRolls: [], onLongRest: [], reminders: [], pending: [],
+    advantages: [], disadvantages: [], critRange: 20, attacksPerAction: 1, treatRolls: [], weaponRules: [], rollFloors: [], skillAbilities: [], converts: [], onLongRest: [], reminders: [], pending: [],
     features: [], problems: [],
   };
 }
@@ -951,6 +1047,74 @@ function resourceKey(a: ApplyCtx, ref: string): string {
   return ref.startsWith("$#") || !ref.startsWith("$") ? scopedKey(a, local) : local;
 }
 
+/** A `convert` block as the trades the sheet can offer (Modif §5: "Trade one pool for another"). */
+function convertOf(v: Val, a: ApplyCtx): Omit<ModifConvert, "source"> | null {
+  if (!v?.from || !v?.to) return null;
+  const { env } = a;
+  const withCost = (expr: Val, cost: Record<string, number>): number | null => {
+    if (typeof expr === "number") return expr;
+    let s = String(expr ?? "");
+    for (const [k, n] of Object.entries(cost)) s = s.replace(new RegExp(`cost\\.${k}`, "g"), String(n));
+    return evalNumber(s, env);
+  };
+  const side = (x: Val, cost: Record<string, number>, slotLevel?: number): ConvertSide | null => {
+    if (x.resource) {
+      const n = x.amount === undefined ? 1 : withCost(x.amount, cost);
+      return n === null ? null : { resource: resourceKey(a, String(x.resource)), amount: n };
+    }
+    if (x.slot !== undefined) {
+      if (x.slot === "pact") return { slot: "pact", amount: 1 };
+      const lvl = slotLevel ?? withCost(x.slot, cost);
+      return lvl === null || lvl < 1 || lvl > 9 ? null : { slot: lvl, amount: 1 };
+    }
+    return null;
+  };
+  const options: ModifConvert["options"] = [];
+  const f = v.from, t = v.to;
+  const maxSlot = typeof t["max-slot"] === "number" ? t["max-slot"] : 9;
+  // table-driven: "table:Creating Spell Slots.Sorcery Point Cost"
+  const tref = [f.amount, t.slot].map(String).find((x) => /^table:[^.]+\./.test(x));
+  if (tref) {
+    const tname = tref.slice(6).split(".")[0];
+    const want = [f.amount, t.slot].map((x) => String(x).replace(/^table:[^.]+\./, "").toLowerCase());
+    const tbl = parseTables(a.e.body).find((tb) => want.every((w) => tb.header.some((h) => h.toLowerCase() === w)));
+    void tname;
+    if (!tbl) return null;
+    const col = (ref: Val) => tbl.header.findIndex((h) => h.toLowerCase() === String(ref).replace(/^table:[^.]+\./, "").toLowerCase());
+    const [ci, si, mi] = [col(f.amount), col(t.slot), col(t["min-level"])];
+    for (const row of tbl.rows) {
+      const cost = parseInt(row[ci]), lvl = parseInt(row[si]), min = mi >= 0 ? parseInt(row[mi]) : 0;
+      if (!cost || !lvl || lvl > maxSlot || (min && env.level < min)) continue;
+      options.push({ spend: { resource: resourceKey(a, String(f.resource)), amount: cost }, gain: { slot: lvl, amount: 1 } });
+    }
+  } else if (f.slot !== undefined && f.slot !== "pact" && (f.slot === "any" || typeof f.slot === "number")) {
+    const levels = f.slot === "any" ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [f.slot];
+    for (const L of levels) {
+      const gain = side(t, { slot: L });
+      if (gain) options.push({ spend: { slot: L, amount: 1 }, gain });
+    }
+  } else if (f.resource && (f.amount === "any" || (f.amount && typeof f.amount === "object"))) {
+    const lo = typeof f.amount === "object" && f.amount.min ? f.amount.min : 1;
+    for (let n = lo; n <= 9; n++) {
+      const gain = side(t, { resource: n });
+      if (gain && (gain.slot === undefined || (typeof gain.slot === "number" && gain.slot <= maxSlot))) options.push({ spend: { resource: resourceKey(a, String(f.resource)), amount: n }, gain });
+    }
+  } else {
+    const spend = side(f, {}), gain = spend && side(t, { resource: spend.amount, slot: typeof spend.slot === "number" ? spend.slot : 0 });
+    if (spend && gain) options.push({ spend, gain });
+  }
+  if (!options.length) return null;
+  return {
+    id: `${a.e.id}#${slug(a.fname)}:${options.length}:${JSON.stringify(options[0])}`,
+    name: a.fname,
+    activation: typeof v.activation === "string" ? v.activation : "none",
+    options,
+    ifEmpty: !!v["if-empty"],
+    perLong: v.per === "long",
+    expires: t.expires === "long",
+  };
+}
+
 function costOf(cost: Val, a: ApplyCtx): ModifCost | undefined {
   if (!cost || typeof cost !== "object") return undefined;
   if (typeof cost.resource === "string") return { key: resourceKey(a, cost.resource), amount: typeof cost.amount === "number" ? cost.amount : 1 };
@@ -1314,8 +1478,12 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
   if (v && typeof v === "object" && !Array.isArray(v) && typeof v.level === "number" && v.level > a.opts.level) return true;
   // a `when` the sheet can check decides now; one only the player knows becomes a reminder
   const special = ["toggle", "form", "choose", "resource", "charges", "bonus", "trigger", "base", "action"];
-  if (v && typeof v === "object" && !Array.isArray(v) && v.when && !special.includes(b.type)) {
-    const ok = whenEval(v.when, a);
+  // "while wielding only …" on a weapon rule is checked by the sheet, per attack
+  const weaponRule = ["use-ability", "damage-die", "die-floor", "maximize", "damage-type"].includes(b.type);
+  const whenNow = v && typeof v === "object" && !Array.isArray(v) && v.when
+    ? (weaponRule && !a.item ? Object.fromEntries(Object.entries(v.when).filter(([k]) => k !== "wielding")) : v.when) : undefined;
+  if (whenNow && Object.keys(whenNow).length && !special.includes(b.type)) {
+    const ok = whenEval(whenNow, a);
     if (ok === false) return true;
     if (ok === null) {
       a.remind(describeBlock(b, env));
@@ -1728,6 +1896,65 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       const range = v.range;
       if (!Array.isArray(range) || typeof v.as !== "number" || v.optional) return false;
       r.treatRolls.push({ roll: v.roll, min: range[0], max: range[1], as: v.as, source: src });
+      return true;
+    }
+    case "use-ability":
+    case "damage-die":
+    case "die-floor":
+    case "maximize":
+    case "damage-type": {
+      if (!v || typeof v !== "object") return false;
+      const wielding = v.when?.wielding !== undefined && !a.item ? ([] as Val[]).concat(v.when.wielding).map(String) : undefined;
+      const base = { scope: v.scope, wielding, itemId: a.item?.id, source: src };
+      const forList: string[] = [].concat(v.for || []);
+      if (b.type === "use-ability") {
+        const abilities = ([] as Val[]).concat(v.ability).map((x) => (x === "spell-ability" ? "spell" : ABBR3[String(x)])).filter(Boolean) as string[];
+        if (!abilities.length || v.choose) return false;
+        const skills = forList.filter((f) => f.startsWith("skill:")).map((f) => skillBySlug(f.slice(6))).filter(Boolean) as string[];
+        for (const sk of skills) for (const ab of abilities) r.skillAbilities.push({ skill: sk, ability: ab, source: src });
+        const weaponish = forList.length === 0 ? !!v.scope : forList.some((f) => f === "attack" || f === "damage");
+        if (weaponish) r.weaponRules.push({ type: "use-ability", abilities, ...base });
+        const rest = forList.filter((f) => !f.startsWith("skill:") && f !== "attack" && f !== "damage");
+        if (rest.length) a.remind(describeBlock(b, env));
+        return !rest.length && (weaponish || skills.length > 0);
+      }
+      if (b.type === "damage-die") {
+        if (v.die === "column") return true; // Versatile: the sheet already offers the two-handed die
+        const amt = evalAmount(v.die, env);
+        if (!amt || !amt.dice.length || amt.flat) return false;
+        r.weaponRules.push({ type: "damage-die", die: amt.dice.join("+"), ifHigher: !!v["if-higher"], types: v.type ? [String(v.type)] : undefined, ...base });
+        return true;
+      }
+      if (b.type === "die-floor") {
+        if (typeof v.min !== "number") return false;
+        r.weaponRules.push({ type: "die-floor", min: v.min, twoHands: v.scope?.weapon?.hands === "two", ...base });
+        return true;
+      }
+      if (b.type === "maximize") {
+        const any: Val[] = v.scope?.any || [v.scope || {}];
+        if (any.some((x) => x?.spell?.heals) ) { r.maxHealing = src; return true; }
+        if (v.scope?.weapon && !v.scope.against) { r.weaponRules.push({ type: "maximize", ...base }); return true; }
+        a.remind(describeBlock(b, env));
+        return false;
+      }
+      // damage-type: types you can pick instead of the weapon's own
+      const types = ([] as Val[]).concat(v["add-option"] || v.type || []).map((x) => titleCase(String(x)));
+      if (!types.length) return false;
+      r.weaponRules.push({ type: "damage-type", types, ...base });
+      return true;
+    }
+    case "roll-floor": {
+      const rolls: string[] = [].concat(v?.roll || []);
+      const die = typeof v?.min === "number" ? v.min : undefined;
+      const total = v?.["total-min"] !== undefined ? evalNumber(v["total-min"], env) ?? undefined : undefined;
+      if (!rolls.length || (die === undefined && total === undefined)) return false;
+      r.rollFloors.push({ rolls, die, total, proficient: !!v["when-proficient"], source: src });
+      return true;
+    }
+    case "convert": {
+      const conv = convertOf(v, a);
+      if (!conv) return false;
+      r.converts.push({ ...conv, source: src });
       return true;
     }
     case "narrative":

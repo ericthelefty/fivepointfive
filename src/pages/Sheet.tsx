@@ -6,14 +6,14 @@ import { useCharacters } from "../lib/characters.tsx";
 import { useSession } from "../lib/session.tsx";
 import { cloud, supabase } from "../lib/backend.ts";
 import { Md } from "../lib/md.tsx";
-import { features, spellInfo, stripMd, type Entry } from "../lib/parse.ts";
+import { features, slug, spellInfo, stripMd, type Entry } from "../lib/parse.ts";
 import {
   ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, casterInfo, derive, featName, fmt, speciesChoice, traits, wornGear,
   type Character,
 } from "../lib/rules.ts";
 import { combineModes, d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import {
-  CONDITION_EFFECTS, attackFor, conditionMods, esc, playOf,
+  CONDITION_EFFECTS, attackFor, avgDice, conditionMods, esc, playOf, type Weapon,
   timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
   type ActiveEffect, type PlayState, type RollContext,
 } from "../lib/play.ts";
@@ -22,7 +22,8 @@ import InventoryPanel from "./InventoryPanel.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
 import { NARROW, useMedia } from "../lib/useMedia.ts";
 import {
-  advantageFor, computeModif, disadvantageFor, spellcastingOf, spellMinutes, spellPlan, statusOf, treatRoll, weaponProficient,
+  advantageFor, computeModif, disadvantageFor, spellcastingOf, spellMinutes, spellPlan, statusOf, treatRoll, weaponFits, weaponProficient,
+  type ModifConvert, type ConvertSide, type WeaponInfo,
   type ModifAction, type ModifCost, type ModifCtx, type ModifToggle,
 } from "../lib/modif.ts";
 import { casterKind, classFeatures, classInfos, classLabel, hitDicePools, spellSlots, type ClassInfo, type Slot } from "../lib/multiclass.ts";
@@ -72,6 +73,8 @@ export default function Sheet() {
   const [hpAmt, setHpAmt] = useState("");
   const [custom, setCustom] = useState("");
   const [logOpen, setLogOpen] = useState(false);
+  /** The trade picked in each Convert row (index into its options). */
+  const [convPick, setConvPick] = useState<Record<string, number>>({});
   // phones and tablets open with the Game Log hidden (desktop always shows it)
   const narrow = useMedia(NARROW);
   const [logHidden, setLogHidden] = useState(() => typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches);
@@ -232,12 +235,39 @@ export default function Sheet() {
   const hdUsedOf = (die: number) => (p.hdUsedBy ? p.hdUsedBy[die] || 0 : die === pools[0]?.die ? p.hdUsed : 0);
   const hdLeft = pools.reduce((n, pl) => n + pl.count - hdUsedOf(pl.die), 0);
   // attacks: weapons that are equipped (magic weapons use their base weapon)
+  const wielded = inv.items.flatMap((it) => {
+    const w = it.equipped && it.qty > 0 && it.base ? weapons.find((x) => x.name === it.base) : undefined;
+    return w ? [{ it, w }] : [];
+  });
+  const isMonkWeapon = (w: Weapon) => /simple melee/i.test(w.category) || (/martial melee/i.test(w.category) && /\blight\b/i.test(w.properties));
+  /** "while unarmed or wielding only Monk weapons" */
+  const wieldingOk = (list?: string[]) => !list || wielded.every(({ w }) => (list.includes("monk-weapon") && isMonkWeapon(w)) || list.includes(slug(w.name)));
+  /** Weapon rules from Effects (Martial Arts, Shillelagh, Pact of the Blade, Great Weapon Fighting…) for one weapon. */
+  const weaponOpts = (wi: WeaponInfo) => {
+    const rules = fx.weaponRules.filter((r) => weaponFits(r.scope, wi, r.itemId) && wieldingOk(r.wielding));
+    const abilities = rules.filter((r) => r.type === "use-ability").flatMap((r) => (r.abilities || []).map((x) => (x === "spell" ? castAb || "Wisdom" : x)));
+    const dies = rules.filter((r) => r.type === "damage-die" && r.die);
+    const fixed = dies.find((r) => !r.ifHigher);
+    const die = fixed ? { die: fixed.die!, ifHigher: false } : dies.length ? { die: dies.reduce((b, r) => (avgDice(r.die!) > avgDice(b.die!) ? r : b)).die!, ifHigher: true } : undefined;
+    const types = rules.filter((r) => r.type === "damage-type").flatMap((r) => r.types || []);
+    const floor = rules.find((r) => r.type === "die-floor");
+    const max = rules.find((r) => r.type === "maximize");
+    const notes = [...new Set(rules.filter((r) => r.type !== "die-floor" && r.type !== "maximize").map((r) => r.source))];
+    return {
+      opts: { abilities, die, types: types.filter((t, i) => types.indexOf(t) === i), notes },
+      dieFloor: floor ? { min: floor.min!, twoHands: !!floor.twoHands && !/two-handed/i.test(wi.properties), source: floor.source } : undefined,
+      maximize: max?.source,
+    };
+  };
   const attacks: Attack[] = [
-    ...inv.items.flatMap((it) => {
-      const w = it.equipped && it.qty > 0 && it.base ? weapons.find((x) => x.name === it.base) : undefined;
-      return w ? [withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficient(fx, w)), itemId: it.id }, /ranged/i.test(w.category))] : [];
+    ...wielded.map(({ it, w }) => {
+      const wo = weaponOpts({ id: slug(w.name), name: w.name, category: w.category, properties: w.properties, monk: isMonkWeapon(w), itemId: it.id });
+      return withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficient(fx, w), wo.opts), itemId: it.id, dieFloor: wo.dieFloor, maximize: wo.maximize }, /ranged/i.test(w.category));
     }),
-    withBonuses(unarmedStrike(d), false),
+    (() => {
+      const wo = weaponOpts({ id: "unarmed-strike", name: "Unarmed Strike", category: "Unarmed", properties: "", unarmed: true });
+      return withBonuses({ ...unarmedStrike(d, wo.opts), maximize: wo.maximize }, false);
+    })(),
   ];
   const setInventory = (items: Item[], coins: Coins) => {
     dirty.current = true;
@@ -290,6 +320,15 @@ export default function Sheet() {
     const m = combineModes(bar === "adv" || cm.adv.length > 0, bar === "dis" || cm.dis.length > 0);
     const extra = takeBonus();
     const r = d20(bonus - cm.penalty, m, extra ? extra.replace(/^\+/, "") : undefined);
+    // Reliable Talent, Indomitable Might: a low d20 or total is raised
+    const ab3 = (ctx.ability || "").slice(0, 3).toLowerCase();
+    const floors = fx.rollFloors.filter((f) => (ctx.kind === "check" || ctx.kind === "save") && (!f.proficient || ctx.proficient) &&
+      f.rolls.some((x) => x === `${ctx.kind}:all` || x === `${ctx.kind}:${ab3}`));
+    const floorNotes: string[] = [];
+    for (const f of floors) {
+      if (f.die && r.kept < f.die) { r.total += f.die - r.kept; floorNotes.push(`${f.source}: the d20 counts as ${f.die}`); r.kept = f.die; }
+      if (f.total !== undefined && r.total < f.total) { r.total = f.total; floorNotes.push(`${f.source}: total raised to ${f.total}`); }
+    }
     const why = [
       ...(bar !== "normal" ? [bar === "adv" ? "Advantage (roll bar)" : "Disadvantage (roll bar)"] : []),
       ...cm.adv.map((x) => `Advantage: ${x}`),
@@ -299,6 +338,7 @@ export default function Sheet() {
     const detail = [
       `${diceTxt} ${fmt(bonus)}${cm.penalty ? ` −${cm.penalty} exhaustion` : ""}${r.extra ? ` ${esc(describeRolled(r.extra))}` : ""}`,
       why.length ? `<div>${esc(why.join(" · "))}${m === "normal" && why.length > 1 ? " (cancel out)" : ""}</div>` : "",
+      floorNotes.length ? `<div>${esc(floorNotes.join(" · "))}</div>` : "",
       extraNote,
       r.crit && ctx.kind !== "check" && ctx.kind !== "save" ? `<div class="vd crit">Natural 20!</div>` : "",
       r.fumble ? `<div class="vd bad">Natural 1</div>` : "",
@@ -307,17 +347,79 @@ export default function Sheet() {
     return r;
   };
 
-  const rollDamage = (title: string, expr: string, crit: boolean, type = "", heal = false) => {
-    const r = roll(expr, { doubleDice: crit });
+  const rollDamage = (title: string, expr: string, crit: boolean, type = "", heal = false, mods: { minDie?: number; maximize?: string; floorSource?: string } = {}) => {
+    const r = roll(expr, { doubleDice: crit, minDie: mods.minDie, maximize: !!mods.maximize });
     if (!r) return;
+    const why = [
+      mods.maximize ? `${mods.maximize}: dice at their maximum` : "",
+      mods.minDie && !mods.maximize ? `${mods.floorSource || "Die floor"}: a 1 or 2 on a damage die counts as ${mods.minDie}` : "",
+    ].filter(Boolean);
     log({
       title: `${title} ${heal ? "healing" : "damage"}`,
       total: String(Math.max(0, r.total)),
       cls: heal ? "heal" : "dmg",
-      detail: `${esc(describeRolled(r))}${type ? ` · ${esc(type)}` : ""}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}`,
+      detail: `${esc(describeRolled(r))}${type ? ` · ${esc(type)}` : ""}${why.length ? `<div>${esc(why.join(" · "))}</div>` : ""}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}`,
     });
   };
 
+  // ---------------------------------------------------- conversions (convert blocks)
+  const titleWords = (k: string) => k.replace(/^.*[:#]/, "").replace(/-/g, " ").replace(/\b\w/g, (x) => x.toUpperCase());
+  const actName = (a: string) => ({ action: "Action", bonus: "Bonus Action", reaction: "Reaction" } as Record<string, string>)[a] || a;
+  /** The slot a trade means: regular slots first, then Pact Magic. */
+  const slotFor = (side: ConvertSide) =>
+    side.slot === "pact" ? slots.find((x) => x.pact) : slots.find((x) => !x.pact && x.level === side.slot) || slots.find((x) => x.pact && x.level === side.slot);
+  const sideText = (side: ConvertSide) => {
+    if (side.slot !== undefined) return side.slot === "pact" ? "Pact slot" : `level ${side.slot} slot`;
+    const res = costInfo({ key: side.resource!, amount: side.amount }).res;
+    const name = res?.name || titleWords(side.resource!);
+    return `${side.amount} ${side.amount === 1 ? name.replace(/(\w)s$/, "$1") : name}`;
+  };
+  const canTrade = (cv: ModifConvert, o: ModifConvert["options"][number]) => {
+    const sp = o.spend, gn = o.gain;
+    if (sp.slot !== undefined) {
+      const sl = slotFor(sp);
+      if (!sl || sl.max - (p.slotsUsed[slotKey(sl)] || 0) < 1) return false;
+    } else if (!costInfo({ key: sp.resource!, amount: sp.amount }).res || costInfo({ key: sp.resource!, amount: sp.amount }).left < sp.amount) return false;
+    if (gn.slot !== undefined) {
+      const sl = slotFor(gn);
+      if (!sl || (!cv.expires && (p.slotsUsed[slotKey(sl)] || 0) <= 0)) return false;
+    } else {
+      const { res, left } = costInfo({ key: gn.resource!, amount: gn.amount });
+      if (!res || left >= res.max || (cv.ifEmpty && left > 0)) return false;
+    }
+    return true;
+  };
+  const trade = (cv: ModifConvert, o: ModifConvert["options"][number]) => {
+    if (!canTrade(cv, o)) return;
+    setPlay((cur) => {
+      const slotsUsed = { ...cur.slotsUsed }, resUsed = { ...cur.resUsed };
+      const move = (side: ConvertSide, dir: 1 | -1) => {
+        if (side.slot !== undefined) {
+          const sl = slotFor(side)!, k = slotKey(sl);
+          slotsUsed[k] = (slotsUsed[k] || 0) + dir;
+        } else {
+          const res = costInfo({ key: side.resource!, amount: side.amount }).res!;
+          resUsed[res.key] = Math.max(0, (resUsed[res.key] || 0) + dir * side.amount);
+        }
+      };
+      move(o.spend, 1);
+      move(o.gain, -1);
+      if (cv.perLong) resUsed[`convert:${cv.id}`] = 1;
+      return { slotsUsed, resUsed };
+    });
+    log({ title: cv.name, total: "", cls: "event", detail: `Spent ${esc(sideText(o.spend))} for ${esc(sideText(o.gain))}.${cv.expires && o.gain.slot !== undefined ? " The created slot vanishes after a Long Rest." : ""}` });
+  };
+  /** A better ability a skill can use right now (Primal Knowledge while raging), if any. */
+  const skillAlt = (sk: string) => fx.skillAbilities.filter((x) => x.skill === sk && d.mods[x.ability] > d.mods[SKILL_ABILITY[sk]])
+    .sort((x, y) => d.mods[y.ability] - d.mods[x.ability])[0];
+  const skillValue = (sk: string) => {
+    const alt = skillAlt(sk);
+    return d.skills[sk].value + (alt ? d.mods[alt.ability] - d.mods[SKILL_ABILITY[sk]] : 0);
+  };
+  /** Great Weapon Fighting and maximized dice for an attack's damage roll. */
+  const dmgMods = (a: Attack, versatile: boolean) => ({
+    minDie: a.dieFloor && (!a.dieFloor.twoHands || versatile) ? a.dieFloor.min : undefined, floorSource: a.dieFloor?.source, maximize: a.maximize,
+  });
   const attack = (a: Attack, versatile = false) => {
     const cm = conditionMods(p, { kind: "attack" });
     cm.adv.push(...advantageFor(fx, { kind: "attack", ability: a.ability }));
@@ -340,7 +442,7 @@ export default function Sheet() {
           (why.length ? `<div>${esc(why.join(" · "))}</div>` : "") +
           (crit ? `<div class="vd crit">Critical hit!${critNote}</div>` : r.fumble ? `<div class="vd bad">Natural 1: miss</div>` : ""),
       },
-      [{ label: crit ? `Roll crit damage (${dmg})` : `Roll damage (${dmg})`, run: () => rollDamage(a.name, dmg, crit, a.type) }],
+      [{ label: crit ? `Roll crit damage (${dmg})` : `Roll damage (${dmg})`, run: () => rollDamage(a.name, dmg, crit, a.type, false, dmgMods(a, versatile)) }],
     );
   };
 
@@ -566,7 +668,7 @@ export default function Sheet() {
       const dmgType = plan.damage.map((x) => x.type).filter(Boolean).join(" + ");
       if (plan.attack) acts.push({ label: `Spell attack (${fmt(spellAtk)})${plan.attack.count > 1 ? ` ×${plan.attack.count}` : ""}`, run: () => attack({ name: s.name, toHit: spellAtk, damage: dmgExpr || "0", type: dmgType, note: "" }) });
       if (dmg && !plan.attack) acts.push({ label: `Roll damage (${dmgExpr})`, run: () => rollDamage(s.name, dmgExpr, false, dmgType) });
-      if (plan.heal) acts.push({ label: `Roll healing (${plan.heal})`, run: () => rollDamage(s.name, plan.heal!, false, "", true) });
+      if (plan.heal) acts.push({ label: `Roll healing (${plan.heal})`, run: () => rollDamage(s.name, plan.heal!, false, "", true, { maximize: fx.maxHealing }) });
       if (plan.tempHp) lines.push(`Temporary HP: ${plan.tempHp}`);
       if (plan.save) lines.push(`${plan.save.ability} save DC <b>${spellDC}</b>${plan.save.success === "half" ? " (half on a success)" : ""}`);
       lines.push(...plan.lines.map(esc));
@@ -685,11 +787,12 @@ export default function Sheet() {
             <section className="spanel skills" {...bo("skills")}>
               <h3>Skills</h3>
               {SKILLS.map((s) => (
-                <button key={s} className="sk" onClick={() => test(`${s} check`, d.skills[s].value, { kind: "check", ability: SKILL_ABILITY[s], skill: s })}>
+                <button key={s} className="sk" title={skillAlt(s) ? `Using ${skillAlt(s)!.ability} (${skillAlt(s)!.source})` : undefined}
+                  onClick={() => test(`${s} check`, skillValue(s), { kind: "check", ability: skillAlt(s)?.ability || SKILL_ABILITY[s], skill: s, proficient: d.skills[s].prof })}>
                   <span className={`dot ${d.skills[s].prof ? "p1" : ""}`} />
                   <span className="skn">{s}{skillTag(s)}</span>
-                  <span className="ska">{ABBR[SKILL_ABILITY[s]]}</span>
-                  <span className="skb">{fmt(d.skills[s].value)}</span>
+                  <span className="ska">{ABBR[skillAlt(s)?.ability || SKILL_ABILITY[s]]}</span>
+                  <span className="skb">{fmt(skillValue(s))}</span>
                 </button>
               ))}
             </section>
@@ -729,7 +832,7 @@ export default function Sheet() {
               </div>
             </section>
 
-            {(slots.length > 0 || resources.length > 0) && (
+            {(slots.length > 0 || resources.length > 0 || fx.converts.length > 0) && (
               <section className="spanel slotbar" {...bo("slots")}>
                 {slots.length > 0 && (
                   <>
@@ -740,7 +843,11 @@ export default function Sheet() {
                         return (
                           <div key={key} className="slot" title={s.pact ? "Pact Magic: comes back on a Short or Long Rest" : undefined}>
                             <span className="sl">{s.pact && slots.some((x) => !x.pact) ? "Pact " : ""}L{s.level}</span>
-                            <Pips n={s.max} used={p.slotsUsed[key] || 0} onToggle={(i) => setPlay((cur) => ({ slotsUsed: { ...cur.slotsUsed, [key]: i < (cur.slotsUsed[key] || 0) ? i : i + 1 } }))} />
+                            {/* a negative count is extra slots (created with Font of Magic; gone after a Long Rest) */}
+                            <Pips n={s.max + Math.max(0, -(p.slotsUsed[key] || 0))} used={Math.max(0, p.slotsUsed[key] || 0)} onToggle={(i) => setPlay((cur) => {
+                              const u = cur.slotsUsed[key] || 0, extra = Math.max(0, -u), shown = Math.max(0, u);
+                              return { slotsUsed: { ...cur.slotsUsed, [key]: (i < shown ? i : i + 1) - extra } };
+                            })} />
                           </div>
                         );
                       })}
@@ -761,6 +868,25 @@ export default function Sheet() {
                     )}
                   </div>
                 ))}
+                {fx.converts.map((cv) => {
+                  const ok = cv.options.map((o, i) => ({ o, i })).filter(({ o }) => canTrade(cv, o));
+                  const pick = ok.find((x) => x.i === convPick[cv.id]) || ok[0];
+                  const once = cv.perLong && (p.resUsed[`convert:${cv.id}`] || 0) > 0;
+                  return (
+                    <div key={cv.id} className="slot conv" title={`${cv.source}${cv.activation !== "none" ? ` · ${actName(cv.activation)}` : " · no action"}${cv.perLong ? " · once per Long Rest" : ""}${cv.ifEmpty ? " · only when you have none left" : ""}`}>
+                      <span className="sl">{cv.name}</span>
+                      {cv.options.length > 1 ? (
+                        <select aria-label={`${cv.name}: what to trade`} value={pick?.i ?? ""} disabled={!ok.length || once} onChange={(e) => setConvPick((m) => ({ ...m, [cv.id]: +e.target.value }))}>
+                          {!ok.length && <option value="">nothing to trade</option>}
+                          {ok.map(({ o, i }) => <option key={i} value={i}>{sideText(o.spend)} → {sideText(o.gain)}</option>)}
+                        </select>
+                      ) : (
+                        <span className="mut" style={{ fontSize: 12 }}>{sideText(cv.options[0].spend)} → {sideText(cv.options[0].gain)}</span>
+                      )}
+                      <button className="sbtn sm ghost" disabled={!pick || once} onClick={() => pick && trade(cv, pick.o)}>{once ? "Used" : "Convert"}</button>
+                    </div>
+                  );
+                })}
               </section>
             )}
 
@@ -790,7 +916,7 @@ export default function Sheet() {
                           <td>
                             <div className="rowbtn">
                               <button className="sbtn sm" onClick={() => attack(a)}>Attack</button>
-                              <button className="sbtn sm ghost" onClick={() => rollDamage(a.name, a.damage, false, a.type)}>Damage</button>
+                              <button className="sbtn sm ghost" onClick={() => rollDamage(a.name, a.damage, false, a.type, false, dmgMods(a, false))}>Damage</button>
                               {a.versatile && <button className="sbtn sm ghost" onClick={() => attack(a, true)}>Two hands</button>}
                             </div>
                           </td>

@@ -31,3 +31,13 @@ describe("dice", () => {
     expect(combineModes(true, false)).toBe("adv");
   });
 });
+
+describe("damage roll options", () => {
+  it("maximize and die floors", async () => {
+    const { roll, setRng } = await import("./dice.ts");
+    setRng(() => 0); // every die rolls 1
+    expect(roll("2d6+3", { minDie: 3 })!.total).toBe(9);
+    expect(roll("2d6+3", { maximize: true })!.total).toBe(15);
+    expect(roll("2d6+3")!.total).toBe(5);
+  });
+});

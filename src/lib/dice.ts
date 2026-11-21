@@ -43,7 +43,7 @@ export function parseExpr(expr: string): Term[] | null {
 }
 
 /** Roll an expression. `doubleDice` doubles the number of dice (critical hits). */
-export function roll(expr: string, opts: { doubleDice?: boolean } = {}): Rolled | null {
+export function roll(expr: string, opts: { doubleDice?: boolean; minDie?: number; maximize?: boolean } = {}): Rolled | null {
   const terms = parseExpr(expr);
   if (!terms) return null;
   const parts: Rolled["parts"] = [];
@@ -51,7 +51,8 @@ export function roll(expr: string, opts: { doubleDice?: boolean } = {}): Rolled 
   for (const t of terms) {
     if (t.sides) {
       const n = t.count * (opts.doubleDice ? 2 : 1);
-      const rolls = Array.from({ length: n }, () => die(t.sides));
+      // maximize: every die shows its highest face; minDie: lower faces count as minDie (Great Weapon Fighting)
+      const rolls = Array.from({ length: n }, () => (opts.maximize ? t.sides : Math.max(die(t.sides), opts.minDie && t.sign > 0 ? Math.min(opts.minDie, t.sides) : 0)));
       const v = t.sign * rolls.reduce((a, b) => a + b, 0);
       parts.push({ label: `${t.sign < 0 ? "−" : ""}${n}d${t.sides}`, rolls, value: v });
       total += v;

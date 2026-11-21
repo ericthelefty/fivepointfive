@@ -288,3 +288,4 @@
   .sheetv .coins { margin-left: 0; }
   .sheetv .invt th:nth-child(3), .sheetv .invt td:nth-child(3) { display: none; }
 }
+.sheetv .slot.conv select { padding: 3px 6px; font-size: 12.5px; max-width: 230px; }

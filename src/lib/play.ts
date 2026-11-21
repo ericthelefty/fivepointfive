@@ -80,6 +80,8 @@ export interface RollContext {
   kind: "check" | "save" | "attack" | "init" | "death";
   ability?: string;
   skill?: string;
+  /** the roll adds the Proficiency Bonus (Reliable Talent) */
+  proficient?: boolean;
 }
 
 /** Advantage/Disadvantage sources from conditions, and the exhaustion penalty. */
@@ -155,31 +157,74 @@ export interface Attack {
   type: string;
   note: string;
   versatile?: string;
+  /** Damage dice lower than this count as this (Great Weapon Fighting); `twoHands`: only with two hands. */
+  dieFloor?: { min: number; twoHands: boolean; source: string };
+  /** Damage dice use their maximum. */
+  maximize?: string;
 }
 
+/** What Effects change about one attack (from modif weapon rules). */
+export interface AttackOpts {
+  /** abilities it may use besides its own; the best one is picked */
+  abilities?: string[];
+  /** a damage die to use instead of the weapon's; `ifHigher`: only when it's bigger */
+  die?: { die: string; ifHigher: boolean };
+  /** damage types it can deal instead */
+  types?: string[];
+  notes?: string[];
+}
+
+/** Average of a dice expression ("1d8", "2d6", "1"), to compare dice. */
+export function avgDice(expr: string): number {
+  return expr.split("+").reduce((n, t) => {
+    const m = t.trim().match(/^(\d*)d(\d+)$/);
+    return n + (m ? (+(m[1] || 1) * (+m[2] + 1)) / 2 : +t || 0);
+  }, 0);
+}
+
+const sign = (n: number) => (n === 0 ? "" : n > 0 ? `+${n}` : `${n}`);
+const bestAbility = (d: Derived, list: string[]) => list.reduce((best, a) => (d.mods[a] > d.mods[best] ? a : best), list[0]);
+
 /** An attack with a weapon; `prof` comes from the Effects read for the character (modif.weaponProficient). */
-export function attackFor(w: Weapon, d: Derived, prof: boolean): Attack {
+export function attackFor(w: Weapon, d: Derived, prof: boolean, o: AttackOpts = {}): Attack {
   const ranged = /ranged/i.test(w.category);
   const finesse = /finesse/i.test(w.properties);
-  const str = d.mods.Strength;
-  const dex = d.mods.Dexterity;
-  const abil = ranged ? dex : finesse ? Math.max(str, dex) : str;
-  const [dice, ...typeParts] = w.damage.split(" ");
-  const sign = (n: number) => (n === 0 ? "" : n > 0 ? `+${n}` : `${n}`);
-  const vers = w.properties.match(/Versatile \((\d+d\d+)\)/);
+  const own = ranged ? ["Dexterity"] : finesse ? ["Strength", "Dexterity"] : ["Strength"];
+  const ability = bestAbility(d, [...own, ...(o.abilities || [])]);
+  const abil = d.mods[ability];
+  const [dice0, ...typeParts] = w.damage.split(" ");
+  const vers0 = w.properties.match(/Versatile \((\d+d\d+)\)/)?.[1];
+  let dice = dice0, vers = vers0;
+  if (o.die && /^\d+d\d+/.test(dice0)) {
+    if (!o.die.ifHigher) { dice = o.die.die; vers = undefined; }
+    else {
+      if (avgDice(o.die.die) > avgDice(dice0)) dice = o.die.die;
+      if (vers && avgDice(o.die.die) >= avgDice(vers)) vers = undefined;
+    }
+  }
+  const type = [typeParts.join(" "), ...(o.types || [])].filter(Boolean).join(" or ");
   return {
     name: w.name,
-    ability: ranged ? "Dexterity" : finesse && dex > str ? "Dexterity" : "Strength",
+    ability,
     toHit: abil + (prof ? d.pb : 0),
-    damage: /^\d+d\d+$/.test(dice) ? `${dice}${sign(abil)}` : dice,
-    type: typeParts.join(" "),
-    note: [w.properties !== "—" && w.properties, w.mastery && `Mastery: ${w.mastery}`, !prof && "not proficient"].filter(Boolean).join(" · "),
-    versatile: vers ? `${vers[1]}${sign(abil)}` : undefined,
+    damage: /^\d+d\d+/.test(dice) ? `${dice}${sign(abil)}` : dice,
+    type,
+    note: [w.properties !== "—" && w.properties, w.mastery && `Mastery: ${w.mastery}`, !prof && "not proficient", ...(o.notes || [])].filter(Boolean).join(" · "),
+    versatile: vers ? `${vers}${sign(abil)}` : undefined,
   };
 }
 
-export function unarmedStrike(d: Derived): Attack {
-  return { name: "Unarmed Strike", ability: "Strength", toHit: d.mods.Strength + d.pb, damage: `${Math.max(0, 1 + d.mods.Strength)}`, type: "Bludgeoning", note: "1 + Strength modifier" };
+export function unarmedStrike(d: Derived, o: AttackOpts = {}): Attack {
+  const ability = bestAbility(d, ["Strength", ...(o.abilities || [])]);
+  const m = d.mods[ability];
+  return {
+    name: "Unarmed Strike",
+    ability,
+    toHit: m + d.pb,
+    damage: o.die ? `${o.die.die}${sign(m)}` : `${Math.max(0, 1 + m)}`,
+    type: ["Bludgeoning", ...(o.types || [])].join(" or "),
+    note: [o.die ? "" : `1 + ${ability} modifier`, ...(o.notes || [])].filter(Boolean).join(" · "),
+  };
 }
 
 // --------------------------------------------------------------- resources

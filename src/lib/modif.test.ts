@@ -5,7 +5,7 @@ import { features, parseFile, type Entry } from "./parse.ts";
 import type { Item } from "./inventory.ts";
 import { armorTable, classTable, derive, newCharacter, traits, intro, type Character } from "./rules.ts";
 import { classInfos } from "./multiclass.ts";
-import { advantageFor, computeModif, setSlotFeat, spellPlan, type ModifCtx, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
+import { advantageFor, computeModif, weaponFits, setSlotFeat, spellPlan, type ModifCtx, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
 const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : f.endsWith(".md") ? [join(d, f)] : []));
@@ -497,5 +497,50 @@ describe("Every SRD class, species and background reads from Effects", () => {
     for (const t of ["Species", "Background"]) expect(all.filter((e) => e.type === t).every((e) => e.effects?.length), t).toBe(true);
     for (const n of ["Blinded", "Dash", "Acid", "Thieves’ Tools"]) expect(all.find((e) => e.name === n)!.effects?.length, n).toBeGreaterThan(0);
     expect(byId("srd:rule/weapons")!.effects!.map((f) => f.feature)).toContain("Finesse");
+  });
+});
+
+describe("weapon rules, roll floors and conversions", () => {
+  const as = (classId: string, level: number, extra: Partial<Character> = {}): Character => ({
+    ...champion(level), classId, subclassId: undefined, base: { Strength: 12, Dexterity: 16, Constitution: 14, Intelligence: 10, Wisdom: 16, Charisma: 8 }, bonus: {}, ...extra,
+  });
+
+  it("cantrip dice step up with character level (steps(...) values)", () => {
+    const env: Env = { level: 11, total: 11, pb: 4, mods: {}, scores: {}, classLevels: {}, table: {} };
+    expect(evalAmount("steps(1: d8, 5: d10, 11: d12, 17: 2d6)", env)).toEqual({ dice: ["1d12"], flat: 0 });
+    expect(evalAmount("steps(1: d8, 5: d10, 11: d12, 17: 2d6)", { ...env, level: 17 })).toEqual({ dice: ["2d6"], flat: 0 });
+  });
+
+  it("Shillelagh in effect: Club and Quarterstaff use the spellcasting ability and a bigger die", () => {
+    const { fx } = sheet(as("srd:class/druid", 5), { active: [{ key: "spell:srd:spell/shillelagh" }], spell: { mod: 3, dc: 14, attack: 6 } });
+    const rules = fx.weaponRules.filter((r) => r.source.includes("Shillelagh"));
+    expect(rules.find((r) => r.type === "use-ability")?.abilities).toEqual(["spell"]);
+    expect(rules.find((r) => r.type === "damage-die")).toMatchObject({ die: "1d10", ifHigher: false });
+    expect(rules.find((r) => r.type === "damage-type")?.types).toEqual(["Force"]);
+    expect(weaponFits(rules[0].scope, { id: "quarterstaff", name: "Quarterstaff", category: "Simple Melee Weapons", properties: "Versatile (1d8)" })).toBe(true);
+    expect(weaponFits(rules[0].scope, { id: "dagger", name: "Dagger", category: "Simple Melee Weapons", properties: "Finesse, Light, Thrown" })).toBe(false);
+    // not cast: no rules
+    expect(sheet(as("srd:class/druid", 5)).fx.weaponRules.some((r) => r.source.includes("Shillelagh"))).toBe(false);
+  });
+
+  it("Monk Martial Arts: Dexterity and the Martial Arts die for Monk weapons and Unarmed Strikes, unarmored", () => {
+    const { fx } = sheet(as("srd:class/monk", 5), { gear: { shield: false } });
+    expect(fx.weaponRules.find((r) => r.type === "damage-die")).toMatchObject({ die: "1d8", ifHigher: true, wielding: ["monk-weapon", "none"] });
+    expect(fx.weaponRules.find((r) => r.type === "use-ability")?.abilities).toEqual(["Dexterity"]);
+    expect(sheet(as("srd:class/monk", 5), { gear: { armor: "Light", shield: false } }).fx.weaponRules).toHaveLength(0);
+  });
+
+  it("Reliable Talent and Indomitable Might are roll floors", () => {
+    expect(sheet(as("srd:class/rogue", 11)).fx.rollFloors).toEqual([expect.objectContaining({ rolls: ["check:all"], die: 10, proficient: true })]);
+    expect(sheet(as("srd:class/barbarian", 18)).fx.rollFloors[0]).toMatchObject({ rolls: ["check:str", "save:str"], total: 12 });
+  });
+
+  it("Font of Magic offers slot ↔ Sorcery Point trades the Sorcerer's level allows", () => {
+    const conv = sheet(as("srd:class/sorcerer", 5)).fx.converts;
+    const create = conv.find((x) => x.options[0].gain.slot !== undefined)!;
+    expect(create.options.map((o) => [o.spend.amount, o.gain.slot])).toEqual([[2, 1], [3, 2], [5, 3]]);
+    expect(create.expires).toBe(true);
+    const toPoints = conv.find((x) => x.options[0].spend.slot !== undefined)!;
+    expect(toPoints.options[2]).toEqual({ spend: { slot: 3, amount: 1 }, gain: { resource: "sorcery-points", amount: 3 } });
   });
 });
