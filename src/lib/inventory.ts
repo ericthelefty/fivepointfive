@@ -14,7 +14,7 @@ export type ItemKind = "weapon" | "armor" | "shield" | "gear" | "tool" | "magic"
 
 export interface Item {
   id: string;
-  name: string; // display name; players can rename (e.g. "+1 Longsword")
+  name: string; // display name: the reference name for reference items (a Spell Scroll adds its spell in brackets); custom items are named by the player
   kind: ItemKind;
   qty: number;
   ref?: string; // content entry ID (gear, tool, magic item)

@@ -9,7 +9,9 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
 ## 1. Create the database
 
 1. In Supabase, create a project (or use an existing one: everything lives in its own `fivepointfive` schema).
-2. Open **SQL Editor**, paste the contents of [`supabase/migrations/0001_fivepointfive_instance.sql`](../supabase/migrations/0001_fivepointfive_instance.sql), and run it.
+2. Open **SQL Editor** and run each file in [`supabase/migrations/`](../supabase/migrations/), in order: paste its contents and run it, then the next one.
+   - [`0001_fivepointfive_instance.sql`](../supabase/migrations/0001_fivepointfive_instance.sql): tables, permissions and invites.
+   - [`0002_hidden_characters.sql`](../supabase/migrations/0002_hidden_characters.sql): characters that only their owner and the admin can see.
 3. Go to **Project Settings → Data API** (or **API**) and add `fivepointfive` to **Exposed schemas**. Save.
 
 ## 2. Set up sign-in
@@ -53,6 +55,10 @@ Then in **Authentication → URL Configuration**, set **Site URL** to your site'
 | Turn the shared game log on or off | | ✓ |
 
 Permissions are enforced by the database (row-level security), not just the app.
+
+## Updating your instance
+
+Vercel rebuilds your site when your fork's `main` branch changes (on GitHub, **Sync fork** brings in the latest version). Then check [`CHANGELOG.md`](../CHANGELOG.md): if a new version lists a migration under **Database**, run that file in the Supabase **SQL Editor**. Migrations are safe to run on an instance that already has data.
 
 ## Local development
 

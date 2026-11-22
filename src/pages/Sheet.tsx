@@ -231,6 +231,7 @@ export default function Sheet() {
 
   const armor = useMemo(() => armorTable(content.entries), [content.entries]);
   const weapons = useMemo(() => weaponTable(content.entries), [content.entries]);
+  const spellNames = useMemo(() => content.entries.filter((e) => e.type === "Spell").map((e) => e.name).sort(), [content.entries]);
   const itemCatalog = useMemo(() => catalog(content.entries, weapons, armor), [content.entries, weapons, armor]);
   const inv = useMemo(
     () => (c ? inventoryOf(c, cls, bg, itemCatalog) : { items: [] as Item[], coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }, fromStart: true }),
@@ -3023,6 +3024,7 @@ export default function Sheet() {
                   strength={d.scores.Strength}
                   size={fx.size || (sp?.fields["size"] || "Medium").split(/[\s(]/)[0]}
                   carrySize={fx.carrySize}
+                  spellNames={spellNames}
                   onChange={setInventory}
                   onReset={resetInventory}
                 />

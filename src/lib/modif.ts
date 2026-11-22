@@ -2182,7 +2182,7 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         spellRef = named ? a.ctx.entries.find((x) => x.type === "Spell" && x.name.toLowerCase() === named) : undefined;
         const info = spellRef ? spellInfo(spellRef) : null;
         if (!spellRef || !info) {
-          r.actions.push({ id: `item:${a.item.id}:read`, name: a.item.name, source: src, activation: "", text: "Rename it with the spell it holds to read it, e.g. “Spell Scroll (Fireball)” or “Scroll of Fireball”." });
+          r.actions.push({ id: `item:${a.item.id}:read`, name: a.item.name, source: src, activation: "", text: "Choose the spell it holds (open it in your Inventory) to read it." });
           return true;
         }
         env.variants = { ...(env.variants || {}), ...spellLevelVariants(e, info.level) };

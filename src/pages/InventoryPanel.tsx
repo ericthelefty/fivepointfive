@@ -21,11 +21,17 @@ interface Props {
   armor: ArmorRow[];
   strength: number;
   size?: string;
+  /** Spell names, for items that hold a spell (Spell Scroll). */
+  spellNames?: string[];
   /** Size steps larger for carrying capacity (Powerful Build). */
   carrySize?: number;
   onChange: (items: Item[], coins: Coins) => void;
   onReset: () => void;
 }
+
+/** An item that names the spell it holds (Spell Scroll: "Spell Scroll (Fireball)"). */
+const holdsSpell = (e: Entry) => (e.effects || []).some((fx) => fx.yaml.includes("variant:spell"));
+const spellIn = (name: string) => name.match(/\(([^)]+)\)\s*$/)?.[1] || name.match(/^(?:spell\s+)?scroll\s+of\s+(.+)$/i)?.[1] || "";
 
 const fmtWt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""));
 
@@ -125,8 +131,27 @@ export default function InventoryPanel(p: Props) {
                   {open === it.id && (
                     <div className="idet">
                       <div className="irow">
-                        <label className="field">Name<input type="text" value={it.name} disabled={ro} onChange={(e) => patch(it.id, { name: e.target.value })} /></label>
-                        <label className="field">Note<input type="text" value={it.note || ""} disabled={ro} placeholder="e.g. crystal, engraved" onChange={(e) => patch(it.id, { note: e.target.value || undefined })} /></label>
+                        {it.kind === "custom" ? (
+                          // the player's own items: name and note are theirs to write
+                          <>
+                            <label className="field">Name<input type="text" value={it.name} disabled={ro} onChange={(e) => patch(it.id, { name: e.target.value })} /></label>
+                            <label className="field">Note<input type="text" value={it.note || ""} disabled={ro} placeholder="e.g. crystal, engraved" onChange={(e) => patch(it.id, { note: e.target.value || undefined })} /></label>
+                          </>
+                        ) : (
+                          <>
+                            {/* items from the reference keep their name; one that holds a spell (Spell Scroll) says which */}
+                            {entry && holdsSpell(entry) && (
+                              <label className="field">Spell
+                                <input type="text" list={`spells-${it.id}`} value={spellIn(it.name)} disabled={ro} placeholder="e.g. Fireball"
+                                  onChange={(e) => patch(it.id, { name: e.target.value.trim() ? `${entry.name} (${e.target.value})` : entry.name })} />
+                                <datalist id={`spells-${it.id}`}>{(p.spellNames || []).map((n) => <option key={n} value={n} />)}</datalist>
+                              </label>
+                            )}
+                            {it.note && !ro && (
+                              <div className="field">Note<div><span>{it.note}</span> <button className="btn small" onClick={() => patch(it.id, { note: undefined })}>Remove</button></div></div>
+                            )}
+                          </>
+                        )}
                         {info?.base && (
                           <label className="field">
                             Base {info.base.kind === "weapon" ? "weapon" : info.base.kind === "shield" ? "shield" : "armor"}

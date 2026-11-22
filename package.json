@@ -1,14 +1,17 @@
 {
   "name": "fivepointfive",
   "private": true,
-  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Open-source character builder and play sheet for fifth edition (2024 rules), built on the SRD 5.2.1",
+  "repository": "github:ericthelefty/fivepointfive",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "content": "tsx scripts/build-content.ts",
     "dev": "npm run content && vite",
     "build": "npm run content && tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "npm run content && vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",

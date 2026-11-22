@@ -585,7 +585,7 @@ describe("custom handlers and Spell Scrolls", () => {
     expect(rogue.cast?.scroll?.onList).toBe(false);
     const unnamed = withScroll(wiz, { ...scroll("s3", "x"), name: "Spell Scroll" }).fx.actions.find((x) => x.id.startsWith("item:s3"))!;
     expect(unnamed.cast).toBeUndefined();
-    expect(unnamed.text).toMatch(/Rename/);
+    expect(unnamed.text).toMatch(/Choose the spell it holds/);
   });
 });
 
