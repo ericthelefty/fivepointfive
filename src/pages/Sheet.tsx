@@ -165,7 +165,9 @@ export default function Sheet() {
   const fxCtx: ModifCtx = {
     c, classes: infos, species: sp, background: bg, entries: content.entries, byId: content.byId,
     items: inv.items.flatMap((it) => {
-      const e = it.kind === "magic" && it.ref ? content.byId(it.ref) : undefined;
+      const e = (it.kind === "magic" || it.kind === "weapon") && it.ref ? content.byId(it.ref) : undefined;
+      // a pack weapon's own Effects apply while it's equipped
+      if (e && it.kind === "weapon") return it.qty > 0 && e.effects?.length ? [{ item: it, entry: e, active: !!it.equipped }] : [];
       return e && it.qty > 0 ? [{ item: it, entry: e, active: isActive(it, infoOf(it)) }] : [];
     }),
     gear: { armor: gear.category, shield: gear.shield > 0 },

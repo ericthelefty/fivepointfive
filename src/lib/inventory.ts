@@ -123,7 +123,7 @@ export function magicInfo(e: Entry, weapons: Weapon[], armor: ArmorRow[]): Magic
 /** Everything a player can add: weapon and armor tables, gear, tools, magic items. */
 export function catalog(entries: Entry[], weapons: Weapon[], armor: ArmorRow[]): CatalogItem[] {
   const out: CatalogItem[] = [];
-  for (const w of weapons) out.push({ name: w.name, kind: "weapon", base: w.name, weight: parseWeight(w.weight), cost: w.cost, tagline: w.category });
+  for (const w of weapons) out.push({ name: w.name, kind: "weapon", base: w.name, ref: w.ref, weight: parseWeight(w.weight), cost: w.cost, tagline: w.category });
   for (const a of armor) {
     const shield = /shield/i.test(a.category);
     out.push({ name: a.name, kind: shield ? "shield" : "armor", base: a.name, weight: parseWeight(a.weight), cost: a.cost, tagline: shield ? "Shield" : `${a.category} Armor`.replace(/Armor Armor$/, "Armor") });

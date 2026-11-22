@@ -64,7 +64,7 @@ If you can't browse, rely on this prompt, and say so in your report.
   | `Spell` | Tagline `*Level 3 Evocation (Sorcerer, Wizard)*` or `*Evocation Cantrip (Wizard)*`; `Casting Time`, `Range`, `Components`, `Duration` (a Duration starting with `Concentration` marks it). |
   | `Magic Item` | Tagline `*Wondrous Item, Rare (Requires Attunement)*`. |
   | `Rule` | Anything else. A heading ending `[Condition]` adds a condition to the sheet's Conditions tab. |
-  | Equipment | `Gear`, `Tool`, `Weapon`, `Armor`. Custom weapons and armor show as text; attacks and AC still come from the SRD tables. |
+  | Equipment | `Gear`, `Tool`, `Weapon`, `Armor`. A `Weapon` with `Damage`, `Properties`, `Mastery`, `Weight`, `Cost` and a category tagline (`*Martial Ranged Weapon*`) gets attacks on the sheet; custom armor is text only. |
   | `Creature` | Shown as a stat block, not automated. |
 
 - **Class features** are headings of the form `## Level N: Feature Name`. The progression table is a Markdown table whose first column is `Level`, with rows 1–20.

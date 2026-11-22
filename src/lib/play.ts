@@ -111,6 +111,8 @@ export interface Weapon {
   category: string; // "Simple Melee Weapons" etc.
   weight?: string;
   cost?: string;
+  /** the content entry, for a weapon from a pack (its Effects apply while it's equipped) */
+  ref?: string;
 }
 
 export function weaponTable(entries: Entry[]): Weapon[] {
@@ -127,6 +129,18 @@ export function weaponTable(entries: Entry[]): Weapon[] {
       }
       out.push({ name: r[0], damage: r[1], properties: r[2], mastery: r[3], category, weight: r[4], cost: r[5] });
     }
+  }
+  // weapons from content packs: one Weapon entry each, with Damage, Properties, Mastery, Weight and Cost
+  // fields; the category comes from a Category field or the tagline ("*Martial Ranged Weapon (Modern)*").
+  // An entry with an SRD weapon's name replaces that row (a house-ruled version).
+  for (const x of entries) {
+    if (x.type !== "Weapon" || !x.fields["damage"]) continue;
+    const field = (k: string) => stripMd(x.fields[k] || "").trim();
+    const category = field("category") || stripMd(x.tagline || "").replace(/\s*\([^)]*\)\s*$/, "").trim() || "Simple Melee Weapon";
+    const w: Weapon = { name: x.name, damage: field("damage"), properties: field("properties") || "—", mastery: field("mastery"), category, weight: field("weight"), cost: field("cost"), ref: x.id };
+    const at = out.findIndex((y) => y.name.toLowerCase() === x.name.toLowerCase());
+    if (at >= 0) out[at] = w;
+    else out.push(w);
   }
   return out;
 }

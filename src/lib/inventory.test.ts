@@ -141,3 +141,36 @@ describe("AC from equipped items", () => {
     expect(d.acNote).toBe("+1 Studded Leather");
   });
 });
+
+describe("weapons from content packs", () => {
+  const pack = parseFile(`# Laser Pistol
+**Type:** Weapon
+*Martial Ranged Weapon (Futuristic)*
+**Damage:** 3d6 Radiant
+**Properties:** Ammunition (Range 40/120; Energy Cell), Reload (50 shots)
+**Mastery:** Vex
+**Weight:** 2 lb.
+**Cost:** —
+
+# Longsword
+**Type:** Weapon
+**Category:** Martial Melee Weapons
+**Damage:** 1d10 Slashing
+**Properties:** Versatile (1d12)
+**Mastery:** Sap
+**Weight:** 3 lb.
+**Cost:** 15 GP
+`, "home", "weapons.md");
+  const all2 = [...all, ...pack];
+  const table = weaponTable(all2);
+  it("adds pack weapons to the weapons table and the inventory catalog", () => {
+    const laser = table.find((w) => w.name === "Laser Pistol")!;
+    expect(laser).toMatchObject({ damage: "3d6 Radiant", category: "Martial Ranged Weapon", mastery: "Vex", weight: "2 lb.", ref: "home:weapon/laser-pistol" });
+    const hit = catalog(all2, table, armor).find((c) => c.name === "Laser Pistol")!;
+    expect(hit).toMatchObject({ kind: "weapon", base: "Laser Pistol", ref: "home:weapon/laser-pistol", weight: 2 });
+  });
+  it("a pack weapon with an SRD weapon's name replaces that row", () => {
+    expect(table.filter((w) => w.name === "Longsword")).toEqual([expect.objectContaining({ damage: "1d10 Slashing", properties: "Versatile (1d12)", category: "Martial Melee Weapons" })]);
+    expect(weaponTable(all).find((w) => w.name === "Longsword")!.damage).toBe("1d8 Slashing");
+  });
+});

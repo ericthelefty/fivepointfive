@@ -159,7 +159,9 @@ A subclass that grants spellcasting (like an Eldritch Knight) puts a `spellcasti
 ### Equipment (Gear, Tool, Weapon, Armor)
 One entry per item: `**Type:** Gear`, `Tool`, `Weapon` or `Armor`, with fields such as Cost, Weight, Damage, Properties and Mastery. Tools also use the fields Ability, Utilize, Craft and Variants. Use `Gear` for anything else, such as mounts and vehicles. All of these are **shown**.
 
-For now, attack rolls and Armor Class on the play sheet come from the SRD's Weapons and Armor tables only. A custom weapon or armor entry shows up in the Library as text, but it won't get an attack button or change AC yet.
+**Weapons from a pack are used:** a `Weapon` entry with `**Damage:**` (`3d6 Radiant`), `**Properties:**`, `**Mastery:**`, `**Weight:**` and `**Cost:**` can be added to the inventory, and when equipped it gets an attack on the sheet. Its category (`Martial Ranged Weapon`, `Simple Melee Weapon`) comes from a `**Category:**` field or the tagline, and decides proficiency and whether it uses Strength or Dexterity. A Weapon entry with the same name as an SRD weapon replaces it. Its own Effects apply while it's equipped.
+
+Armor Class still comes from the SRD's Armor table only: a custom armor entry shows up in the Library as text but doesn't change AC yet.
 
 ### Magic Item
 `**Type:** Magic Item` · tagline `*Category, Rarity (Requires Attunement)*`. **Shown** in the Library.
