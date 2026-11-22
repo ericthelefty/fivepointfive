@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { packIdFor, useContent, type UserPack } from "../lib/store.tsx";
+import { entriesForUserPack, packIdFor, useContent, type UserPack } from "../lib/store.tsx";
+import { packChanges } from "../lib/packdiff.ts";
 import { applySuggestion, checkFile, type FileReport } from "../lib/fix.ts";
 import { useSession } from "../lib/session.tsx";
 import { cloud } from "../lib/backend.ts";
@@ -21,6 +22,13 @@ export default function Content() {
   // pack.md's **ID:** wins; otherwise the ID comes from the pack name
   const [packMdId, setPackMdId] = useState("");
   const draftId = useMemo(() => packIdFor(packMdId || packName || "My Homebrew", content.packs.map((p) => p.id)), [packMdId, packName, content.packs]);
+  // an imported pack with the same ID can be updated in place instead of added again
+  const target = content.userPacks.find((u) => u.id === packIdFor(packMdId || packName || "My Homebrew", []));
+  const canUpdate = !!target && (!cloud || target.owner === session.user?.id || session.isAdmin);
+  // updating is the default only when a pack.md names the same ID; a name that merely matches defaults to a new pack
+  const [modePick, setMode] = useState<"update" | "new" | null>(null);
+  const mode = modePick ?? (packMdId ? "update" : "new");
+  const updating = canUpdate && mode === "update";
 
   const addFiles = async (files: FileList | File[]) => {
     setSaved("");
@@ -41,16 +49,27 @@ export default function Content() {
   const fixes = ok.reduce((n, r) => n + r.fixes.length, 0);
   const suggestions = ok.flatMap((r) => r.suggestions.map((s) => ({ r, s })));
 
+  // what an update changes, by entry ID (IDs stay the same, so characters keep their picks)
+  const files = ok.map((r) => ({ file: r.file, text: r.fixed }));
+  const changes = useMemo(
+    () => (updating && target ? packChanges(entriesForUserPack(target), entriesForUserPack({ ...target, files })) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [updating, target, reports],
+  );
+
   const save = async () => {
-    const id = draftId;
-    const p: UserPack = { id, name: packName || "My Homebrew", files: ok.map((r) => ({ file: r.file, text: r.fixed })), created: Date.now() };
+    const id = updating ? target!.id : draftId;
+    const p: UserPack = { id, name: packName || target?.name || "My Homebrew", files, created: updating ? target!.created : Date.now(), owner: updating ? target!.owner : undefined };
     try {
       await content.saveUserPack(p);
     } catch (e) {
       setSaved(`Couldn’t save the pack: ${(e as Error).message}`);
       return;
     }
-    setSaved(`Imported ${entries.length} entries into “${p.name}”.`);
+    setSaved(updating && changes
+      ? `Updated “${p.name}”: ${changes.added.length} added, ${changes.changed.length} changed, ${changes.removed.length} removed, ${changes.same} unchanged.`
+      : `Imported ${entries.length} entries into “${p.name}”.`);
+    setMode(null);
     setReports([]);
     setPackName("");
     setPackMdId("");
@@ -138,6 +157,36 @@ export default function Content() {
                 Pack name
                 <input type="text" value={packName} onChange={(e) => setPackName(e.target.value)} placeholder="My Homebrew" />
               </label>
+              {target && (
+                <div className="choice stack" style={{ gap: 8 }} role="group" aria-label="This pack is already imported">
+                  <strong>“{target.name}” is already imported (id <code>{target.id}</code>).</strong>
+                  {canUpdate ? (
+                    <>
+                      <label className="radio"><input type="radio" name="packmode" checked={mode === "update"} onChange={() => setMode("update")} /> Update this pack: replace its files with these. Saved characters keep their picks.</label>
+                      <label className="radio"><input type="radio" name="packmode" checked={mode === "new"} onChange={() => setMode("new")} /> Add as a new pack (id <code>{draftId}</code>)</label>
+                    </>
+                  ) : (
+                    <div className="faint">It was uploaded by {session.nameOf(target.owner)}, so only they or the admin can update it. Importing adds a new pack (id <code>{draftId}</code>).</div>
+                  )}
+                  {changes && (
+                    <div className="stack" style={{ gap: 4 }}>
+                      <div>
+                        <span className="tag ok">{changes.added.length} added</span>{" "}
+                        <span className="tag plain">{changes.changed.length} changed</span>{" "}
+                        <span className={`tag ${changes.removed.length ? "warn" : "plain"}`}>{changes.removed.length} removed</span>{" "}
+                        <span className="faint">{changes.same} unchanged</span>
+                      </div>
+                      {[["Added", changes.added], ["Changed", changes.changed], ["Removed", changes.removed]].map(([label, list]) => (list as string[]).length > 0 && (
+                        <details key={label as string}>
+                          <summary className="faint">{label as string}: {(list as string[]).length}</summary>
+                          <div style={{ fontSize: 13, marginTop: 4 }}>{(list as string[]).join(", ")}</div>
+                        </details>
+                      ))}
+                      {changes.removed.length > 0 && <div className="faint" style={{ color: "var(--warn)" }}>Characters that use a removed entry lose it (a removed subclass or feat shows as missing).</div>}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {reports.map((r) => (
                 <div key={r.file} className="inset stack" style={{ gap: 8 }}>
@@ -198,8 +247,8 @@ export default function Content() {
                 </div>
               ))}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
-                <button className="btn" onClick={() => { setReports([]); setPackMdId(""); }}>Cancel</button>
-                <button className="btn primary" disabled={entries.length === 0} onClick={save}>Import {entries.length} entries</button>
+                <button className="btn" onClick={() => { setReports([]); setPackMdId(""); setMode(null); }}>Cancel</button>
+                <button className="btn primary" disabled={entries.length === 0} onClick={save}>{updating ? `Update “${target!.name}”` : `Import ${entries.length} entries`}</button>
               </div>
             </div>
           )}
