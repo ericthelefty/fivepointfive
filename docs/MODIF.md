@@ -949,6 +949,12 @@ Fields:
 ```
 `progression: full | half | third | pact` drives the multiclass slot table (already in the app).
 
+**A subclass can grant spellcasting** (Eldritch Knight, Arcane Trickster). Put the `spellcasting` block under the subclass's Spellcasting feature; it applies from that feature's class level. Its slots come from a table in the subclass whose first column is the class level (`Fighter Level`) and which has a `Spells Prepared` (or `Prepared Spells`) column; slot columns are `Spell Slots per Spell Level N` (bare `1`…`9` columns are read too). Without a `Cantrips` column, give `cantrips` as a value. `list` names the class whose spell list it uses.
+```yaml
+- spellcasting: { ability: int, progression: third, list: wizard, cantrips: "steps(3: 2, 10: 3)" }
+```
+When multiclassing, it counts as a third caster (class level ÷ 3, rounded down).
+
 - **Id:** a `spellcasting` block's id is `spellcasting` unless given, so `modify: { target: $#spellcasting, … }` works (Memorize Spell adds a Short Rest swap).
 - **`change`** says when prepared spells and cantrips can be swapped: `level-up`, `long`, or `{ at, count }` (`{ at: long, count: 1 }` for Paladin and Ranger, `{ at: long, count: all }` for Wizard).
 - **Spellbook:** a `spellbook` setting gives the class a spellbook list separate from prepared spells. A `choose` with `grants: spellbook` adds to it, and filters can say `in: spellbook` (Ritual Adept, Spell Mastery, Signature Spells).

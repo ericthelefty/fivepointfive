@@ -68,6 +68,7 @@ If you can't browse, rely on this prompt, and say so in your report.
   | `Creature` | Shown as a stat block, not automated. |
 
 - **Class features** are headings of the form `## Level N: Feature Name`. The progression table is a Markdown table whose first column is `Level`, with rows 1–20.
+- **Subclasses that grant spellcasting** (Eldritch Knight, Arcane Trickster) keep their own spellcasting table: first column `<Class> Level`, a `Spells Prepared` column, and slot columns renamed to `Spell Slots per Spell Level 1`…. Their Spellcasting feature gets `spellcasting: { ability: int, progression: third, list: wizard, cantrips: "steps(3: 2, 10: 3)" }`.
 - **Spellcasting classes** need these columns: `Cantrips`, `Prepared Spells`, and `Spell Slots per Spell Level 1`…`9` (`—` where there are none). A pact caster uses `Spell Slots` and `Slot Level` instead. Add a `## <Class> Spell List` with `### Level N <Class> Spells` tables. Spell names must match spell entries.
 - **IDs.** Every entry gets `pack-id:type/slug` automatically (`ericbrew:feat/barkskin-hide`).
   - Add `**ID:** slug` only to keep an ID stable through a rename.

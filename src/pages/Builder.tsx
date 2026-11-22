@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { weaponTable } from "../lib/play.ts";
 import { catalog, inventoryOf } from "../lib/inventory.ts";
 import {
-  MAX_LEVEL, SUBCLASS_LEVEL, addClass, casterKind, classInfos, extraClasses, patchClass, prerequisiteProblems, removeClass, startingLevel,
+  MAX_LEVEL, SUBCLASS_LEVEL, addClass, casterInfoOf, casterKindOf, classInfos, spellListClass, extraClasses, patchClass, prerequisiteProblems, removeClass, startingLevel,
 } from "../lib/multiclass.ts";
 import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
@@ -12,7 +12,7 @@ import { modifFor, multiclassSkillChoice, setSlotFeat, skillChoiceOf, speciesSki
 import { Md, MdInline } from "../lib/md.tsx";
 import { features, stripMd, type Entry } from "../lib/parse.ts";
 import {
-  ABBR, ABILITIES, POINT_COST, SKILLS, STANDARD_ARRAY, abilityList, armorTable, casterInfo, classSpells,
+  ABBR, ABILITIES, POINT_COST, SKILLS, STANDARD_ARRAY, abilityList, armorTable, classSpells,
   derive, equipmentOptions, featName, finalScores, fmt, listOf, mod, pointBuyUsed, speciesChoice,
   traits, intro, type Character,
 } from "../lib/rules.ts";
@@ -44,7 +44,7 @@ export default function Builder() {
   };
 
   const cls = content.byId(c?.classId);
-  const anyCaster = !!c && classInfos(c, content.byId).some((i) => casterKind(i.cls));
+  const anyCaster = !!c && classInfos(c, content.byId).some((i) => casterKindOf(i));
   useEffect(() => {
     if (anyCaster) content.ensure("spells");
   }, [anyCaster]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -686,7 +686,7 @@ function SkillsStep({ c, update }: StepProps) {
   const bg = content.byId(c.backgroundId);
   const pick = skillChoiceOf(cls);
   const fromBg = listOf(bg?.fields["skill proficiencies"] || "");
-  const casting = classInfos(c, content.byId).filter((i) => casterKind(i.cls));
+  const casting = classInfos(c, content.byId).filter((i) => casterKindOf(i));
   const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);
 
   return (
@@ -721,8 +721,10 @@ function SkillsStep({ c, update }: StepProps) {
 function ClassSpells({ c, update, index }: StepProps & { index: number }) {
   const content = useContent();
   const info = classInfos(c, content.byId).find((i) => i.index === index)!;
-  const caster = casterInfo(info.cls, info.level);
-  const spellsByLevel = useMemo(() => classSpells(info.cls, content.byType("Spell")), [info.cls, content]);
+  // Eldritch Knight / Arcane Trickster: slots from the subclass's table, spells from the Wizard list
+  const caster = casterInfoOf(info);
+  const listCls = spellListClass(info, content.entries);
+  const spellsByLevel = useMemo(() => classSpells(listCls, content.byType("Spell")), [listCls, content]);
   const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);
   const multi = extraClasses(c).length > 0;
   if (!caster) return null;

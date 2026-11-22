@@ -8,7 +8,7 @@ import { cloud, supabase } from "../lib/backend.ts";
 import { Md } from "../lib/md.tsx";
 import { features, slug, spellInfo, stripMd, type Entry } from "../lib/parse.ts";
 import {
-  ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, casterInfo, derive, featName, fmt, speciesChoice, traits, wornGear,
+  ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, derive, featName, fmt, speciesChoice, traits, wornGear,
   type Character,
 } from "../lib/rules.ts";
 import { combineModes, d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
@@ -26,7 +26,7 @@ import {
   type ModifConvert, type ConvertSide, type WeaponInfo,
   type ModifAction, type ModifCost, type ModifCtx, type ModifToggle,
 } from "../lib/modif.ts";
-import { casterKind, classFeatures, classInfos, classLabel, hitDicePools, spellSlots, type ClassInfo, type Slot } from "../lib/multiclass.ts";
+import { casterEntry, casterInfoOf, casterKindOf, classFeatures, classInfos, classLabel, hitDicePools, spellSlots, type ClassInfo, type Slot } from "../lib/multiclass.ts";
 
 type Tab = "actions" | "effects" | "spells" | "features" | "conditions" | "inventory" | "notes";
 type CardAction = { label: string; run: () => void };
@@ -111,7 +111,7 @@ export default function Sheet() {
   const sp = content.byId(c?.speciesId);
   const bg = content.byId(c?.backgroundId);
   const infos: ClassInfo[] = c ? classInfos(c, content.byId) : [];
-  const anyCaster = infos.some((i) => casterKind(i.cls));
+  const anyCaster = infos.some((i) => casterKindOf(i));
   useEffect(() => {
     // spells are always loaded: feats and items can grant them too
     content.ensure("rules", "items", "spells");
@@ -175,8 +175,8 @@ export default function Sheet() {
   // read once for ability scores, then again with the spellcasting numbers they give
   const fx0 = computeModif(fxCtx);
   const d0 = derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos, modif: fx0 });
-  const firstCaster = infos.find((i) => casterKind(i.cls));
-  const ab0 = firstCaster ? spellcastingOf(firstCaster.cls)?.ability ?? null : null;
+  const firstCaster = infos.find((i) => casterKindOf(i));
+  const ab0 = firstCaster ? spellcastingOf(casterEntry(firstCaster))?.ability ?? null : null;
   const fx = ab0 ? computeModif({ ...fxCtx, spell: { mod: d0.mods[ab0], dc: 8 + d0.pb + d0.mods[ab0], attack: d0.pb + d0.mods[ab0] } }) : fx0;
   const d = fx === fx0 ? d0 : derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos, modif: fx });
   const fxPlus = (to: string) => fx.bonuses.filter((b) => b.to === to).reduce((n, b) => n + b.value, 0);
@@ -191,11 +191,11 @@ export default function Sheet() {
   const speed = p.conditions.some((k) => CONDITION_EFFECTS[k]?.speed0) ? 0 : d.speed;
   // spellcasting: each class keeps its own ability, DC and attack
   const casters = infos
-    .filter((i) => casterKind(i.cls))
+    .filter((i) => casterKindOf(i))
     .map((i) => {
-      const ab = spellcastingOf(i.cls)?.ability ?? null;
+      const ab = spellcastingOf(casterEntry(i))?.ability ?? null;
       const m = ab ? d.mods[ab] : 0;
-      return { info: i, ab, mod: m, dc: 8 + d.pb + m + fxPlus("spell:dc"), atk: d.pb + m + fxPlus("spell:attack"), ci: casterInfo(i.cls, i.level) };
+      return { info: i, ab, mod: m, dc: 8 + d.pb + m + fxPlus("spell:dc"), atk: d.pb + m + fxPlus("spell:attack"), ci: casterInfoOf(i) };
     });
   type Caster = (typeof casters)[number];
   const castAb = casters[0]?.ab;

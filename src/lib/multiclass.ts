@@ -138,9 +138,38 @@ export function prerequisiteProblems(classes: Entry[], scores: Scores): string[]
 export type CasterKind = "full" | "half" | "third" | "pact";
 
 /** From the class's `spellcasting` block: full, half, third or pact progression. */
-export function casterKind(cls: Entry): CasterKind | null {
+export function casterKind(cls: Entry | undefined): CasterKind | null {
   const p = spellcastingOf(cls)?.progression;
   return p === "full" || p === "half" || p === "third" || p === "pact" ? p : null;
+}
+
+/**
+ * Where a class's spellcasting comes from: the class itself, or its subclass (Eldritch Knight, Arcane Trickster)
+ * once the class reaches the level of the subclass's Spellcasting feature.
+ */
+export function casterEntry(i: Pick<ClassInfo, "cls" | "sub" | "level">): Entry | undefined {
+  if (casterKind(i.cls)) return i.cls;
+  const sc = i.sub ? spellcastingOf(i.sub) : null;
+  return sc && casterKind(i.sub) && i.level >= sc.level ? i.sub : undefined;
+}
+
+/** The caster kind of a class, counting a spellcasting subclass. */
+export function casterKindOf(i: Pick<ClassInfo, "cls" | "sub" | "level">): CasterKind | null {
+  return casterKind(casterEntry(i));
+}
+
+/** Cantrips, prepared spells and slots for a class at its level, from the class or its spellcasting subclass. */
+export function casterInfoOf(i: Pick<ClassInfo, "cls" | "sub" | "level">) {
+  const e = casterEntry(i);
+  return e ? casterInfo(e, i.level, spellcastingOf(e)?.cantrips) : null;
+}
+
+/** The class whose spell list a caster picks from: the block's `list` (Eldritch Knight: wizard), else its own class. */
+export function spellListClass(i: Pick<ClassInfo, "cls" | "sub" | "level">, entries: Entry[]): Entry {
+  const list = spellcastingOf(casterEntry(i))?.list;
+  if (!list) return i.cls;
+  const want = String(list).toLowerCase().replace(/-/g, " ");
+  return entries.find((e) => e.type === "Class" && e.name.toLowerCase() === want) || i.cls;
 }
 
 /** The Multiclass Spellcaster table from the Multiclassing rule: level -> slots by spell level. */
@@ -162,24 +191,24 @@ export interface Slot { level: number; max: number; pact: boolean }
  */
 export function spellSlots(infos: ClassInfo[], entries: Entry[]): Slot[] {
   const casting = infos.filter((i) => {
-    const k = casterKind(i.cls);
+    const k = casterKindOf(i);
     return k === "full" || k === "half" || k === "third";
   });
   let slots: Slot[] = [];
   if (casting.length === 1) {
-    const ci = casterInfo(casting[0].cls, casting[0].level);
+    const ci = casterInfoOf(casting[0]);
     slots = (ci?.slots || []).map((s) => ({ level: s.level, max: +s.count || 0, pact: false }));
   } else if (casting.length > 1) {
     const lvl = casting.reduce((n, i) => {
-      const k = casterKind(i.cls);
+      const k = casterKindOf(i);
       return n + (k === "full" ? i.level : k === "half" ? Math.ceil(i.level / 2) : Math.floor(i.level / 3));
     }, 0);
     const row = multiclassSlotTable(entries).get(Math.min(MAX_LEVEL, lvl)) || [];
     slots = row.map((max, k) => ({ level: k + 1, max, pact: false })).filter((s) => s.max > 0);
   }
   const pact = infos
-    .filter((i) => casterKind(i.cls) === "pact")
-    .flatMap((i) => (casterInfo(i.cls, i.level)?.slots || []).map((s) => ({ level: s.level, max: +s.count || 0, pact: true })));
+    .filter((i) => casterKindOf(i) === "pact")
+    .flatMap((i) => (casterInfoOf(i)?.slots || []).map((s) => ({ level: s.level, max: +s.count || 0, pact: true })));
   return [...slots, ...pact];
 }
 

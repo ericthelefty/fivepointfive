@@ -120,6 +120,8 @@ Each type lists the fields the app understands. Only `**Type:**` is required. Ev
 ### Subclass
 `**Type:** Subclass` · **Parent** (the class name) · optional tagline (the subclass motto) · features as `Level N: Feature Name` headings. Players choose a subclass at level 3, so features start at level 3.
 
+A subclass that grants spellcasting (like an Eldritch Knight) puts a `spellcasting` block in its Spellcasting feature, `spellcasting: { ability: int, progression: third, list: wizard, cantrips: "steps(3: 2, 10: 3)" }`, and a spellcasting table whose first column is the class level (`Fighter Level`), with a `Spells Prepared` column and `Spell Slots per Spell Level 1`… columns. The builder then offers spells from the named class's list and the sheet shows the slots.
+
 ### Species
 `**Type:** Species` · Creature Type · Size · Speed
 

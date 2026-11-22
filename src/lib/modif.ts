@@ -2241,11 +2241,20 @@ export function blocksOf(e: Entry | undefined, type?: string): Block[] {
   return type ? out.filter((b) => b.type === type) : out;
 }
 
-/** A class's `spellcasting` block: its ability (full name) and progression (full, half, third, pact). */
-export function spellcastingOf(e?: Entry): { ability: string; progression: string; list?: string } | null {
-  const v = blocksOf(e, "spellcasting")[0]?.v;
-  if (!v || typeof v !== "object") return null;
-  return { ability: ABBR3[String(v.ability)] || String(v.ability), progression: String(v.progression || "full"), list: v.list };
+/**
+ * A class's (or subclass's) `spellcasting` block: its ability (full name), progression (full, half, third, pact),
+ * the class whose spell list it uses, its cantrips value when the table has no Cantrips column, and the level of
+ * the feature that grants it (a subclass's Spellcasting starts at that class level).
+ */
+export function spellcastingOf(e?: Entry): { ability: string; progression: string; list?: string; cantrips?: Val; level: number } | null {
+  for (const fx of e?.effects || []) {
+    const b = readBlocks(fx.yaml).blocks.find((x) => x.type === "spellcasting");
+    if (!b || !b.v || typeof b.v !== "object") continue;
+    const v = b.v;
+    const lvl = typeof v.level === "number" ? v.level : +(fx.feature?.match(/^Level (\d+):/)?.[1] || 1);
+    return { ability: ABBR3[String(v.ability)] || String(v.ability), progression: String(v.progression || "full"), list: v.list, cantrips: v.cantrips, level: lvl };
+  }
+  return null;
 }
 
 const skillNames = (from: Val): string[] =>

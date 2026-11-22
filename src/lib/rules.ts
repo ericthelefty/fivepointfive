@@ -125,15 +125,33 @@ export interface Caster {
   slots: { level: number; count: string }[];
 }
 
-export function casterInfo(cls: Entry | undefined, level: number): Caster | null {
+/**
+ * The table a caster reads its slots from: the class table, or, for a subclass that grants Spellcasting
+ * (Eldritch Knight), its own table keyed by class level ("Fighter Level") with a prepared-spells column.
+ */
+export function casterTable(e: Entry): Table | null {
+  const prepared = (t: Table) => t.header.some((h) => /^(prepared spells|spells prepared)$/i.test(h));
+  const main = classTable(e);
+  if (main && prepared(main)) return main;
+  for (const s of e.sections) for (const t of parseTables(s.md)) if (/level$/i.test(t.header[0] || "") && prepared(t)) return t;
+  return main;
+}
+
+/**
+ * Cantrips, prepared spells and slots at a level. `cantrips` is the spellcasting block's value, used when the
+ * table has no Cantrips column ("steps(3: 2, 10: 3)").
+ */
+export function casterInfo(cls: Entry | undefined, level: number, cantrips?: unknown): Caster | null {
   if (!cls) return null;
-  const row = tableRow(classTable(cls), level);
-  if (!("Prepared Spells" in row)) return null;
+  const row = tableRow(casterTable(cls), level);
+  const preparedCol = "Prepared Spells" in row ? "Prepared Spells" : "Spells Prepared" in row ? "Spells Prepared" : null;
+  if (!preparedCol) return null;
   const num = (v?: string) => (v && /^\d+$/.test(v) ? +v : 0);
   const slots: { level: number; count: string }[] = [];
   let maxSpellLevel = 0;
   for (const [h, v] of Object.entries(row)) {
-    const m = h.match(/Spell Level (\d+)$/);
+    // "Spell Slots per Spell Level 3", or a bare "3" under a "Spell Slots per Spell Level" banner
+    const m = h.match(/Spell Level (\d+)$/) || h.match(/^([1-9])$/);
     if (m && num(v)) {
       slots.push({ level: +m[1], count: v });
       maxSpellLevel = Math.max(maxSpellLevel, +m[1]);
@@ -143,7 +161,11 @@ export function casterInfo(cls: Entry | undefined, level: number): Caster | null
     maxSpellLevel = num(row["Slot Level"]);
     slots.push({ level: maxSpellLevel, count: row["Spell Slots"] });
   }
-  return { cantrips: num(row["Cantrips"]), prepared: num(row["Prepared Spells"]), maxSpellLevel, slots };
+  let nCantrips = num(row["Cantrips"]);
+  if (!("Cantrips" in row) && cantrips !== undefined) {
+    nCantrips = evalNumber(cantrips as never, { level, total: level, pb: 0, mods: {}, scores: {}, classLevels: {}, table: row } as never) ?? 0;
+  }
+  return { cantrips: nCantrips, prepared: num(row[preparedCol]), maxSpellLevel, slots };
 }
 
 /** Spells on a class list: from the class's spell list tables, else spell taglines. */
