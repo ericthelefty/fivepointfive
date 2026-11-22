@@ -38,6 +38,8 @@ FIELD_SCHEMAS = {
     'shape': {'enum': SHAPES},
     'take': one_or_list({'enum': ACTIONS}),
     'events': {},
+    'handler': {'enum': sorted(v.HANDLERS)} if v.HANDLERS else {'type': 'string'},
+    'params': {'type': 'object'},
 }
 NESTED = {   # nested objects checked strictly (additionalProperties false)
     'save': v.SAVE, 'apply': v.APPLY, 'cost': v.COST, 'targets': v.TARGETS, 'who': v.WHO,

@@ -62,7 +62,8 @@ You’ve learned how to maximize use of magic items, granting you the following 
 ```yaml
 - set: { to: attunement:slots, value: 4 }
 - trigger: { event: { spend: charges }, auto: true, offer: { roll: 1d6, if-roll: 6, refund: spent } }
-- note: { stat: spell:attack, text: "Any Spell Scroll: use Int; level 2+ needs Arcana DC 10 + spell level" }
+- custom: { handler: use-magic-device, params: { ability: int, check: { skill: arcana, from-level: 2 } },
+            text: "Any Spell Scroll: Intelligence is your spellcasting ability; a level 2+ spell needs an Intelligence (Arcana) check (DC 10 + spell level) first, and on a failure the scroll disintegrates." }
 ```
 
 ## Level 17: Thief’s Reflexes
@@ -71,5 +72,5 @@ You are adept at laying ambushes and quickly escaping danger. You can take two t
 
 ## Effects
 ```yaml
-- note: { stat: initiative, text: "First round: take a second turn at Initiative − 10" }
+- custom: { handler: thiefs-reflexes, params: { offset: -10 }, text: "First round of combat: take a second turn at your Initiative − 10." }
 ```

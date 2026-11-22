@@ -91,7 +91,8 @@ The app reads rules only from Effects blocks, never from the text. Anything a cl
   - Known issues already: `animate-objects`, `antilife-shell` and `find-steed` are garbled; `antipathy-sympathy` is truncated; the `chill-touch` header; a `draconic-sorcery` table row; the `armor-of-resistance` table; some monster headings merged together.
 - Don't invent block names or fields. If the spec has no way to say something:
   - encode the nearest faithful form plus a `text:` note;
-  - list it under "Spec gaps" in your report.
+  - or, if the rule really can't be said with blocks and the sheet needs to act on it, write a `custom` block (MODIF.md §5.9) with a new handler name and the rule as `text` — it shows as a reminder until the handler exists;
+  - list it under "Spec gaps" in your report, with any handler names you introduced.
 - Don't edit `docs/MODIF.md`, the engine or the validator unless the user asks. Report what they'd need instead.
 - Don't commit or push unless the user tells you to.
 

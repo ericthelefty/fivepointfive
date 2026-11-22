@@ -5,6 +5,7 @@ import { features, parseFile, type Entry } from "./parse.ts";
 import type { Item } from "./inventory.ts";
 import { armorTable, classTable, derive, newCharacter, traits, intro, type Character } from "./rules.ts";
 import { classInfos } from "./multiclass.ts";
+import { CUSTOM_HANDLERS } from "./custom/index.ts";
 import { advantageFor, computeModif, weaponFits, setSlotFeat, spellPlan, type ModifCtx, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
@@ -542,5 +543,61 @@ describe("weapon rules, roll floors and conversions", () => {
     expect(create.expires).toBe(true);
     const toPoints = conv.find((x) => x.options[0].spend.slot !== undefined)!;
     expect(toPoints.options[2]).toEqual({ spend: { slot: 3, amount: 1 }, gain: { resource: "sorcery-points", amount: 3 } });
+  });
+});
+
+describe("custom handlers and Spell Scrolls", () => {
+  const scroll = (id: string, spell: string): Item => ({ id, name: `Spell Scroll (${spell})`, kind: "magic", qty: 1, ref: "srd:magic-item/spell-scroll", equipped: false, attuned: false });
+  const withScroll = (c: Character, it: Item) => sheet({ ...c, inventory: [it] }, { items: [{ item: it, entry: byId(it.ref)!, active: true }] });
+  const thief = (level: number) => ({ ...champion(level), classId: "srd:class/rogue", subclassId: "srd:subclass/thief" });
+
+  it("every handler file is registered, and every registered handler has a file (the validator reads the files)", () => {
+    const files = readdirSync(join(__dirname, "custom")).filter((f) => f.endsWith(".ts") && f !== "index.ts" && !f.endsWith(".test.ts")).map((f) => f.replace(/\.ts$/, ""));
+    expect(Object.keys(CUSTOM_HANDLERS).sort()).toEqual(files.sort());
+    for (const h of Object.values(CUSTOM_HANDLERS)) expect(h.replaceWith.length).toBeGreaterThan(20);
+  });
+
+  it("an unknown handler shows its text as a reminder", () => {
+    const thief = byId("srd:subclass/thief")!;
+    const odd: Entry = { ...thief, effects: thief.effects!.map((f) => ({ ...f, yaml: f.yaml.replace("handler: thiefs-reflexes", "handler: no-such-thing") })) };
+    const by = (id?: string) => (id === odd.id ? odd : byId(id));
+    const c = { ...champion(17), classId: "srd:class/rogue", subclassId: odd.id };
+    const fx = computeModif({ c, classes: classInfos(c, by), species: byId(c.speciesId), background: byId(c.backgroundId), entries: all, byId: by });
+    expect(fx.rollNotes).toHaveLength(0);
+    expect(fx.reminders.some((x) => /second turn at your Initiative/.test(x.text))).toBe(true);
+  });
+
+  it("Use Magic Device: Thieves read any scroll with Intelligence; Thief's Reflexes on Initiative", () => {
+    expect(sheet(thief(9)).fx.scrollRule).toBeUndefined();
+    expect(sheet(thief(13)).fx.scrollRule).toMatchObject({ ability: "Intelligence", check: { ability: "Intelligence", skill: "Arcana", fromLevel: 2 } });
+    expect(sheet(thief(13)).fx.rollNotes).toHaveLength(0);
+    const notes = sheet(thief(17)).fx.rollNotes;
+    expect(notes[0].roll).toBe("init");
+    expect(notes[0].text(15)).toBe("First round: take a second turn at Initiative 5.");
+  });
+
+  it("a Spell Scroll casts its bracketed spell with the scroll's DC and attack, if it's on your list", () => {
+    const wiz = { ...champion(5), classId: "srd:class/wizard", subclassId: undefined };
+    const fb = withScroll(wiz, scroll("s1", "Fireball")).fx.actions.find((x) => x.id.startsWith("item:s1"))!;
+    expect(fb.cast).toMatchObject({ spellId: "srd:spell/fireball", dc: 15, attack: 7, scroll: { level: 3, onList: true, checkDc: 13 } });
+    expect(fb.consume).toBe("s1");
+    const rogue = withScroll(thief(5), scroll("s2", "Fireball")).fx.actions.find((x) => x.id.startsWith("item:s2"))!;
+    expect(rogue.cast?.scroll?.onList).toBe(false);
+    const unnamed = withScroll(wiz, { ...scroll("s3", "x"), name: "Spell Scroll" }).fx.actions.find((x) => x.id.startsWith("item:s3"))!;
+    expect(unnamed.cast).toBeUndefined();
+    expect(unnamed.text).toMatch(/Rename/);
+  });
+});
+
+describe("choose-one options with their own cost", () => {
+  it("Patient Defense: Disengage is free, Disengage and Dodge costs 1 Focus Point", () => {
+    const monk = { ...champion(5), classId: "srd:class/monk", subclassId: undefined };
+    const pd = sheet(monk).fx.actions.find((x) => x.id === "patient-defense")!;
+    expect(pd.options).toEqual(["Disengage", "Disengage and Dodge (costs 1 Monk’s Focus)"]);
+    expect(pd.cost).toBeUndefined();
+    expect(pd.optionCosts).toEqual([undefined, { key: "focus", amount: 1 }]);
+    const cunning = sheet({ ...champion(3), classId: "srd:class/rogue", subclassId: undefined }).fx.actions.find((x) => x.id === "cunning-action")!;
+    expect(cunning.options).toEqual(["Dash", "Disengage", "Hide"]);
+    expect(cunning.optionCosts).toBeUndefined();
   });
 });

@@ -22,7 +22,7 @@ import InventoryPanel from "./InventoryPanel.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
 import { NARROW, useMedia } from "../lib/useMedia.ts";
 import {
-  advantageFor, computeModif, disadvantageFor, spellcastingOf, spellMinutes, spellPlan, statusOf, treatRoll, weaponFits, weaponProficient,
+  advantageFor, computeModif, type ScrollUse, disadvantageFor, spellcastingOf, spellMinutes, spellPlan, statusOf, treatRoll, weaponFits, weaponProficient,
   type ModifConvert, type ConvertSide, type WeaponInfo,
   type ModifAction, type ModifCost, type ModifCtx, type ModifToggle,
 } from "../lib/modif.ts";
@@ -75,6 +75,8 @@ export default function Sheet() {
   const [logOpen, setLogOpen] = useState(false);
   /** The trade picked in each Convert row (index into its options). */
   const [convPick, setConvPick] = useState<Record<string, number>>({});
+  /** The option picked for each choose-one action (Cunning Action, Patient Defense…). */
+  const [actPick, setActPick] = useState<Record<string, number>>({});
   // phones and tablets open with the Game Log hidden (desktop always shows it)
   const narrow = useMedia(NARROW);
   const [logHidden, setLogHidden] = useState(() => typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches);
@@ -339,6 +341,7 @@ export default function Sheet() {
       `${diceTxt} ${fmt(bonus)}${cm.penalty ? ` −${cm.penalty} exhaustion` : ""}${r.extra ? ` ${esc(describeRolled(r.extra))}` : ""}`,
       why.length ? `<div>${esc(why.join(" · "))}${m === "normal" && why.length > 1 ? " (cancel out)" : ""}</div>` : "",
       floorNotes.length ? `<div>${esc(floorNotes.join(" · "))}</div>` : "",
+      ...fx.rollNotes.filter((n) => n.roll === ctx.kind).map((n) => `<div><b>${esc(n.source)}:</b> ${esc(n.text(r.total))}</div>`),
       extraNote,
       r.crit && ctx.kind !== "check" && ctx.kind !== "save" ? `<div class="vd crit">Natural 20!</div>` : "",
       r.fumble ? `<div class="vd bad">Natural 1</div>` : "",
@@ -415,6 +418,114 @@ export default function Sheet() {
   const skillValue = (sk: string) => {
     const alt = skillAlt(sk);
     return d.skills[sk].value + (alt ? d.mods[alt.ability] - d.mods[SKILL_ABILITY[sk]] : 0);
+  };
+  // ---------------------------------------------------- bonus actions
+  type BonusRow = {
+    key: string; name: string; source: string; detail: string;
+    buttons: { label: string; run: () => void; disabled?: boolean; ghost?: boolean }[];
+    pick?: { label: string; options: string[]; value: number; set: (i: number) => void };
+  };
+  /** Which option is picked for an action, and whether the character can pay for it. */
+  const optionOf = (a: ModifAction) => {
+    const i = Math.min(actPick[a.id] ?? 0, (a.options?.length || 1) - 1);
+    const cost = a.options && a.optionCosts ? a.optionCosts[i] ?? a.cost : a.cost;
+    return { i, ok: costInfo(cost).ok };
+  };
+  const isBonus = (act: string) => /bonus action/i.test(act || "");
+  const bonusRows = (): BonusRow[] => {
+    const rows: BonusRow[] = [];
+    // the Light property: one extra attack with a different Light weapon
+    const lights = wielded.filter(({ w }) => /(^|,\s*)light\b/i.test(w.properties));
+    const pairs = lights.length >= 2 || lights.some(({ it }) => it.qty >= 2);
+    if (pairs) {
+      for (const { it, w } of lights) {
+        const a = attacks.find((x) => x.itemId === it.id);
+        if (!a) continue;
+        const mod = a.ability ? d.mods[a.ability] : 0;
+        const dmg = fx.offhandMod || mod <= 0 ? a.damage : (a.damage.match(new RegExp(`^(\\d+d\\d+)\\+${mod}(?!\\d)`)) ? a.damage.replace(new RegExp(`^(\\d+d\\d+)\\+${mod}`), "$1") : `${a.damage}-${mod}`);
+        const nick = w.mastery === "Nick" && fx.masteries.some((m) => slug(m) === slug(w.name));
+        rows.push({
+          key: `light:${it.id}`, name: `${a.name}: extra attack`, source: "Light property",
+          detail: `${fmt(a.toHit)} to hit, ${dmg} ${a.type}. After you attack with a different Light weapon using the Attack action.${fx.offhandMod ? ` Adds your modifier to damage (${fx.offhandMod}).` : " No ability modifier to damage unless it’s negative."}${nick ? " Nick: you can make it as part of the Attack action instead, once per turn." : ""}`,
+          buttons: [
+            { label: "Attack", run: () => attack({ ...a, name: `${a.name} (extra attack)`, damage: dmg }) },
+            { label: "Damage", ghost: true, run: () => rollDamage(`${a.name} (extra attack)`, dmg, false, a.type, false, dmgMods(a, false)) },
+          ],
+        });
+      }
+    }
+    // features and items
+    for (const a of fx.actions.filter((x) => isBonus(x.activation))) {
+      const { res, left, ok } = costInfo(a.cost);
+      const uses = res ? ` ${left} / ${res.max} ${res.name}${a.cost && a.cost.amount > 1 ? ` (costs ${a.cost.amount})` : ""}.` : "";
+      if (a.attack?.weapon === "unarmed") {
+        const ua = attacks.find((x) => x.name === "Unarmed Strike")!;
+        const n = a.attack.count;
+        rows.push({
+          key: `act:${a.id}`, name: a.name, source: a.source,
+          detail: `${n > 1 ? `${n} Unarmed Strikes` : "An Unarmed Strike"}: ${fmt(ua.toHit)} to hit, ${ua.damage} ${ua.type}.${uses}${a.text ? ` ${a.text}` : ""}`,
+          buttons: [{ label: n > 1 ? `Attack ×${n}` : "Attack", disabled: !ok, run: () => {
+            if (a.cost) setPlay((cur) => pay(a.cost, cur));
+            for (let i = 0; i < n; i++) attack(ua);
+          } }],
+        });
+        continue;
+      }
+      const op = a.options ? optionOf(a) : undefined;
+      rows.push({
+        key: `act:${a.id}`, name: a.name, source: a.source,
+        detail: [a.heal ? `Regain ${a.heal} HP.` : "", a.cast ? `Casts ${content.byId(a.cast.spellId)?.name || a.name}.` : "", a.text || "", uses.trim()].filter(Boolean).join(" "),
+        pick: a.options ? { label: `${a.name}: which option`, options: a.options, value: op!.i, set: (i) => setActPick((m) => ({ ...m, [a.id]: i })) } : undefined,
+        buttons: [{ label: a.cast ? "Cast" : "Use", disabled: (op ? !op.ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable), run: () => runFeature(a, op?.i) }],
+      });
+    }
+    // things to switch on (Rage, items)
+    for (const t of fx.toggles.filter((x) => isBonus(x.activation))) {
+      const on = isOn(t.key);
+      const { res, left, ok } = costInfo(t.cost);
+      rows.push({
+        key: `tog:${t.key}`, name: t.name, source: t.source,
+        detail: [t.lines.join("; "), t.duration ? `Lasts ${t.duration}.` : "", res ? `${left} / ${res.max} ${res.name}.` : ""].filter(Boolean).join(" "),
+        buttons: [{ label: on ? "On" : "Switch on", disabled: on || !ok, run: () => switchOn(t) }],
+      });
+    }
+    // spells with a Bonus Action casting time
+    const isBonusSpell = (sp: Entry) => /bonus action/i.test(sp.fields["casting time"] || "");
+    const lowestSlot = (lvl: number) => [...new Set(slots.map((x) => x.level))].sort((x, y) => x - y).find((L) => L >= lvl && slotLeft(L) > 0);
+    for (const { k, list } of knownBy) {
+      for (const sp of list.filter(isBonusSpell)) {
+        const lvl = spellInfo(sp)?.level || 0;
+        const L = lvl ? lowestSlot(lvl) : 0;
+        rows.push({
+          key: `sp:${k.info.index}:${sp.id}`, name: sp.name, source: `${lvl ? `Level ${lvl}` : "Cantrip"} · ${k.info.cls.name} spell`,
+          detail: stripMd(sp.fields["range"] || "") + (sp.fields["duration"] ? ` · ${stripMd(sp.fields["duration"])}` : "") + (lvl && L === undefined ? " · no slots left" : ""),
+          buttons: [{ label: lvl && L && L > lvl ? `Cast (level ${L} slot)` : "Cast", disabled: L === undefined, run: () => castSpell(sp, L || 0, k) }],
+        });
+      }
+    }
+    for (const [i, g] of fx.grantedSpells.entries()) {
+      if (!isBonusSpell(g.spell)) continue;
+      const lvl = spellInfo(g.spell)?.level || 0;
+      const free = g.free ? resources.find((r) => r.key === g.free) : undefined;
+      const freeLeft = free ? free.max - (p.resUsed[free.key] || 0) : 0;
+      const ab = g.ability || castAb || undefined;
+      const opt = { mod: ab ? d.mods[ab] : 0, dc: g.dc, free: true, via: g.source };
+      const L = lvl ? lowestSlot(lvl) : 0;
+      const buttons: BonusRow["buttons"] = [];
+      if (g.atWill || lvl === 0) buttons.push({ label: "Cast", run: () => castSpell(g.spell, lvl, null, opt) });
+      if (free) buttons.push({ label: "Cast free", disabled: freeLeft <= 0, run: () => castSpell(g.spell, lvl, null, { ...opt, pay: { key: free.key, amount: 1 } }) });
+      if (lvl > 0 && !g.atWill && slots.length) buttons.push({ label: "Use a slot", ghost: true, disabled: L === undefined, run: () => L && castSpell(g.spell, L, null, { mod: opt.mod, dc: g.dc, via: g.source }) });
+      rows.push({
+        key: `gs:${i}:${g.spell.id}`, name: g.spell.name, source: `${lvl ? `Level ${lvl}` : "Cantrip"} · ${g.source}`,
+        detail: [stripMd(g.spell.fields["range"] || ""), free ? `${freeLeft} / ${free.max} free` : ""].filter(Boolean).join(" · "),
+        buttons,
+      });
+    }
+    // conversions that take a Bonus Action
+    for (const cv of fx.converts.filter((x) => x.activation === "bonus")) {
+      rows.push({ key: `cv:${cv.id}`, name: cv.name, source: cv.source, detail: `${cv.options.map((o) => `${sideText(o.spend)} → ${sideText(o.gain)}`).slice(0, 3).join("; ")}. Use Convert on the slots bar.`, buttons: [] });
+    }
+    return rows;
   };
   /** Great Weapon Fighting and maximized dice for an attack's damage roll. */
   const dmgMods = (a: Attack, versatile: boolean) => ({
@@ -562,7 +673,25 @@ export default function Sheet() {
     const { res } = costInfo(cost);
     return res && cost ? { resUsed: { ...cur.resUsed, [res.key]: (cur.resUsed[res.key] || 0) + cost.amount } } : {};
   };
-  const runFeature = (a: ModifAction) => {
+  /** Can this character read a Spell Scroll, with which ability, and is there a check first? */
+  const scrollUse = (sc: ScrollUse) => {
+    const rule = fx.scrollRule;
+    const ability = rule?.ability || castAb || "Intelligence";
+    const highest = Math.max(0, ...slots.filter((x) => x.max > 0).map((x) => x.level));
+    const needs = rule?.check ? sc.level >= rule.check.fromLevel : sc.level > highest;
+    const ckAbility = rule?.check?.ability || ability;
+    const skill = rule?.check?.skill;
+    return {
+      readable: sc.onList || !!rule,
+      ability,
+      check: needs ? { ability: ckAbility, skill, bonus: skill && d.skills[skill] ? d.skills[skill].value : d.mods[ckAbility], source: rule?.source } : undefined,
+    };
+  };
+  const runFeature = (a: ModifAction, opt?: number) => {
+    // a choose-one option can carry its own cost (Patient Defense: Disengage and Dodge for 1 Focus Point)
+    const chosen = opt !== undefined ? a.options?.[opt] : undefined;
+    if (opt !== undefined && a.optionCosts) a = { ...a, cost: a.optionCosts[opt] ?? a.cost };
+    if (chosen) a = { ...a, options: undefined, text: [`Chose: ${chosen}.`, a.text].filter(Boolean).join(" ") };
     const { res, left, ok } = costInfo(a.cost);
     if (!ok) {
       log({ title: a.name, total: "—", cls: "info", detail: `Not enough ${esc(res!.name)} left. ${res!.recover === "never" ? "It doesn't recharge." : res!.recover === "dawn" ? "It recharges at dawn." : `It comes back on a ${res!.recover === "long" ? "Long" : "Short or Long"} Rest.`}` });
@@ -573,7 +702,28 @@ export default function Sheet() {
       const sp = content.byId(a.cast.spellId);
       if (sp) {
         const lvl = a.cast.level ?? (spellInfo(sp)?.level || 0);
-        castSpell(sp, lvl, null, { dc: a.cast.dc, attack: a.cast.attack, free: true, pay: a.cost, via: a.name });
+        const sc = a.cast.scroll && scrollUse(a.cast.scroll);
+        const useUp = () => {
+          if (!a.consume) return;
+          setInventory(inv.items.map((it) => (it.id === a.consume ? { ...it, qty: it.qty - 1 } : it)).filter((it) => it.qty > 0), inv.coins);
+        };
+        if (sc && !sc.readable) {
+          log({ title: a.name, total: "—", cls: "info", detail: "The spell isn’t on your spell list, so the scroll is unintelligible to you." });
+          return;
+        }
+        if (sc?.check) {
+          const ck = sc.check;
+          const r = test(`${a.name}: ${ck.skill ? `${ck.ability} (${ck.skill})` : ck.ability} check`, ck.bonus, { kind: "check", ability: ck.ability, skill: ck.skill, proficient: ck.skill ? d.skills[ck.skill]?.prof : false },
+            `<div>DC <b>${a.cast.scroll!.checkDc}</b> to cast it${ck.source ? ` (${esc(ck.source)})` : ""}.</div>`);
+          if (!r) return;
+          if (r.total < a.cast.scroll!.checkDc) {
+            useUp();
+            log({ title: a.name, total: "✗", cls: "info", detail: `Failed the check: ${ck.source ? "the scroll disintegrates" : "the spell disappears from the scroll"}.` });
+            return;
+          }
+        }
+        castSpell(sp, lvl, null, { dc: a.cast.dc, attack: a.cast.attack, mod: sc ? d.mods[sc.ability] : undefined, free: true, pay: a.cost, via: a.name });
+        useUp();
         return;
       }
     }
@@ -925,23 +1075,62 @@ export default function Sheet() {
                     </tbody>
                   </table>
                   <p className="note" style={{ marginTop: 10 }}>Attacks come from the weapons equipped in your <button className="linkish" onClick={() => setTab("inventory")}>Inventory</button>.{d.critRange < 20 ? ` Your weapon attacks score a Critical Hit on a ${d.critRange}–20.` : ""}</p>
-                  {fx.actions.length > 0 && (
+                  {(() => {
+                    const rows = bonusRows();
+                    return (
+                      <>
+                        <h3 style={{ marginTop: 16 }}>Bonus Actions</h3>
+                        {rows.length === 0 ? <p className="note">You have no Bonus Actions yet. They come from features, spells and fighting with two Light weapons.</p> : (
+                          <table className="atks bonusacts">
+                            <thead><tr><th>Bonus Action</th><th>Details</th><th></th></tr></thead>
+                            <tbody>
+                              {rows.map((b) => (
+                                <tr key={b.key}>
+                                  <td><b>{b.name}</b><div className="note">{b.source}</div></td>
+                                  <td className="note">
+                                    {b.detail}
+                                    {b.pick && (
+                                      <select className="optpick" aria-label={b.pick.label} value={b.pick.value} onChange={(e) => b.pick!.set(+e.target.value)}>
+                                        {b.pick.options.map((o, i) => <option key={i} value={i}>{o}</option>)}
+                                      </select>
+                                    )}
+                                  </td>
+                                  <td><div className="rowbtn">{b.buttons.map((x) => <button key={x.label} className={`sbtn sm ${x.ghost ? "ghost" : ""}`} disabled={x.disabled} onClick={x.run}>{x.label}</button>)}</div></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                        <p className="note">You can take one Bonus Action on your turn.</p>
+                      </>
+                    );
+                  })()}
+                  {fx.actions.some((x) => !isBonus(x.activation)) && (
                     <table className="atks" style={{ marginTop: 14 }}>
                       <thead><tr><th>Feature or item</th><th>Uses</th><th>Effect</th><th></th></tr></thead>
                       <tbody>
-                        {fx.actions.map((a) => {
+                        {fx.actions.filter((x) => !isBonus(x.activation)).map((a) => {
                           const { res, left, ok } = costInfo(a.cost);
                           return (
                             <tr key={a.id}>
                               <td><b>{a.name}</b><div className="note">{[a.activation, a.source !== a.name ? a.source : ""].filter(Boolean).join(" · ")}</div></td>
                               <td>{res ? `${left} / ${res.max}${a.cost && a.cost.amount > 1 ? ` (costs ${a.cost.amount})` : ""}` : "—"}</td>
                               <td>
-                                {a.heal ? `Regain ${a.heal} HP` : a.cast ? `Casts ${a.name}${a.cast.dc ? ` (DC ${a.cast.dc})` : ""}` : null}
+                                {a.heal ? `Regain ${a.heal} HP` : a.cast ? `Casts ${content.byId(a.cast.spellId)?.name || a.name}${a.cast.dc ? ` (DC ${a.cast.dc}${a.cast.attack !== undefined ? `, ${fmt(a.cast.attack)} to hit` : ""})` : ""}` : null}
+                                {a.cast?.scroll && (() => {
+                                  const sc = scrollUse(a.cast.scroll);
+                                  return <div className="note">{!sc.readable ? "Not on your spell list: you can’t read it." : sc.check ? `${sc.check.skill ? `${sc.check.ability} (${sc.check.skill})` : sc.check.ability} check DC ${a.cast.scroll.checkDc} first${sc.check.source ? ` (${sc.check.source})` : ""}; the scroll is used up either way.` : "Used up when cast."}</div>;
+                                })()}
                                 {a.save && <span>{a.save.dc ? `DC ${a.save.dc} ` : ""}{a.save.ability} save{a.damage?.length ? `, ${a.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}` : ""}</span>}
                                 {!a.save && a.damage?.length ? <span>{a.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}</span> : null}
-                                {(a.text || a.options) && <div className="note">{[a.text, a.options && `Choose: ${a.options.join(", ")}`].filter(Boolean).join(" · ")}</div>}
+                                {a.text && <div className="note">{a.text}</div>}
+                                {a.options && (
+                                  <select className="optpick" aria-label={`${a.name}: which option`} value={optionOf(a).i} onChange={(e) => setActPick((m) => ({ ...m, [a.id]: +e.target.value }))}>
+                                    {a.options.map((o, i) => <option key={i} value={i}>{o}</option>)}
+                                  </select>
+                                )}
                               </td>
-                              <td><div className="rowbtn"><button className="sbtn sm" onClick={() => runFeature(a)} disabled={!ok}>{a.cast ? "Cast" : "Use"}</button></div></td>
+                              <td><div className="rowbtn"><button className="sbtn sm" onClick={() => runFeature(a, a.options ? optionOf(a).i : undefined)} disabled={(a.options ? !optionOf(a).ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable)}>{a.cast ? "Cast" : "Use"}</button></div></td>
                             </tr>
                           );
                         })}

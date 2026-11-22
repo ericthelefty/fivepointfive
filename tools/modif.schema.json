@@ -668,6 +668,31 @@
      },
      "additionalProperties": false
     },
+    "custom": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "handler": {
+       "enum": [
+        "thiefs-reflexes",
+        "use-magic-device"
+       ]
+      },
+      "id": {},
+      "label": {},
+      "level": {},
+      "params": {
+       "type": "object"
+      },
+      "per": {},
+      "scope": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
     "damage-die": {
      "type": "object",
      "properties": {

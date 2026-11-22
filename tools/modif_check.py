@@ -16,6 +16,9 @@ from collections import defaultdict
 
 _here = pathlib.Path(__file__).resolve().parent
 SRD = pathlib.Path(os.environ.get('MODIF_SRD') or next((p for p in (_here / 'content' / 'srd-5.2.1', _here.parent / 'content' / 'srd-5.2.1') if p.exists()), _here / 'content' / 'srd-5.2.1'))
+# `custom` handlers: one file per handler in the app's src/lib/custom/ (index.ts and *.test.ts aren't handlers)
+_handler_dir = pathlib.Path(os.environ.get('MODIF_HANDLERS') or next((p for p in (_here / 'src' / 'lib' / 'custom', _here.parent / 'src' / 'lib' / 'custom') if p.exists()), _here / 'src' / 'lib' / 'custom'))
+HANDLERS = {f.stem for f in _handler_dir.glob('*.ts') if f.stem != 'index' and not f.stem.endswith('.test')} if _handler_dir.exists() else None
 RESERVED = {'on', 'off', 'yes', 'no', 'y', 'n', 'true', 'false'}
 
 COMMON = {'id', 'when', 'level', 'at', 'scope', 'label', 'text', 'per', 'duration', 'counter'}
@@ -68,6 +71,7 @@ BLOCKS = {
     'charges': F('max', 'recharge', 'destroy-on', 'start', 'kinds'), 'variant': F('by', 'values', 'roll', 'table'), 'container': F('capacity', 'weight'), 'weapon-rule': None, 'craft': F('items'), 'auto-fail': F('roll'), 'breaks-concentration': None, 'rest': F('kind', 'spend', 'regain'),
     'poison': F('delivery', 'save', 'damage', 'apply', 'on-failure', 'on-success', 'then', 'delay', 'neutralized-by', 'on-fail-by'), 'weapon-property': F('add', 'remove'), 'curse': F('prevents', 'ends', 'effects'),
     'modify': F('target', 'set', 'add', 'max'), 'replace': F('target', 'optional'),
+    'custom': F('handler', 'params'),
     'trigger': F('event', 'reaction', 'if', 'offer', 'auto', 'pick', 'dc', 'who', 'group', 'group-exempt', 'if-roll'),
 }
 EVENTS = {'attack', 'hit', 'hit-first', 'miss', 'crit', 'hit-by', 'damaged', 'targeted', 'fail', 'roll', 'zero-hp',
@@ -205,6 +209,7 @@ def validate(fname, data):
         if re.sub(r'[\s+\-*/(),.]', '', rest): errs.append(f"{where}: value doesn't parse: {v!r} (left over: {rest.strip()!r})")
 
     def scan_values(o, where, field=None):
+        if field == 'params': return   # a custom handler's own data
         if isinstance(o, dict):
             if 'steps' in o:
                 if not isinstance(o['steps'], dict): errs.append(f"{where}: steps must map levels to values")
@@ -240,6 +245,11 @@ def validate(fname, data):
             if 'when' in body: when(body['when'], where)
             d = body.get('duration')
             if isinstance(d, dict) and d.get('until') and d['until'] not in UNTIL: errs.append(f"{where}: unknown until '{d['until']}'")
+            if name == 'custom':
+                h = body.get('handler')
+                if not isinstance(h, str) or not h: errs.append(f"{where}: custom needs a handler name")
+                elif HANDLERS is not None and h not in HANDLERS: errs.append(f"{where}: unknown custom handler '{h}' (known: {', '.join(sorted(HANDLERS)) or 'none'})")
+                if not body.get('text'): errs.append(f"{where}: custom needs text (shown when the app doesn't know the handler)")
             if name == 'choose':
                 choice_ids.add(body.get('id'))
                 kk = body.get('kind'); kk = kk if isinstance(kk, list) else [kk]
