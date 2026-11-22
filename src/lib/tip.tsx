@@ -1,0 +1,105 @@
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+
+/**
+ * One tooltip, opened the way each device expects:
+ * - mouse: hover shows it (a click also shows it, so clicking never feels broken)
+ * - touch: tap shows or hides it; press-and-hold shows it too (the phone's own text-selection menu is turned off here)
+ * - keyboard: focus shows it; Escape closes
+ * A tap or click anywhere else, scrolling or resizing closes it. It's placed against the viewport, so a table that
+ * scrolls sideways on a phone can't clip it.
+ */
+function useTip() {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<CSSProperties>();
+  const ref = useRef<HTMLSpanElement>(null);
+  const id = useRef(`tip-${Math.random().toString(36).slice(2, 9)}`).current;
+  const pointer = useRef<string>("mouse");
+  const hold = useRef<{ timer?: number; fired?: boolean; down?: boolean }>({});
+  useEffect(() => {
+    if (!open) return;
+    const r = ref.current?.getBoundingClientRect();
+    if (r) {
+      // line the bubble up with the trigger's nearer edge, above it unless that's off the top of the screen
+      const fromRight = r.left + r.width / 2 > window.innerWidth / 2;
+      const x: CSSProperties = fromRight ? { right: Math.max(8, window.innerWidth - r.right) } : { left: Math.max(8, r.left) };
+      setPos(r.top > 110 ? { position: "fixed", ...x, bottom: window.innerHeight - r.top + 8 } : { position: "fixed", ...x, top: r.bottom + 8 });
+    }
+    const away = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const close = () => setOpen(false);
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+  const bubble = (text: ReactNode) => {
+    const cls = ["tipbox", open && pos ? "open" : "", pos?.top !== undefined ? "below" : "", pos?.left !== undefined ? "left" : ""].filter(Boolean).join(" ");
+    return <span id={id} role="tooltip" className={cls} style={pos}>{text}</span>;
+  };
+  const release = () => {
+    window.clearTimeout(hold.current.timer);
+    window.setTimeout(() => { hold.current.down = false; }, 0);
+  };
+  const trigger = {
+    ref,
+    tabIndex: 0,
+    "aria-describedby": id,
+    "aria-expanded": open,
+    onPointerEnter: (e: ReactPointerEvent) => { pointer.current = e.pointerType; if (e.pointerType === "mouse") setOpen(true); },
+    onPointerLeave: (e: ReactPointerEvent) => { if (e.pointerType === "mouse") setOpen(false); },
+    onPointerDown: (e: ReactPointerEvent) => {
+      pointer.current = e.pointerType;
+      hold.current.down = true; // the focus that follows a press isn't keyboard focus
+      if (e.pointerType === "mouse") return;
+      hold.current.fired = false;
+      window.clearTimeout(hold.current.timer);
+      hold.current.timer = window.setTimeout(() => { hold.current.fired = true; setOpen(true); }, 450);
+    },
+    onPointerUp: () => release(),
+    onPointerCancel: () => release(),
+    onContextMenu: (e: ReactMouseEvent) => e.preventDefault(),
+    onClick: () => {
+      hold.current.down = false;
+      if (pointer.current === "mouse") { setOpen(true); return; }
+      if (hold.current.fired) { hold.current.fired = false; return; } // the press-and-hold already opened it
+      setOpen((o) => !o);
+    },
+    onKeyDown: (e: ReactKeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((o) => !o); } },
+    onFocus: () => { if (!hold.current.down) setOpen(true); },
+    onBlur: () => setOpen(false),
+  };
+  return { trigger, bubble };
+}
+
+/** Text or a small label that explains itself when clicked or tapped. Don't wrap other buttons or inputs in it. */
+export function Tip({ tip, children, className }: { tip?: ReactNode; children: ReactNode; className?: string }) {
+  const { trigger, bubble } = useTip();
+  if (!tip) return <>{children}</>;
+  return (
+    <span {...trigger} className={`tip ${className || ""}`}>
+      {children}
+      {bubble(tip)}
+    </span>
+  );
+}
+
+/**
+ * A button that, when greyed out, says why on click or tap. A disabled button gets no pointer events,
+ * so the wrapper around it carries the tooltip.
+ */
+export function Btn({ why, disabled, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { why?: string }) {
+  const { trigger, bubble } = useTip();
+  if (!disabled || !why) return <button {...rest} disabled={disabled} />;
+  return (
+    <span {...trigger} className="why">
+      <button {...rest} disabled tabIndex={-1} />
+      {bubble(why)}
+    </span>
+  );
+}

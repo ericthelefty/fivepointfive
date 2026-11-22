@@ -28,10 +28,24 @@ function Gate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Dark (default) or light parchment theme, kept in this browser. */
+const THEME_KEY = "fpf.theme";
+function initialTheme(): "dark" | "light" {
+  try { return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark"; } catch { return "dark"; }
+}
+document.documentElement.dataset.theme = initialTheme();
+
 function Shell() {
   const { ready, error } = useContent();
   const session = useSession();
   const [menu, setMenu] = useState(false);
+  const [theme, setTheme] = useState(initialTheme);
+  const flip = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem(THEME_KEY, next); } catch { /* private mode */ }
+  };
   return (
     <div className="app">
       <header className={`topbar ${menu ? "menuopen" : ""}`}>
@@ -52,6 +66,7 @@ function Shell() {
           <NavLink to="/content">Content packs</NavLink>
           <NavLink to="/guide">Format guide</NavLink>
           {cloud && session.status === "ready" && <NavLink to="/settings">{session.isAdmin ? "Settings" : "Account"}</NavLink>}
+          <button className="themebtn" style={{ alignSelf: "center" }} aria-label={theme === "dark" ? "Use the light theme" : "Use the dark theme"} onClick={flip}>{theme === "dark" ? "☀ Light" : "☾ Dark"}</button>
           {cloud && session.user && <button className="btn small" style={{ alignSelf: "center" }} onClick={session.signOut}>Sign out</button>}
         </nav>
       </header>

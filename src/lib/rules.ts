@@ -51,6 +51,14 @@ export interface Character {
   coins?: import("./inventory.ts").Coins;
   /** Answers to Modif `choose` blocks, keyed "<entry id>#<choice id>" (see modif.ts). */
   choices?: Record<string, string[]>;
+  /** The two languages picked with the character's origin (besides Common). */
+  languages?: string[];
+  /** A Wizard's spellbook beyond the spells they have prepared: spells added at level-up, and ones copied in. */
+  spellbook?: { name: string; how: "level" | "copied" }[];
+  /** House rules: the sheet doesn't stop you at its limits (uses, known forms, spellbook picks). */
+  houseRules?: boolean;
+  /** Limited-use features the player tracks themselves (homebrew, a boon from the GM): uses and when they come back. */
+  customFeatures?: { id: string; name: string; max: number; recover: "short" | "long"; text: string }[];
 }
 
 export function newCharacter(): Character {

@@ -26,7 +26,7 @@ export const BLOCKS = [
   "cancel-advantage", "crit-range", "extra-attack", "damage-die", "use-ability", "damage-type", "ignore-resistance",
   "score", "score-max", "roll-floor", "die-floor", "maximize", "reroll", "save-rule", "treat-roll", "choose",
   "resource", "cast-list", "convert", "action", "toggle", "narrative", "suppress", "aura", "zone", "remove-condition",
-  "limit", "grant-spell", "spell-list", "spellcasting", "scaling", "target-effects", "self-effects", "form", "summon",
+  "limit", "grant-spell", "spell-list", "spellcasting", "scaling", "target-effects", "self-effects", "form", "summon", "summon-options",
   "condition", "charges", "variant", "container", "weapon-rule", "craft", "auto-fail", "breaks-concentration", "rest",
   "poison", "weapon-property", "curse", "modify", "replace", "trigger", "custom",
 ];
@@ -115,6 +115,8 @@ export interface Env {
   variants?: Record<string, Val>;
   /** Feature save DCs set by `set: { to: save-dc:<class> }` (Monk's Focus), read as `save-dc:monk`. */
   saveDc?: Record<string, number>;
+  /** A cell of a named table in the entry being read (`table:Beast Shapes.Max CR`), at the entry's level. */
+  named?: (table: string, col: string) => string | undefined;
 }
 
 /** A value as dice plus a flat number: "1d10 + level:fighter" -> { dice: ["1d10"], flat: 5 }. */
@@ -166,9 +168,16 @@ export function evalAmount(expr: Val, env: Env): Amount | null {
     if (k === "mod" && ABBR3[arg]) return { dice: [], flat: env.mods[ABBR3[arg]] };
     if (k === "score" && ABBR3[arg]) return { dice: [], flat: env.scores[ABBR3[arg]] };
     if (k === "table") {
+      // "table:Beast Shapes.Max CR": a column of another table in the entry; otherwise a column of the class table
+      const dot = arg.lastIndexOf(".");
+      const named = dot > 0 && env.named ? env.named(arg.slice(0, dot), arg.slice(dot + 1)) : undefined;
       const col = Object.keys(env.table).find((h) => h.toLowerCase() === arg.toLowerCase());
-      const cell = col ? env.table[col] : undefined;
+      const cell = named ?? (col ? env.table[col] : undefined);
       if (cell === undefined) return null;
+      const fr = cell.trim().match(/^(\d+)\/(\d+)$/);
+      if (fr) return { dice: [], flat: +fr[1] / +fr[2] };
+      if (/^yes$/i.test(cell.trim())) return { dice: [], flat: 1 };
+      if (/^(no|—|-)$/i.test(cell.trim())) return { dice: [], flat: 0 };
       const dm = cell.match(/^(\d*)d(\d+)$/i);
       if (dm) return { dice: [`${dm[1] || 1}d${dm[2]}`], flat: 0 };
       const n = cell.replace(/[+,]/g, "").match(/^-?\d+/);
@@ -312,6 +321,8 @@ export interface PendingChoice {
   level?: number;
   /** For ability increases: how many points, at most how many on one ability, and the score cap. */
   amounts?: { points: number; perAbility: number; max: number; sets: number[][] };
+  /** When it can be changed again ("long", "short"): the sheet offers it after a rest (Circle of the Land, Hunter's Prey). */
+  swap?: string[];
 }
 
 /** A feat the character has, and the slot it was taken in (if any). */
@@ -328,12 +339,17 @@ export interface ModifResource {
   recover: "short" | "shortOne" | "long" | "dawn" | "never";
   /** Dice rolled to regain uses (item charges: "1d6+1" at dawn). Without it, all come back. */
   regain?: string;
+  /** "hp" for a pool of Hit Points (Lay on Hands, Arcane Ward). */
+  unit?: string;
+  /** The die each use is (Superiority Dice d8, Bardic Inspiration d6), worked out for your level. */
+  die?: string;
   entryId: string;
   itemId?: string;
 }
 
 /** What using something costs: uses of a resource (or item charges), maybe a range the player picks. */
-export interface ModifCost { key: string; amount: number; min?: number; max?: number }
+/** What using something costs; `min`/`max` (or `any`) let the player choose how much to spend (Lay on Hands, Healing Light). */
+export interface ModifCost { key: string; amount: number; min?: number; max?: number; any?: boolean }
 
 export interface ModifAction {
   id: string;
@@ -344,6 +360,10 @@ export interface ModifAction {
   /** @deprecated use cost.key */
   resource?: string;
   heal?: string;
+  /** Healing that depends on how much is spent ("dice(cost.resource, d6)", "cost.amount"), worked out on use. */
+  healExpr?: string;
+  /** Healing for each choose-one option, when it depends on what's spent (Lay on Hands). */
+  optionHeals?: (string | undefined)[];
   tempHp?: string;
   text?: string;
   /** Casting a spell from a feature or item. */
@@ -360,6 +380,40 @@ export interface ModifAction {
   attack?: { weapon: string; count: number };
   /** It makes or bonds an item (Pact of the Blade): a weapon of a kind you pick, tagged so effects can find it. */
   creates?: ModifCreates;
+  /** It summons a creature (the `summon` block, read by the sheet's Companions panel). */
+  summon?: Val;
+  /** Using it rolls on a table in its entry (Wild Magic Surge); `keep: either` rolls twice. */
+  rollTable?: { dice: string; table: string; entryId: string; keep?: string };
+}
+
+/**
+ * More for a summon from another feature (Pact of the Chain's special familiar forms; Investment of the Chain
+ * Master's speed, save DC and damage type), applied when that spell or feature summons.
+ */
+export interface ModifSummonOption {
+  /** The spell or feature whose summon it changes (an entry id). */
+  for: string;
+  source: string;
+  /** More stat blocks to choose from (Creature entry ids). */
+  add: string[];
+  /** A speed it gains, with a choice of kind ("Fly or Swim 40 ft."). */
+  speed?: { kinds: string[]; value: number };
+  /** Its saving throw DCs become your spell save DC. */
+  saveDc?: boolean;
+  /** Damage types it can deal instead of these. */
+  damageType?: { choose: string[]; replaces: string[] };
+  text?: string;
+}
+
+/** A creature a feature lets you summon (Primal Companion), read by the sheet's Companions panel. */
+export interface ModifSummon {
+  key: string;
+  name: string;
+  source: string;
+  /** The entry it comes from, for `$#anchor` stat blocks inside it. */
+  entryId: string;
+  /** The `summon` block as written. */
+  spec: Val;
 }
 
 /** `creates` on an action: conjure a weapon of your choice (or bond one you have), tagged for `weapon: { tag }` scopes. */
@@ -386,8 +440,31 @@ export interface ScrollUse {
 }
 
 /** Something to switch on and off: Rage, Cloak of Invisibility, a form. */
+/** What a `form` lets you become (Wild Shape): which creatures, how many known, and what changes. */
+export interface FormSpec {
+  /** Kept per character so the known forms survive level-ups. */
+  id: string;
+  /** Creature type the forms must have ("beast"), if any. */
+  type?: string;
+  crMax: number;
+  /** Forms with a Fly Speed are allowed. */
+  fly: boolean;
+  /** How many forms can be known at once (0 = any eligible creature). */
+  known: number;
+  /** When known forms can be swapped, in words. */
+  swap?: string;
+  tempHp: number;
+  /** A floor for AC while in the form (Circle Forms: 13 + Wisdom modifier). */
+  acMin?: number;
+  acMinSource?: string;
+  /** Spellcasting is blocked while in the form. */
+  blocksSpells: boolean;
+}
+
 export interface ModifToggle {
   key: string;
+  /** Set when this is a `form` (Wild Shape): the sheet asks which creature to become. */
+  form?: FormSpec;
   name: string;
   source: string;
   activation: string;
@@ -411,6 +488,19 @@ export interface ModifTrigger {
   text: string;
   cost?: ModifCost;
   auto: boolean;
+  /** It takes your Reaction. */
+  reaction?: boolean;
+  /** The trigger's own id (`id:`), so other triggers can follow it (Cunning Strike follows Sneak Attack). */
+  id?: string;
+  /** "use: <id>" events: the trigger that this one follows. */
+  follows?: string;
+  /** Extra damage it offers (Sneak Attack 3d6, Brutal Strike 1d10), worked out for your level. */
+  damage?: { dice: string; type: string }[];
+  /** Effects to pick from when it happens, up to `pick` of them (Cunning Strike, Brutal Strike). */
+  options?: { id: string; label: string; diceCost?: number; save?: string; text: string }[];
+  pick?: number;
+  /** Save DC for its options. */
+  dc?: number;
 }
 
 /** A spell the character can cast through a feat, species trait or item. */
@@ -446,6 +536,12 @@ export interface ModifResult {
   weapons: Set<string>;
   armor: Set<string>;
   tools: Set<string>;
+  /** Where each tool proficiency comes from (tool name -> sources). */
+  toolSources: Record<string, string[]>;
+  /** Senses from features, species and items, in words, with where each comes from. */
+  senses: { text: string; source: string }[];
+  /** Languages from features, species and items (origin languages are the character's own picks). */
+  languages: { name: string; source: string }[];
   masteries: string[];
   feats: Entry[];
   featPicks: FeatPick[];
@@ -455,6 +551,8 @@ export interface ModifResult {
   size?: string;
   resources: ModifResource[];
   actions: ModifAction[];
+  summons: ModifSummon[];
+  summonOptions: ModifSummonOption[];
   toggles: ModifToggle[];
   triggers: ModifTrigger[];
   activeSpells: ActiveSpell[];
@@ -497,7 +595,8 @@ export interface ModifResult {
   offhandMod?: string;
   /** How this character reads Spell Scrolls when it differs from the item's own rule (Use Magic Device). */
   scrollRule?: { ability: string; check?: { ability: string; skill?: string; fromLevel: number }; source: string };
-  onLongRest: { regain: string; source: string }[];
+  /** What a Long Rest does besides the usual: regain something (Heroic Inspiration), or roll dice to keep (Portent). */
+  onLongRest: { regain?: string; roll?: string; key?: string; text?: string; source: string }[];
   reminders: Reminder[];
   pending: PendingChoice[];
   features: FeatureStatus[];
@@ -583,8 +682,8 @@ export function weaponFits(scope: Val, w: WeaponInfo, itemId?: string): boolean 
 
 export function emptyResult(): ModifResult {
   return {
-    encoded: new Set(), saves: new Set(), skills: new Set(), weapons: new Set(), armor: new Set(), tools: new Set(),
-    masteries: [], feats: [], featPicks: [], scores: {}, scoreSteps: [], resources: [], actions: [], toggles: [], triggers: [],
+    encoded: new Set(), saves: new Set(), skills: new Set(), weapons: new Set(), armor: new Set(), tools: new Set(), toolSources: {}, senses: [], languages: [],
+    masteries: [], feats: [], featPicks: [], scores: {}, scoreSteps: [], resources: [], actions: [], summons: [], summonOptions: [], toggles: [], triggers: [],
     activeSpells: [], grantedSpells: [], notes: [], expertise: new Set(), weaponFilters: [], acBonuses: [], acBases: [], bonuses: [], attackBonuses: [], damageBonuses: [],
     advantages: [], disadvantages: [], critRange: 20, attacksPerAction: 1, treatRolls: [], weaponRules: [], rollFloors: [], skillAbilities: [], converts: [], rollNotes: [], onLongRest: [], reminders: [], pending: [],
     features: [], problems: [],
@@ -785,7 +884,7 @@ function runModif(ctx: ModifCtx, scores: Record<string, number>, prereqScores: R
     if (!e?.effects?.length) return;
     const origin = opts.origin || e.id;
     if (opts.kind !== "item") r.encoded.add(e.id);
-    const env: Env = { ...baseEnv, level: opts.level, table: opts.table };
+    const env: Env = { ...baseEnv, level: opts.level, table: opts.table, named: (t, col) => namedCell(e, t, col, opts.level) };
     if (opts.item) env.variants = itemVariants(e, opts.item);
     const featureList = opts.kind === "class" || opts.kind === "subclass" ? features(e) : [];
     const options = optionChoices(e, ctx, opts.slot);
@@ -1208,7 +1307,16 @@ function convertOf(v: Val, a: ApplyCtx): Omit<ModifConvert, "source"> | null {
 
 function costOf(cost: Val, a: ApplyCtx): ModifCost | undefined {
   if (!cost || typeof cost !== "object") return undefined;
-  if (typeof cost.resource === "string") return { key: resourceKey(a, cost.resource), amount: typeof cost.amount === "number" ? cost.amount : 1 };
+  if (typeof cost.resource === "string") {
+    const key = resourceKey(a, cost.resource);
+    if (cost.any) return { key, amount: 1, min: 1, any: true };
+    if (cost.amount && typeof cost.amount === "object") {
+      const min = evalNumber(cost.amount.min ?? 1, a.env) ?? 1;
+      const max = cost.amount.max !== undefined ? evalNumber(cost.amount.max, a.env) ?? undefined : undefined;
+      return { key, amount: min, min, max };
+    }
+    return { key, amount: typeof cost.amount === "number" ? cost.amount : 1 };
+  }
   if (cost.charges !== undefined && a.item) {
     const ch = cost.charges;
     if (typeof ch === "number") return { key: `item:${a.item.id}`, amount: ch };
@@ -1358,7 +1466,7 @@ function saveText(sv: Val, env?: Env): string {
   return `${dc ? `DC ${dc} ` : ""}${ABIL_NAME(String(sv.ability || ""))} save${sv.success === "half" ? " (half on a success)" : ""}`;
 }
 
-export function durationOf(d: Val): { text: string; minutes: number } {
+export function durationOf(d: Val, env?: Env): { text: string; minutes: number } {
   if (!d) return { text: "", minutes: Infinity };
   if (typeof d === "string") return { text: d === "spell" ? "while the spell lasts" : d.replace(/-/g, " "), minutes: d === "spell" ? Infinity : 0.1 };
   if (d.until) {
@@ -1366,10 +1474,12 @@ export function durationOf(d: Val): { text: string; minutes: number } {
     return { text: `until ${String(d.until).replace(/-/g, " ")}${d.extend ? ` (extend: ${d.extend})` : ""}${max ? `, up to ${max.text}` : ""}`, minutes: max ? max.minutes : 1 };
   }
   if (d.amount !== undefined) {
-    const n = typeof d.amount === "number" ? d.amount : 1;
+    // "half(level:druid)" hours: worked out when the reader can (Wild Shape)
+    const v = typeof d.amount === "number" ? d.amount : env ? evalNumber(d.amount, env) : null;
+    const n = v ?? 1;
     const unit = String(d.unit || "minute");
     const per: Record<string, number> = { round: 0.1, minute: 1, hour: 60, day: 1440 };
-    return { text: `${typeof d.amount === "number" ? d.amount : d.amount} ${unit}${n === 1 ? "" : "s"}`, minutes: n * (per[unit] ?? 1) };
+    return { text: `${v ?? d.amount} ${unit}${n === 1 ? "" : "s"}`, minutes: n * (per[unit] ?? 1) };
   }
   return { text: "", minutes: Infinity };
 }
@@ -1489,6 +1599,8 @@ function describeInner(b: Block, env?: Env): string {
       return `You have the ${([] as Val[]).concat(v.add ?? v).map(words).join(" and ")} condition${v.duration ? ` (${durationOf(v.duration).text})` : ""}`;
     case "trait":
       return words(v);
+    case "summon-options":
+      return `Changes what ${typeof v.for === "string" ? words(v.for) : "a summon"} can summon${v.add ? `: also ${([] as Val[]).concat(v.add).map((x) => words(x)).join(", ")}` : ""}`;
     case "summon":
       return `Summons ${v.creature ? words(v.creature) : "a creature"} (see the rules)`;
     case "note":
@@ -1599,7 +1711,10 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       const items: Val[] = Array.isArray(v) ? v : [v];
       // a filtered weapon proficiency ("Martial weapons that have the Light property") counts for those weapons
       return items.every((x) => {
-        if (typeof x === "string") return grant(r, x);
+        if (typeof x === "string") {
+          if (x.startsWith("tool:")) (r.toolSources[x.slice(5)] ||= []).push(src);
+          return grant(r, x);
+        }
         // a saving throw named by a choice ("the chosen ability": Resilient)
         if (x && typeof x === "object" && typeof x.save === "string") {
           const m = x.save.match(/^choice:([\w-]+)$/);
@@ -1669,6 +1784,7 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         r.pending.push({
           key, entry: e, feature: fname, label: `${fname}: choose ${count > 1 ? count : "one"}`, count, options: opts.length ? opts : null,
           chosen: info?.chosen || [], origin: a.origin, slot: a.slot, storedIn: species ? "speciesChoice" : undefined,
+          swap: v.swap?.at ? ([] as Val[]).concat(v.swap.at).map(String) : undefined,
         });
         // options written inline carry their own effects (Drow, Wood Elf)
         for (const o of objects || []) {
@@ -1683,7 +1799,8 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       const count = evalNumber(v.count ?? 1, env) || 1;
       const chosen = chosenFor(key, v, a.ctx, storedIn, a.opts.info);
       const options = choiceOptions(v, a.ctx);
-      r.pending.push({ key, entry: e, feature: fname, label: choiceLabel(v, fname, count), count, options, chosen, storedIn, origin: a.origin, slot: a.slot });
+      r.pending.push({ key, entry: e, feature: fname, label: choiceLabel(v, fname, count), count, options, chosen, storedIn, origin: a.origin, slot: a.slot,
+        swap: v.swap?.at ? ([] as Val[]).concat(v.swap.at).map(String) : undefined });
       if (kinds.includes("feat")) {
         for (const id of chosen.slice(0, count)) a.readFeat(a.ctx.byId(id) || resolveRef(id, a.ctx));
         return true;
@@ -1691,8 +1808,12 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       if (v.grants === "proficiency") {
         for (const x of chosen.slice(0, count)) {
           if (SKILLS.includes(x)) r.skills.add(x);
-          else r.tools.add(x);
+          else { r.tools.add(x); (r.toolSources[x] ||= []).push(src); }
         }
+        return true;
+      }
+      if (v.grants === "language") {
+        for (const x of chosen.slice(0, count)) r.languages.push({ name: x, source: src });
         return true;
       }
       // proficiency, or Expertise if already proficient (Keen Mind, Observant)
@@ -1742,7 +1863,8 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       // the feature's name, unless the pool is named differently (Font of Magic -> Sorcery Points)
       const first = String(v.id).split("-")[0].replace(/s$/, "");
       const name = v.label || (a.item ? a.item.name : slug(fname).includes(first) ? fname : titleOf(String(v.id)));
-      if (max > 0) r.resources.push({ key: scopedKey(a, v.id), name, max, recover, entryId: e.id, itemId: a.item?.id });
+      const die = v.die !== undefined ? valueText(v.die, env).replace(/\s+/g, "").replace(/^(\d*)d/, (m: string, n: string) => (n === "1" ? "d" : m)) : undefined;
+      if (max > 0) r.resources.push({ key: scopedKey(a, v.id), name, max, recover, unit: typeof v.unit === "string" ? v.unit : undefined, die: die && /^\d*d\d+$/.test(die) ? die : undefined, entryId: e.id, itemId: a.item?.id });
       if (resets.includes("initiative") && !resets.includes("short")) a.remind(`${name}: also comes back when you roll Initiative.`);
       return true;
     }
@@ -1792,6 +1914,8 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         id: a.item ? `item:${a.item.id}:${v.id || slug(name)}` : v.id || slug(fname), name, source: src, activation: actLabel(v.activation),
         cost, resource: cost?.key,
         heal: heal ? amountText(heal) : undefined,
+        healExpr: !heal && typeof v.heal === "string" && /cost\./.test(v.heal) ? v.heal : undefined,
+        optionHeals: Array.isArray(v["choose-one"]) && v["choose-one"].some((x: Val) => x?.heal !== undefined) ? v["choose-one"].map((x: Val) => (x?.heal !== undefined ? String(x.heal) : undefined)) : undefined,
         tempHp: temp ? amountText(temp) : undefined,
         cast: spellRef ? { spellId: spellRef.id, level: typeof v["cast-at"] === "number" ? v["cast-at"] : undefined, dc: typeof dc === "number" ? dc : undefined, attack: atk, scroll } : undefined,
         save: v.save ? { ability: ABIL_NAME(String(v.save.ability)), dc: v.save.dc !== undefined ? evalNumber(v.save.dc, env) ?? undefined : typeof dc === "number" ? dc : undefined, success: v.save.success } : undefined,
@@ -1803,7 +1927,7 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
           const takes = ([] as Val[]).concat(x.take || []).map((t) => titleCase(String(t))).join(" and ");
           const oc = x.cost ? costOf(x.cost, a) : undefined;
           const rn = oc ? r.resources.find((y) => y.key === oc.key)?.name : undefined;
-          const costTxt = oc ? ` (costs ${oc.amount}${rn ? ` ${rn}` : ""})` : "";
+          const costTxt = oc ? (oc.any || oc.min !== undefined ? ` (spend from ${rn || "the pool"})` : ` (costs ${oc.amount}${rn ? ` ${rn}` : ""})`) : "";
           return takes ? `${takes}${costTxt}` : `${String(x.label || titleOf(x.id) || describeBlock({ type: "action", v: x }, env))}${costTxt}`;
         }) : undefined,
         creates: v.creates && typeof v.creates === "object" ? {
@@ -1817,7 +1941,30 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
           bond: typeof v.creates.bond === "string" ? v.creates.bond : undefined,
         } : undefined,
         attack: v.attack && typeof v.attack === "object" ? { weapon: typeof v.attack.weapon === "string" ? v.attack.weapon : "weapon", count: typeof v.attack.count === "number" ? v.attack.count : 1 } : undefined,
+        summon: v.summon && typeof v.summon === "object" ? v.summon : undefined,
+        rollTable: v["roll-table"] && typeof v["roll-table"] === "object" && typeof v["roll-table"].table === "string" && !v["roll-table"].table.startsWith("variant:")
+          ? { dice: valueText(v["roll-table"].dice ?? "1d100", env).replace(/\s+/g, ""), table: v["roll-table"].table, entryId: e.id, keep: v["roll-table"].keep } : undefined,
         text: v.text || (heal || spellRef || v.save || v.damage || v["choose-one"] || v.attack ? undefined : a.item ? describeBlock(b, env) : shortText()),
+      });
+      return true;
+    }
+    case "summon": {
+      // a creature you can call on (Primal Companion); spells with a summon are read when they're cast
+      r.summons.push({ key: `${e.id}#${slug(fname) || "summon"}`, name: fname, source: src, entryId: e.id, spec: v });
+      return true;
+    }
+    case "summon-options": {
+      const target = typeof v.for === "string" ? resolveRef(v.for, a.ctx) : undefined;
+      if (!target) { a.remind(shortText()); return false; }
+      const sp = v.speed && typeof v.speed === "object" ? v.speed : null;
+      const dt = v["damage-type"] && typeof v["damage-type"] === "object" ? v["damage-type"] : null;
+      r.summonOptions.push({
+        for: target.id, source: fname,
+        add: ([] as Val[]).concat(v.add || []).map((x) => resolveRef(String(x), a.ctx)?.id).filter(Boolean) as string[],
+        speed: sp ? { kinds: ([] as Val[]).concat(sp.choose || sp.kind || []).map(String), value: evalNumber(sp.value, env) ?? 0 } : undefined,
+        saveDc: v["save-dc"] === "spell",
+        damageType: dt ? { choose: ([] as Val[]).concat(dt.choose || []).map(String), replaces: ([] as Val[]).concat(dt.replaces || []).map(String) } : undefined,
+        text: typeof v.text === "string" ? v.text : undefined,
       });
       return true;
     }
@@ -1871,21 +2018,68 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
           return true;
         }
       }
-      // a later feature adding to an earlier toggle, action or trigger (Stormborn adds to Wrath of the Sea)
+      // a later feature raising a trigger's numbers (Improved Cunning Strike: two effects; Brutal Strike at 17: 2d10)
       const ref = typeof v.target === "string" ? v.target : "";
+      if (ref && set) {
+        const tid = ref.replace(/^.*#/, "");
+        const trg = r.triggers.find((x) => x.id === tid);
+        if (trg && Object.keys(set).every((k) => k === "offer.pick" || k === "offer.damage.dice")) {
+          if (typeof v.at === "number" && v.at > a.opts.level) return true;
+          if (set["offer.pick"] !== undefined) trg.pick = evalNumber(set["offer.pick"], env) ?? trg.pick;
+          if (set["offer.damage.dice"] !== undefined && trg.damage?.length) trg.damage = [{ ...trg.damage[0], dice: valueText(set["offer.damage.dice"], env).replace(/\s+/g, "") }, ...trg.damage.slice(1)];
+          return true;
+        }
+      }
+      // a later feature changing a form (Circle Forms: higher CR, more Temporary Hit Points; Beast Spells: cast in it)
       const add = v.add && typeof v.add === "object" ? v.add : null;
+      const formTog = ref ? r.toggles.find((t) => t.form && t.key === activeRefKey(a, ref)) : undefined;
+      if (formTog?.form && (set || add)) {
+        const f = formTog.form;
+        if (set) {
+          const cr = set["choose.from.creature.cr-max"];
+          if (cr !== undefined) f.crMax = Math.max(f.crMax, evalNumber(cr, env) ?? f.crMax);
+          if (set["temp-hp"] !== undefined) {
+            const t = evalNumber(set["temp-hp"], env);
+            if (t !== null) {
+              formTog.lines = formTog.lines.filter((x) => !/^You gain \d+ Temporary Hit Points\.$/.test(x));
+              f.tempHp = t;
+              formTog.lines.unshift(`You gain ${t} Temporary Hit Points.`);
+            }
+          }
+          if (set.blocks !== undefined) f.blocksSpells = ([] as Val[]).concat(set.blocks || []).includes("spellcasting");
+        }
+        for (const x of toBlocks(add?.effects)) {
+          if (x.type === "base" && x.v?.to === "ac") {
+            const n = evalNumber(x.v.value, env);
+            if (n !== null && n > (f.acMin ?? 0)) { f.acMin = n; f.acMinSource = fname; }
+          }
+        }
+        if (v.text) formTog.lines.push(String(v.text));
+        if (!add) return true;
+      }
       if (ref && add) {
         const tog = r.toggles.find((t) => t.key === activeRefKey(a, ref));
         const id = ref.replace(/^.*#/, "");
         const act = tog ? undefined : r.actions.find((x) => x.id === id);
-        const trg = tog || act ? undefined : r.triggers.find((x) => x.key.replace(/^.*#/, "") === id || x.key === id);
+        const trg = tog || act ? undefined : r.triggers.find((x) => x.id === id || x.key.replace(/^.*#/, "") === id || x.key === id);
+        // more options for a trigger (Improved Cunning Strike's Daze and Knock Out; Brutal Strike at 13)
+        if (trg && Array.isArray(add["offer.choose-one"])) {
+          if (typeof v.at === "number" && v.at > a.opts.level) return true;
+          const more = triggerRiders({ offer: { "choose-one": add["offer.choose-one"] } }, env).options || [];
+          trg.options = [...(trg.options || []), ...more];
+          trg.text = `${trg.text}. Also: ${more.map((o) => o.label).join(", ")}`;
+          return true;
+        }
         if (tog || act || trg) {
           const extra = toBlocks(add.effects);
           const words = [...extra.map((x) => describeBlock(x, env)).filter(Boolean), ...(add.text ? [String(add.text)] : [])];
           if (tog) {
             tog.lines.push(...words);
             if (tog.active) for (const x of extra) applyBlock(x, { ...a, inEffect: true });
-          } else if (act) act.text = [act.text, ...words].filter(Boolean).join(" ");
+          } else if (act) {
+            act.text = [act.text, ...words].filter(Boolean).join(" ");
+            if (act.rollTable && typeof add["roll-table.keep"] === "string") act.rollTable = { ...act.rollTable, keep: add["roll-table.keep"] };
+          }
           else if (trg) trg.text = [trg.text, ...words].filter(Boolean).join(" ");
           return true;
         }
@@ -1917,15 +2111,31 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       const id = v.id || slug(fname) || "toggle";
       const key = toggleKey(a, id);
       const active = a.activeKeys.has(key);
-      const dur = durationOf(v.duration);
+      const dur = durationOf(v.duration, env);
       const inner = toBlocks(v.effects);
       const lines = inner.map((x) => describeBlock(x, env)).filter(Boolean);
       if (v.text) lines.push(String(v.text));
       if (b.type === "form") lines.push("You take another form (see the rules).");
+      let form: FormSpec | undefined;
+      if (b.type === "form") {
+        const from = v.choose?.from?.creature || {};
+        form = {
+          id: String(v.choose?.id || id),
+          type: typeof from.type === "string" ? from.type : undefined,
+          crMax: evalNumber(from["cr-max"], env) ?? 0,
+          fly: from.fly === undefined ? true : from.fly === true || (evalNumber(from.fly, env) ?? 0) > 0,
+          known: evalNumber(v.choose?.count, env) ?? 0,
+          swap: v.choose?.swap?.at === "long" ? `You can swap ${v.choose.swap.count === 1 || !v.choose.swap.count ? "one known form" : `${v.choose.swap.count} known forms`} when you finish a Long Rest.` : undefined,
+          tempHp: evalNumber(v["temp-hp"], env) ?? 0,
+          blocksSpells: ([] as Val[]).concat(v.blocks || []).includes("spellcasting"),
+        };
+        lines.pop(); // "You take another form": the sheet shows which
+        if (form.tempHp) lines.unshift(`You gain ${form.tempHp} Temporary Hit Points.`);
+      }
       r.toggles.push({
         key, name: a.item ? a.item.name : v.label || titleOf(v.id) || fname, source: src, activation: actLabel(v.activation),
         cost: costOf(v.cost, a), duration: dur.text || undefined, minutes: dur.minutes,
-        ends: v["ends-when"] ? `Ends early: ${whenText(v["ends-when"])}` : undefined, lines, active, itemId: a.item?.id,
+        ends: v["ends-when"] ? `Ends early: ${whenText(v["ends-when"])}` : undefined, lines, active, itemId: a.item?.id, form,
       });
       if (active) for (const x of inner) applyBlock(x, { ...a, inEffect: true });
       return true;
@@ -1945,11 +2155,17 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         r.onLongRest.push({ regain: regain.resource, source: src });
         return true;
       }
+      // dice rolled at the end of a Long Rest and kept for later (Portent's foretelling rolls)
+      if (ev && typeof ev === "object" && ev.rest === "long" && v.auto && v.offer?.roll !== undefined && !v.when) {
+        r.onLongRest.push({ roll: valueText(v.offer.roll, env).replace(/\s+/g, ""), key: slug(fname), text: v.offer.text, source: src });
+        return true;
+      }
       if (v.when && whenEval(v.when, a) === false) return true;
       r.triggers.push({
         key: `${a.item ? `item:${a.item.id}` : e.id}#${fname}#${r.triggers.length}`, name: a.item ? a.item.name : fname, source: src,
         when: eventText(ev) + (v.if ? ` (${v.if})` : "") + (v.when ? ` (${whenText(v.when)})` : ""),
-        text: offerText(v.offer, env) || shortText(), cost: costOf(v.offer?.cost ?? v.cost, a) ?? perRest(v, a, fname), auto: !!v.auto,
+        text: offerText(v.offer, env) || shortText(), cost: costOf(v.offer?.cost ?? v.cost, a) ?? perRest(v, a, fname), auto: !!v.auto, reaction: !!v.reaction,
+        ...triggerRiders(v, env),
       });
       return true;
     }
@@ -1964,12 +2180,16 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         when: v.if !== undefined ? `When you roll a ${v.if} on ${v.roll === "d20" ? "a D20 Test" : rollText(v.roll)}` : `When you roll ${rollText(v.roll)}`,
         text: describeBlock(b, env), auto: false });
       return true;
-    case "defense":
     case "sense":
+      if (!(v && typeof v === "object" && v.when && whenEval(v.when, a) === false)) r.senses.push({ text: describeBlock(b, env), source: src });
+      return note(describeBlock(b, env));
+    case "language":
+      for (const x of ([] as Val[]).concat(v)) if (typeof x === "string") r.languages.push({ name: titleCase(x.replace(/-/g, " ")).replace(/\bCant\b/, "Cant").replace(/^Thieves Cant$/, "Thieves’ Cant"), source: src });
+      return note(describeBlock(b, env));
+    case "defense":
     case "speed":
     case "trait":
     case "note":
-    case "language":
     case "condition":
       return note(describeBlock(b, env));
     case "curse":
@@ -2170,7 +2390,7 @@ function titleOf(id?: string): string {
 function actLabel(act: Val): string {
   if (!act) return "";
   if (typeof act === "object") return `${act.amount ?? 1} ${act.unit ?? ""}`.trim();
-  return ({ action: "Action", bonus: "Bonus Action", reaction: "Reaction", none: "No action", free: "No action" } as Record<string, string>)[act] || String(act);
+  return ({ action: "Action", bonus: "Bonus Action", reaction: "Reaction", none: "No action", free: "No action", magic: "Magic action", utilize: "Utilize action", attack: "Attack action", "attack-action": "Part of the Attack action", "replace-attack": "Replaces one attack" } as Record<string, string>)[act] || String(act);
 }
 
 function choiceLabel(v: Val, fname: string, count: number): string {
@@ -2232,6 +2452,12 @@ export interface SpellPlan {
   /** Minutes it lasts (0 = instantaneous, Infinity = until dispelled). */
   minutes: number;
   concentration: boolean;
+  /** Conditions it gives its targets (Charmed, Blinded…). */
+  conditions: string[];
+  /** Its area, short: "15 ft. cone". */
+  area?: string;
+  /** What kind of spell it is when it rolls nothing: Summon, Buff, Area… or its school. */
+  kind: string;
 }
 
 /** Add `add` dice (or a number) `times` times to a dice expression: "8d6" + 1d6 × 2 = "10d6". */
@@ -2259,7 +2485,7 @@ export function spellPlan(s: Entry, o: { slot: number; charLevel: number; spell:
     level: o.charLevel, total: o.charLevel, pb: profBonus(o.charLevel), mods: {}, scores: {}, classLevels: {}, table: {}, spell: o.spell,
   };
   const plan: SpellPlan = {
-    damage: [], lines: [], selfEffects: false,
+    damage: [], lines: [], selfEffects: false, conditions: [], kind: "",
     minutes: spellMinutes(s.fields["duration"]), concentration: /concentration/i.test(s.fields["duration"] || ""),
   };
   const amt = (x: Val) => {
@@ -2327,6 +2553,19 @@ export function spellPlan(s: Entry, o: { slot: number; charLevel: number; spell:
     plan.lines.push(describeBlock(b, env));
   }
   plan.lines = plan.lines.filter(Boolean);
+  // conditions and area, from wherever the blocks put them
+  const seenCond = new Set<string>();
+  const walk = (v: Val, depth = 0, inApply = false) => {
+    if (!v || typeof v !== "object" || depth > 6) return;
+    if (Array.isArray(v)) { v.forEach((x) => walk(x, depth + 1, inApply)); return; }
+    if (inApply && v.condition) for (const cnd of ([] as Val[]).concat(v.condition)) if (typeof cnd === "string" && !seenCond.has(cnd)) { seenCond.add(cnd); plan.conditions.push(titleOf(cnd)); }
+    if (!plan.area && v.area && typeof v.area === "object" && v.area.shape) plan.area = `${v.area.size ?? ""}${v.area.size ? " ft. " : ""}${v.area.shape}`.trim();
+    for (const [key, x] of Object.entries(v)) walk(x, depth + 1, inApply || key === "apply" || key === "on-fail");
+  };
+  for (const b of blocks) if (b.type !== "narrative" && b.type !== "scaling") walk(b.v);
+  const types = new Set(blocks.map((b) => b.type));
+  plan.kind = types.has("summon") ? "Summon" : types.has("form") ? "Shapechange" : plan.selfEffects ? "Buff" : types.has("zone") || types.has("aura") ? "Area" : types.has("grant-senses") || types.has("sense") ? "Senses" : (s.tagline?.match(/^(?:Level \d+ )?(\w+)/)?.[1] || "").replace(/^Level$/, "");
+  if (/cantrip/i.test(plan.kind)) plan.kind = s.tagline?.match(/(\w+) Cantrip/)?.[1] || "";
   void level;
   return plan;
 }
@@ -2387,4 +2626,82 @@ export function weaponProficient(r: ModifResult | undefined, w: { name: string; 
   // a list of properties means any of them (Rogue: martial weapons with Finesse or Light)
   return r.weaponFilters.some((f) => (!f.tag || !!w.tags?.includes(f.tag)) && (!f.category || f.category === cat) &&
     (!f.property || ([] as string[]).concat(f.property).some((pr) => new RegExp(`\\b${pr}\\b`, "i").test(w.properties))));
+}
+
+/**
+ * A cell of a table named by a heading or bold caption in an entry ("#### Beast Shapes" + its table), for the
+ * row that applies at `level`: the last row whose first column is at or below it (2, 4, 8 → level 6 reads row 4).
+ */
+export function namedCell(e: Entry, table: string, col: string, level: number): string | undefined {
+  const md = e.body;
+  const lines = md.split("\n");
+  const want = table.trim().toLowerCase();
+  for (let i = 0; i < lines.length; i++) {
+    const bare = lines[i].replace(/^#{1,6}\s+/, "").replace(/^\*\*(.+)\*\*$/, "$1").trim();
+    if (bare === lines[i].trim() || bare.toLowerCase() !== want) continue; // only headings and bold captions
+    let j = i + 1;
+    while (j < lines.length && !/^\s*\|/.test(lines[j]) && !/^#{1,6}\s/.test(lines[j]) && j - i < 6) j++;
+    const t = parseTables(lines.slice(j).join("\n"))[0];
+    if (!t) continue;
+    const c = t.header.findIndex((x) => x.trim().toLowerCase() === col.trim().toLowerCase());
+    if (c < 0) return undefined;
+    let pick: string[] | undefined;
+    for (const r of t.rows) {
+      const lv = parseInt(r[0], 10);
+      if (!Number.isNaN(lv) && lv <= level) pick = r;
+    }
+    return pick?.[c];
+  }
+  return undefined;
+}
+
+
+/**
+ * The row of a table named by a heading or bold caption in an entry ("**Wild Magic Surge**") that a roll lands on:
+ * first-column ranges like "01–04", "5–6", "9" or "00" (100).
+ */
+export function tableRowFor(e: Entry, table: string, n: number): string[] | undefined {
+  const lines = e.body.split("\n");
+  const want = table.trim().toLowerCase();
+  for (let i = 0; i < lines.length; i++) {
+    const bare = lines[i].replace(/^#{1,6}\s+/, "").replace(/^\*\*(.+)\*\*$/, "$1").trim();
+    if (bare === lines[i].trim() || bare.toLowerCase() !== want) continue;
+    let j = i + 1;
+    while (j < lines.length && !/^\s*\|/.test(lines[j]) && j - i < 6) j++;
+    const t = parseTables(lines.slice(j).join("\n"))[0];
+    if (!t) continue;
+    for (const r of t.rows) {
+      const cell = (r[0] || "").replace(/[–—]/g, "-").trim();
+      const m = cell.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+      if (!m) continue;
+      const lo = +m[1] === 0 && m[1].length > 1 ? 100 : +m[1];
+      const hi = m[2] !== undefined ? (+m[2] === 0 ? 100 : +m[2]) : lo;
+      if (n >= lo && n <= hi) return r.slice(1);
+    }
+  }
+  return undefined;
+}
+
+
+/** A trigger's damage and pickable options, as data for the sheet's rider buttons. */
+function triggerRiders(v: Val, env: Env): Partial<ModifTrigger> {
+  const out: Partial<ModifTrigger> = {};
+  if (typeof v.id === "string") out.id = v.id;
+  if (v.event && typeof v.event === "object" && typeof v.event.use === "string") out.follows = v.event.use.replace(/^.*#/, "");
+  const o = v.offer;
+  if (o && typeof o === "object") {
+    if (o.damage) out.damage = ([] as Val[]).concat(o.damage).filter((d) => d && typeof d === "object" && d.dice !== undefined)
+      .map((d) => ({ dice: valueText(d.dice, env).replace(/\s+/g, ""), type: typeof d.type === "string" ? d.type : "" }));
+    if (Array.isArray(o["choose-one"])) {
+      out.options = o["choose-one"].filter((x: Val) => x && typeof x === "object").map((x: Val) => ({
+        id: String(x.id || x.label || "option"), label: String(x.label || titleCase(String(x.id || "option"))),
+        diceCost: x.cost?.["dice-from"] ? (typeof x.cost.count === "number" ? x.cost.count : 1) : undefined,
+        save: x.save?.ability ? ABIL_NAME(String(x.save.ability)) : undefined,
+        text: [x.text, x.if, x.apply?.condition ? `${titleCase(String(x.apply.condition))}${x.apply.duration ? "" : ""}` : "", x.move ? offerText({ move: x.move }, env) : ""].filter(Boolean).join(". "),
+      }));
+      out.pick = typeof o.pick === "number" ? o.pick : 1;
+    }
+  }
+  if (v.dc !== undefined) out.dc = evalNumber(v.dc, env) ?? undefined;
+  return out;
 }

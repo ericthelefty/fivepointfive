@@ -186,7 +186,7 @@ Every entry imports without this section: players read the rules text and apply 
 
 **What happens today:** the importer checks every block and flags typos and blocks it doesn't know. On the sheet:
 - **Numbers:** proficiencies, choices (skills, tools, feats, weapon masteries), ability score increases (including feats taken at Ability Score Improvement levels), AC formulas and bonuses, save, check, skill, Initiative, Speed, attack and damage bonuses, Advantage and Disadvantage, critical-hit range, Extra Attack and death-save rules.
-- **Active effects:** anything with a `toggle` (Rage, a cloak you switch on) gets a switch on the Effects tab; switching it on spends its cost and applies its effects until you end it or rest. Spells you cast with a duration show there too, and their effects on you apply.
+- **Active effects:** anything with a `toggle` (Rage, a cloak you switch on) gets a **Use** button on the Effects tab (or with the Bonus Actions, if it takes one); using it spends its cost and applies its effects until you end it or rest. When it has no uses left, the greyed-out button says on hover what brings it back (a Short or Long Rest, or dawn). Spells you cast with a duration show there too, and their effects on you apply.
 - **Uses:** limited-use features, item charges (with their recharge) and free casts are tracked, each with a Use button.
 - **When this happens:** triggers (reactions, "when you hit", "when you fail a save") are listed with their remaining uses.
 - **Spells and magic items** take their attack, save, damage, healing and upcasting from their Effects; magic items apply while equipped or attuned as they need.

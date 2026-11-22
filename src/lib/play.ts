@@ -32,6 +32,53 @@ export interface PlayState {
   log: LogEntry[];
   /** Effects switched on (Modif toggles) and spells in effect, until ended or a rest. */
   active?: ActiveEffect[];
+  /** Known forms (Wild Shape), by the form's choose id: Creature entry ids. */
+  forms?: Record<string, string[]>;
+  /** The creature each form is using right now, by toggle key. */
+  formOf?: Record<string, string>;
+  /** Dice rolled at a Long Rest and kept to use later (Portent), by feature: the values and which are used. */
+  recorded?: Record<string, { source: string; values: number[]; used: boolean[] }>;
+  /** Memorize Spell (Wizard 5): a swap of one prepared spell is open after a Short Rest. */
+  memorize?: "ready" | "used";
+  /** Creatures you've summoned or that serve you (familiars, a Ranger's beast, summoned spirits). */
+  companions?: Companion[];
+}
+
+/** A summoned creature, as the Companions panel keeps it. */
+export interface Companion {
+  uid: string;
+  /** What summoned it: the spell or feature name. */
+  source: string;
+  /** The spell or feature's key ("spell:<id>", a summon key): ending that ends the companion; same key replaces when limited to one. */
+  key: string;
+  limit?: number;
+  /** A Creature entry id, or "<entry id>#<stat block anchor>" for a stat block inside a spell or feature. */
+  ref?: string;
+  /** Stat blocks to pick from, in the same form as `ref`. */
+  options?: string[];
+  /** Pick from creatures like this instead (Find Familiar: CR 0 Beasts). */
+  filter?: { type?: string; crMax?: number };
+  variants?: string[];
+  variant?: string;
+  types?: string[];
+  type?: string;
+  /** The spell's level, for spirits whose numbers grow with it. */
+  level?: number;
+  count?: number;
+  /** A creature with no stat block (Mage Hand, an illusory double): what it is. */
+  text?: string;
+  hp?: number;
+  /** The spell or feature it came from (an entry id), for options other features add (Pact of the Chain). */
+  for?: string;
+  /** Pick any creature (an item that becomes a creature, a random creature, a copy of one). */
+  pickAny?: boolean;
+  /** Dice to roll on the item's table before picking (Bag of Tricks). */
+  rollDice?: string;
+  /** A copy with half the original's Hit Point maximum (Simulacrum). */
+  halfHp?: boolean;
+  /** Choices from options other features add: a speed kind ("fly"), a damage type ("radiant"). */
+  speedKind?: string;
+  dmgType?: string;
 }
 
 export interface ActiveEffect {

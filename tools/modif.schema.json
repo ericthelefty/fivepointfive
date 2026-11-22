@@ -1569,6 +1569,27 @@
      },
      "additionalProperties": false
     },
+    "summon-options": {
+     "type": "object",
+     "properties": {
+      "add": {},
+      "at": {},
+      "counter": {},
+      "damage-type": {},
+      "duration": {},
+      "for": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "save-dc": {},
+      "scope": {},
+      "speed": {},
+      "text": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
     "suppress": {
      "type": "object",
      "properties": {

@@ -1021,6 +1021,7 @@ A spell file's header fields (Level, School, Casting Time, Range, Components, Du
 `form` accepts every `toggle` field (§10): `ends-when`, `blocks`, `leave` (how you end it early), `effects`. Creature filters: `type`, `cr-max`, `fly` (true/false), `exclude`.
 
 - `form.target: other` imposes a form on another creature (Polymorph). Values can read the target and the chosen form: `cr-max: target.cr`, `temp-hp: form.hp`.
+- `summon-options` adds to another feature's summon when it happens: `for` (the spell or feature), `add` (more stat blocks to pick from, like Pact of the Chain's special familiar forms), `speed: { choose: [fly, swim], value: 40 }`, `save-dc: spell` (its saves use your spell save DC), `damage-type: { choose: [necrotic, radiant], replaces: [bludgeoning, piercing, slashing] }` and `text`. Investment of the Chain Master is the example.
 - `summon` takes `limit: 1` ("one familiar only"), `type-override: { choose: [celestial, fey, fiend] }` (Find Familiar), `count`, `control: { activation, range, move, duration }`, `initiative: shared | after-you`, `stat-level: slot-level` (Summon Dragon), `variant`, `overrides` and `creature: { copy-of: target, hp-max: half }` (Simulacrum).
 
 ### 12.1 Monster entries (planned for a later version)

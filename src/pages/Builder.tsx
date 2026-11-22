@@ -1,3 +1,4 @@
+import { Btn } from "../lib/tip.tsx";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ScrollRow } from "../components/ScrollRow.tsx";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -702,9 +703,9 @@ function SkillsStep({ c, update }: StepProps) {
               {pick.from.map((s) => {
                 const bgHas = fromBg.includes(s);
                 return (
-                  <button key={s} className="pill" disabled={bgHas} aria-pressed={c.classSkills.includes(s)} onClick={() => update({ classSkills: toggle(c.classSkills, s, pick.count) })} title={bgHas ? "Already from your background" : undefined}>
+                  <Btn key={s} className="pill" disabled={bgHas} aria-pressed={c.classSkills.includes(s)} onClick={() => update({ classSkills: toggle(c.classSkills, s, pick.count) })} why={bgHas ? "Your background already gives you this skill, so pick a different one here." : undefined}>
                     {s}{bgHas ? " (background)" : ""}
-                  </button>
+                  </Btn>
                 );
               })}
             </div>

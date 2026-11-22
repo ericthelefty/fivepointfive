@@ -1,6 +1,7 @@
 /**
  * Characters, from browser storage (local mode) or the instance database.
- * Members see every character in the instance; the owner or an admin can edit.
+ * Members see every character in the instance except hidden ones (the owner and admins still see those);
+ * the owner or an admin can edit, and hide or show it.
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { cloud, supabase } from "./backend.ts";
@@ -11,6 +12,8 @@ import type { Character } from "./rules.ts";
 export interface CharRow {
   c: Character;
   owner?: string;
+  /** Hidden from the rest of the instance (only the owner and admins see it). */
+  hidden?: boolean;
 }
 
 interface CharState {
@@ -21,6 +24,8 @@ interface CharState {
   create: (c: Character) => Promise<void>;
   remove: (id: string) => Promise<void>;
   canEdit: (id?: string) => boolean;
+  /** Hide a character from the rest of the instance, or show it again. */
+  setHidden: (id: string, hidden: boolean) => Promise<void>;
   reload: () => Promise<void>;
   saving: boolean;
   error?: string;
@@ -39,12 +44,12 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     if (!supabase || session.status !== "ready") return;
-    const { data, error: e } = await supabase.from("characters").select("id, owner, data, updated_at").order("updated_at", { ascending: false });
+    const { data, error: e } = await supabase.from("characters").select("id, owner, hidden, data, updated_at").order("updated_at", { ascending: false });
     if (e) {
       setError(e.message);
       return;
     }
-    setRows((data || []).map((r) => ({ c: { ...(r.data as Character), id: r.id }, owner: r.owner })));
+    setRows((data || []).map((r) => ({ c: { ...(r.data as Character), id: r.id }, owner: r.owner, hidden: !!r.hidden })));
     setReady(true);
   }, [session.status]);
 
@@ -132,8 +137,18 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
     setRows((prev) => prev.filter((r) => r.c.id !== id));
   };
 
+  const setHidden = async (id: string, hidden: boolean) => {
+    if (!supabase) return;
+    setRows((prev) => prev.map((r) => (r.c.id === id ? { ...r, hidden } : r)));
+    const { error: e } = await supabase.from("characters").update({ hidden }).eq("id", id);
+    if (e) {
+      setError(`Couldn’t ${hidden ? "hide" : "show"} the character: ${e.message}`);
+      setRows((prev) => prev.map((r) => (r.c.id === id ? { ...r, hidden: !hidden } : r)));
+    }
+  };
+
   return (
-    <Ctx.Provider value={{ ready, rows, get: (id) => rows.find((r) => r.c.id === id), save, create, remove, canEdit, reload, saving, error }}>
+    <Ctx.Provider value={{ ready, rows, get: (id) => rows.find((r) => r.c.id === id), save, create, remove, canEdit, setHidden, reload, saving, error }}>
       {children}
     </Ctx.Provider>
   );

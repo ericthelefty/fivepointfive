@@ -1,3 +1,4 @@
+import { Tip } from "../lib/tip.tsx";
 import { useMemo, useState } from "react";
 import { Md } from "../lib/md.tsx";
 import type { Entry } from "../lib/parse.ts";
@@ -70,11 +71,11 @@ export default function InventoryPanel(p: Props) {
   return (
     <div className="spanel inv">
       <div className="invhead">
-        <div className={`invstat ${attuned >= ATTUNEMENT_LIMIT ? "full" : ""}`} title="Magic items you're attuned to">
-          <span className="sl">Attuned</span> <b>{attuned}/{ATTUNEMENT_LIMIT}</b>
+        <div className={`invstat ${attuned >= ATTUNEMENT_LIMIT ? "full" : ""}`}>
+          <Tip tip={`Magic items you're attuned to. You can be attuned to at most ${ATTUNEMENT_LIMIT} at a time.`}><span className="sl">Attuned</span></Tip> <b>{attuned}/{ATTUNEMENT_LIMIT}</b>
         </div>
-        <div className={`invstat ${over ? "over" : ""}`} title={`Carrying capacity: Strength ${p.strength} × ${capacity / p.strength} lb. Fifty coins weigh a pound.`}>
-          <span className="sl">Carrying</span> <b>{fmtWt(weight)}</b> / {fmtWt(capacity)} lb.
+        <div className={`invstat ${over ? "over" : ""}`}>
+          <Tip tip={`Carrying capacity: Strength ${p.strength} × ${capacity / p.strength} lb. Fifty coins weigh a pound.`}><span className="sl">Carrying</span></Tip> <b>{fmtWt(weight)}</b> / {fmtWt(capacity)} lb.
           {over && <span className="warn"> Over capacity</span>}
         </div>
         <div className="coins" role="group" aria-label="Coins">
@@ -85,6 +86,11 @@ export default function InventoryPanel(p: Props) {
                 onChange={(e) => set(p.items, { ...p.coins, [k]: Math.max(0, Math.floor(+e.target.value || 0)) })} />
             </label>
           ))}
+          {(() => {
+            const gp = p.coins.cp / 100 + p.coins.sp / 10 + p.coins.ep / 2 + p.coins.gp + p.coins.pp * 10;
+            const n = COIN_KEYS.reduce((t, k) => t + (p.coins[k] || 0), 0);
+            return n ? <span className="faint" style={{ fontSize: 12 }}>Worth {Math.round(gp * 100) / 100} GP · {n} coins weigh {fmtWt(n / 50)} lb.</span> : null;
+          })()}
         </div>
       </div>
 

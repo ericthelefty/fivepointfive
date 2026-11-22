@@ -340,6 +340,19 @@ When you cast *Find Familiar*, you infuse the summoned familiar with a measure o
 
 ***Resistance.*** When the familiar takes damage, you can take a Reaction to grant it Resistance against that damage.
 
+## Effects
+```yaml
+- option: { of: $#invocations, prerequisite: { level: 5, has: { option: $#pact-of-the-chain } } }
+- summon-options:
+    for: $srd/spells/find-familiar
+    speed: { choose: [fly, swim], value: 40 }
+    save-dc: spell
+    damage-type: { choose: [necrotic, radiant], replaces: [bludgeoning, piercing, slashing] }
+    text: "Quick Attack: as a Bonus Action, command it to take the Attack action. Resistance: when it takes damage, you can take a Reaction to give it Resistance to that damage."
+- action: { id: quick-attack, activation: bonus, text: "Your familiar takes the Attack action." }
+- action: { id: familiar-resistance, activation: reaction, text: "When your familiar takes damage, it has Resistance to that damage." }
+```
+
 ### Lessons of the First Ones
 
 *Prerequisite: Level 2+ Warlock*
@@ -422,6 +435,16 @@ You learn the *Find Familiar* spell and can cast it as a Magic action without ex
 When you cast the spell, you choose one of the normal forms for your familiar or one of the following special forms: **Imp, Pseudodragon, Quasit, Skeleton, Sphinx of Wonder, Sprite,** or **Venomous Snake** (see “Monsters” for the familiar’s stat block).
 
 Additionally, when you take the Attack action, you can forgo one of your own attacks to allow your familiar to make one attack of its own with its Reaction.
+
+## Effects
+```yaml
+- option: { of: $#invocations }
+- grant-spell: { spell: $srd/spells/find-familiar, at-will: true, overrides: { casting-time: magic } }
+- summon-options: { for: $srd/spells/find-familiar,
+                    add: [$srd/monsters/imp, $srd/monsters/pseudodragon, $srd/monsters/quasit, $srd/monsters/skeleton,
+                          $srd/monsters/sphinx-of-wonder, $srd/monsters/sprite, $srd/animals/venomous-snake] }
+- action: { id: pact-of-the-chain, activation: replace-attack, text: "Your familiar makes one attack of its own with its Reaction." }
+```
 
 ### Pact of the Tome
 

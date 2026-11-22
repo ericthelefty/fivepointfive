@@ -290,3 +290,130 @@
 }
 .sheetv .slot.conv select { padding: 3px 6px; font-size: 12.5px; max-width: 230px; }
 .sheetv .optpick { display: block; margin-top: 5px; padding: 3px 6px; font-size: 12.5px; max-width: 100%; }
+
+/* forms (Wild Shape): picker, known-form cards and the stat block you're using */
+.sheetv .formpanel { margin-bottom: 14px; }
+.sheetv .fphead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.sheetv .fpgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.sheetv .fpcard { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--s-well2); }
+.sheetv .fpcard.on { border-color: var(--s-gold2); background: var(--accent-bg); }
+.sheetv .fpcard.pick { cursor: pointer; }
+.sheetv .formblock { margin-top: 12px; padding: 12px; border: 1px solid var(--s-gold2); border-radius: 10px; background: var(--s-well); }
+.sheetv .fbhead { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.sheetv .fbname { font-family: var(--serif); font-size: 18px; color: var(--s-gold); }
+.sheetv .fbtags { display: flex; gap: 6px; flex-wrap: wrap; }
+.sheetv .fbabil { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.sheetv .fbab { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--s-panel); }
+.sheetv .fbab .sbtn.ghost { font-size: 11.5px; padding: 2px 6px; min-height: 24px; }
+.sheetv .fbsec h4 { margin: 12px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--s-mut); }
+.sheetv .crow { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; padding: 6px 0; border-top: 1px solid var(--line-2); }
+.sheetv .crow .ctext { flex: 1; min-width: 0; }
+@media (max-width: 640px) { .sheetv .fbabil { grid-template-columns: repeat(3, minmax(0, 1fr)); } .sheetv .crow { flex-direction: column; } }
+.sheetv .chp { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sheetv .plist { list-style: none; margin: 0 0 10px; padding: 0; font-size: 13.5px; }
+.sheetv .plist li { padding: 3px 0; border-bottom: 1px solid var(--line-2); }
+.sheetv .profs h3 { margin: 8px 0 4px; }
+.sheetv .tip.stat { display: block; text-decoration: none; }
+.sheetv .amtpick { display: inline-flex; gap: 6px; align-items: center; margin-left: 6px; }
+.sheetv .amtpick input { width: 64px; }
+
+/* a Critical Hit: a quick gold flash and a small shake (not for people who prefer less motion) */
+@keyframes critflash { 0% { box-shadow: inset 0 0 0 0 rgba(227, 178, 94, 0); } 25% { box-shadow: inset 0 0 0 4px rgba(227, 178, 94, .85), inset 0 0 120px rgba(227, 178, 94, .25); } 100% { box-shadow: inset 0 0 0 0 rgba(227, 178, 94, 0); } }
+@keyframes critshake { 0%, 100% { transform: none; } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+.sheetv.critfx { animation: critflash .7s ease-out, critshake .35s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .sheetv.critfx { animation: critflash .7s ease-out; } }
+.sheetv .cfform { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.sheetv .bookrow { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 6px 0; border-top: 1px solid var(--line-2); }
+.sheetv .bk { display: inline-flex; gap: 4px; align-items: center; padding: 2px 4px 2px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.sheetv .bk.on { border-color: var(--s-gold2); background: var(--accent-bg); }
+
+/* light (parchment) theme for the play sheet */
+:root[data-theme="light"] .sheetv {
+  --s-panel: #fbf6ea; --s-panel2: #f6eedc; --s-panel3: #efe4cc; --s-well: #f1e7d1; --s-well2: #f5ecd8;
+  --s-mut: #6b5b48; --s-gold: #8a5a12; --s-gold2: #b88a3a; --s-red: #b5432f; --s-grn: #2f7a43; --s-blu: #2f5fa8; --s-pur: #6a46a8;
+  --s-adv-bg: #d6ecd6; --s-adv-tx: #22562e; --s-dis-bg: #f3d6cf; --s-dis-tx: #7a2a20;
+}
+:root[data-theme="light"] .sheetv .sbtn:hover, :root[data-theme="light"] .sheetv .abm:hover { background: #e9dcc0; }
+:root[data-theme="light"] .sheetv .schip.bad, :root[data-theme="light"] .sheetv .condbtn[aria-pressed="true"] { background: #f3d6cf; border-color: #c97a6c; color: #7a2a20; }
+:root[data-theme="light"] .sheetv .schip.good { background: #d6ecd6; border-color: #8cbf93; color: #22562e; }
+:root[data-theme="light"] .sheetv .schip.conc { background: #dbe5f7; border-color: #8ea7d6; color: #233f73; }
+:root[data-theme="light"] .sheetv .schip.gold { background: #f1e2bf; }
+:root[data-theme="light"] .sheetv .pip.used, :root[data-theme="light"] .sheetv .pip.f.used { border-color: #c3b18c; }
+:root[data-theme="light"] .sheetv table.atks td { border-bottom-color: #e2d6bd; }
+:root[data-theme="light"] .sheetv .lc.crit { background: linear-gradient(180deg, #f1e2bf, var(--s-well2)); }
+:root[data-theme="light"] .sheetv .lc.dmg .big, :root[data-theme="light"] .sheetv .rolltoast.dmg .big { color: #a3352a; }
+:root[data-theme="light"] .sheetv .det { color: #4a3d2f; }
+:root[data-theme="light"] .sheetv .invstat b { color: var(--ink); }
+
+/* 3D dice: they tumble in, land on their numbers, then fade */
+.sheetv .dice3d { position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%); z-index: 900; display: flex; gap: 14px; pointer-events: none; perspective: 600px;
+  animation: dicefade 1.7s ease forwards; }
+.sheetv .die3d { width: 58px; height: 58px; display: grid; place-items: center; font: 700 22px/1 var(--serif, Georgia, serif); color: #1d1408;
+  background: linear-gradient(145deg, #f3d9a0, #c4923f); box-shadow: 0 8px 18px rgba(0, 0, 0, .45), inset 0 2px 0 rgba(255, 255, 255, .5);
+  animation: dieroll .75s cubic-bezier(.2, .8, .3, 1) both; transform-style: preserve-3d; }
+.sheetv .die3d span { text-shadow: 0 1px 0 rgba(255, 255, 255, .5); }
+.sheetv .die3d.d20, .sheetv .die3d.dx { clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
+.sheetv .die3d.d12 { clip-path: polygon(50% 0, 95% 35%, 78% 95%, 22% 95%, 5% 35%); }
+.sheetv .die3d.d10 { clip-path: polygon(50% 0, 100% 45%, 50% 100%, 0 45%); }
+.sheetv .die3d.d8 { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.sheetv .die3d.d6 { border-radius: 10px; }
+.sheetv .die3d.d4 { clip-path: polygon(50% 4%, 98% 92%, 2% 92%); padding-top: 14px; }
+.sheetv .die3d.dropped { opacity: .45; filter: grayscale(.6); }
+.sheetv .die3d.crit { background: linear-gradient(145deg, #fff1c9, #e3b25e); box-shadow: 0 0 22px rgba(227, 178, 94, .9); }
+@keyframes dieroll { 0% { transform: translateY(-140px) rotateX(var(--spin)) rotateZ(calc(var(--spin) / 2)); opacity: 0; } 30% { opacity: 1; }
+  70% { transform: translateY(8px) rotateX(0) rotateZ(0); } 85% { transform: translateY(-4px); } 100% { transform: translateY(0); } }
+@keyframes dicefade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sheetv .die3d { animation: none; } }
+
+/* spells tab: header numbers, search, level chips, level groups with their slots, one-line rows */
+.sheetv .sphead { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.sheetv .spstat { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.sheetv .spstat span { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.sheetv .spstat b { font-size: 18px; }
+.sheetv .spstat small { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--s-mut); }
+.sheetv .spsearch { width: 100%; margin-bottom: 8px; }
+.sheetv .chipsrow { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.sheetv .chipsrow button { background: var(--s-panel3); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.sheetv .chipsrow button.on { background: var(--s-gold); color: #1d1408; border-color: var(--s-gold); }
+.sheetv .spgroup { margin-top: 10px; }
+.sheetv .spgh { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px solid var(--s-gold2); color: var(--s-gold); text-transform: uppercase; letter-spacing: .06em; font-size: 12.5px; }
+.sheetv .spslots { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; text-transform: none; }
+.sheetv .sptable td { padding: 6px; font-size: 13px; }
+.sheetv .sptable th { font-size: 10.5px; }
+.sheetv .spname { font-weight: 600; text-align: left; }
+.sheetv .tagm.plain { background: var(--s-panel3); color: var(--s-mut); border: 1px solid var(--line); }
+
+/* the slide-out details panel */
+.sheetv .drshade { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 950; }
+.sheetv .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); z-index: 960; overflow-y: auto; background: var(--s-panel); border-left: 2px solid var(--s-gold2);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, .45); padding: 18px 18px 30px; animation: drin .18s ease-out; }
+@keyframes drin { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheetv .drclose { position: absolute; top: 10px; right: 10px; }
+.sheetv .drtitle { font-family: var(--serif, Georgia, serif); font-size: 22px; color: var(--s-gold); margin: 2px 0; }
+.sheetv .drcast { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--s-well2); }
+.sheetv .lvlstep { display: inline-flex; gap: 6px; align-items: center; }
+.sheetv .drsum { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; font-size: 13.5px; }
+.sheetv .drprops { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 10px; font-size: 13px; }
+.sheetv .drprops div { display: contents; }
+.sheetv .drprops dt { color: var(--s-mut); }
+.sheetv .drprops dd { margin: 0; }
+.sheetv .drbody { font-size: 14px; line-height: 1.55; }
+@media (prefers-reduced-motion: reduce) { .sheetv .drawer { animation: none; } }
+.sheetv .fextra { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0 4px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.sheetv .fuse { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; }
+.sheetv .fkinds { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
+.sheetv .fkinds .tag { font-size: 10.5px; padding: 0 6px; }
+
+/* cast button with a level menu */
+.sheetv .castwrap { position: relative; display: inline-flex; white-space: nowrap; }
+.sheetv .castwrap .split { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.sheetv .castwrap .split2 { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 1px solid var(--line-3); padding-left: 6px; padding-right: 6px; }
+.sheetv .castmenu { position: fixed; z-index: 60; min-width: 230px; background: var(--panel); border: 1px solid var(--line-3); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.45); padding: 4px; display: flex; flex-direction: column; }
+.sheetv .castmenu button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; background: none; border: 0; color: inherit; padding: 6px 9px; border-radius: 7px; cursor: pointer; font: inherit; }
+.sheetv .castmenu button span { font-size: 11.5px; color: var(--muted); white-space: normal; }
+.sheetv .castmenu button:hover:not(:disabled) { background: var(--accent-bg); }
+.sheetv .castmenu button:disabled { opacity: .45; cursor: not-allowed; }
+.sheetv .castmenu .tip { display: block; }
+.sheetv .effkind { font-size: 12.5px; color: var(--muted); }
+.sheetv .effkind.cond { color: var(--accent-ink); }
+.sheetv .spchips { margin-top: 8px; }

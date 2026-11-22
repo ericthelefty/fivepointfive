@@ -161,3 +161,49 @@ label.radio input { margin-top: 3px; }
 /* Text-style button, for small secondary actions like "Forgot your password?" */
 .linkish { background: none; border: 0; padding: 4px 0; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .linkish:hover { filter: brightness(1.15); }
+
+/* tooltips (src/lib/tip.tsx): hover with a mouse; tap or press-and-hold on touch */
+.tip, .why { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.tip { cursor: help; text-decoration: underline dotted color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 3px; -webkit-tap-highlight-color: transparent; }
+.tip:has(.tag), .tip:has(.tagm) { text-decoration: none; }
+.why { display: inline-flex; cursor: help; -webkit-tap-highlight-color: transparent; }
+.why > button:disabled { pointer-events: none; }
+.tip:focus-visible, .why:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.tipbox {
+  position: fixed; z-index: 1000;
+  width: max-content; max-width: min(280px, calc(100vw - 16px));
+  padding: 7px 10px; border-radius: 6px; border: 1px solid #a97c33;
+  background: var(--ink); color: var(--bg);
+  font: 400 12.5px/1.4 system-ui, sans-serif; letter-spacing: normal; text-transform: none; text-align: left; white-space: normal;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  opacity: 0; visibility: hidden; transform: translateY(2px); transition: opacity 0.12s, transform 0.12s, visibility 0.12s;
+  pointer-events: none;
+}
+.tipbox::after { content: ""; position: absolute; top: 100%; right: 14px; border: 6px solid transparent; border-top-color: var(--ink); }
+.tipbox.left::after { right: auto; left: 14px; }
+.tipbox.below::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--ink); }
+.tipbox.open { opacity: 1; visibility: visible; transform: none; }
+
+/* a character hidden from the rest of the group: still the owner's, just quieter */
+.charhidden { border-style: dashed; opacity: 0.85; }
+
+/* ---------------------------------------------------------------- light (parchment) theme */
+:root[data-theme="light"] {
+  --bg: #f4ecdc; --bar: #ece2cd; --panel: #fbf6ea; --panel-2: #f3ead7; --chip: #e9dfc9;
+  --line: #d2c3a3; --line-2: #e2d6bd; --line-3: #c3b18c;
+  --ink: #2a2118; --ink-2: #3a2f23; --muted: #5d4f3f; --faint: #7a6a57;
+  --accent: #8a5a12; --accent-ink: #6e4608; --accent-bg: #f1e2bf; --choice-bg: #f6ebcf; --choice-line: #c9a35b;
+  --ok: #2f6b3a; --ok-bg: #dcefd9; --ok-line: #8cbf93; --warn: #8a5a12; --warn-bg: #f6e5c0; --warn-line: #c9a35b; --bad: #a3352a;
+  color-scheme: light;
+}
+:root[data-theme="light"] html, :root[data-theme="light"] body { background: radial-gradient(1100px 520px at 15% -8%, #efe0c2 0, transparent 60%), var(--bg); }
+:root[data-theme="light"] .topnav a.active, :root[data-theme="light"] .topnav a:hover { background: #e6d9bd; }
+:root[data-theme="light"] .btn.primary, :root[data-theme="light"] .btn.primary:hover, :root[data-theme="light"] .tag.need { color: #fff8ea; }
+:root[data-theme="light"] .tag.plain { background: #efe5cf; }
+:root[data-theme="light"] .steps button.on { background: #f1e2bf; }
+:root[data-theme="light"] .drop { border-color: #c3b18c; }
+:root[data-theme="light"] .tipbox { background: #2a2118; color: #fbf6ea; border-color: #8a5a12; }
+:root[data-theme="light"] .tipbox::after { border-top-color: #2a2118; }
+:root[data-theme="light"] .tipbox.below::after { border-top-color: transparent; border-bottom-color: #2a2118; }
+.themebtn { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; cursor: pointer; color: var(--muted); }
+.themebtn:hover { color: var(--ink); border-color: var(--line-3); }

@@ -1,3 +1,4 @@
+import { Tip } from "../lib/tip.tsx";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { classInfos, classLabel } from "../lib/multiclass.ts";
@@ -30,6 +31,32 @@ export default function Home() {
     }
   };
 
+  /** Ready-made SRD characters to try the sheet with, then keep or delete. */
+  const SAMPLES: { label: string; c: Partial<Character> }[] = [
+    { label: "Bram Ironside, Dwarf Fighter 5", c: { name: "Bram Ironside", level: 5, classId: "srd:class/fighter", subclassId: "srd:subclass/champion", speciesId: "srd:species/dwarf", backgroundId: "srd:background/soldier",
+      method: "standard", base: { Strength: 15, Dexterity: 14, Constitution: 13, Intelligence: 8, Wisdom: 10, Charisma: 12 }, bonusMode: "2-1", bonus: { Strength: 2, Constitution: 1 },
+      classSkills: ["Perception", "Survival"], extraSkills: [], equipClass: "A", equipBackground: "A", cantrips: [], spells: [], languages: ["Dwarvish", "Giant"] } as Partial<Character> },
+    { label: "Vessa Quill, Elf Wizard 3", c: { name: "Vessa Quill", level: 3, classId: "srd:class/wizard", subclassId: "srd:subclass/evoker", speciesId: "srd:species/elf", speciesChoice: "High Elf", backgroundId: "srd:background/sage",
+      method: "standard", base: { Strength: 8, Dexterity: 12, Constitution: 13, Intelligence: 15, Wisdom: 14, Charisma: 10 }, bonusMode: "2-1", bonus: { Intelligence: 2, Constitution: 1 },
+      classSkills: ["Investigation", "Insight"], extraSkills: ["Perception"], equipClass: "A", equipBackground: "A", cantrips: ["Fire Bolt", "Light", "Mage Hand"],
+      spells: ["Magic Missile", "Shield", "Burning Hands", "Scorching Ray", "Mage Armor"], languages: ["Draconic", "Elvish"],
+      spellbook: [{ name: "Detect Magic", how: "level" }, { name: "Feather Fall", how: "level" }, { name: "Thunderwave", how: "level" }] } as Partial<Character> },
+    { label: "Fen, Human Druid 6", c: { name: "Fen", level: 6, classId: "srd:class/druid", subclassId: "srd:subclass/circle-of-the-land", speciesId: "srd:species/human", backgroundId: "srd:background/sage",
+      method: "standard", base: { Strength: 8, Dexterity: 14, Constitution: 13, Intelligence: 10, Wisdom: 15, Charisma: 12 }, bonusMode: "2-1", bonus: { Wisdom: 2, Constitution: 1 },
+      classSkills: ["Perception", "Nature"], extraSkills: [], equipClass: "A", equipBackground: "A", cantrips: ["Druidcraft", "Produce Flame"], spells: ["Cure Wounds", "Entangle", "Healing Word", "Moonbeam", "Thunderwave"],
+      languages: ["Elvish", "Halfling"] } as Partial<Character> },
+  ];
+  const [samplesOpen, setSamplesOpen] = useState(false);
+  const addSample = async (sm: (typeof SAMPLES)[number]) => {
+    const c: Character = { ...newCharacter(), ...structuredClone(sm.c), id: newId(), updated: Date.now() };
+    try {
+      await chars.create(c);
+      nav(`/sheet/${c.id}`);
+    } catch {
+      setMsg("Couldn’t add the sample character. Check your connection and try again.");
+    }
+  };
+
   const copy = async (src: Character) => {
     const c: Character = { ...structuredClone(src), id: newId(), name: `${src.name || "Unnamed"} (copy)`, play: undefined, updated: Date.now() };
     await chars.create(c);
@@ -55,7 +82,7 @@ export default function Home() {
         <div>
           <h1>{cloud ? "Characters" : "Your characters"}</h1>
           <p className="muted" style={{ margin: "6px 0 0" }}>
-            {cloud ? "Everyone in this group can see these. You can edit your own; anyone can make their own copy." : "Saved in this browser. Export a character to move it or send it to a friend."}
+            {cloud ? "Everyone in this group can see these, except characters their players have hidden. You can edit your own; anyone can make their own copy." : "Saved in this browser. Export a character to move it or send it to a friend."}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -69,9 +96,16 @@ export default function Home() {
             Import character
             <input type="file" accept=".json,application/json" className="sr-only" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
           </label>
+          <button className="btn" aria-expanded={samplesOpen} onClick={() => setSamplesOpen((x) => !x)}>Try a sample</button>
           <button className="btn primary" onClick={create}>New character</button>
         </div>
       </div>
+      {samplesOpen && (
+        <div className="inset" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <span className="muted">Ready-made characters from the SRD, to try the sheet. Keep them, change them or delete them:</span>
+          {SAMPLES.map((sm) => <button key={sm.label} className="btn small" onClick={() => addSample(sm)}>{sm.label}</button>)}
+        </div>
+      )}
       {(msg || chars.error) && <div className="inset" role="status">{msg || chars.error}</div>}
       {!chars.ready ? (
         <p className="muted">Loading characters…</p>
@@ -79,17 +113,27 @@ export default function Home() {
         <div className="panel" style={{ textAlign: "center", padding: 40 }}>
           <h2>No characters yet</h2>
           <p className="muted">Build one from the SRD 5.2.1: 12 classes, 9 species and 4 backgrounds, plus anything you import.</p>
-          <button className="btn primary" onClick={create}>Create your first character</button>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+            <button className="btn primary" onClick={create}>Create your first character</button>
+            <button className="btn" onClick={() => setSamplesOpen(true)}>Try a sample character</button>
+          </div>
         </div>
       ) : (
         <div className="grid3">
-          {rows.map(({ c, owner }) => {
+          {rows.map(({ c, owner, hidden }) => {
             const cls = byId(c.classId);
             const sp = byId(c.speciesId);
             const mine = chars.canEdit(c.id);
             return (
-              <div key={c.id} className="panel" style={{ padding: 16 }}>
-                <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600 }}>{c.name || "Unnamed character"}</div>
+              <div key={c.id} className={`panel ${hidden ? "charhidden" : ""}`} style={{ padding: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                  <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600 }}>{c.name || "Unnamed character"}</div>
+                  {cloud && hidden && (
+                    <Tip tip={owner === session.user?.id ? "Only you and the group’s admins can see this character." : "Hidden by its player: only they and admins can see it."}>
+                      <span className="tag warn">Hidden</span>
+                    </Tip>
+                  )}
+                </div>
                 <div className="muted" style={{ fontSize: 13 }}>
                   {[sp?.name, cls ? classLabel(classInfos(c, byId)) : null].filter(Boolean).join(" · ") || "Not started"}
                 </div>
@@ -97,6 +141,15 @@ export default function Home() {
                 <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
                   <Link className="btn small primary" to={`/sheet/${c.id}`}>Sheet</Link>
                   {mine && <Link className="btn small" to={`/build/${c.id}`}>Edit</Link>}
+                  {cloud && mine && (
+                    <button
+                      className="btn small"
+                      aria-pressed={!!hidden}
+                      onClick={() => chars.setHidden(c.id, !hidden)}
+                    >
+                      {hidden ? "Show to group" : "Hide from group"}
+                    </button>
+                  )}
                   {cloud && <button className="btn small" onClick={() => copy(c)}>Make a copy</button>}
                   <button
                     className="btn small"

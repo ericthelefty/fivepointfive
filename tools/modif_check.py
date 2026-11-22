@@ -67,6 +67,7 @@ BLOCKS = {
     'target-effects': F('effects', 'ends-when', 'on-end', 'choose-one'), 'self-effects': F('effects', 'ends-when', 'on-end'),
     'form': F('activation', 'cost', 'choose', 'keeps', 'replaces', 'temp-hp', 'ends-when', 'blocks', 'leave', 'effects', 'if', 'target', 'targets', 'repeat', 'save', 'choose-one'),
     'summon': F('creature', 'via', 'limit', 'type-override', 'count', 'count-rule', 'control', 'initiative', 'variant', 'stat-level', 'overrides'),
+    'summon-options': F('for', 'add', 'speed', 'save-dc', 'damage-type', 'text'),
     'condition': None,
     'charges': F('max', 'recharge', 'destroy-on', 'start', 'kinds'), 'variant': F('by', 'values', 'roll', 'table'), 'container': F('capacity', 'weight'), 'weapon-rule': None, 'craft': F('items'), 'auto-fail': F('roll'), 'breaks-concentration': None, 'rest': F('kind', 'spend', 'regain'),
     'poison': F('delivery', 'save', 'damage', 'apply', 'on-failure', 'on-success', 'then', 'delay', 'neutralized-by', 'on-fail-by'), 'weapon-property': F('add', 'remove'), 'curse': F('prevents', 'ends', 'effects'),
