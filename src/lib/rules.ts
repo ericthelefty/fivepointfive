@@ -59,7 +59,32 @@ export interface Character {
   houseRules?: boolean;
   /** Limited-use features the player tracks themselves (homebrew, a boon from the GM): uses and when they come back. */
   customFeatures?: { id: string; name: string; max: number; recover: "short" | "long"; text: string }[];
+  /** Who the character is: alignment, looks, personality and the people around them. */
+  details?: Partial<Record<DetailKey, string>>;
+  /** Skip feat and multiclass prerequisites in the builder (D&D Beyond's "Use prerequisites" off). */
+  ignorePrereqs?: boolean;
 }
+
+export const DETAIL_GROUPS: { title: string; fields: { key: string; label: string; long?: boolean; options?: string[] }[] }[] = [
+  { title: "Character details", fields: [
+    { key: "alignment", label: "Alignment", options: ["Lawful Good", "Neutral Good", "Chaotic Good", "Lawful Neutral", "Neutral", "Chaotic Neutral", "Lawful Evil", "Neutral Evil", "Chaotic Evil", "Unaligned"] },
+    { key: "faith", label: "Faith" },
+    { key: "lifestyle", label: "Lifestyle", options: ["Wretched", "Squalid", "Poor", "Modest", "Comfortable", "Wealthy", "Aristocratic"] },
+  ] },
+  { title: "Physical characteristics", fields: [
+    { key: "hair", label: "Hair" }, { key: "skin", label: "Skin" }, { key: "eyes", label: "Eyes" },
+    { key: "height", label: "Height" }, { key: "weight", label: "Weight" }, { key: "age", label: "Age" }, { key: "gender", label: "Gender" },
+  ] },
+  { title: "Personal characteristics", fields: [
+    { key: "traits", label: "Personality traits", long: true }, { key: "ideals", label: "Ideals", long: true },
+    { key: "bonds", label: "Bonds", long: true }, { key: "flaws", label: "Flaws", long: true },
+  ] },
+  { title: "People and history", fields: [
+    { key: "organizations", label: "Organizations", long: true }, { key: "allies", label: "Allies", long: true },
+    { key: "enemies", label: "Enemies", long: true }, { key: "backstory", label: "Backstory", long: true },
+  ] },
+];
+export type DetailKey = "alignment" | "faith" | "lifestyle" | "hair" | "skin" | "eyes" | "height" | "weight" | "age" | "gender" | "traits" | "ideals" | "bonds" | "flaws" | "organizations" | "allies" | "enemies" | "backstory";
 
 export function newCharacter(): Character {
   return {

@@ -81,7 +81,7 @@ When you reach character level 5, you can channel draconic magic to give yoursel
 
 ## Effects
 ```yaml
-- resource: { id: flight, max: 1, reset: long }
+- resource: { id: flight, max: 1, reset: long, level: 5 }
 - toggle:
     id: draconic-flight
     level: 5

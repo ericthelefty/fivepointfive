@@ -1,0 +1,80 @@
+{
+ "name": "Sera",
+ "level": 7,
+ "classId": "srd:class/paladin",
+ "subclassId": "srd:subclass/oath-of-devotion",
+ "speciesId": "srd:species/human",
+ "backgroundId": "srd:background/soldier",
+ "method": "standard",
+ "base": {
+  "Strength": 15,
+  "Dexterity": 10,
+  "Constitution": 13,
+  "Intelligence": 8,
+  "Wisdom": 12,
+  "Charisma": 14
+ },
+ "bonusMode": "2-1",
+ "bonus": {
+  "Strength": 2,
+  "Constitution": 1
+ },
+ "classSkills": [
+  "Insight",
+  "Persuasion"
+ ],
+ "extraSkills": [
+  "Perception"
+ ],
+ "cantrips": [],
+ "spells": [
+  "Bless",
+  "Command",
+  "Cure Wounds",
+  "Divine Favor",
+  "Heroism",
+  "Searing Smite"
+ ],
+ "choices": {
+  "srd:class/paladin#mastery": [
+   "Longsword",
+   "Javelin"
+  ],
+  "srd:class/paladin#fighting-style": [
+   "srd:feat/defense"
+  ],
+  "srd:species/human#size": [
+   "medium"
+  ],
+  "srd:species/human#versatile": [
+   "srd:feat/alert"
+  ],
+  "srd:background/soldier#gaming-set": [
+   "Dice"
+  ],
+  "srd:class/paladin#asi@4/srd:feat/ability-score-improvement#asi": [
+   "Charisma",
+   "Charisma"
+  ],
+  "srd:class/warlock#invocations": [
+   "Pact of the Blade",
+   "Agonizing Blast",
+   "Devil\u2019s Sight"
+  ]
+ },
+ "multiclass": [
+  {
+   "classId": "srd:class/warlock",
+   "level": 2,
+   "cantrips": [
+    "Eldritch Blast",
+    "Minor Illusion"
+   ],
+   "spells": [
+    "Hex",
+    "Hellish Rebuke",
+    "Charm Person"
+   ]
+  }
+ ]
+}

@@ -280,10 +280,21 @@ export function carryingCapacity(strength: number, size = "Medium"): number {
 
 // ------------------------------------------------- a character's inventory
 
+/** "Gaming Set (same as above)", "Artisan's Tools or Musical Instrument chosen for the tool proficiency above": the tool picked in the builder. */
+function chosenTools(text: string, e: Entry | undefined, c: Character): string {
+  if (!e || !/same as above|chosen for the tool proficiency above/i.test(text)) return text;
+  const ids = (e.effects || []).flatMap((fx) => [...fx.yaml.matchAll(/id:\s*([\w-]+),\s*kind:\s*tool/g)].map((m) => m[1]));
+  const picked = ids.map((id) => c.choices?.[`${e.id}#${id}`]?.[0]).find(Boolean);
+  if (!picked) return text;
+  return text
+    .replace(/[A-Z][^,;()]*?\(same as above\)/g, picked)
+    .replace(/[A-Z][^,;()]*? chosen for the tool proficiency above/g, picked);
+}
+
 /** Starting equipment (class + background choices) plus any old free-text gear. */
 export function startingInventory(c: Character, cls: Entry | undefined, bg: Entry | undefined, cat: CatalogItem[]): { items: Item[]; coins: Coins } {
   const opt = (s: string | undefined, key?: string) => equipmentOptions(s).find((o) => o.key === (key || "A"))?.text || "";
-  const parts = [opt(cls?.fields["starting equipment"], c.equipClass), opt(bg?.fields["equipment"], c.equipBackground), c.play?.gear || ""];
+  const parts = [chosenTools(opt(cls?.fields["starting equipment"], c.equipClass), cls, c), chosenTools(opt(bg?.fields["equipment"], c.equipBackground), bg, c), c.play?.gear || ""];
   let items: Item[] = [];
   let coins: Coins = { ...NO_COINS };
   for (const text of parts) {

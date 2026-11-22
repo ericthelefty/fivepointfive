@@ -233,6 +233,8 @@ export interface AttackOpts {
   /** damage types it can deal instead */
   types?: string[];
   notes?: string[];
+  /** Weapon Mastery lets you use this weapon's mastery property (shown only then). */
+  mastered?: boolean;
 }
 
 /** Average of a dice expression ("1d8", "2d6", "1"), to compare dice. */
@@ -270,7 +272,7 @@ export function attackFor(w: Weapon, d: Derived, prof: boolean, o: AttackOpts = 
     toHit: abil + (prof ? d.pb : 0),
     damage: /^\d+d\d+/.test(dice) ? `${dice}${sign(abil)}` : dice,
     type,
-    note: [w.properties !== "—" && w.properties, w.mastery && `Mastery: ${w.mastery}`, !prof && "not proficient", ...(o.notes || [])].filter(Boolean).join(" · "),
+    note: [w.properties !== "—" && w.properties, o.mastered && w.mastery && `Mastery: ${w.mastery}`, !prof && "not proficient", ...(o.notes || [])].filter(Boolean).join(" · "),
     versatile: vers ? `${vers}${sign(abil)}` : undefined,
   };
 }

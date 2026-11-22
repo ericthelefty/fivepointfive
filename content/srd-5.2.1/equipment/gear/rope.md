@@ -1,6 +1,7 @@
 # Rope
 **Type:** Gear
 **Cost:** 1 GP
+**Weight:** 5 lb.
 **Source:** SRD 5.2.1, p. 99
 
 As a Utilize action, you can tie a knot with Rope if you succeed on a DC 10 Dexterity (Sleight of Hand) check. The Rope can be burst with a successful DC 20 Strength (Athletics) check.

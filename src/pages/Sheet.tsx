@@ -13,6 +13,7 @@ import { features, slug, spellInfo, stripMd, type Entry } from "../lib/parse.ts"
 import {
   ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, derive, featName, fmt, speciesChoice, traits, wornGear,
   type Character,
+  intro,
 } from "../lib/rules.ts";
 import { combineModes, d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import {
@@ -22,16 +23,17 @@ import {
 } from "../lib/play.ts";
 import { catalog, inventoryOf, isActive, magicInfo, newItemId, type Coins, type Item } from "../lib/inventory.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
+import { DetailsForm } from "../components/DetailsForm.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
 import { NARROW, useMedia } from "../lib/useMedia.ts";
 import {
-  advantageFor, computeModif, type ScrollUse, disadvantageFor, spellcastingOf, spellMinutes, spellPlan, statusOf, treatRoll, weaponFits, weaponProficient,
+  advantageFor, computeModif, type ScrollUse, disadvantageFor, spellcastingOf, spellMinutes, spellPlan as basePlan, statusOf, treatRoll, weaponFits, weaponProficient,
   type ModifConvert, type ConvertSide, type WeaponInfo,
   type ModifAction, type ModifCost, type ModifCtx, type ModifToggle, type ModifTrigger, readBlocks, resolveRef, type ModifSummon, tableRowFor
 } from "../lib/modif.ts";
 import { casterEntry, casterInfoOf, casterKindOf, classFeatures, classInfos, classLabel, hitDicePools, patchClass, spellSlots, type ClassInfo, type Slot } from "../lib/multiclass.ts";
 
-type Tab = "actions" | "effects" | "spells" | "features" | "conditions" | "inventory" | "notes";
+type Tab = "actions" | "effects" | "spells" | "features" | "conditions" | "inventory" | "background" | "notes";
 type CardAction = { label: string; run: () => void };
 
 /** Boxes on the sheet that can be put in a different order on phones (Layout button). */
@@ -271,6 +273,13 @@ export default function Sheet() {
   const firstCaster = infos.find((i) => casterKindOf(i));
   const ab0 = firstCaster ? spellcastingOf(casterEntry(firstCaster))?.ability ?? null : null;
   const fx = ab0 ? computeModif({ ...fxCtx, spell: { mod: d0.mods[ab0], dc: 8 + d0.pb + d0.mods[ab0], attack: d0.pb + d0.mods[ab0] } }) : fx0;
+  /** What a spell does, with bonuses to that spell's damage (Agonizing Blast adds Charisma to each beam). */
+  const spellPlan = (sp: Entry, o: Parameters<typeof basePlan>[1]) => {
+    const pl = basePlan(sp, o);
+    const add = fx.spellDamageBonuses.filter((b) => b.spellId === sp.id).reduce((n, b) => n + b.value, 0);
+    if (pl && add && pl.damage[0]) pl.damage[0] = { ...pl.damage[0], dice: `${pl.damage[0].dice}${add > 0 ? "+" : ""}${add}` };
+    return pl;
+  };
   const dBase = fx === fx0 ? d0 : derive(c, { cls, background: bg, species: sp, armor, items: inv.items, classes: infos, modif: fx });
   // a form (Wild Shape): the creature's stat block replaces your physical numbers while it lasts
   const creatureCache = new Map<string, CreatureStats | undefined>();
@@ -376,7 +385,7 @@ export default function Sheet() {
   const attacks: Attack[] = formCr ? formCr.actions.filter((a) => a.toHit !== undefined).map((a) => creatureAttack(formCr, a)) : [
     ...wielded.map(({ it, w }) => {
       const wo = weaponOpts({ id: slug(w.name), name: w.name, category: w.category, properties: w.properties, monk: isMonkWeapon(w), itemId: it.id, tags: it.tags, damage: w.damage });
-      return withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficient(fx, { ...w, tags: it.tags }), wo.opts), itemId: it.id, dieFloor: wo.dieFloor, maximize: wo.maximize }, /ranged/i.test(w.category));
+      return withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficient(fx, { ...w, tags: it.tags }), { ...wo.opts, mastered: fx.masteries.some((m) => slug(m) === slug(w.name)) }), itemId: it.id, dieFloor: wo.dieFloor, maximize: wo.maximize }, /ranged/i.test(w.category));
     }),
     (() => {
       const wo = weaponOpts({ id: "unarmed-strike", name: "Unarmed Strike", category: "Unarmed", properties: "", unarmed: true });
@@ -1282,7 +1291,9 @@ export default function Sheet() {
   const ridersSection = () => {
     if (formCr) return null;
     const riders = fx.triggers.filter((t) => t.damage?.length && !t.reaction);
-    if (!riders.length) return null;
+    // effects you can add on a hit without extra damage (Stunning Strike), with their save DC
+    const plain = fx.triggers.filter((t) => !t.damage?.length && !t.reaction && !t.follows && /^When you hit/.test(t.when) && (t.cost || /save/.test(t.text)));
+    if (!riders.length && !plain.length) return null;
     return (
       <>
         <h3 style={{ marginTop: 16 }}>On a hit</h3>
@@ -1342,6 +1353,16 @@ export default function Sheet() {
                     ))}
                   </td>
                   <td><div className="rowbtn"><button className="sbtn sm" onClick={roll1}>{dice ? `Roll ${dice}${t.damage!.length > 1 ? " +" : ""}` : "Use"}</button></div></td>
+                </tr>
+              );
+            })}
+            {plain.map((t) => {
+              const { res, left, ok } = costInfo(t.cost);
+              return (
+                <tr key={`hit-${t.key}`}>
+                  <td><b>{t.name}</b><div className="note">{t.source}</div></td>
+                  <td className="note">{t.text}{res ? ` ${left} / ${res.max} ${res.name}.` : ""}</td>
+                  <td><div className="rowbtn"><Btn className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn></div></td>
                 </tr>
               );
             })}
@@ -1491,7 +1512,7 @@ export default function Sheet() {
         <tr key={`sa-${r.sp.id}-${r.source}`}>
           <td><button className="linkish spname" onClick={() => setDrawer({ kind: "spell", id: r.sp.id, via: r.g ? r.g.source : r.k ? `k:${r.k.info.index}` : undefined })}>{r.sp.name}</button><div className="note">{r.lvl ? `Level ${r.lvl} spell` : "Cantrip"}{r.source ? ` · ${r.source}` : ""}{stripMd(r.sp.fields["range"] || "") ? ` · ${stripMd(r.sp.fields["range"])}` : ""}</div></td>
           <td>{fmt(n.atk)}</td>
-          <td>{dmg} {type}</td>
+          <td>{dmg} {type}{pl.attack.count > 1 ? <div className="note">×{pl.attack.count} beams or attacks</div> : null}</td>
           <td><div className="rowbtn"><Btn className="sbtn sm" disabled={!st.ok} why={st.why} onClick={() => castRow(r)}>{st.label === "Free" ? "Cast free" : "Cast"}</Btn></div></td>
         </tr>
       );
@@ -1563,7 +1584,7 @@ export default function Sheet() {
   const shortTime = (t: string) => stripMd(t).replace(/^Bonus Action.*/i, "1BA").replace(/^Action.*/i, "1A").replace(/^Reaction.*/i, "1R").replace(/^(\d+) minutes?.*/i, "$1m").replace(/^(\d+) hours?.*/i, "$1h");
   /** "D: 1m, 15 ft. cone, V/S/M", like D&D Beyond's notes column. */
   const spellNotes = (sp: Entry, pl: ReturnType<typeof spellPlan> | undefined) => {
-    const dur = stripMd(sp.fields["duration"] || "").replace(/^Concentration, up to /i, "");
+    const dur = stripMd(sp.fields["duration"] || "").replace(/^Concentration,? up to /i, "");
     const unit: Record<string, string> = { minute: "m", hour: "h", day: "d", round: "rd", turn: "turn" };
     const m = dur.match(/^(\d+)\s+(minute|hour|day|round|turn)s?/i);
     const d2 = /instantaneous/i.test(dur) ? "" : m ? `D: ${m[1]}${unit[m[2].toLowerCase()]}` : dur ? `D: ${dur.replace(/Until Dispelled( or Triggered)?/i, "until dispelled")}` : "";
@@ -1574,6 +1595,8 @@ export default function Sheet() {
     const ab = r.g?.ability || r.k?.ab || castAb || undefined;
     const m = ab ? d.mods[ab] : 0;
     const k = r.k || casters[0];
+    // a granted spell with its own ability (Fiendish Legacy, Magic Initiate) uses that, not the class's
+    if (r.g?.ability && !r.k) return { mod: m, dc: r.g.dc ?? 8 + d.pb + m, atk: d.pb + m };
     return { mod: m, dc: r.g?.dc ?? k?.dc ?? 8 + d.pb + m, atk: k?.atk ?? d.pb + m };
   };
   const spellRows = (): SpellRowData[] => {
@@ -1733,7 +1756,7 @@ export default function Sheet() {
                         <td>{shortTime(r.sp.fields["casting time"] || "")}</td>
                         <td>{stripMd(r.sp.fields["range"] || "").replace(/ feet/, " ft.")}</td>
                         <td>{pl?.attack ? fmt(n.atk) : pl?.save ? `${pl.save.ability.slice(0, 3).toUpperCase()} ${n.dc}` : "—"}</td>
-                        <td>{dmg ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, dmg, false, pl!.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{dmg}</button> : pl?.heal ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>{pl.heal} heal</button> : pl?.conditions.length ? <Tip tip={`Targets can end up ${pl.conditions.join(" or ")}.`}><span className="effkind cond">{pl.conditions.join(", ")}</span></Tip> : <span className="effkind">{pl?.kind || "—"}</span>}</td>
+                        <td>{dmg ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, dmg, false, pl!.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{dmg}{pl?.attack && pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</button> : pl?.heal ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>{pl.heal} heal</button> : pl?.tempHp ? <span className="effkind">{pl.tempHp} temp HP</span> : pl?.conditions.length ? <Tip tip={`Targets can end up ${pl.conditions.join(" or ")}.`}><span className="effkind cond">{pl.conditions.join(", ")}</span></Tip> : <span className="effkind">{pl?.kind || "—"}</span>}</td>
                         <td className="note">{spellNotes(r.sp, pl)}</td>
                       </tr>
                     );
@@ -2086,6 +2109,19 @@ export default function Sheet() {
     };
     return (
       <section className="spanel profs" {...bo("profs")}>
+        {(fx.defenses.length > 0 || formCr) && (() => {
+          const formDef = formCr?.defenses || [];
+          if (!fx.defenses.length && !formDef.length) return null;
+          return (
+            <>
+              <h3>Defenses</h3>
+              <ul className="plist">
+                {fx.defenses.map((x, i) => <li key={i}>{x.text} <span className="mut">· {x.feature}</span></li>)}
+                {formDef.map((t) => <li key={t}>{t} <span className="mut">· {formCr!.name} form</span></li>)}
+              </ul>
+            </>
+          );
+        })()}
         <h3>Senses</h3>
         <ul className="plist">
           {senses.map((x, i) => <li key={i}>{x.text} <span className="mut">· {x.source}</span></li>)}
@@ -2519,7 +2555,7 @@ export default function Sheet() {
           {castAb && (
             <button className="stat" title={statTip.dc} onClick={() => attack({ name: "Spell", toHit: spellAtk, damage: "0", type: "", note: "" })}>
               <div className="sl">Spell Save DC</div><div className="sv2">{casters.length > 1 && new Set(casters.map((k) => k.dc)).size > 1 ? casters.map((k) => k.dc).join(" / ") : spellDC}</div>
-              <div className="ss">{casters.length > 1 ? casters.map((k) => `${k.ab ? ABBR[k.ab] : ""} atk ${fmt(k.atk)}`).join(" · ") : `atk ${fmt(spellAtk)} · ${ABBR[castAb]}`}</div>
+              <div className="ss">{casters.length > 1 && new Set(casters.map((k) => `${k.ab}${k.atk}`)).size > 1 ? casters.map((k) => `${k.info.cls.name} ${fmt(k.atk)}`).join(" · ") : `atk ${fmt(casters[0]?.atk ?? spellAtk)} · ${ABBR[casters[0]?.ab || castAb]}`}</div>
             </button>
           )}
         </section>
@@ -2647,7 +2683,7 @@ export default function Sheet() {
 
             <div {...bo("tabs")}>
               <ScrollRow className="stabs" label="Sheet tabs" more="More tabs" active={tab}>
-                {([["actions", "Actions"], ["effects", "Effects"], ["spells", "Spells"], ["features", "Features & Feats"], ["conditions", "Conditions"], ["inventory", "Inventory"], ["notes", "Notes"]] as [Tab, string][])
+                {([["actions", "Actions"], ["effects", "Effects"], ["spells", "Spells"], ["features", "Features & Feats"], ["conditions", "Conditions"], ["inventory", "Inventory"], ["background", "Background"], ["notes", "Notes"]] as [Tab, string][])
                   .filter(([k]) => k !== "spells" || anyCaster || fx.grantedSpells.length > 0)
                   .map(([k, l]) => (
                     <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
@@ -2959,6 +2995,16 @@ export default function Sheet() {
                 />
               )}
 
+              {tab === "background" && (
+                <div className="spanel">
+                  <div className="fphead">
+                    <h3 style={{ margin: 0 }}>{bg ? bg.name : "Background"}</h3>
+                    {editable && <Link to={`/build/${c.id}?step=details`} className="note">Edit details</Link>}
+                  </div>
+                  {bg && <p className="note" style={{ marginTop: 6 }}>{intro(bg)}</p>}
+                  <DetailsForm c={c} readOnly />
+                </div>
+              )}
               {tab === "notes" && (
                 <div className="spanel">
                   <h3>Notes</h3>

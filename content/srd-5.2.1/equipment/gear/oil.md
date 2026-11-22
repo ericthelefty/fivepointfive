@@ -1,6 +1,7 @@
 # Oil
 **Type:** Gear
 **Cost:** 1 SP
+**Weight:** 1 lb.
 **Source:** SRD 5.2.1, p. 98
 
 You can douse a creature, object, or space with Oil or use it as fuel, as detailed below.

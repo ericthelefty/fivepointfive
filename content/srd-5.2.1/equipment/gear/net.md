@@ -1,6 +1,7 @@
 # Net
 **Type:** Gear
 **Cost:** 1 GP
+**Weight:** 3 lb.
 **Source:** SRD 5.2.1, p. 98
 
 When you take the Attack action, you can replace one of your attacks with throwing a Net. Target a creature you can see within 15 feet of yourself. The target must succeed on a Dexterity saving throw (DC 8 plus your Dexterity modifier and Proficiency Bonus) or have the Restrained condition until it escapes. The target succeeds automatically if it is Huge or larger.

@@ -1,6 +1,7 @@
 import { Btn } from "../lib/tip.tsx";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ScrollRow } from "../components/ScrollRow.tsx";
+import { DetailsForm } from "../components/DetailsForm.tsx";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { weaponTable } from "../lib/play.ts";
 import { catalog, inventoryOf } from "../lib/inventory.ts";
@@ -9,7 +10,7 @@ import {
 } from "../lib/multiclass.ts";
 import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
-import { modifFor, multiclassSkillChoice, setSlotFeat, skillChoiceOf, speciesSkillChoice, validIncreases, type PendingChoice } from "../lib/modif.ts";
+import { modifFor, scoreBreakdown, multiclassSkillChoice, setSlotFeat, skillChoiceOf, speciesSkillChoice, validIncreases, type PendingChoice } from "../lib/modif.ts";
 import { Md, MdInline } from "../lib/md.tsx";
 import { features, stripMd, type Entry } from "../lib/parse.ts";
 import {
@@ -27,7 +28,11 @@ export default function Builder() {
   const chars = useCharacters();
   const row = chars.get(id);
   const [c, setC] = useState<Character | undefined>(row?.c);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => {
+    const want = new URLSearchParams(window.location.search).get("step");
+    const i = want ? STEPS.findIndex((x) => x.toLowerCase().startsWith(want.toLowerCase())) : -1;
+    return Math.max(0, i);
+  });
   const dirty = useRef(false);
   useEffect(() => {
     if (row && (!c || c.id !== row.c.id)) setC(row.c);
@@ -46,9 +51,11 @@ export default function Builder() {
 
   const cls = content.byId(c?.classId);
   const anyCaster = !!c && classInfos(c, content.byId).some((i) => casterKindOf(i));
+  // spells are also needed for non-casters: Magic Initiate, species spells, invocations
+  const needSpells = anyCaster || !!c?.backgroundId || !!c?.speciesId;
   useEffect(() => {
-    if (anyCaster) content.ensure("spells");
-  }, [anyCaster]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (needSpells) content.ensure("spells");
+  }, [needSpells]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!c) return chars.ready ? <div className="panel">Character not found. <Link to="/">Back to characters</Link></div> : <p className="muted">Loading…</p>;
   if (!chars.canEdit(c.id))
@@ -61,7 +68,8 @@ export default function Builder() {
     Object.keys(c.bonus).length > 0,
     // a class without a skill choice in its Effects (homebrew without Effects) has nothing to pick
     !!cls && c.classSkills.length >= skillChoiceOf(cls).count,
-    !!c.equipClass,
+    // option A is the default, as on the sheet
+    !!c.classId && !!c.backgroundId,
     !!c.name,
   ];
 
@@ -122,6 +130,7 @@ function ChoiceRow({ p, c, update, bare }: StepProps & { p: PendingChoice; bare?
   const pick = (v: string) =>
     setChoice(c, update, p.key, p.count === 1 ? [v] : chosen.includes(v) ? chosen.filter((x) => x !== v) : chosen.length < p.count ? [...chosen, v] : chosen);
   const label = (v: string) => p.options?.find((o) => o.value === v)?.label || content.byId(v)?.name || v;
+  const have = p.options?.some((o) => SKILLS.includes(o.value)) ? skillSources(c, content, p) : new Map<string, string>();
   return (
     <div className={bare ? "" : "choice"}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
@@ -132,15 +141,33 @@ function ChoiceRow({ p, c, update, bare }: StepProps & { p: PendingChoice; bare?
       {p.options ? (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
           {p.options.map((o) => (
-            <button key={o.value} className="pill" aria-pressed={chosen.includes(o.value)} onClick={() => pick(o.value)}>{o.label}</button>
+            <button key={o.value} className={`pill${have.has(o.value) && !chosen.includes(o.value) ? " have" : ""}`} aria-pressed={chosen.includes(o.value)} disabled={p.locked} title={p.locked ? `Set by ${p.origin.split("/").pop()?.replace(/-/g, " ")}` : undefined} onClick={() => pick(o.value)}>{o.label}{have.has(o.value) && !chosen.includes(o.value) ? ` (${have.get(o.value)})` : ""}</button>
           ))}
         </div>
       ) : (
         <div className="faint" style={{ marginTop: 6 }}>{chosen.length ? `Chosen: ${chosen.map(label).join(", ")}. ` : ""}Note your choice on the sheet; the app can't list these options yet.</div>
       )}
+      {p.locked && <div className="faint" style={{ marginTop: 6 }}>Set by your background.</div>}
+      {p.options && !p.options.length && <div className="faint" style={{ marginTop: 6 }}>{p.hint || "Nothing to choose from yet."}</div>}
       {p.count > 1 && p.options && <div className="faint" style={{ marginTop: 6 }}>Chosen {chosen.length} / {p.count}</div>}
     </div>
   );
+}
+
+/** Skills the character is already proficient in, and where from ("Soldier"), leaving out the choice being made. */
+function skillSources(c: Character, content: ReturnType<typeof useContent>, p: PendingChoice): Map<string, string> {
+  const out = new Map<string, string>();
+  const bg = content.byId(c.backgroundId);
+  for (const s of SKILLS) if (bg && stripMd(bg.fields["skill proficiencies"] || "").includes(s)) out.set(s, bg.name);
+  const cls = content.byId(c.classId)?.name || "class";
+  for (const s of c.classSkills) out.set(s, cls);
+  for (const s of c.extraSkills) out.set(s, content.byId(c.speciesId)?.name || "species");
+  const fx = modifFor(c, content);
+  for (const q of fx.pending) {
+    if (q.key === p.key || q.storedIn) continue;
+    for (const s of q.chosen.slice(0, q.count)) if (SKILLS.includes(s) && !out.has(s)) out.set(s, q.entry.name);
+  }
+  return out;
 }
 
 /** "+2 to one score or +1 to two": click an ability to add +1, click again past its limit to take it back. */
@@ -180,7 +207,7 @@ function FeatSlots({ c, update }: StepProps) {
   return (
     <div className="panel">
       <h2>Ability Score Improvements and feats</h2>
-      <p className="faint">At these levels you take the Ability Score Improvement feat or another feat you qualify for.</p>
+      <p className="faint">At these levels you take the Ability Score Improvement feat or another feat {c.ignorePrereqs ? "(prerequisites are off, so every feat is listed)" : "you qualify for"}.</p>
       <div className="stack" style={{ gap: 10, marginTop: 10 }}>
         {slots.map((slot) => {
           const feat = content.byId(slot.chosen[0]);
@@ -242,7 +269,18 @@ function ClassStep({ c, update }: StepProps) {
   const feats = shown ? features(shown).filter((f) => f.level <= kLevel) : [];
   const subFeats = sub && kLevel >= SUBCLASS_LEVEL ? features(sub).filter((f) => f.level <= kLevel) : [];
   // a class still needs something: its subclass, or a choice in its features
-  const pendingAll = multi ? modifFor(c, content).pending.filter((p) => !p.storedIn && !p.slot && p.chosen.length < p.count && p.options) : [];
+  const pendingEvery = shown ? modifFor(c, content).pending : [];
+  const pendingAll = multi ? pendingEvery.filter((p) => !p.storedIn && !p.slot && p.chosen.length < p.count && p.options) : [];
+  /** The choices a feature asks for (D&D Beyond's "1 Choice" badge): how many, how many left, and where they're made. */
+  const choicesOf = (fname: string) => {
+    const mine = pendingEvery.filter((p) => (p.origin === shown?.id || (sub && p.origin === sub.id)) && p.feature.replace(/^Level \d+:\s*/, "").toLowerCase() === fname.toLowerCase());
+    // counted like D&D Beyond: each pick ("Weapon Mastery: 2 Choices"), but a feat slot counts once with what's inside it
+    const inner = (p: (typeof mine)[number]) => !!p.slot && !!p.amounts;
+    const total = mine.reduce((n, p) => n + (inner(p) ? 0 : p.count), 0);
+    const left = mine.reduce((n, p) => n + (inner(p) ? 0 : Math.max(0, p.count - p.chosen.length)), 0) || (mine.some((p) => inner(p) && p.chosen.length < p.count) ? 1 : 0);
+    return { total, left, onAbility: mine.some((p) => p.slot) };
+  };
+  const later = shown ? [...features(shown).filter((f) => f.level > kLevel).map((f) => ({ ...f, src: shown.name })), ...(sub ? features(sub).filter((f) => f.level > Math.max(kLevel, SUBCLASS_LEVEL - 1)).map((f) => ({ ...f, src: sub.name })) : [])].sort((a, b) => a.level - b.level) : [];
   const needs = (i: (typeof infos)[number]) =>
     (i.level >= SUBCLASS_LEVEL && !i.sub && byType("Subclass").some((s) => stripMd(s.fields["parent"] || "").replace(/^[\w-]+:class\//, "").toLowerCase() === i.cls.name.toLowerCase())) ||
     pendingAll.some((p) => p.origin === i.cls.id || (i.sub && p.origin === i.sub.id));
@@ -262,7 +300,7 @@ function ClassStep({ c, update }: StepProps) {
           <Picker
             items={classes}
             selected={c.classId}
-            onPick={(e) => update({ classId: e.id, subclassId: undefined, classSkills: [], equipClass: undefined, cantrips: [], spells: [], multiclass: extraClasses(c).filter((x) => x.classId !== e.id) })}
+            onPick={(e) => update({ classId: e.id, subclassId: undefined, classSkills: [], equipClass: undefined, cantrips: [], spells: [], multiclass: extraClasses(c).filter((x) => x.classId !== e.id), ...suggestedBase(c, byId(c.classId)?.name, e.name) })}
             render={(e) => (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
@@ -320,12 +358,34 @@ function ClassStep({ c, update }: StepProps) {
             <div className="eyebrow" style={{ marginTop: 6 }}>Features through {shown.name} level {kLevel}</div>
             {[...feats.map((f) => ({ ...f, src: shown.name })), ...subFeats.map((f) => ({ ...f, src: sub!.name }))]
               .sort((a, b) => a.level - b.level)
-              .map((f, i) => (
-                <details key={i} className="inset">
-                  <summary><strong>{f.name}</strong> <span className="faint">· Level {f.level}{f.src !== shown.name ? ` · ${f.src}` : ""}</span></summary>
-                  <Md md={f.md} />
-                </details>
-              ))}
+              .map((f, i) => {
+                const ch = choicesOf(f.name);
+                return (
+                  <details key={i} className="inset">
+                    <summary>
+                      <strong>{f.name}</strong> <span className="faint">· Level {f.level}{f.src !== shown.name ? ` · ${f.src}` : ""}</span>
+                      {ch.total > 0 && (ch.left > 0
+                        ? <span className="tag need" style={{ marginLeft: 6 }}>{ch.left} choice{ch.left === 1 ? "" : "s"} left</span>
+                        : <span className="tag ok" style={{ marginLeft: 6 }}>✓ {ch.total} choice{ch.total === 1 ? "" : "s"} made</span>)}
+                    </summary>
+                    {ch.total > 0 && <p className="faint" style={{ margin: "4px 0" }}>{ch.onAbility ? "Make this choice on the Ability scores step." : "Make this choice in the choices above."}</p>}
+                    <Md md={f.md} />
+                  </details>
+                );
+              })}
+            {later.length > 0 && (
+              <details className="inset later">
+                <summary><strong>Available at higher levels</strong> <span className="faint">({later.length})</span></summary>
+                <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+                  {later.map((f, i) => (
+                    <details key={i} className="inset">
+                      <summary><strong>{f.name}</strong> <span className="faint">· Level {f.level}{f.src !== shown.name ? ` · ${f.src}` : ""}</span></summary>
+                      <Md md={f.md} />
+                    </details>
+                  ))}
+                </div>
+              </details>
+            )}
             <div className="faint">Source: {shown.fields["source"] || shown.pack}</div>
           </div>
         )}
@@ -342,7 +402,8 @@ function MulticlassPanel({ c, update, onEdit }: StepProps & { onEdit?: (index: n
   const infos = classInfos(c, byId);
   const extras = extraClasses(c);
   const content = useContent();
-  const problems = prerequisiteProblems(infos.map((i) => i.cls), modifFor(c, content).scores);
+  const scoresNow = modifFor(c, content).scores;
+  const problems = c.ignorePrereqs ? [] : prerequisiteProblems(infos.map((i) => i.cls), scoresNow);
   const taken = new Set([c.classId, ...extras.map((x) => x.classId)]);
   const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);
   return (
@@ -358,7 +419,7 @@ function MulticlassPanel({ c, update, onEdit }: StepProps & { onEdit?: (index: n
         <div className="inset" role="status" style={{ borderColor: "var(--warn)" }}>
           <strong>Doesn’t meet the multiclass prerequisites:</strong>
           <ul style={{ margin: "6px 0 0 18px" }}>{problems.map((p) => <li key={p}>{p}</li>)}</ul>
-          <div className="faint" style={{ marginTop: 4 }}>You can keep it if your DM allows.</div>
+          <div className="faint" style={{ marginTop: 4 }}>You can keep it if your DM allows, or turn off “Use prerequisites” in the Details step’s settings.</div>
         </div>
       )}
       <div className="stack" style={{ gap: 10, marginTop: 10 }}>
@@ -416,7 +477,10 @@ function MulticlassPanel({ c, update, onEdit }: StepProps & { onEdit?: (index: n
           Add a class
           <select value="" onChange={(e) => e.target.value && update(addClass(c, e.target.value))}>
             <option value="">Choose a class…</option>
-            {classes.filter((k) => !taken.has(k.id)).map((k) => <option key={k.id} value={k.id}>{k.name} (primary: {stripMd(k.fields["primary ability"] || "—")})</option>)}
+            {classes.filter((k) => !taken.has(k.id)).map((k) => {
+              const why = c.ignorePrereqs ? [] : prerequisiteProblems([...infos.map((i) => i.cls), k], scoresNow);
+              return <option key={k.id} value={k.id} disabled={why.length > 0} title={why.join(" ")}>{k.name} (primary: {stripMd(k.fields["primary ability"] || "—")}){why.length ? " — prerequisites not met" : ""}</option>;
+            })}
           </select>
         </label>
       )}
@@ -431,6 +495,8 @@ function SpeciesStep({ c, update }: StepProps) {
   const sp = byId(c.speciesId);
   const choice = speciesChoice(sp);
   const skillPick = speciesSkillChoice(sp);
+  const bgSkills = stripMd(byId(c.backgroundId)?.fields["skill proficiencies"] || "");
+  const haveSkill = (s: string) => (bgSkills.includes(s) ? byId(c.backgroundId)!.name : c.classSkills.includes(s) ? byId(c.classId)?.name || "class" : "");
   return (
     <div className="row">
       <section className="side">
@@ -492,10 +558,13 @@ function SpeciesStep({ c, update }: StepProps) {
             )}
             {skillPick && (
               <div className="choice">
-                <strong>Skill proficiency from your species</strong>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <strong>Skill proficiency from your species</strong>
+                  {!c.extraSkills.length && <span className="tag need">Choice needed</span>}
+                </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                   {skillPick.from.map((s) => (
-                    <button key={s} className="pill" aria-pressed={c.extraSkills.includes(s)} onClick={() => update({ extraSkills: [s] })}>{s}</button>
+                    <button key={s} className={`pill${haveSkill(s) && !c.extraSkills.includes(s) ? " have" : ""}`} aria-pressed={c.extraSkills.includes(s)} onClick={() => update({ extraSkills: [s] })}>{s}{haveSkill(s) && !c.extraSkills.includes(s) ? ` (${haveSkill(s)})` : ""}</button>
                   ))}
                 </div>
               </div>
@@ -576,13 +645,23 @@ const SUGGESTED: Record<string, number[]> = {
   Sorcerer: [10, 13, 14, 8, 12, 15], Warlock: [8, 14, 13, 12, 10, 15], Wizard: [8, 12, 13, 15, 14, 10],
 };
 
+/** Picking a class starts the standard array from its suggested scores, unless the player already set them. */
+function suggestedBase(c: Character, from: string | undefined, to: string): Partial<Character> {
+  if (c.method !== "standard" || !SUGGESTED[to]) return {};
+  const now = ABILITIES.map((a) => c.base[a]);
+  const untouched = now.every((v) => v === 10 || v === undefined) || (from && SUGGESTED[from]?.every((v, i) => v === now[i])) || STANDARD_ARRAY.every((v, i) => v === now[i]);
+  return untouched ? { base: Object.fromEntries(ABILITIES.map((a, i) => [a, SUGGESTED[to][i]])) } : {};
+}
+
 function AbilityStep({ c, update }: StepProps) {
   const { byId } = useContent();
   const cls = byId(c.classId);
   const bg = byId(c.backgroundId);
   const bgAbilities = abilityList(bg?.fields["ability scores"]);
   const content = useContent();
-  const finals = modifFor(c, content).scores;
+  const mf = modifFor(c, content);
+  const finals = mf.scores;
+  const breakdown = scoreBreakdown(c, mf.scoreSteps, bg?.name);
 
   const setMethod = (method: Character["method"]) => {
     const base = Object.fromEntries(ABILITIES.map((a, i) => [a, method === "standard" ? (SUGGESTED[cls?.name || ""] || STANDARD_ARRAY)[i] : method === "pointbuy" ? 8 : c.base[a] ?? 10]));
@@ -650,6 +729,26 @@ function AbilityStep({ c, update }: StepProps) {
         </div>
         {c.method === "standard" && [...used.values()].some((n) => n > 1) && <p className="faint" style={{ color: "var(--warn)" }}>Each value in the array should be used once.</p>}
         <p className="faint" style={{ marginBottom: 0 }}>Totals include your background increase and any feats below.</p>
+        <details className="scorecalc">
+          <summary>Score calculations</summary>
+          <div className="scgrid">
+            {ABILITIES.map((a) => (
+              <div key={a} className="sccard">
+                <div className="schead"><b>{a}</b><span>{finals[a]} <span className="faint">({fmt(mod(finals[a]))})</span></span></div>
+                <table>
+                  <tbody>
+                    {breakdown[a].map((r, i) => (
+                      <tr key={i}>
+                        <td>{r.label}{r.note ? <span className="faint"> · {r.note}</span> : null}</td>
+                        <td>{i === 0 ? r.amount : fmt(r.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </details>
       </div>
 
       <div className="panel">
@@ -728,7 +827,10 @@ function ClassSpells({ c, update, index }: StepProps & { index: number }) {
   const spellsByLevel = useMemo(() => classSpells(listCls, content.byType("Spell")), [listCls, content]);
   const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);
   const multi = extraClasses(c).length > 0;
+  // subclass, oath and feat spells that are always prepared: shown, but not counted against the prepared limit
+  const always = new Map(modifFor(c, content).grantedSpells.filter((g) => g.prepared).map((g) => [g.spell.name, g.source]));
   if (!caster) return null;
+  const alwaysShown = [...spellsByLevel.entries()].filter(([l]) => l > 0 && l <= caster.maxSpellLevel).flatMap(([, list]) => list).filter((x) => always.has(x.name)).length;
   return (
     <div className="panel">
       <h2>{multi ? `${info.cls.name} spells` : "Spells"}</h2>
@@ -744,16 +846,16 @@ function ClassSpells({ c, update, index }: StepProps & { index: number }) {
             <SpellGroup title={`Cantrips (${info.cantrips.length}/${caster.cantrips})`} spells={spellsByLevel.get(0) || []} chosen={info.cantrips} onToggle={(n) => update(patchClass(c, index, { cantrips: toggle(info.cantrips, n, caster.cantrips) }))} />
           )}
           {Array.from({ length: caster.maxSpellLevel }, (_, i) => i + 1).map((lvl) => (
-            <SpellGroup key={lvl} title={`Level ${lvl}`} spells={spellsByLevel.get(lvl) || []} chosen={info.spells} onToggle={(n) => update(patchClass(c, index, { spells: toggle(info.spells, n, caster.prepared) }))} />
+            <SpellGroup key={lvl} title={`Level ${lvl}`} spells={spellsByLevel.get(lvl) || []} chosen={info.spells} always={always} onToggle={(n) => update(patchClass(c, index, { spells: toggle(info.spells, n, caster.prepared) }))} />
           ))}
-          <p className="faint">Prepared: {info.spells.length} / {caster.prepared}</p>
+          <p className="faint">Prepared: {info.spells.filter((n) => !always.has(n)).length} / {caster.prepared}{alwaysShown ? ` (plus ${alwaysShown} always prepared)` : ""}</p>
         </>
       )}
     </div>
   );
 }
 
-function SpellGroup({ title, spells, chosen, onToggle }: { title: string; spells: Entry[]; chosen: string[]; onToggle: (n: string) => void }) {
+function SpellGroup({ title, spells, chosen, onToggle, always }: { title: string; spells: Entry[]; chosen: string[]; onToggle: (n: string) => void; always?: Map<string, string> }) {
   const [open, setOpen] = useState<string>();
   return (
     <div style={{ marginTop: 14 }}>
@@ -761,7 +863,11 @@ function SpellGroup({ title, spells, chosen, onToggle }: { title: string; spells
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {spells.map((s) => (
           <span key={s.id} style={{ display: "inline-flex" }}>
-            <button className="pill" aria-pressed={chosen.includes(s.name)} onClick={() => onToggle(s.name)}>{s.name}</button>
+            {always?.has(s.name) ? (
+              <button className="pill" aria-pressed disabled title={`Always prepared (${always.get(s.name)}); doesn't count against your prepared spells`}>{s.name} · Always prepared</button>
+            ) : (
+              <button className="pill" aria-pressed={chosen.includes(s.name)} onClick={() => onToggle(s.name)}>{s.name}</button>
+            )}
             <button className="btn small" style={{ border: 0 }} aria-label={`About ${s.name}`} onClick={() => setOpen(open === s.id ? undefined : s.id)}>ⓘ</button>
           </span>
         ))}
@@ -816,8 +922,8 @@ function EquipmentStep({ c, update }: StepProps) {
             </button>
           </div>
         )}
-        <Group title={`${cls?.name || "Class"} starting equipment`} opts={equipmentOptions(cls?.fields["starting equipment"])} value={c.equipClass} onPick={(k) => update({ equipClass: k })} />
-        <Group title={`${bg?.name || "Background"} equipment`} opts={equipmentOptions(bg?.fields["equipment"])} value={c.equipBackground} onPick={(k) => update({ equipBackground: k })} />
+        <Group title={`${cls?.name || "Class"} starting equipment`} opts={equipmentOptions(cls?.fields["starting equipment"])} value={c.equipClass || "A"} onPick={(k) => update({ equipClass: k })} />
+        <Group title={`${bg?.name || "Background"} equipment`} opts={equipmentOptions(bg?.fields["equipment"])} value={c.equipBackground || "A"} onPick={(k) => update({ equipBackground: k })} />
       </div>
       <aside className="side panel">
         <div className="eyebrow">Armor Class</div>
@@ -834,15 +940,25 @@ function EquipmentStep({ c, update }: StepProps) {
 // ---------------------------------------------------------------- details
 function DetailsStep({ c, update }: StepProps) {
   return (
-    <div className="panel stack" style={{ gap: 14, maxWidth: 720 }}>
-      <label className="field">
-        Character name
-        <input type="text" value={c.name} onChange={(e) => update({ name: e.target.value })} placeholder="Name your character" />
-      </label>
-      <label className="field">
-        Notes (appearance, personality, backstory)
-        <textarea value={c.notes} onChange={(e) => update({ notes: e.target.value })} />
-      </label>
+    <div className="stack" style={{ gap: 18, maxWidth: 820 }}>
+      <div className="panel stack" style={{ gap: 14 }}>
+        <label className="field">
+          Character name
+          <input type="text" value={c.name} onChange={(e) => update({ name: e.target.value })} placeholder="Name your character" />
+        </label>
+        <DetailsForm c={c} onChange={(details) => update({ details })} />
+        <label className="field">
+          Other notes
+          <textarea value={c.notes} onChange={(e) => update({ notes: e.target.value })} />
+        </label>
+      </div>
+      <div className="panel stack" style={{ gap: 8 }}>
+        <h2>Settings</h2>
+        <label className="checkrow">
+          <input type="checkbox" checked={!c.ignorePrereqs} onChange={(e) => update({ ignorePrereqs: !e.target.checked })} />
+          <span><b>Use prerequisites</b> for feats and multiclassing<div className="faint">When off, the builder lists every feat and lets you add any class, whatever your scores and level.</div></span>
+        </label>
+      </div>
     </div>
   );
 }

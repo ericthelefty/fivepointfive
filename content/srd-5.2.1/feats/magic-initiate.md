@@ -11,8 +11,8 @@ You learn two cantrips of your choice from the Cleric, Druid, or Wizard spell li
 
 ## Effects
 ```yaml
-- choose: { id: mi-list, kind: option, options: [ { id: cleric }, { id: druid }, { id: wizard } ] }
-- choose: { id: mi-ability, kind: ability, from: [int, wis, cha] }
+- choose: { id: mi-list, kind: option, label: spell list, options: [ { id: cleric }, { id: druid }, { id: wizard } ] }
+- choose: { id: mi-ability, kind: ability, label: spellcasting ability, from: [int, wis, cha] }
 - grant-spell: { choose: { id: mi-cantrips, count: 2, from: { spell: { list: choice:mi-list, level: 0 } }, swap: { at: level-up, count: 1 } },
                  ability: choice:mi-ability }
 ```

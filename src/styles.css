@@ -77,6 +77,8 @@ footer.attrib { padding: 14px 28px; border-top: 1px solid var(--line-2); font-si
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .pill { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-3); background: transparent; color: var(--ink-2); cursor: pointer; }
 .pill[aria-pressed="true"] { border: 2px solid var(--accent); background: var(--accent-bg); color: var(--accent-ink); font-weight: 600; }
+.pill.have { border-style: dashed; color: var(--ink-3, var(--ink-2)); }
+.pill:disabled { cursor: default; }
 .chip { font-size: 12px; background: var(--chip); border: 1px solid var(--line-3); border-radius: 6px; padding: 4px 9px; display: inline-block; }
 .tag { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
 .tag.need { background: var(--accent); color: #141114; }
@@ -207,3 +209,29 @@ label.radio input { margin-top: 3px; }
 :root[data-theme="light"] .tipbox.below::after { border-top-color: transparent; border-bottom-color: #2a2118; }
 .themebtn { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; cursor: pointer; color: var(--muted); }
 .themebtn:hover { color: var(--ink); border-color: var(--line-3); }
+
+/* character details */
+.detailsform { display: flex; flex-direction: column; gap: 14px; }
+.detailsform fieldset { border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px 12px; margin: 0; }
+.detailsform legend { padding: 0 6px; font-weight: 600; color: var(--accent-ink); }
+.detailsform .dfs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.detailsform .dfl { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.detailsform textarea { min-height: 0; }
+.detailsview section + section { margin-top: 12px; }
+.detailsview h4 { margin: 0 0 6px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-ink); }
+.detailsview dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px 14px; margin: 0; }
+.detailsview dl > div.long { grid-column: 1 / -1; }
+.detailsview dt { font-size: 11.5px; color: var(--muted); }
+.detailsview dd { margin: 2px 0 0; white-space: pre-wrap; }
+.checkrow { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.checkrow input { margin-top: 3px; }
+
+/* score calculations */
+.scorecalc { margin-top: 12px; }
+.scorecalc summary { cursor: pointer; font-weight: 600; color: var(--accent-ink); }
+.scgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 10px; }
+.sccard { border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 10px; }
+.sccard .schead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.sccard table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sccard td { padding: 3px 0; border-top: 1px solid var(--line-2); }
+.sccard td:last-child { text-align: right; white-space: nowrap; padding-left: 8px; }

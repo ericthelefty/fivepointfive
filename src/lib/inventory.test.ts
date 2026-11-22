@@ -78,6 +78,17 @@ describe("starting equipment", () => {
     expect(inv.items.find((i) => i.name === "Chain Mail")?.equipped).toBe(true);
     expect(inv.coins.gp).toBe(4 + 14);
   });
+
+  it("the Soldier's gaming set and the Monk's tool are the ones picked, and gear has weight", () => {
+    const c = { ...newCharacter(), classId: "srd:class/monk", backgroundId: "srd:background/soldier", equipClass: "A", equipBackground: "A",
+      choices: { "srd:background/soldier#gaming-set": ["Dice"], "srd:class/monk#tool": ["Smith’s Tools"] } };
+    const inv = inventoryOf(c, byName("Monk"), byName("Soldier"), cat);
+    const names = inv.items.map((i) => i.name);
+    expect(names).toContain("Dice");
+    expect(names).toContain("Smith’s Tools");
+    expect(names.some((n) => /same as above|chosen for/i.test(n))).toBe(false);
+    expect(inv.items.find((i) => i.name === "Explorer’s Pack")?.weight).toBe(55);
+  });
 });
 
 describe("equip, attune and active", () => {

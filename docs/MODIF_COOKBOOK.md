@@ -59,7 +59,12 @@ In the recipes, *"…"* is the rules phrase and the block below it is the encodi
 - choose: { id: ancestry, kind: option, options: [ { id: red, label: Red, damage: fire }, { id: blue, label: Blue, damage: lightning } ] }
 - defense: { resistance: [choice:ancestry.damage] }
 ```
-Read a picked option's fields with `choice:<id>.<field>`.
+Read a picked option's fields with `choice:<id>.<field>`. A `label:` on the choice names it in the builder ("Magic Initiate: spell list").
+
+*"You learn two cantrips of your choice from the chosen spell list."* (from: Magic Initiate) The builder lists the spells; a background that names the list ("Magic Initiate (Wizard)") locks the `options` choice to it.
+```yaml
+- grant-spell: { choose: { id: mi-cantrips, count: 2, from: { spell: { list: choice:mi-list, level: 0 } } }, ability: choice:mi-ability }
+```
 
 *"You learn one Fighting Style feat of your choice."* (from: Fighter)
 ```yaml

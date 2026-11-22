@@ -143,3 +143,66 @@ describe("spell rows like D&D Beyond", () => {
     expect(dm.kind).toBeTruthy();
   });
 });
+
+describe("builder: prerequisites toggle and score breakdown", () => {
+  it("lists every feat when prerequisites are off", () => {
+    const c = druid(4);
+    const slot = (x: Character) => run(x).fx.pending.find((p) => p.slot)!;
+    const on = slot(c).options!.length;
+    const off = slot({ ...c, ignorePrereqs: true }).options!.length;
+    expect(off).toBeGreaterThan(on);
+  });
+  it("shows each score's sources", async () => {
+    const { scoreBreakdown } = await import("./modif.ts");
+    const c = druid(4);
+    const b = scoreBreakdown(c, [{ ability: "Wisdom", amount: 1, max: 20, source: "Ability Score Improvement" }, { ability: "Wisdom", amount: 1, max: 20, source: "Ability Score Improvement" }], "Sage");
+    expect(b.Wisdom).toEqual([{ label: "Base score", amount: 15 }, { label: "Sage (background)", amount: 2, note: undefined }, { label: "Ability Score Improvement", amount: 2, note: undefined }]);
+  });
+});
+
+describe("Sera: the Paladin 5 / Warlock 2 built side by side with D&D Beyond", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fixture = JSON.parse(readFileSync(join(__dirname, "sera.fixture.json"), "utf8"));
+  const sera = (extra: Record<string, unknown> = {}): Character => ({ ...newCharacter(), ...fixture, ...extra });
+  it("lists known damage cantrips for Agonizing Blast and adds Charisma to Eldritch Blast", () => {
+    const base = sera();
+    const p = run(base).fx.pending.find((x) => x.key.endsWith("#agonizing-cantrip"));
+    expect(p?.options?.map((o) => o.label)).toEqual(["Eldritch Blast"]);
+    const chosen = sera({ choices: { ...fixture.choices, [p!.key]: ["srd:spell/eldritch-blast"] } });
+    expect(run(chosen).fx.spellDamageBonuses).toEqual([expect.objectContaining({ spellId: "srd:spell/eldritch-blast", value: 3 })]);
+  });
+});
+
+describe("invocation prerequisites", () => {
+  const fixture = JSON.parse(readFileSync(join(__dirname, "sera.fixture.json"), "utf8"));
+  it("offers a Warlock 2 only the invocations of level 2 or lower", () => {
+    const opts = run({ ...newCharacter(), ...fixture }).fx.pending.find((x) => x.key === "srd:class/warlock#invocations")!.options!.map((o) => o.label);
+    expect(opts).toContain("Agonizing Blast");
+    expect(opts).toContain("Pact of the Blade");
+    expect(opts).not.toContain("Thirsting Blade");
+    expect(opts).not.toContain("Eldritch Smite");
+    const off = run({ ...newCharacter(), ...fixture, ignorePrereqs: true }).fx.pending.find((x) => x.key === "srd:class/warlock#invocations")!.options!.map((o) => o.label);
+    expect(off).toContain("Thirsting Blade");
+  });
+});
+
+describe("Magic Initiate from a background", () => {
+  it("locks the Sage's list to Wizard and offers Wizard cantrips and level 1 spells", () => {
+    const c = druid(3);
+    const { fx } = run(c);
+    const list = fx.pending.find((p) => p.key.endsWith("#mi-list"))!;
+    expect(list.locked).toBe(true);
+    expect(list.options!.map((o) => o.value)).toEqual(["wizard"]);
+    const can = fx.pending.find((p) => p.key.endsWith("#mi-cantrips"))!;
+    expect(can.count).toBe(2);
+    expect(can.options!.some((o) => o.label === "Fire Bolt")).toBe(true);
+    expect(can.options!.some((o) => o.label === "Guidance")).toBe(false);
+    const one = fx.pending.find((p) => p.key.endsWith("#mi-spell"))!;
+    expect(one.options!.some((o) => o.label === "Magic Missile")).toBe(true);
+    // picking them grants the spells with the chosen ability
+    const c2 = { ...c, choices: { [can.key]: ["srd:spell/fire-bolt", "srd:spell/light"], [one.key]: ["srd:spell/magic-missile"], [fx.pending.find((p) => p.key.endsWith("#mi-ability"))!.key]: ["Intelligence"] } };
+    const g = run(c2).fx.grantedSpells;
+    expect(g.find((x) => x.spell.id === "srd:spell/fire-bolt")?.ability).toBe("Intelligence");
+    expect(g.some((x) => x.spell.id === "srd:spell/magic-missile")).toBe(true);
+  });
+});
