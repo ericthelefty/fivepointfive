@@ -618,3 +618,16 @@ describe("Pact of the Blade", () => {
     expect(fx.weaponRules.find((r) => r.type === "damage-type")?.types).toEqual(["Necrotic", "Psychic", "Radiant"]);
   });
 });
+
+describe("the Modif cookbook", () => {
+  it("every example in docs/MODIF_COOKBOOK.md reads as Modif with no problems", () => {
+    const md = readFileSync(join(__dirname, "../../docs/MODIF_COOKBOOK.md"), "utf8");
+    const snippets = [...md.matchAll(/```yaml\n([\s\S]*?)```/g)].map((m) => m[1]);
+    expect(snippets.length).toBeGreaterThan(40);
+    for (const y of snippets) {
+      const r = readBlocks(y);
+      expect(r.problems, y).toEqual([]);
+      expect(r.blocks.length, y).toBeGreaterThan(0);
+    }
+  });
+});

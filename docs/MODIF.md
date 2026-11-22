@@ -7,6 +7,8 @@
 **Published:** 2026-11-21
 **License:** CC-BY-4.0 (same as the SRD content it describes)
 
+**Writing Effects?** Start with the [Modif 0.6 cookbook](MODIF_COOKBOOK.md), the informative authoring guide that ships with this spec: common rules phrases and the blocks that express them. This spec is normative; where the two differ, the spec wins.
+
 Modif defines how a content entry (class feature, species trait, feat, background, item, spell, condition) tells the app what it *does*. Rules text stays the player's reference. The `## Effects` block restates the rules as data built from a fixed set of **blocks**, and the app implements each block once.
 
 It's built from three sources:
@@ -150,7 +152,7 @@ Values were normalised too: `until: end-of-your-next-turn` is now `end-of-next-t
 ## 1. Principles
 
 1. **Text is for the player; data is for the app.** Rules text is never parsed for rules. If the text says something the data doesn't capture, the importer flags it (see §16); it doesn't guess.
-2. **Code per block, never per feature.** Content only combines blocks. If a feature needs something no block can express, that's a request for a new block, which then works for all content.
+2. **Code per block, never per feature.** Content only combines blocks. If a feature needs something no block can express, that's a request for a new block, which then works for all content. Until it exists, the `custom` escape hatch (§5.9) names a hand-coded handler and always carries the rule as text.
 3. **Conditions are data.** "While not wearing armor" is a `when`, not a phrase in a description. Nothing that changes a number may live only in free text.
 4. **Situational is a normal result.** A trigger the sheet can't evaluate becomes a **prompt**: a reminder or a button at the right moment. It's still data, never silently dropped.
 5. **Everything has an id and a source.** Every effect knows which entry granted it. That gives source labels on every number ("+2 Unarmored Bonus (Bracers of Defense)"), clean removal, and references between entries.
@@ -229,6 +231,8 @@ These pieces appear inside many blocks.
 - **References** use `$`, followed by an entry id and then a local id after `#`. (`$` rather than `@`, because YAML reserves `@` at the start of a value.) Every reference to another entry or block uses `$`, including in `default`, `parent` and filters.
   - `$srd/fighter#second-wind` refers to that block in another entry.
   - `$#rage` (no entry id) refers to a block in the same entry.
+  - `$<pack-id>/<type>/<slug>` refers to an entry in another pack, the same way `$srd/…` refers to the SRD pack: `$phb2024/feats/lucky`. Only the pack id and the entry's slug are used to find it.
+- **Ids are stable.** Apps may store a character's choices by entry id and choice id (`<entry id>#<choice id>`), so a later version of a pack must keep its entry and choice ids. Renaming one loses what characters picked.
   - `$srd/spells/hunters-mark` refers to a whole entry.
 
 ### 3.2 Values (expressions)
@@ -362,6 +366,7 @@ when: { not: { condition: incapacitated } }    # Evasion, Elusive
 - `duration: { amount: 10, unit: minute|hour|round|turn|day, until: end-of-turn|start-of-next-turn|end-of-next-turn, concentration: true }`. `end-of-turn` means the end of the current turn.
 - `duration.extend` (a prompt saying how to keep it going) and `duration.max` (the cap): Rage lasts `until: end-of-next-turn`, extendable, `max: { amount: 10, unit: minute }`.
 - `per: { until: start-of-next-turn }` ("once until the start of your next turn": Peerless Aim).
+- On an `action` with no `cost`, `per: short | long | dawn` gives it a use counter of its own (one use, regained on that rest): "Once you use this feature, you can't use it again until you finish a Long Rest" is just `per: long`.
 
 **Per-use counters.** Some features get harder or costlier each time they're used before a rest. Any block may carry `counter: { reset: short | long }`; `uses` in its values is the number of uses since the reset (0 the first time).
 ```yaml

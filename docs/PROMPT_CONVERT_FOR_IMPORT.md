@@ -20,6 +20,7 @@ The app never reads rules from prose. Whatever the Effects leave out isn't autom
 
 If you can browse the web, read these before you start. They're the authority; this prompt is a summary.
 
+- The Modif cookbook (rules phrases → blocks, with SRD examples): https://github.com/ericthelefty/fivepointfive/blob/main/docs/MODIF_COOKBOOK.md
 - The Modif spec: https://github.com/ericthelefty/fivepointfive/blob/main/docs/MODIF.md (read §2–§4 and the section for every block you use)
 - The content format: https://github.com/ericthelefty/fivepointfive/blob/main/docs/CONTENT_FORMAT.md
 - Finished examples to copy (every class, subclass, species, background, feat, spell and magic item in the SRD pack has Effects): https://github.com/ericthelefty/fivepointfive/tree/main/content/srd-5.2.1. Good ones:
