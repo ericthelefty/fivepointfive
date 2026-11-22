@@ -3,7 +3,7 @@ import { useContent } from "../lib/store.tsx";
 import { Md } from "../lib/md.tsx";
 import type { Entry } from "../lib/parse.ts";
 
-const TYPES = ["Class", "Subclass", "Species", "Background", "Feat", "Spell", "Magic Item", "Creature", "Gear", "Tool", "Rule"];
+const TYPES = ["Class", "Subclass", "Species", "Background", "Feat", "Spell", "Magic Item", "Creature", "Creature Group", "Gear", "Tool", "Rule"];
 
 /** Rebuild an entry's Markdown (for "view as .md" and copying as an example). */
 export function entryToMd(e: Entry): string {
@@ -33,7 +33,7 @@ export default function Library() {
     return content
       .byType(type)
       .filter((e) => !needle || e.name.toLowerCase().includes(needle) || (e.tagline || "").toLowerCase().includes(needle) || e.tags.some((t) => t.toLowerCase().includes(needle)))
-      .slice(0, 400);
+      .slice(0, 1000);
   }, [content, type, q]);
   const e = content.byId(sel);
 
