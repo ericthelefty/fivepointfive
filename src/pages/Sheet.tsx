@@ -265,7 +265,7 @@ export default function Sheet() {
   };
   const attacks: Attack[] = [
     ...wielded.map(({ it, w }) => {
-      const wo = weaponOpts({ id: slug(w.name), name: w.name, category: w.category, properties: w.properties, monk: isMonkWeapon(w), itemId: it.id, tags: it.tags });
+      const wo = weaponOpts({ id: slug(w.name), name: w.name, category: w.category, properties: w.properties, monk: isMonkWeapon(w), itemId: it.id, tags: it.tags, damage: w.damage });
       return withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficient(fx, { ...w, tags: it.tags }), wo.opts), itemId: it.id, dieFloor: wo.dieFloor, maximize: wo.maximize }, /ranged/i.test(w.category));
     }),
     (() => {
@@ -345,10 +345,9 @@ export default function Sheet() {
       floorNotes.length ? `<div>${esc(floorNotes.join(" · "))}</div>` : "",
       ...fx.rollNotes.filter((n) => n.roll === ctx.kind).map((n) => `<div><b>${esc(n.source)}:</b> ${esc(n.text(r.total))}</div>`),
       extraNote,
-      r.crit && ctx.kind !== "check" && ctx.kind !== "save" ? `<div class="vd crit">Natural 20!</div>` : "",
-      r.fumble ? `<div class="vd bad">Natural 1</div>` : "",
     ].join("");
-    log({ title, total: String(r.total), cls: r.crit ? "crit" : r.fumble ? "fumble" : "test", detail });
+    // ability checks and saving throws don't score Critical Hits, and a 1 isn't an automatic failure (Sage Advice)
+    log({ title, total: String(r.total), cls: "test", detail });
     return r;
   };
 
@@ -585,10 +584,11 @@ export default function Sheet() {
     if (fromTemp) notes.push(`${fromTemp} absorbed by temporary HP`);
     if (left >= hpCur + hpMax && hpCur > 0) notes.push("<b>Massive damage:</b> the remaining damage equals or exceeds your Hit Point maximum, so you die instantly.");
     else if (cur === 0) notes.push(hpCur === 0 ? "Damage at 0 HP: one failed death save (two on a critical hit)." : "You drop to 0 HP and have the Unconscious condition.");
-    if (p.concentration && left > 0) notes.push(`Concentration on ${esc(p.concentration)}: make a Constitution save, DC ${Math.min(30, Math.max(10, Math.floor(left / 2)))}.`);
+    // damage absorbed by Temporary Hit Points still counts for the DC (Sage Advice)
+    if (p.concentration) notes.push(`Concentration on ${esc(p.concentration)}: make a Constitution save, DC ${Math.min(30, Math.max(10, Math.floor(n / 2)))}.`);
     setPlay({ hpCur: cur, hpTemp: temp, deathF: hpCur === 0 && cur === 0 ? Math.min(3, p.deathF + 1) : p.deathF });
     log({ title: "Took damage", total: `−${n}`, cls: "dmg", detail: `HP ${hpCur} → ${cur} / ${hpMax}${notes.map((x) => `<div>${x}</div>`).join("")}` },
-      p.concentration && left > 0 ? [{ label: "Roll Constitution save", run: () => test("Concentration save", d.saves.Constitution.value, { kind: "save", ability: "Constitution" }) }] : undefined);
+      p.concentration ? [{ label: "Roll Constitution save", run: () => test("Concentration save", d.saves.Constitution.value, { kind: "save", ability: "Constitution" }) }] : undefined);
     setHpAmt("");
   };
   const heal = () => {

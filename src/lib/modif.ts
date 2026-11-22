@@ -15,7 +15,7 @@ import { features, parseTables, slug, spellInfo, stripMd, type Entry } from "./p
 import { CUSTOM_HANDLERS } from "./custom/index.ts";
 import { classTable, tableRow, mod, profBonus, finalScores, speciesChoice, type Character } from "./rules.ts";
 import { ABILITIES, SKILLS, closest } from "./fix.ts";
-import { SUBCLASS_LEVEL, classInfos } from "./multiclass.ts";
+import { SUBCLASS_LEVEL, classInfos, spellSlots } from "./multiclass.ts";
 import type { Item } from "./inventory.ts";
 
 // ------------------------------------------------------------------ vocabulary
@@ -195,7 +195,19 @@ export function evalAmount(expr: Val, env: Env): Amount | null {
       const v = atom();
       return v && !v.dice.length ? { dice: [], flat: -v.flat } : null;
     }
-    const fn = src.slice(pos).match(/^(max|min|floor|ceil)\s*\(/);
+    // dice(count, dX): dice whose count is computed ("dice(prof, d4)")
+    const dfn = src.slice(pos).match(/^dice\s*\(/);
+    if (dfn) {
+      pos += dfn[0].length;
+      const n = sum();
+      if (!n || n.dice.length || peek() !== ",") return null;
+      pos++;
+      const die = src.slice(pos).match(/^\s*d(\d+)\s*\)/);
+      if (!die) return null;
+      pos += die[0].length;
+      return n.flat > 0 ? { dice: [`${n.flat}d${die[1]}`], flat: 0 } : { dice: [], flat: 0 };
+    }
+    const fn = src.slice(pos).match(/^(max|min|floor|ceil|half)\s*\(/);
     if (fn) {
       pos += fn[0].length;
       const args: number[] = [];
@@ -208,7 +220,7 @@ export function evalAmount(expr: Val, env: Env): Amount | null {
         return null;
       }
       const f = fn[1];
-      const n = f === "max" ? Math.max(...args) : f === "min" ? Math.min(...args) : f === "floor" ? Math.floor(args[0]) : Math.ceil(args[0]);
+      const n = f === "max" ? Math.max(...args) : f === "min" ? Math.min(...args) : f === "floor" ? Math.floor(args[0]) : f === "half" ? Math.floor(args[0] / 2) : Math.ceil(args[0]);
       return { dice: [], flat: n };
     }
     // a word runs to the next operator; table columns may contain spaces
@@ -540,7 +552,7 @@ export interface ModifConvert {
 }
 
 /** A weapon the sheet attacks with, as weaponFits() sees it. */
-export interface WeaponInfo { id: string; name: string; category: string; properties: string; unarmed?: boolean; monk?: boolean; itemId?: string; twoHands?: boolean; tags?: string[] }
+export interface WeaponInfo { id: string; name: string; category: string; properties: string; unarmed?: boolean; monk?: boolean; itemId?: string; twoHands?: boolean; tags?: string[]; damage?: string }
 
 /** Does a Modif weapon scope (`{ weapon: { id, monk, unarmed, kind, hands, property, category } }`, `{ any: [...] }`) cover this weapon? */
 export function weaponFits(scope: Val, w: WeaponInfo, itemId?: string): boolean {
@@ -558,6 +570,7 @@ export function weaponFits(scope: Val, w: WeaponInfo, itemId?: string): boolean 
       if (!list.includes(w.id) && !list.includes(slug(w.name))) return false;
     } else if (k === "unarmed") { if (!!w.unarmed !== !!x) return false; }
     else if (k === "monk") { if (!!w.monk !== !!x) return false; }
+    else if (k === "deals") { if (!list.some((t) => (w.damage || (w.unarmed ? "bludgeoning" : "")).toLowerCase().includes(t))) return false; }
     else if (k === "tag") { if (!list.some((t) => w.tags?.includes(t))) return false; }
     else if (k === "kind") { if (w.unarmed ? x !== "melee" : (x === "ranged") !== ranged) return false; }
     else if (k === "category") { if (!list.some((c) => w.category.toLowerCase().includes(c))) return false; }
@@ -686,6 +699,8 @@ export function choiceOptions(ch: Val, ctx: Pick<ModifCtx, "entries" | "byId">):
       if (sk) return { value: sk, label: sk };
       const ab = ABBR3[x];
       if (ab) return { value: ab, label: ab };
+      const tool = kinds.includes("tool") ? ctx.entries.find((e) => e.type === "Tool" && slug(e.name) === x) : undefined;
+      if (tool) return { value: tool.name, label: tool.name };
       return { value: x, label: titled(x) };
     });
   }
@@ -702,6 +717,8 @@ export function choiceOptions(ch: Val, ctx: Pick<ModifCtx, "entries" | "byId">):
       const variants = (tool?.fields["variants"] || "").split(/,\s*/).map((v) => stripMd(v).replace(/\s*\([^)]*\)\s*$/, "").trim()).filter(Boolean);
       return variants.length ? variants.map((v) => ({ value: titled(v), label: titled(v) })) : null;
     }
+    // an ability filtered by the character's state ("one in which you lack saving throw proficiency"): all six, the player picks
+    if (kinds.length === 1 && kinds[0] === "ability") return ABILITIES.map((a) => ({ value: a, label: a }));
     if (from.proficient === "skill") return SKILLS.map((x) => ({ value: x, label: x }));
     if (from.proficient === "weapon") return choiceOptions({ kind: "weapon", from: { weapon: {} } }, ctx);
     if (from.weapon) {
@@ -871,6 +888,12 @@ function runModif(ctx: ModifCtx, scores: Record<string, number>, prereqScores: R
       const sk = SKILLS.find((x) => x === stripMd(s).trim());
       if (sk) r.skills.add(sk);
     }
+    // a fixed Tool Proficiency field ("Thieves' Tools"); "Choose one kind of…" is the background's own choose block
+    const tool = stripMd(ctx.background.fields["tool proficiency"] || "").replace(/\s*\(see [^)]*\)/g, "").trim();
+    if (tool && !/^choose/i.test(tool)) {
+      const norm = (s: string) => s.toLowerCase().replace(/[’']/g, "");
+      for (const e of ctx.entries) if (e.type === "Tool" && norm(tool).split(/,\s*|\s+and\s+/).includes(norm(e.name))) r.tools.add(e.name);
+    }
   }
   // magic items the character carries (effects only while active; charges always counted)
   for (const ic of ctx.items || []) readEntry(ic.entry, { level: c.level, table: {}, kind: "item", item: ic.item, itemActive: ic.active, origin: ic.entry.id });
@@ -1006,7 +1029,15 @@ function optionChoices(e: Entry, ctx: ModifCtx, slot?: string): Map<string, Opti
 function substChoices(v: Val, options: Map<string, OptionChoice>, ctx: ModifCtx, e: Entry, slot?: string): Val {
   if (typeof v === "string") {
     const m = v.match(/^choice:([\w-]+)(?:\.([\w-]+))?$/);
-    if (!m) return v;
+    if (!m) {
+      // a chosen ability inside an expression: "8 + mod:choice:tk-ability + prof"
+      return v.replace(/\b(mod|score):choice:([\w-]+)/g, (all, k, id) => {
+        const got = substChoices(`choice:${id}`, options, ctx, e, slot);
+        const name = typeof got === "string" && !got.startsWith("choice:") ? got : "";
+        const ab = ABBR3[name.toLowerCase()] ? name.toLowerCase() : ABILITIES.includes(name) ? name.slice(0, 3).toLowerCase() : "";
+        return ab ? `${k}:${ab}` : all;
+      });
+    }
     const opt = options.get(m[1]);
     if (opt) {
       const obj = opt.objects?.find((o: Val) => String(o.id) === opt.chosen[0]);
@@ -1074,6 +1105,11 @@ function itemVariants(e: Entry, item: Item): Record<string, Val> {
         const plus = item.name.match(/\+(\d)/)?.[1];
         const hit = plus ? Object.values(vals).find((x) => x === +plus) : undefined;
         if (hit !== undefined) out[b.v.id] = hit;
+      } else if (b.v.by === "stage") {
+        // an evolving item's stage is the first word of its name ("Flowering Blossom Rod"); "" is the unnamed first stage
+        const first = item.name.trim().split(/\s+/)[0]?.toLowerCase() || "";
+        const key = Object.keys(vals).find((k) => k.toLowerCase() === first) ?? ("" in vals ? "" : undefined);
+        if (key !== undefined) out[b.v.id] = vals[key];
       } else if (b.v.by === "name") {
         const q = (item.name.match(/\(([^)]*)\)\s*$/)?.[1] || "").toLowerCase();
         const key = Object.keys(vals).find((k) => k.toLowerCase() === q) ?? (q ? undefined : "");
@@ -1081,8 +1117,15 @@ function itemVariants(e: Entry, item: Item): Record<string, Val> {
       }
     }
   }
+  // the item's rarity: from its evolving stage, else from its tagline when it names one rarity
+  const stage = Object.values(out).find((x) => typeof x === "string" && RARITIES.includes(x as string));
+  const tag = (e.tagline || "").toLowerCase().replace(/very rare/g, "very-rare");
+  const named = RARITIES.filter((r) => new RegExp(`(?<![\\w-])${r}(?![\\w-])`).test(tag));
+  if (stage) out["@rarity"] = stage;
+  else if (named.length === 1) out["@rarity"] = named[0];
   return out;
 }
+const RARITIES = ["common", "uncommon", "rare", "very-rare", "legendary", "artifact"];
 
 /** Key in the play state for a toggle or resource: items keep their own per inventory item. */
 function scopedKey(a: ApplyCtx, id: string): string {
@@ -1220,6 +1263,18 @@ function whenEval(w: Val, a: ApplyCtx): boolean | null {
       if (m) res = m[1] === "<=" ? lv <= +m[2] : m[1] === "<" ? lv < +m[2] : m[1] === ">" ? lv > +m[2] : m[1] === "=" ? lv === +m[2] : lv >= +m[2];
     }
     else if (k === "has" && a.item && x && typeof x === "object" && (x as Val).item === "self") res = true;
+    else if (k === "rarity" && a.item && a.env.variants?.["@rarity"]) {
+      // an evolving item's property: `rarity: ">= rare"` (or an exact rarity)
+      const have = RARITIES.indexOf(String(a.env.variants["@rarity"]));
+      const m = String(x).match(/^(>=|<=|>|<|=)?\s*([a-z-]+)$/);
+      const want = m ? RARITIES.indexOf(m[2]) : -1;
+      if (have >= 0 && want >= 0) res = m![1] === ">=" ? have >= want : m![1] === "<=" ? have <= want : m![1] === ">" ? have > want : m![1] === "<" ? have < want : have === want;
+    }
+    else if (k === "choice" && x && typeof x === "object" && a.options?.has(String((x as Val).id))) {
+      // an option picked in this entry's choice ({ id: land, is: arid }, or a list of options)
+      const info = a.options.get(String((x as Val).id))!;
+      res = ([] as Val[]).concat((x as Val).is).some((v) => info.chosen.includes(String(v)));
+    }
     else if (k === "variant" && x && typeof x === "object" && a.env.variants && (x as Val).id in a.env.variants) res = a.env.variants[(x as Val).id] === (x as Val).is;
     if (res === false) return false;
     if (res === null) unknown = true;
@@ -1545,6 +1600,15 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       // a filtered weapon proficiency ("Martial weapons that have the Light property") counts for those weapons
       return items.every((x) => {
         if (typeof x === "string") return grant(r, x);
+        // a saving throw named by a choice ("the chosen ability": Resilient)
+        if (x && typeof x === "object" && typeof x.save === "string") {
+          const m = x.save.match(/^choice:([\w-]+)$/);
+          const picked = m ? a.ctx.c.choices?.[a.slot ? `${a.slot}/${e.id}#${m[1]}` : `${e.id}#${m[1]}`]?.[0] : x.save;
+          if (!picked) return true; // not chosen yet
+          const ab = ABILITIES.find((n) => n === picked) || ABBR3[picked.toLowerCase()];
+          if (ab) r.saves.add(ab);
+          return !!ab;
+        }
         if (x && typeof x === "object" && x.weapon && typeof x.weapon === "object" && !a.item) {
           r.weaponFilters.push({ category: x.weapon.category, property: x.weapon.property, tag: x.weapon.tag });
           return true;
@@ -1631,6 +1695,15 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         }
         return true;
       }
+      // proficiency, or Expertise if already proficient (Keen Mind, Observant)
+      if (v.grants === "proficiency-or-expertise") {
+        for (const x of chosen.slice(0, count)) {
+          if (!SKILLS.includes(x)) continue;
+          if (r.skills.has(x)) r.expertise.add(x);
+          else r.skills.add(x);
+        }
+        return true;
+      }
       if (v.grants === "expertise") {
         for (const x of chosen.slice(0, count)) if (SKILLS.includes(x)) r.expertise.add(x);
         return true;
@@ -1696,15 +1769,17 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       let scroll: ScrollUse | undefined;
       let spellRef = typeof v.cast === "string" && v.cast !== "variant:spell" ? resolveRef(v.cast, a.ctx) : undefined;
       if (v.cast === "variant:spell" && a.item) {
-        const named = a.item.name.match(/\(([^)]+)\)\s*$/)?.[1]?.trim().toLowerCase();
+        // "Spell Scroll (Fireball)", "Scroll of Fireball" or "Spell Scroll of Fireball" all name the spell (Sage Advice)
+        const named = (a.item.name.match(/\(([^)]+)\)\s*$/)?.[1] || a.item.name.match(/^(?:spell\s+)?scroll\s+of\s+(.+)$/i)?.[1])?.trim().toLowerCase();
         spellRef = named ? a.ctx.entries.find((x) => x.type === "Spell" && x.name.toLowerCase() === named) : undefined;
         const info = spellRef ? spellInfo(spellRef) : null;
         if (!spellRef || !info) {
-          r.actions.push({ id: `item:${a.item.id}:read`, name: a.item.name, source: src, activation: "", text: "Rename it with the spell in brackets to read it, e.g. “Spell Scroll (Fireball)”." });
+          r.actions.push({ id: `item:${a.item.id}:read`, name: a.item.name, source: src, activation: "", text: "Rename it with the spell it holds to read it, e.g. “Spell Scroll (Fireball)” or “Scroll of Fireball”." });
           return true;
         }
         env.variants = { ...(env.variants || {}), ...spellLevelVariants(e, info.level) };
-        const lists = a.ctx.classes.map((k) => k.cls.name.toLowerCase());
+        // the spell list the class uses: a subclass's own list counts (an Eldritch Knight reads Wizard scrolls)
+        const lists = a.ctx.classes.flatMap((k) => [k.cls.name, String((k.sub && spellcastingOf(k.sub)?.list) || "")].filter(Boolean).map((x) => x.toLowerCase().replace(/-/g, " ")));
         scroll = { level: info.level, onList: !v.requires?.["spell-on-list"] || info.classes.some((x) => lists.includes(x.toLowerCase())), checkDc: 10 + info.level };
       }
       const dcRaw = v.dc ?? v.overrides?.dc ?? v.save?.dc;
@@ -1796,14 +1871,37 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
           return true;
         }
       }
+      // a later feature adding to an earlier toggle, action or trigger (Stormborn adds to Wrath of the Sea)
+      const ref = typeof v.target === "string" ? v.target : "";
+      const add = v.add && typeof v.add === "object" ? v.add : null;
+      if (ref && add) {
+        const tog = r.toggles.find((t) => t.key === activeRefKey(a, ref));
+        const id = ref.replace(/^.*#/, "");
+        const act = tog ? undefined : r.actions.find((x) => x.id === id);
+        const trg = tog || act ? undefined : r.triggers.find((x) => x.key.replace(/^.*#/, "") === id || x.key === id);
+        if (tog || act || trg) {
+          const extra = toBlocks(add.effects);
+          const words = [...extra.map((x) => describeBlock(x, env)).filter(Boolean), ...(add.text ? [String(add.text)] : [])];
+          if (tog) {
+            tog.lines.push(...words);
+            if (tog.active) for (const x of extra) applyBlock(x, { ...a, inEffect: true });
+          } else if (act) act.text = [act.text, ...words].filter(Boolean).join(" ");
+          else if (trg) trg.text = [trg.text, ...words].filter(Boolean).join(" ");
+          return true;
+        }
+      }
       a.remind(shortText());
       return false;
     }
     case "spell-list": {
       const byLevel = v["by-level"];
       if (byLevel && typeof byLevel === "object" && !Array.isArray(byLevel) && v.prepared === "always") {
+        // `by: slot-level`: keyed by the highest spell slot level the character has (the school Adept feats)
+        const reach = v.by === "slot-level"
+          ? Math.max(0, ...spellSlots(a.ctx.classes as unknown as Parameters<typeof spellSlots>[0], a.ctx.entries).filter((x) => x.max > 0).map((x) => x.level))
+          : a.opts.level;
         for (const [lv, list] of Object.entries(byLevel)) {
-          if (+lv > a.opts.level) continue;
+          if (+lv > reach) continue;
           for (const ref of ([] as Val[]).concat(list)) {
             const sp = resolveRef(String(ref), a.ctx);
             if (sp) r.grantedSpells.push({ spell: sp, source: src, prepared: true });

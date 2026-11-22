@@ -388,6 +388,11 @@ Events include `hit`, `miss`, `crit`, `hit-by`, `damaged`, `{ fail: save | check
 # A staff that casts spells from its charges
 - cast-list: { pay-from: charges, spells: [ { spell: $srd/spells/heal, cost: 1 }, { spell: $srd/spells/resurrection, cost: 5 } ] }
 ```
+*"Evolving" items* keep each stage's properties as they rise in rarity; the stage word starts the item's name ("Flowering Blossom Rod"):
+```yaml
+- variant: { id: stage, by: stage, values: { budding: uncommon, flowering: rare, somniferous: very-rare } }
+- action: { activation: magic, cast: $srd/spells/insect-plague, per: dawn, when: { rarity: ">= rare" } }
+```
 A cursed item adds `curse: { prevents: [unattune], ends: { spell: $srd/spells/remove-curse } }`.
 
 **A later feature that changes an earlier one** is a `modify` on its block (*"Your Patient Defense also grants Temporary Hit Points"*), and a feature that swaps one out is `replace`.
@@ -402,6 +407,8 @@ In order of preference:
 4. **`custom`**, only when the sheet needs code to act on it: `- custom: { handler: <name>, params: { … }, text: "<the rule in words>" }`. An app without the handler shows the text as a reminder. List it in your report so a handler, or later a real block, can be added.
 
 ## 16. Pitfalls
+
+- **Check the official rulings** (MODIF.md §22) before encoding a rule people argue about: what stacks, what counts as a weapon's dice, what "a spell slot" excludes.
 
 - **Quote anything with a comma, colon or `#`.** `value: max(1, mod:cha)` is silently split by YAML; write `value: "max(1, mod:cha)"`.
 - **No YAML-reserved words as keys:** `on`, `off`, `yes`, `no`, `true`, `false`, `y`, `n`.

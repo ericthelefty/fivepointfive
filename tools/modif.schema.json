@@ -1444,6 +1444,7 @@
      "properties": {
       "add-to": {},
       "at": {},
+      "by": {},
       "by-choice": {},
       "by-level": {},
       "choose-again": {},
@@ -2425,6 +2426,7 @@
     "level",
     "not",
     "player",
+    "rarity",
     "score",
     "shield",
     "species",

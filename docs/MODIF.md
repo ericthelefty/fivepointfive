@@ -311,14 +311,16 @@ A `scope` narrows `attack`, `damage`, `healing`, `save`, `check` and `advantage`
 ```yaml
 scope:
   weapon: { kind: melee|ranged, category: simple|martial, property: [heavy, finesse, light, two-handed, thrown, versatile],
-            hands: two, monk: true, unarmed: true, mastery: true, id: longsword }
+            hands: two, monk: true, unarmed: true, mastery: true, id: longsword, deals: bludgeoning }
   spell:  { list: wizard, school: evocation, level: 0, slot: true, heals: true, deals: fire, range: ">= 10", id: choice:agonizing-cantrip }
   source: $#rage            # only rolls made with this feature/action
   ability: str              # only rolls that use this ability
   against: { condition: poisoned, creature: [fiend, undead], damage: poison, target: marked }
 ```
 
-Spell scopes and filters also take `save: any` (the spell forces a save), `duration: ">= 1 minute"`, `range: touch`, `scales: targets` (it gains targets at higher levels: Twinned Spell), `casting-time: action`, and `slot: available` (a level you have slots for).
+`deals` in a weapon scope matches the weapon's damage type (an Unarmed Strike deals Bludgeoning). For "an attack that deals Piercing damage" (Piercer), combine both: `any: [ { weapon: { deals: piercing } }, { spell: { deals: piercing } } ]`.
+
+Spell scopes and filters also take `save: any` (the spell forces a save), `attack: true` (it makes an attack roll: Spell Sniper), `duration: ">= 1 minute"`, `range: touch`, `scales: targets` (it gains targets at higher levels: Twinned Spell), `casting-time: action`, and `slot: available` (a level you have slots for).
 
 **Targets the sheet can't see:** `target: marked` (marked by the entry holding this effect), `target: { marked-by: $srd/spells/hunters-mark }` (marked by another entry: Precise Hunter), `target: grappled-by-you` (Grappler).
 
@@ -350,6 +352,7 @@ Any block may carry `when`. The effect applies only while it's true.
 | `has` | `{ resource: heroic-inspiration, is: 0 }`, `{ item: poisoners-kit }` | yes |
 | `speed` | `0` or a comparison | yes |
 | `variant` | `{ id: kind, is: agility }` (an item's variant, §13) | yes |
+| `rarity` | `">= rare"` or a rarity (an evolving item's stage, §13) | yes, from the item's name |
 | `player` | a label: `"In dim light or darkness"` | no: shown as a switch the player sets |
 | `all` / `any` / `not` | nested conditions | – |
 
@@ -432,7 +435,7 @@ Any block may carry `level` (available from that level) or `at` (granted again a
 - expertise: [skill:stealth]
 - half-proficiency: { scope: check:all, unless: proficient }    # Jack of All Trades
 ```
-Targets: `skill:*`, `save:*`, `tool:*`, `weapon:<category|id|property:x>`, `armor:<light|medium|heavy|shield>`. A target can also be a weapon scope: `{ weapon: { category: martial, property: [finesse, light] } }`. Picking from a list is a `choose` (§7) whose result is a proficiency.
+Targets: `skill:*`, `save:*`, `tool:*`, `weapon:<category|id|property:x>`, `armor:<light|medium|heavy|shield>`. A target can also be a weapon scope: `{ weapon: { category: martial, property: [finesse, light] } }`. A saving throw picked by a choice is `{ save: choice:<id> }` (Resilient: the save of the ability it increased). Picking from a list is a `choose` (§7) whose result is a proficiency.
 
 **`mastery`** grants the mastery property of the listed weapons (the property itself comes from the weapon table): `mastery: [longsword]`. A Weapon Mastery feature is a `choose` with `grants: mastery`.
 
@@ -445,6 +448,7 @@ Targets: `skill:*`, `save:*`, `tool:*`, `weapon:<category|id|property:x>`, `armo
 ```yaml
 - sense: { darkvision: 120 }                 # highest wins, doesn't add (DDB set-base)
 - sense: { devils-sight: 120 }               # see normally in magical and nonmagical darkness (DDB devils-sight)
+- sense: { telepathy: 60 }                    # speak telepathically to a creature you can see (Telepathic)
 - speed: { walk: 30 }                        # base speed
 - speed: { climb: speed:walk, swim: speed:walk }   # equal to walking speed
 - size: medium                               # or { choose: [small, medium] }
@@ -696,6 +700,7 @@ An option may carry its own effects:
 - **Damage types:** `kind: damage-type, from: { not: [force] }` means any type except Force.
 - **Several kinds:** `kind: [skill, tool]` picks any mix (Skilled).
 - **A choice of amounts:** `amounts: { choose-one: [[2], [1, 1]] }` (Ability Score Improvement: +2 to one, or +1 to two).
+- **Proficiency or Expertise:** `grants: proficiency-or-expertise` gives proficiency, or Expertise if the character already has the proficiency (Keen Mind, Observant).
 - **What a picked spell becomes:** `grants: { prepared: always, counts-as: bard }` (Magical Discoveries); `grants: spellbook` adds it to a spellbook (§11.3).
 - **`from` and `options` together:** the pool is both (Fighting Style: any fighting-style feat, or the class's Blessed Warrior option).
 
@@ -943,6 +948,7 @@ Fields:
 - spell-list: { by-level: { 3: [$srd/spells/bless, $srd/spells/cure-wounds], 5: [$srd/spells/lesser-restoration, …] }, prepared: always }
 - spell-list: { by-choice: land, table: Circle of the Land Spells, prepared: always, choose-again: long }
 ```
+`by: slot-level` keys `by-level` by the highest level of spell slot the character has instead of class level ("when you have spell slots of a level specified in the table": the school Adept feats).
 
 ### 11.3 `spellcasting`
 ```yaml
@@ -1057,6 +1063,12 @@ This is the same rule the inventory uses today, and the same as DDB's.
 ```
 
 **`variant`** defines a value that depends on which version of the item this is. `by: rarity` reads the rarity of the inventory item. `by: name` matches the qualifier in the item's name ("Belt of Giant Strength (hill)", "Potion of Healing (greater)"); the key `""` is the unqualified version. The value is then available as `variant:<id>` anywhere. The importer offers one catalog item per variant.
+
+**Evolving items** gain properties as their rarity rises and keep the earlier ones. `by: stage` matches the first word of the item's name, the stage word the book prefixes ("Flowering Blossom Rod"), and its values are rarities; `""` is an unnamed first stage. Each property carries `when: { rarity: ">= rare" }`, so renaming the item to its next stage switches the property on. Without a stage variant, `rarity` reads the rarity in the item's tagline when it names only one.
+```yaml
+- variant: { id: stage, by: stage, values: { budding: uncommon, flowering: rare, somniferous: very-rare } }
+- action: { activation: magic, cast: $srd/spells/insect-plague, per: dawn, when: { rarity: ">= rare" } }
+```
 
 **`consume: true`** removes one of the item from the inventory when the action is used. A trigger can consume it too: `trigger: { event: hit, scope: { weapon: { id: self } }, offer: { consume: self } }` (magic ammunition).
 
@@ -1359,3 +1371,40 @@ All of these are known to the validator.
 - **Resources and charges:** `per-property`, `shared-with`, `builtin`, `on-max`; charges `start`, `kinds`.
 - **Numbers:** `bonus.decays`, `set.locked`, `roll-floor.optional`, `treat-roll.optional`, `reroll: { dice, keep }`, `damage-type: { replace, with }`, `modify.max`, `scaling.multiply`, `use-ability: { choose, same-for-both }`, `sense.or-add`.
 - **Items:** `variant: { by: roll | choice, table }`, `summon` (`overrides`, `variant`, `stat-level`), `spellcasting: { focus: self, class }`.
+
+## 22. Rulings that shape encodings
+
+The official rulings in the Sage Advice Compendium settle several questions an encoding or an app has to answer. They're summarized here in our words; the compendium is the source. An app that reads Modif should behave this way, and an encoding shouldn't contradict it.
+
+**Rolls**
+- Ability checks, attack rolls and saving throws are three kinds of D20 Test. Something that affects one of them doesn't affect the others unless it says so (`check:all` isn't `save:all`); something that affects "D20 Tests" affects all three (`roll: d20`).
+- Only attack rolls score Critical Hits, and only an attack roll of 1 is an automatic miss. A 1 on a check or save isn't an automatic failure, and a 20 isn't a success (death saves are their own rule).
+- Effects with different names stack; copies of the same effect don't (§6.1). Guidance and Bardic Inspiration both add to one check; two Rings of Protection can't both be attuned.
+- Temporary Hit Points never add together: a new grant replaces the old one only if it's higher.
+- Resistance applies after every other adjustment: a successful save for half, then halved again. Damage can be reduced to 0 but not below.
+- Damage absorbed by Temporary Hit Points still counts for a Concentration save's DC.
+
+**Spells**
+- A spell cast without a spell slot is cast at its own level unless the text says otherwise. A Ritual doesn't use a slot, so features that care about "a spell slot" (Arcane Ward, Life Domain healing) don't count it.
+- Only one spell slot can be spent on a spell per turn, Reaction spells included.
+- A spell attack isn't the Attack action: Extra Attack, the Light property and similar features never cast spells unless they say so (Valor Bard, War Caster).
+- A spell's Material components are consumed only if the text says so; a focus can't replace a component that has a cost or is consumed.
+- A spell cast from a magic item with no DC of its own uses 8 + your spellcasting modifier (0 if you have none) + your Proficiency Bonus.
+- A Spell Scroll may be named "Spell Scroll (X)", "Scroll of X" or "Spell Scroll of X". The spell must be on the spell list your class uses: a subclass with its own list counts (an Eldritch Knight reads Wizard scrolls).
+- Wild Magic Surge and other "your Sorcerer spells" features apply only to spells prepared through that class (`scope: { spell: { counts-as: sorcerer } }`), not every spell on the list.
+
+**Features and feats**
+- A class feature that grants proficiency or training (Divine Order, Iron Mind) grants it even when the class isn't the character's first; only the core traits are limited to "As a Multiclass Character" (§5.6).
+- Damage riders are extra damage, not the weapon's dice: Savage Attacker, Great Weapon Fighting and similar weapon-dice rules don't touch Sneak Attack, Divine Smite or a feature's extra dice (scope them to the weapon). A Valor Bard's Combat Inspiration die added to damage is a damage die, so it doubles on a Critical Hit.
+- Archery covers Ranged weapons only. A Melee weapon you throw is a ranged attack with a Melee weapon (Thrown Weapon Fighting: `scope: { weapon: { property: thrown }, attack: ranged }`).
+- Polearm Master's bonus attack adds the ability modifier as usual and always uses a d4, even with Shillelagh. Dueling allows a Shield or a focus in the other hand. The extra attack of the Light property must use a different weapon, even with Crossbow Expert.
+- Reliable Talent and Jack of All Trades never apply to the same check (`unless: proficient`).
+- Elemental Affinity and other "one damage roll" bonuses add once per casting (`once: true`), even for a spell with several rolls. Empowered Spell can spread its rerolls across several rolls. One Metamagic option per spell, used once.
+- An Abjurer's Arcane Ward regains Hit Points whenever an Abjuration spell is cast with a slot, up to its maximum. Damage goes: Resistances and Vulnerabilities, then the ward, then Immunities, then Temporary Hit Points, then Hit Points.
+- Illusory Reality makes one object real per Illusion spell; Portent needs sight of the creature but has no range.
+- Pact of the Blade conjures any Melee weapon, or bonds with any magic weapon (ranged too) without changing its form.
+
+**Equipment**
+- A Shield's bonus applies only while it's donned; attacking with it doesn't remove the bonus. Heavy armor you're trained with affects only Stealth, not Dexterity saves or other checks.
+- Barkskin's AC 17 replaces armor, Shield and cover bonuses unless the total is higher (`set` with `mode: min`). Mage Armor works with a Shield; it's a base AC, so it doesn't combine with Unarmored Defense (§6.2, best base wins).
+- Attacks with a magic Ranged weapon are magical even with nonmagical ammunition.

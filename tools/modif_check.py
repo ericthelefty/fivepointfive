@@ -60,7 +60,7 @@ BLOCKS = {
     'remove-condition': None, 'limit': F('worn', 'of'),
     'grant-spell': F('spell', 'choose', 'prepared', 'counts-as-known', 'free', 'at-will', 'ritual', 'uses-slot', 'cast-at',
                      'ability', 'overrides', 'target', 'maximize', 'auto-succeed', 'counts-as'),
-    'spell-list': F('add-to', 'from', 'count', 'by-level', 'by-choice', 'table', 'prepared', 'choose-again', 'class'),
+    'spell-list': F('add-to', 'from', 'count', 'by-level', 'by-choice', 'table', 'prepared', 'choose-again', 'class', 'by'),
     'spellcasting': F('ability', 'progression', 'prepared', 'cantrips', 'list', 'focus', 'slots', 'slot-level', 'spellbook',
                       'ritual', 'change', 'class', 'limit'),
     'scaling': F('per-slot-above', 'cantrip', 'add', 'slots', 'multiply'),
@@ -82,21 +82,21 @@ PAYLOAD = {'damage', 'heal', 'temp-hp', 'reroll', 'bonus', 'must-use-new', 'add-
            'label', 'id', 'requires', 'if', 'advantage', 'on-success', 'on-failure', 'then', 'set-hp', 'exhaustion', 'spell',
            'maximize', 'self-damage', 'consume', 'suppress', 'remove-condition', 'effects', 'end-effect', 'shift-bonus', 'instead-of-damage', 'attack', 'on-hit', 'end-effect', 'check'}
 WHEN = {'armor', 'shield', 'wielding', 'level', 'active', 'hp', 'equipped', 'attuned', 'choice', 'player', 'condition',
-        'in-combat', 'has', 'all', 'any', 'not', 'speed', 'variant', 'species', 'class', 'weapon', 'score', 'armor-untrained'}
+        'in-combat', 'has', 'all', 'any', 'not', 'speed', 'variant', 'species', 'class', 'weapon', 'score', 'armor-untrained', 'rarity'}
 UNTIL = {'end-of-turn', 'start-of-next-turn', 'end-of-next-turn', 'start-of-target-next-turn', 'end-of-target-next-turn', 'end-of-target-turn', 'dawn', 'long-rest', 'midnight'}
 KINDS = {'skill', 'tool', 'language', 'ability', 'option', 'feat', 'subclass', 'spell', 'weapon', 'equipment', 'damage-type', 'size', 'item'}
 ACTIONS = {'attack', 'dash', 'disengage', 'dodge', 'help', 'hide', 'influence', 'magic', 'ready', 'search', 'study', 'utilize'}
 TOKEN = re.compile(r"table:[A-Za-z’' ]+\.[A-Za-z .]+|\d+\.\d+|\d+ (?:hour|minute|round|day|feet|foot|mile)s?\b|save-dc:[\w-]+|(?:spell|target|form|damage-taken|fall)\.[\w-]+|\buses\b|variant:[\w-]+\.[\w-]+|(?:score|mod):choice:[\w-]+|\d+:|\d+d\d+|\d+|prof|mod:\w+|score:\w+|level(?::\w+)?|d\d+|table:[A-Za-z’' ]+|choice:[\w.-]+|spell-ability|"
                    r"\bany\b|\bcharges\b|\bexhaustion\b|attack-ability-mod|steps\(|dice\(|\d+:|variant:[\w-]+|cost\.[\w-]+|speed:\w+|min|max|half|ceil|slot-level|spell:\w+|half-speed|>=|<=|==|>|<")
-NOT_VALUES = {'id', 'label', 'text', 'if', 'kind', 'reset', 'activation', 'type', 'ability', 'instead-of', 'for', 'mode', 'by',
+NOT_VALUES = {'rarity', 'id', 'label', 'text', 'if', 'kind', 'reset', 'activation', 'type', 'ability', 'instead-of', 'for', 'mode', 'by',
               'event', 'progression', 'list', 'focus', 'prepared', 'grants', 'success', 'failure', 'stat', 'to', 'roll',
               'take', 'check', 'cast', 'target', 'creature', 'via', 'shape', 'until', 'unit', 'condition', 'resource',
               'prevents', 'damage-taken', 'refund', 'when', 'swap', 'at', 'kind', 'extend', 'table', 'player', 'applies-to', 'headings-under', 'leave', 'count-rule'}
 
 
 SCOPE = {'weapon', 'spell', 'source', 'ability', 'against', 'any', 'all', 'item', 'healing', 'attack'}
-WEAPON = {'kind', 'category', 'property', 'hands', 'monk', 'unarmed', 'mastery', 'id', 'not', 'tag'}
-SPELL = {'list', 'school', 'level', 'slot', 'heals', 'deals', 'ritual', 'in', 'known', 'casting-time', 'not', 'range', 'id',
+WEAPON = {'kind', 'category', 'property', 'hands', 'monk', 'unarmed', 'mastery', 'id', 'not', 'tag', 'deals'}
+SPELL = {'list', 'school', 'level', 'slot', 'heals', 'deals', 'ritual', 'in', 'known', 'casting-time', 'not', 'range', 'id', 'attack', 'counts-as',
          'save', 'duration', 'scales'}
 AGAINST = {'condition', 'creature', 'damage', 'target', 'attack', 'hazard'}
 FILTER = {'feat', 'spell', 'weapon', 'subclass', 'proficient', 'not', 'known', 'level', 'creature', 'any', 'all', 'tool'}
@@ -334,6 +334,12 @@ if __name__ == '__main__':
             data = md_effects(path)
             if not data: continue
             name = pathlib.Path(path).stem
+            # the entry's own named tables ("**Psi Warrior Energy Dice**" or "#### …" above a table) for table:<Table>.<column>
+            md = pathlib.Path(path).read_text(encoding='utf-8')
+            own = {n.strip(): {norm(c) for c in h.split('|') if c.strip()}
+                   for n, h in re.findall(r'^(?:#### (.+)|\*\*(.+?)\*\*)\n+\|((?: [^|\n]+ \|)+)$', md, re.M) and
+                   [(a or b, h) for a, b, h in re.findall(r'^(?:#### (.+)|\*\*(.+?)\*\*)\n+\|((?: [^|\n]+ \|)+)$', md, re.M)]}
+            if own: SECONDARY[name] = {**SECONDARY.get(PARENT.get(name), {}), **own}
             nf, nb = len(data), sum(len(v) for v in data.values()); total_f += nf; total_b += nb
             errs = validate(name, data)
             try:
