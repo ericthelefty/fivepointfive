@@ -265,7 +265,7 @@ Once per turn when you hit a creature with your pact weapon, you can expend a Pa
 ## Effects
 ```yaml
 - option: { of: $#invocations, prerequisite: { level: 5, has: { option: $#pact-of-the-blade } } }
-- trigger: { event: hit, per: turn, scope: { weapon: { id: choice:pact-weapon } },
+- trigger: { event: hit, per: turn, scope: { weapon: { tag: pact-weapon } },
              offer: { cost: { slot: pact }, damage: { dice: "dice(1 + slot-level, d8)", type: force },
                       apply: { condition: prone, text: "If the target is Huge or smaller" } } }
 ```
@@ -407,11 +407,12 @@ Your bond with the weapon ends if you use this feature’s Bonus Action again, i
 ## Effects
 ```yaml
 - option: { of: $#invocations }
-- choose: { id: pact-weapon, kind: item, count: 1, from: { weapon: { kind: melee, category: [simple, martial] } }, swap: { at: use } }
-- action: { id: pact-of-the-blade, activation: bonus, text: "Conjure or bond your pact weapon (ends if 5+ ft away for 1 minute)." }
-- proficiency: [{ weapon: { id: choice:pact-weapon } }]
-- use-ability: { ability: cha, instead-of: [str, dex], scope: { weapon: { id: choice:pact-weapon } } }
-- damage-type: { add-option: [necrotic, psychic, radiant], scope: { weapon: { id: choice:pact-weapon } } }
+- action: { id: pact-of-the-blade, activation: bonus,
+            creates: { item: { weapon: { kind: melee, category: [simple, martial] } }, count: 1, tag: pact-weapon, replaces: true, bond: magic-weapon },
+            text: "The bond ends if you use this again, if the weapon is more than 5 feet from you for 1 minute or more, or if you die. A conjured weapon disappears when the bond ends." }
+- proficiency: [{ weapon: { tag: pact-weapon } }]
+- use-ability: { ability: cha, instead-of: [str, dex], scope: { weapon: { tag: pact-weapon } } }
+- damage-type: { add-option: [necrotic, psychic, radiant], scope: { weapon: { tag: pact-weapon } } }
 ```
 
 ### Pact of the Chain
@@ -456,7 +457,7 @@ You gain the Extra Attack feature for your pact weapon only. With that feature, 
 ## Effects
 ```yaml
 - option: { of: $#invocations, prerequisite: { level: 5, has: { option: $#pact-of-the-blade } } }
-- extra-attack: { total: 2, scope: { weapon: { id: choice:pact-weapon } } }
+- extra-attack: { total: 2, scope: { weapon: { tag: pact-weapon } } }
 ```
 
 ### Visions of Distant Realms

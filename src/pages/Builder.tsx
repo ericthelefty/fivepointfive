@@ -223,15 +223,28 @@ function Picker({ items, selected, onPick, render }: { items: Entry[]; selected?
 
 // ------------------------------------------------------------------ class
 function ClassStep({ c, update }: StepProps) {
-  const { byType, byId } = useContent();
+  const content = useContent();
+  const { byType, byId } = content;
   const classes = byType("Class");
-  const cls = byId(c.classId);
-  const subclasses = byType("Subclass").filter((s) => cls && stripMd(s.fields["parent"] || "").replace(/^[\w-]+:class\//, "").toLowerCase() === cls.name.toLowerCase());
-  const sub = byId(c.subclassId);
   const lvl = startingLevel(c);
   const multi = extraClasses(c).length > 0;
-  const feats = cls ? features(cls).filter((f) => f.level <= lvl) : [];
-  const subFeats = sub && lvl >= SUBCLASS_LEVEL ? features(sub).filter((f) => f.level <= lvl) : [];
+  // with more than one class, the side panel switches between them: traits, subclass, choices and features of each
+  const infos = classInfos(c, byId);
+  const [view, setView] = useState(0);
+  const k = infos[Math.min(view, infos.length - 1)];
+  const cls = byId(c.classId);
+  const shown = k?.cls;
+  const sub = k?.sub;
+  const kLevel = k?.level ?? lvl;
+  const subclasses = byType("Subclass").filter((s) => shown && stripMd(s.fields["parent"] || "").replace(/^[\w-]+:class\//, "").toLowerCase() === shown.name.toLowerCase());
+  const pickSub = (id: string) => (k && k.index > 0 ? update(patchClass(c, k.index, { subclassId: id })) : update({ subclassId: id }));
+  const feats = shown ? features(shown).filter((f) => f.level <= kLevel) : [];
+  const subFeats = sub && kLevel >= SUBCLASS_LEVEL ? features(sub).filter((f) => f.level <= kLevel) : [];
+  // a class still needs something: its subclass, or a choice in its features
+  const pendingAll = multi ? modifFor(c, content).pending.filter((p) => !p.storedIn && !p.slot && p.chosen.length < p.count && p.options) : [];
+  const needs = (i: (typeof infos)[number]) =>
+    (i.level >= SUBCLASS_LEVEL && !i.sub && byType("Subclass").some((s) => stripMd(s.fields["parent"] || "").replace(/^[\w-]+:class\//, "").toLowerCase() === i.cls.name.toLowerCase())) ||
+    pendingAll.some((p) => p.origin === i.cls.id || (i.sub && p.origin === i.sub.id));
   return (
     <div className="row">
       <section className="grow">
@@ -260,24 +273,33 @@ function ClassStep({ c, update }: StepProps) {
             )}
           />
         </div>
-        {cls && <MulticlassPanel c={c} update={update} />}
+        {cls && <MulticlassPanel c={c} update={update} onEdit={(i) => { setView(i); document.querySelector(".classaside")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />}
       </section>
-      <aside className="side panel">
-        {!cls ? (
+      <aside className="side panel classaside">
+        {!cls || !shown ? (
           <p className="muted">Pick a class to see its traits and features.</p>
         ) : (
           <div className="stack">
-            <div className="eyebrow">Selected class</div>
-            <h2 style={{ color: "var(--accent-ink)", fontSize: 28 }}>{cls.name}</h2>
+            {infos.length > 1 && (
+              <div className="classtabs" role="tablist" aria-label="Your classes">
+                {infos.map((i, n) => (
+                  <button key={i.cls.id} role="tab" className="pill" aria-selected={n === Math.min(view, infos.length - 1)} aria-pressed={n === Math.min(view, infos.length - 1)} onClick={() => setView(n)}>
+                    {i.cls.name} {i.level}{needs(i) && <span className="tag need" style={{ marginLeft: 6 }}>!</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="eyebrow">{infos.length > 1 ? (k.starting ? "Starting class" : "Multiclass") : "Selected class"}</div>
+            <h2 style={{ color: "var(--accent-ink)", fontSize: 28 }}>{shown.name}{infos.length > 1 ? ` ${kLevel}` : ""}</h2>
             <dl className="kv">
               {[["Primary ability", "primary ability"], ["Hit Point Die", "hit point die"], ["Saving throws", "saving throw proficiencies"], ["Skills", "skill proficiencies"], ["Weapons", "weapon proficiencies"], ["Armor training", "armor training"]].map(([l, k]) => (
                 <div key={k} style={{ display: "contents" }}>
                   <dt>{l}</dt>
-                  <dd><MdInline md={cls.fields[k] || "—"} /></dd>
+                  <dd><MdInline md={shown.fields[k] || "—"} /></dd>
                 </div>
               ))}
             </dl>
-            {lvl >= SUBCLASS_LEVEL && subclasses.length > 0 && (
+            {kLevel >= SUBCLASS_LEVEL && subclasses.length > 0 && (
               <div className="choice">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                   <strong>Subclass</strong>
@@ -285,7 +307,7 @@ function ClassStep({ c, update }: StepProps) {
                 </div>
                 <div className="stack" style={{ marginTop: 8, gap: 6 }}>
                   {subclasses.map((s) => (
-                    <button key={s.id} className="card" aria-pressed={s.id === c.subclassId} onClick={() => update({ subclassId: s.id })}>
+                    <button key={s.id} className="card" aria-pressed={s.id === sub?.id} onClick={() => pickSub(s.id)}>
                       <span className="t" style={{ fontSize: 16 }}>{s.name}</span><PackLabel e={s} />
                       {s.tagline && <div className="faint">{s.tagline}</div>}
                     </button>
@@ -293,17 +315,17 @@ function ClassStep({ c, update }: StepProps) {
                 </div>
               </div>
             )}
-            <ModifChoices c={c} update={update} origins={[cls.id, sub?.id]} />
-            <div className="eyebrow" style={{ marginTop: 6 }}>Features through {cls.name} level {lvl}</div>
-            {[...feats.map((f) => ({ ...f, src: cls.name })), ...subFeats.map((f) => ({ ...f, src: sub!.name }))]
+            <ModifChoices c={c} update={update} origins={[shown.id, sub?.id]} />
+            <div className="eyebrow" style={{ marginTop: 6 }}>Features through {shown.name} level {kLevel}</div>
+            {[...feats.map((f) => ({ ...f, src: shown.name })), ...subFeats.map((f) => ({ ...f, src: sub!.name }))]
               .sort((a, b) => a.level - b.level)
               .map((f, i) => (
                 <details key={i} className="inset">
-                  <summary><strong>{f.name}</strong> <span className="faint">· Level {f.level}{f.src !== cls.name ? ` · ${f.src}` : ""}</span></summary>
+                  <summary><strong>{f.name}</strong> <span className="faint">· Level {f.level}{f.src !== shown.name ? ` · ${f.src}` : ""}</span></summary>
                   <Md md={f.md} />
                 </details>
               ))}
-            <div className="faint">Source: {cls.fields["source"] || cls.pack}</div>
+            <div className="faint">Source: {shown.fields["source"] || shown.pack}</div>
           </div>
         )}
       </aside>
@@ -313,7 +335,7 @@ function ClassStep({ c, update }: StepProps) {
 
 // ---------------------------------------------------------------- species
 // ------------------------------------------------------------- multiclass
-function MulticlassPanel({ c, update }: StepProps) {
+function MulticlassPanel({ c, update, onEdit }: StepProps & { onEdit?: (index: number) => void }) {
   const { byType, byId } = useContent();
   const classes = byType("Class");
   const infos = classInfos(c, byId);
@@ -360,6 +382,7 @@ function MulticlassPanel({ c, update }: StepProps) {
                       {Array.from({ length: room }, (_, i) => <option key={i + 1}>{i + 1}</option>)}
                     </select>
                   </label>
+                  {onEdit && <button className="btn small" onClick={() => onEdit(index)}>Features &amp; choices</button>}
                   <button className="btn small" onClick={() => update(removeClass(c, index))}>Remove</button>
                 </div>
               </div>

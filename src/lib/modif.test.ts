@@ -6,7 +6,7 @@ import type { Item } from "./inventory.ts";
 import { armorTable, classTable, derive, newCharacter, traits, intro, type Character } from "./rules.ts";
 import { classInfos } from "./multiclass.ts";
 import { CUSTOM_HANDLERS } from "./custom/index.ts";
-import { advantageFor, computeModif, weaponFits, setSlotFeat, spellPlan, type ModifCtx, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
+import { advantageFor, computeModif, weaponFits, weaponProficient, setSlotFeat, spellPlan, type ModifCtx, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
 const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : f.endsWith(".md") ? [join(d, f)] : []));
@@ -599,5 +599,22 @@ describe("choose-one options with their own cost", () => {
     const cunning = sheet({ ...champion(3), classId: "srd:class/rogue", subclassId: undefined }).fx.actions.find((x) => x.id === "cunning-action")!;
     expect(cunning.options).toEqual(["Dash", "Disengage", "Hide"]);
     expect(cunning.optionCosts).toBeUndefined();
+  });
+});
+
+describe("Pact of the Blade", () => {
+  const lock = (inv: Item[] = []) => ({ ...champion(5), classId: "srd:class/warlock", subclassId: undefined, inventory: inv,
+    choices: { "srd:class/warlock#invocations": ["Pact of the Blade"] } });
+  it("conjures or bonds a tagged weapon; effects follow the tag", () => {
+    const { fx } = sheet(lock());
+    const act = fx.actions.find((x) => x.id === "pact-of-the-blade")!;
+    expect(act.creates).toMatchObject({ weapon: { kind: "melee", category: ["simple", "martial"] }, tag: "pact-weapon", replaces: true, bond: "magic-weapon" });
+    expect(weaponProficient(fx, { name: "Longsword", category: "Martial Melee Weapons", properties: "Versatile (1d10)" })).toBe(false);
+    expect(weaponProficient(fx, { name: "Longsword", category: "Martial Melee Weapons", properties: "Versatile (1d10)", tags: ["pact-weapon"] })).toBe(true);
+    const ua = fx.weaponRules.find((r) => r.type === "use-ability")!;
+    expect(ua.abilities).toEqual(["Charisma"]);
+    expect(weaponFits(ua.scope, { id: "longsword", name: "Longsword", category: "Martial Melee Weapons", properties: "", tags: ["pact-weapon"] })).toBe(true);
+    expect(weaponFits(ua.scope, { id: "longsword", name: "Longsword", category: "Martial Melee Weapons", properties: "" })).toBe(false);
+    expect(fx.weaponRules.find((r) => r.type === "damage-type")?.types).toEqual(["Necrotic", "Psychic", "Radiant"]);
   });
 });

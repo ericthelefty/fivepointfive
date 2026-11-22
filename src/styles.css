@@ -123,6 +123,7 @@ table.data td { padding: 9px 10px; border-bottom: 1px solid var(--line-2); verti
 .drop.over { border-color: var(--accent); background: var(--accent-bg); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 details summary { cursor: pointer; }
+.classtabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
 .menubtn { display: none; }
 .tabsw { position: relative; }
 .tabsw .tabmore, .stepcap { display: none; }

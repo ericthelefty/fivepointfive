@@ -23,6 +23,10 @@ export interface Item {
   equipped?: boolean;
   attuned?: boolean;
   note?: string;
+  /** Labels a feature put on the item (Pact of the Blade's `pact-weapon`), matched by `weapon: { tag }` scopes. */
+  tags?: string[];
+  /** Made by a feature; removed when that feature's bond ends or it's used again. */
+  conjured?: boolean;
 }
 
 export interface Coins { cp: number; sp: number; ep: number; gp: number; pp: number }

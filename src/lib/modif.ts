@@ -346,6 +346,22 @@ export interface ModifAction {
   optionCosts?: (ModifCost | undefined)[];
   /** It's an attack: "unarmed" or a weapon filter, and how many attacks (Flurry of Blows: 2). */
   attack?: { weapon: string; count: number };
+  /** It makes or bonds an item (Pact of the Blade): a weapon of a kind you pick, tagged so effects can find it. */
+  creates?: ModifCreates;
+}
+
+/** `creates` on an action: conjure a weapon of your choice (or bond one you have), tagged for `weapon: { tag }` scopes. */
+export interface ModifCreates {
+  /** weapons you can conjure: melee/ranged and categories */
+  weapon?: { kind?: string; category?: string[] };
+  /** a specific item to make (content id), e.g. Goodberry */
+  item?: string;
+  count: number;
+  tag?: string;
+  /** using it again ends the previous one: conjured items vanish, bonded ones lose the tag */
+  replaces: boolean;
+  /** you can bond an item you carry instead: "magic-weapon" */
+  bond?: string;
 }
 
 /** A Spell Scroll: whether the character can read it, and the check before casting a spell above their level. */
@@ -441,7 +457,7 @@ export interface ModifResult {
   advantages: { roll: string; source: string }[];
   disadvantages: { roll: string; source: string }[];
   /** Weapon proficiencies with a filter (Monk: Martial weapons that have the Light property). */
-  weaponFilters: { category?: string; property?: string | string[] }[];
+  weaponFilters: { category?: string; property?: string | string[]; tag?: string }[];
   /** Skills with Expertise (twice the Proficiency Bonus). */
   expertise: Set<string>;
   /** Half the Proficiency Bonus on checks you're not proficient in (Jack of All Trades). */
@@ -524,7 +540,7 @@ export interface ModifConvert {
 }
 
 /** A weapon the sheet attacks with, as weaponFits() sees it. */
-export interface WeaponInfo { id: string; name: string; category: string; properties: string; unarmed?: boolean; monk?: boolean; itemId?: string; twoHands?: boolean }
+export interface WeaponInfo { id: string; name: string; category: string; properties: string; unarmed?: boolean; monk?: boolean; itemId?: string; twoHands?: boolean; tags?: string[] }
 
 /** Does a Modif weapon scope (`{ weapon: { id, monk, unarmed, kind, hands, property, category } }`, `{ any: [...] }`) cover this weapon? */
 export function weaponFits(scope: Val, w: WeaponInfo, itemId?: string): boolean {
@@ -542,6 +558,7 @@ export function weaponFits(scope: Val, w: WeaponInfo, itemId?: string): boolean 
       if (!list.includes(w.id) && !list.includes(slug(w.name))) return false;
     } else if (k === "unarmed") { if (!!w.unarmed !== !!x) return false; }
     else if (k === "monk") { if (!!w.monk !== !!x) return false; }
+    else if (k === "tag") { if (!list.some((t) => w.tags?.includes(t))) return false; }
     else if (k === "kind") { if (w.unarmed ? x !== "melee" : (x === "ranged") !== ranged) return false; }
     else if (k === "category") { if (!list.some((c) => w.category.toLowerCase().includes(c))) return false; }
     else if (k === "property") { if (!list.some((pr) => props.includes(pr.replace(/-/g, " ")) || props.includes(pr))) return false; }
@@ -1529,7 +1546,7 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       return items.every((x) => {
         if (typeof x === "string") return grant(r, x);
         if (x && typeof x === "object" && x.weapon && typeof x.weapon === "object" && !a.item) {
-          r.weaponFilters.push({ category: x.weapon.category, property: x.weapon.property });
+          r.weaponFilters.push({ category: x.weapon.category, property: x.weapon.property, tag: x.weapon.tag });
           return true;
         }
         return !!x && typeof x === "object" && note(a.item ? `Proficient with this ${Object.keys(x)[0]}` : `Proficient with ${words(x)}`);
@@ -1714,6 +1731,16 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
           const costTxt = oc ? ` (costs ${oc.amount}${rn ? ` ${rn}` : ""})` : "";
           return takes ? `${takes}${costTxt}` : `${String(x.label || titleOf(x.id) || describeBlock({ type: "action", v: x }, env))}${costTxt}`;
         }) : undefined,
+        creates: v.creates && typeof v.creates === "object" ? {
+          weapon: v.creates.item && typeof v.creates.item === "object" && v.creates.item.weapon ? {
+            kind: v.creates.item.weapon.kind, category: v.creates.item.weapon.category ? ([] as string[]).concat(v.creates.item.weapon.category) : undefined,
+          } : undefined,
+          item: typeof v.creates.item === "string" ? (resolveRef(v.creates.item, a.ctx)?.id ?? v.creates.item) : undefined,
+          count: typeof v.creates.count === "number" ? v.creates.count : 1,
+          tag: typeof v.creates.tag === "string" ? v.creates.tag : undefined,
+          replaces: !!v.creates.replaces,
+          bond: typeof v.creates.bond === "string" ? v.creates.bond : undefined,
+        } : undefined,
         attack: v.attack && typeof v.attack === "object" ? { weapon: typeof v.attack.weapon === "string" ? v.attack.weapon : "weapon", count: typeof v.attack.count === "number" ? v.attack.count : 1 } : undefined,
         text: v.text || (heal || spellRef || v.save || v.damage || v["choose-one"] || v.attack ? undefined : a.item ? describeBlock(b, env) : shortText()),
       });
@@ -2246,11 +2273,11 @@ export function speciesSkillChoice(sp?: Entry): { count: number; from: string[] 
 }
 
 /** Is the character proficient with this weapon (from the Effects read for them)? */
-export function weaponProficient(r: ModifResult | undefined, w: { name: string; category: string; properties: string }): boolean {
+export function weaponProficient(r: ModifResult | undefined, w: { name: string; category: string; properties: string; tags?: string[] }): boolean {
   if (!r) return false;
   const cat = /martial/i.test(w.category) ? "martial" : "simple";
   if (r.weapons.has(cat) || r.weapons.has(slug(w.name))) return true;
   // a list of properties means any of them (Rogue: martial weapons with Finesse or Light)
-  return r.weaponFilters.some((f) => (!f.category || f.category === cat) &&
+  return r.weaponFilters.some((f) => (!f.tag || !!w.tags?.includes(f.tag)) && (!f.category || f.category === cat) &&
     (!f.property || ([] as string[]).concat(f.property).some((pr) => new RegExp(`\\b${pr}\\b`, "i").test(w.properties))));
 }

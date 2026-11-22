@@ -17,7 +17,7 @@ import {
   timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
   type ActiveEffect, type PlayState, type RollContext,
 } from "../lib/play.ts";
-import { catalog, inventoryOf, isActive, magicInfo, type Coins, type Item } from "../lib/inventory.ts";
+import { catalog, inventoryOf, isActive, magicInfo, newItemId, type Coins, type Item } from "../lib/inventory.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
 import { NARROW, useMedia } from "../lib/useMedia.ts";
@@ -263,8 +263,8 @@ export default function Sheet() {
   };
   const attacks: Attack[] = [
     ...wielded.map(({ it, w }) => {
-      const wo = weaponOpts({ id: slug(w.name), name: w.name, category: w.category, properties: w.properties, monk: isMonkWeapon(w), itemId: it.id });
-      return withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficient(fx, w), wo.opts), itemId: it.id, dieFloor: wo.dieFloor, maximize: wo.maximize }, /ranged/i.test(w.category));
+      const wo = weaponOpts({ id: slug(w.name), name: w.name, category: w.category, properties: w.properties, monk: isMonkWeapon(w), itemId: it.id, tags: it.tags });
+      return withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficient(fx, { ...w, tags: it.tags }), wo.opts), itemId: it.id, dieFloor: wo.dieFloor, maximize: wo.maximize }, /ranged/i.test(w.category));
     }),
     (() => {
       const wo = weaponOpts({ id: "unarmed-strike", name: "Unarmed Strike", category: "Unarmed", properties: "", unarmed: true });
@@ -426,8 +426,15 @@ export default function Sheet() {
     pick?: { label: string; options: string[]; value: number; set: (i: number) => void };
   };
   /** Which option is picked for an action, and whether the character can pay for it. */
+  /** The choices an action offers: its choose-one options, or what it can conjure or bond. */
+  const optionLabels = (a: ModifAction) => (a.creates?.weapon ? createOptions(a).map((o) => o.label) : a.options);
   const optionOf = (a: ModifAction) => {
-    const i = Math.min(actPick[a.id] ?? 0, (a.options?.length || 1) - 1);
+    const labels = optionLabels(a) || [];
+    // Pact of the Blade: start on the weapon type picked before (older saves), else the current pact weapon's
+    const prev = a.creates?.tag ? Object.entries(c?.choices || {}).find(([k]) => k.endsWith(`#${a.creates!.tag}`))?.[1]?.[0] : undefined;
+    const cur = taggedItem(a);
+    const def = cur?.base ? labels.findIndex((l) => l === `Conjure: ${cur.base}` || l === `Bond: ${cur.name}`) : prev ? labels.findIndex((l) => l === `Conjure: ${prev}`) : -1;
+    const i = Math.min(actPick[a.id] ?? Math.max(0, def), Math.max(0, labels.length - 1));
     const cost = a.options && a.optionCosts ? a.optionCosts[i] ?? a.cost : a.cost;
     return { i, ok: costInfo(cost).ok };
   };
@@ -471,12 +478,17 @@ export default function Sheet() {
         });
         continue;
       }
-      const op = a.options ? optionOf(a) : undefined;
+      const labels = optionLabels(a);
+      const op = labels ? optionOf(a) : undefined;
+      const held = taggedItem(a);
       rows.push({
         key: `act:${a.id}`, name: a.name, source: a.source,
-        detail: [a.heal ? `Regain ${a.heal} HP.` : "", a.cast ? `Casts ${content.byId(a.cast.spellId)?.name || a.name}.` : "", a.text || "", uses.trim()].filter(Boolean).join(" "),
-        pick: a.options ? { label: `${a.name}: which option`, options: a.options, value: op!.i, set: (i) => setActPick((m) => ({ ...m, [a.id]: i })) } : undefined,
-        buttons: [{ label: a.cast ? "Cast" : "Use", disabled: (op ? !op.ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable), run: () => runFeature(a, op?.i) }],
+        detail: [held ? `Now: ${held.name}.` : a.creates ? "No weapon conjured or bonded." : "", a.heal ? `Regain ${a.heal} HP.` : "", a.cast ? `Casts ${content.byId(a.cast.spellId)?.name || a.name}.` : "", a.text || "", uses.trim()].filter(Boolean).join(" "),
+        pick: labels ? { label: `${a.name}: which option`, options: labels, value: op!.i, set: (i) => setActPick((m) => ({ ...m, [a.id]: i })) } : undefined,
+        buttons: [
+          { label: a.cast ? "Cast" : a.creates ? (held ? "Replace" : "Use") : "Use", disabled: (op ? !op.ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable), run: () => runFeature(a, op?.i) },
+          ...(held ? [{ label: "End bond", ghost: true, run: () => releaseItem(a) }] : []),
+        ],
       });
     }
     // things to switch on (Rage, items)
@@ -673,6 +685,47 @@ export default function Sheet() {
     const { res } = costInfo(cost);
     return res && cost ? { resUsed: { ...cur.resUsed, [res.key]: (cur.resUsed[res.key] || 0) + cost.amount } } : {};
   };
+  // ------------------------------------------------- items made or bonded by features (Pact of the Blade)
+  type CreateOpt = { label: string; weapon?: Weapon; itemId?: string };
+  /** What an action with `creates` can make or bond right now. */
+  const createOptions = (a: ModifAction): CreateOpt[] => {
+    const cr = a.creates;
+    if (!cr?.weapon) return [];
+    const fits = (w: Weapon) => (!cr.weapon!.kind || (cr.weapon!.kind === "ranged") === /ranged/i.test(w.category)) &&
+      (!cr.weapon!.category || cr.weapon!.category.some((k) => w.category.toLowerCase().includes(k)));
+    const conjure = weapons.filter(fits).map((w) => ({ label: `Conjure: ${w.name}`, weapon: w }));
+    const bond = cr.bond === "magic-weapon"
+      ? inv.items.filter((it) => it.kind === "magic" && it.base && weapons.some((w) => w.name === it.base) && !it.conjured).map((it) => ({ label: `Bond: ${it.name}`, itemId: it.id }))
+      : [];
+    return [...bond, ...conjure];
+  };
+  /** The item an action's tag is on now (the current pact weapon), if any. */
+  const taggedItem = (a: ModifAction) => (a.creates?.tag ? inv.items.find((it) => it.tags?.includes(a.creates!.tag!)) : undefined);
+  /** End the bond: conjured items vanish, bonded ones lose the tag. */
+  const endBond = (items: Item[], tag: string) =>
+    items.filter((it) => !(it.conjured && it.tags?.includes(tag))).map((it) => (it.tags?.includes(tag) ? { ...it, tags: it.tags.filter((t) => t !== tag) } : it));
+  const createItem = (a: ModifAction, o: CreateOpt) => {
+    const cr = a.creates!;
+    let items = cr.replaces && cr.tag ? endBond(inv.items, cr.tag) : inv.items;
+    let what = "";
+    if (o.weapon) {
+      const name = `${o.weapon.name} (${cr.tag === "pact-weapon" ? "pact weapon" : a.name})`;
+      items = [...items, { id: newItemId(), name, kind: "weapon", qty: cr.count, base: o.weapon.name, weight: 0, equipped: true, tags: cr.tag ? [cr.tag] : undefined, conjured: true }];
+      what = `Conjured ${name}.`;
+    } else if (o.itemId) {
+      items = items.map((it) => (it.id === o.itemId ? { ...it, equipped: true, tags: [...(it.tags || []), ...(cr.tag ? [cr.tag] : [])] } : it));
+      what = `Bonded with ${inv.items.find((it) => it.id === o.itemId)?.name}.`;
+    }
+    setInventory(items, inv.coins);
+    log({ title: a.name, total: "", cls: "event", detail: [what, a.text || ""].filter(Boolean).map((x) => `<div>${esc(x)}</div>`).join("") });
+  };
+  const releaseItem = (a: ModifAction) => {
+    if (!a.creates?.tag) return;
+    const cur = taggedItem(a);
+    setInventory(endBond(inv.items, a.creates.tag), inv.coins);
+    log({ title: `${a.name} ended`, total: "", cls: "event", detail: cur ? esc(`${cur.name}${cur.conjured ? " disappears" : " is no longer bonded"}.`) : "" });
+  };
+
   /** Can this character read a Spell Scroll, with which ability, and is there a check first? */
   const scrollUse = (sc: ScrollUse) => {
     const rule = fx.scrollRule;
@@ -688,6 +741,11 @@ export default function Sheet() {
     };
   };
   const runFeature = (a: ModifAction, opt?: number) => {
+    if (a.creates?.weapon) {
+      const o = createOptions(a)[opt ?? 0];
+      if (o) createItem(a, o);
+      return;
+    }
     // a choose-one option can carry its own cost (Patient Defense: Disengage and Dodge for 1 Focus Point)
     const chosen = opt !== undefined ? a.options?.[opt] : undefined;
     if (opt !== undefined && a.optionCosts) a = { ...a, cost: a.optionCosts[opt] ?? a.cost };
@@ -1124,13 +1182,13 @@ export default function Sheet() {
                                 {a.save && <span>{a.save.dc ? `DC ${a.save.dc} ` : ""}{a.save.ability} save{a.damage?.length ? `, ${a.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}` : ""}</span>}
                                 {!a.save && a.damage?.length ? <span>{a.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}</span> : null}
                                 {a.text && <div className="note">{a.text}</div>}
-                                {a.options && (
+                                {optionLabels(a) && (
                                   <select className="optpick" aria-label={`${a.name}: which option`} value={optionOf(a).i} onChange={(e) => setActPick((m) => ({ ...m, [a.id]: +e.target.value }))}>
-                                    {a.options.map((o, i) => <option key={i} value={i}>{o}</option>)}
+                                    {optionLabels(a)!.map((o, i) => <option key={i} value={i}>{o}</option>)}
                                   </select>
                                 )}
                               </td>
-                              <td><div className="rowbtn"><button className="sbtn sm" onClick={() => runFeature(a, a.options ? optionOf(a).i : undefined)} disabled={(a.options ? !optionOf(a).ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable)}>{a.cast ? "Cast" : "Use"}</button></div></td>
+                              <td><div className="rowbtn"><button className="sbtn sm" onClick={() => runFeature(a, optionLabels(a) ? optionOf(a).i : undefined)} disabled={(optionLabels(a) ? !optionOf(a).ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable)}>{a.cast ? "Cast" : "Use"}</button></div></td>
                             </tr>
                           );
                         })}

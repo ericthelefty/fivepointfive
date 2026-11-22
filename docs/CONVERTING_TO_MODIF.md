@@ -1,5 +1,7 @@
 # Prompt: convert fivepointfive content to Modif
 
+*This prompt is for an agent working inside the repo. To convert your own content into a pack you import in the app, use [`PROMPT_CONVERT_FOR_IMPORT.md`](PROMPT_CONVERT_FOR_IMPORT.md).*
+
 You are converting entries in the fivepointfive SRD content pack to **Modif**, the YAML effects format the app reads to apply rules automatically. You work in the repo `ericthelefty/fivepointfive` (React + Vite + TypeScript, tests with vitest).
 
 ## What to read first

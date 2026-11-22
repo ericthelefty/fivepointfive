@@ -95,7 +95,7 @@ NOT_VALUES = {'id', 'label', 'text', 'if', 'kind', 'reset', 'activation', 'type'
 
 
 SCOPE = {'weapon', 'spell', 'source', 'ability', 'against', 'any', 'all', 'item', 'healing', 'attack'}
-WEAPON = {'kind', 'category', 'property', 'hands', 'monk', 'unarmed', 'mastery', 'id', 'not'}
+WEAPON = {'kind', 'category', 'property', 'hands', 'monk', 'unarmed', 'mastery', 'id', 'not', 'tag'}
 SPELL = {'list', 'school', 'level', 'slot', 'heals', 'deals', 'ritual', 'in', 'known', 'casting-time', 'not', 'range', 'id',
          'save', 'duration', 'scales'}
 AGAINST = {'condition', 'creature', 'damage', 'target', 'attack', 'hazard'}
