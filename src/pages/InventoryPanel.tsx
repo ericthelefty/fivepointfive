@@ -21,6 +21,8 @@ interface Props {
   armor: ArmorRow[];
   strength: number;
   size?: string;
+  /** Size steps larger for carrying capacity (Powerful Build). */
+  carrySize?: number;
   onChange: (items: Item[], coins: Coins) => void;
   onReset: () => void;
 }
@@ -35,7 +37,7 @@ export default function InventoryPanel(p: Props) {
 
   const attuned = attunedCount(p.items);
   const weight = totalWeight(p.items, p.coins);
-  const capacity = carryingCapacity(p.strength, p.size);
+  const capacity = carryingCapacity(p.strength, p.size, p.carrySize || 0);
   const over = weight > capacity;
 
   const matches = useMemo(() => {
@@ -75,7 +77,7 @@ export default function InventoryPanel(p: Props) {
           <Tip tip={`Magic items you're attuned to. You can be attuned to at most ${ATTUNEMENT_LIMIT} at a time.`}><span className="sl">Attuned</span></Tip> <b>{attuned}/{ATTUNEMENT_LIMIT}</b>
         </div>
         <div className={`invstat ${over ? "over" : ""}`}>
-          <Tip tip={`Carrying capacity: Strength ${p.strength} × ${capacity / p.strength} lb. Fifty coins weigh a pound.`}><span className="sl">Carrying</span></Tip> <b>{fmtWt(weight)}</b> / {fmtWt(capacity)} lb.
+          <Tip tip={`Carrying capacity: Strength ${p.strength} × ${capacity / p.strength} lb.${p.carrySize ? " You count as one size larger for this." : ""} Fifty coins weigh a pound.`}><span className="sl">Carrying</span></Tip> <b>{fmtWt(weight)}</b> / {fmtWt(capacity)} lb.
           {over && <span className="warn"> Over capacity</span>}
         </div>
         <div className="coins" role="group" aria-label="Coins">

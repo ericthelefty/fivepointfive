@@ -273,9 +273,13 @@ export function totalWeight(items: Item[], coins: Coins): number {
 }
 
 /** Carrying Capacity table: Str × 15 lb. for Small/Medium, ×7.5 Tiny, ×30 Large… */
-export function carryingCapacity(strength: number, size = "Medium"): number {
-  const mult = /tiny/i.test(size) ? 7.5 : /large/i.test(size) ? 30 : /huge/i.test(size) ? 60 : /gargantuan/i.test(size) ? 120 : 15;
-  return strength * mult;
+export function carryingCapacity(strength: number, size = "Medium", stepsUp = 0): number {
+  // Small and Medium share a row; "one size larger" (Powerful Build) moves Small to Medium and Medium to Large
+  const order = ["tiny", "small", "medium", "large", "huge", "gargantuan"];
+  const mults = [7.5, 15, 15, 30, 60, 120];
+  const found = order.findIndex((x) => new RegExp(x, "i").test(size));
+  const i = Math.min(order.length - 1, Math.max(0, (found < 0 ? 2 : found) + stepsUp));
+  return strength * mults[i];
 }
 
 // ------------------------------------------------- a character's inventory

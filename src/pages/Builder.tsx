@@ -148,7 +148,7 @@ function ChoiceRow({ p, c, update, bare }: StepProps & { p: PendingChoice; bare?
         <div className="faint" style={{ marginTop: 6 }}>{chosen.length ? `Chosen: ${chosen.map(label).join(", ")}. ` : ""}Note your choice on the sheet; the app can't list these options yet.</div>
       )}
       {p.locked && <div className="faint" style={{ marginTop: 6 }}>Set by your background.</div>}
-      {p.options && !p.options.length && <div className="faint" style={{ marginTop: 6 }}>{p.hint || "Nothing to choose from yet."}</div>}
+      {p.options && (!p.options.length || (p.hint && p.options.length < p.count)) && <div className="faint" style={{ marginTop: 6 }}>{p.hint || "Nothing to choose from yet."}</div>}
       {p.count > 1 && p.options && <div className="faint" style={{ marginTop: 6 }}>Chosen {chosen.length} / {p.count}</div>}
     </div>
   );

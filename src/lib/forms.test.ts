@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { parseFile, type Entry } from "./parse.ts";
 import { armorTable, derive, newCharacter, type Character } from "./rules.ts";
 import { classInfos } from "./multiclass.ts";
-import { computeModif } from "./modif.ts";
+import { computeModif, evalAmount } from "./modif.ts";
+import { carryingCapacity } from "./inventory.ts";
 import { applyForm, formEligible, parseCreature } from "./creature.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
@@ -204,5 +205,96 @@ describe("Magic Initiate from a background", () => {
     const g = run(c2).fx.grantedSpells;
     expect(g.find((x) => x.spell.id === "srd:spell/fire-bolt")?.ability).toBe("Intelligence");
     expect(g.some((x) => x.spell.id === "srd:spell/magic-missile")).toBe(true);
+  });
+});
+
+describe("checks found by comparing with D&D Beyond", () => {
+  const fxOf = (c: Character) => run(c).fx;
+  const base = (over: Partial<Character>): Character => ({ ...newCharacter(), base: { Strength: 8, Dexterity: 14, Constitution: 13, Intelligence: 12, Wisdom: 10, Charisma: 15 }, bonus: {}, ...over });
+
+  it("Rogue Expertise lists only proficient skills, minus ones already picked for Expertise", () => {
+    const c = base({ level: 6, classId: "srd:class/rogue", backgroundId: "srd:background/criminal", speciesId: "srd:species/human",
+      classSkills: ["Acrobatics", "Athletics", "Deception", "Insight"], choices: { "srd:class/rogue#expertise-1": ["Stealth", "Sleight of Hand"] } });
+    const p1 = fxOf(c).pending.find((p) => p.key.endsWith("#expertise-1"))!;
+    expect(p1.options!.map((o) => o.value).sort()).toEqual(["Acrobatics", "Athletics", "Deception", "Insight", "Sleight of Hand", "Stealth"]);
+    const p2 = fxOf(c).pending.find((p) => p.key.endsWith("#expertise-2"))!;
+    expect(p2.options!.map((o) => o.value)).not.toContain("Stealth");
+    expect(p2.options!.map((o) => o.value)).toContain("Acrobatics");
+  });
+
+  it("Invocations check level and the invocation they need (Eldritch Smite needs Pact of the Blade)", () => {
+    const c = base({ level: 10, classId: "srd:class/warlock", subclassId: "srd:subclass/fiend-patron", choices: { "srd:class/warlock#invocations": ["Agonizing Blast"] } });
+    const opts = () => fxOf(c).pending.find((p) => p.key.endsWith("#invocations"))!.options!.map((o) => o.value);
+    expect(opts()).not.toContain("Devouring Blade"); // level 12
+    expect(opts()).not.toContain("Eldritch Smite");
+    c.choices = { "srd:class/warlock#invocations": ["Pact of the Blade"] };
+    expect(opts()).toContain("Eldritch Smite");
+  });
+
+  it("Fiendish Resilience offers every damage type but Force; Eldritch Smite rolls 1d8 + slot level", () => {
+    const c = base({ level: 10, classId: "srd:class/warlock", subclassId: "srd:subclass/fiend-patron", choices: { "srd:class/warlock#invocations": ["Pact of the Blade", "Eldritch Smite"], "srd:subclass/fiend-patron#resilience": ["fire"] } });
+    const fx = fxOf(c);
+    const res = fx.pending.find((p) => p.key.endsWith("#resilience"))!;
+    expect(res.options!.length).toBe(12);
+    expect(res.options!.some((o) => o.value === "force")).toBe(false);
+    expect(fx.defenses.some((d) => /Fire/.test(d.text))).toBe(true);
+    expect(fx.triggers.find((t) => t.name === "Eldritch Smite")!.damage![0].dice).toBe("6d8");
+  });
+
+  it("Wizard Scholar picks from proficient study skills; Evocation Savant spells go in the spellbook", () => {
+    const c = base({ level: 10, classId: "srd:class/wizard", subclassId: "srd:subclass/evoker", backgroundId: "srd:background/sage", classSkills: ["Insight", "Investigation"],
+      choices: { "srd:subclass/evoker#savant": ["srd:spell/burning-hands", "srd:spell/shatter"] } });
+    const fx = fxOf(c);
+    expect(fx.pending.find((p) => p.key.endsWith("#scholar"))!.options!.map((o) => o.value)).toEqual(["Arcana", "History", "Investigation"]);
+    expect(fx.bookSpells.map((b) => b.name)).toEqual(["Burning Hands", "Shatter"]);
+    // Empowered Evocation: Intelligence to Wizard evocation spells' damage
+    expect(fx.spellDamageBonuses.some((b) => b.spellId === "srd:spell/fireball" && b.value === 1)).toBe(true);
+  });
+
+  it("A pick that another block reads (Agonizing Blast's cantrip) isn't left as an 'apply by hand' line", () => {
+    const c = base({ level: 5, classId: "srd:class/warlock", cantrips: ["Eldritch Blast"],
+      choices: { "srd:class/warlock#invocations": ["Agonizing Blast"], "srd:class/warlock#agonizing-cantrip": ["srd:spell/eldritch-blast"] } });
+    const fx = fxOf(c);
+    expect(fx.reminders.some((r) => r.feature === "Agonizing Blast")).toBe(false);
+    expect(fx.features.find((f) => f.feature === "Agonizing Blast")?.status).toBe("automated");
+  });
+
+  it("Potent Cantrip describes the cantrip rule, not a save of an undefined ability", () => {
+    const c = base({ level: 3, classId: "srd:class/wizard", subclassId: "srd:subclass/evoker" });
+    const note = fxOf(c).notes.find((n) => n.feature === "Potent Cantrip")!;
+    expect(note.text).not.toMatch(/undefined/i);
+    expect(note.text).toMatch(/^Your cantrips: a target that succeeds on the save takes half damage/);
+  });
+  it("Primal Knowledge lists the Barbarian skill list (from: $#skills)", () => {
+    const c = base({ level: 3, classId: "srd:class/barbarian", classSkills: ["Animal Handling", "Intimidation"] });
+    const p = fxOf(c).pending.find((x) => x.key.endsWith("#primal-skill"))!;
+    expect(p.options!.map((o) => o.value).sort()).toEqual(["Animal Handling", "Athletics", "Intimidation", "Nature", "Perception", "Survival"]);
+    c.choices = { "srd:class/barbarian#primal-skill": ["Survival"] };
+    expect(fxOf(c).skills.has("Survival")).toBe(true);
+  });
+
+  it("Powerful Build counts as one size larger for carrying capacity", () => {
+    const c = base({ level: 5, classId: "srd:class/barbarian", speciesId: "srd:species/goliath" });
+    expect(fxOf(c).carrySize).toBe(1);
+    expect(carryingCapacity(18, "Medium", 1)).toBe(540);
+    expect(carryingCapacity(18, "Small", 1)).toBe(270);
+    expect(carryingCapacity(18, "Medium")).toBe(270);
+    expect(fxOf(c).toggles.find((t) => t.name === "Large Form")!.lines.join(" ")).toMatch(/Size becomes Large/);
+  });
+
+  it("Sear Undead adds Wis-mod d8s of Radiant damage to Turn Undead; Divine Spark's options roll their own amounts", () => {
+    const c = base({ level: 5, classId: "srd:class/cleric", base: { Strength: 10, Dexterity: 10, Constitution: 10, Intelligence: 10, Wisdom: 16, Charisma: 10 } });
+    const fx = fxOf(c);
+    const turn = fx.actions.find((a) => a.id === "turn-undead")!;
+    expect(turn.damage).toEqual([{ dice: "3d8", type: "radiant" }]);
+    const spark = fx.actions.find((a) => a.id === "divine-spark")!;
+    expect(spark.optionEffects?.[0]?.heal).toBe("1d8+3");
+    expect(spark.optionEffects?.[1]?.damage?.[0]).toEqual({ dice: "1d8+3", type: "necrotic/radiant" });
+    expect(spark.options?.[1]).toMatch(/^Harm \(1d8\+3 necrotic\/radiant, (DC \d+ )?Con save\)$/);
+  });
+
+  it("steps(...) works as one term of a sum", () => {
+    const env = { level: 7, total: 7, pb: 3, mods: { Strength: 0, Dexterity: 0, Constitution: 0, Intelligence: 0, Wisdom: 3, Charisma: 0 }, scores: {}, classLevels: {} } as never;
+    expect(evalAmount("steps(2: 1d8, 7: 2d8) + mod:wis", env)).toEqual({ dice: ["2d8"], flat: 3 });
   });
 });

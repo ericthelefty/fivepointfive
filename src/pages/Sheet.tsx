@@ -592,7 +592,14 @@ export default function Sheet() {
         const a = attacks.find((x) => x.itemId === it.id);
         if (!a) continue;
         const mod = a.ability ? d.mods[a.ability] : 0;
-        const dmg = fx.offhandMod || mod <= 0 ? a.damage : (a.damage.match(new RegExp(`^(\\d+d\\d+)\\+${mod}(?!\\d)`)) ? a.damage.replace(new RegExp(`^(\\d+d\\d+)\\+${mod}`), "$1") : `${a.damage}-${mod}`);
+        // take the ability modifier back out of the flat part, keeping other bonuses (Rage): "1d6+6" → "1d6+2"
+        const minusMod = (dm: string) => {
+          const m = dm.match(/^(\d+d\d+)([+-]\d+)?(.*)$/);
+          if (!m) return `${dm}-${mod}`;
+          const flat = Number(m[2] || 0) - mod;
+          return `${m[1]}${flat > 0 ? `+${flat}` : flat < 0 ? flat : ""}${m[3]}`;
+        };
+        const dmg = fx.offhandMod || mod <= 0 ? a.damage : minusMod(a.damage);
         const nick = w.mastery === "Nick" && fx.masteries.some((m) => slug(m) === slug(w.name));
         rows.push({
           key: `light:${it.id}`, name: `${a.name}: extra attack`, source: "Light property",
@@ -987,6 +994,9 @@ export default function Sheet() {
       const n = spendOf(a.id, a.cost);
       a = { ...a, cost: { ...a.cost, amount: n }, ...(he ? { heal: he.replace(/dice\(cost\.(?:resource|charges),\s*(d\d+)\)/g, `${n}$1`).replace(/cost\.amount/g, String(n)) } : {}) };
     }
+    // the chosen option's own roll (Divine Spark: Heal or Harm)
+    const ofx = opt !== undefined ? a.optionEffects?.[opt] : undefined;
+    if (ofx) a = { ...a, heal: ofx.heal ?? a.heal, damage: ofx.damage ?? a.damage, save: ofx.save ?? a.save };
     if (chosen) a = { ...a, options: undefined, text: [`Chose: ${chosen}.`, a.text].filter(Boolean).join(" ") };
     const { res, left, ok } = costInfo(a.cost);
     if (!ok) {
@@ -1578,7 +1588,7 @@ export default function Sheet() {
   const ritualBook = () => {
     const k = casters.find((x) => (casterEntry(x.info)?.effects || []).some((f) => /from-spellbook/.test(f.yaml)));
     if (!k) return undefined;
-    const names = new Set([...k.info.spells, ...(c.spellbook || []).map((b) => b.name)]);
+    const names = new Set([...k.info.spells, ...(c.spellbook || []).map((b) => b.name), ...fx.bookSpells.map((b) => b.name)]);
     return { k, names };
   };
   const shortTime = (t: string) => stripMd(t).replace(/^Bonus Action.*/i, "1BA").replace(/^Action.*/i, "1A").replace(/^Reaction.*/i, "1R").replace(/^(\d+) minutes?.*/i, "$1m").replace(/^(\d+) hours?.*/i, "$1h");
@@ -1859,9 +1869,11 @@ export default function Sheet() {
     const listName = k.info.cls.name;
     const book = c.spellbook || [];
     const prepared = k.info.spells.filter((n) => (spellInfo(spells.find((x) => x.name === n) || ({ tagline: "" } as Entry))?.level || 0) > 0);
-    const names = [...new Set([...prepared, ...book.map((b) => b.name)])];
+    const granted = fx.bookSpells.map((b) => b.name);
+    const names = [...new Set([...prepared, ...book.map((b) => b.name), ...granted])];
     const inBook = names.map((n) => spells.find((x) => x.name === n)).filter(Boolean) as Entry[];
-    const freeUsed = names.filter((n) => !book.some((b) => b.name === n && b.how === "copied")).length;
+    // spells a feature wrote in (Evocation Savant) don't use the level-up picks
+    const freeUsed = names.filter((n) => !book.some((b) => b.name === n && b.how === "copied") && !(granted.includes(n) && !prepared.includes(n) && !book.some((b) => b.name === n))).length;
     const freeLeft = free - freeUsed;
     const maxL = Math.max(0, ...slots.filter((x) => !x.pact).map((x) => x.level));
     const prepMax = k.ci?.prepared ?? 0;
@@ -2100,7 +2112,16 @@ export default function Sheet() {
     const featureLangs = fx.languages.filter((l, i, arr) => arr.findIndex((x) => x.name === l.name) === i);
     const known = new Set(["Common", ...origin, ...featureLangs.map((l) => l.name)]);
     const toolName = (k: string) => content.byType("Tool").find((t) => slug(t.name) === slug(k))?.name || k.replace(/-/g, " ").replace(/\b\w/g, (x) => x.toUpperCase());
-    const tools = [...fx.tools].map((k) => ({ name: toolName(k), sources: fx.toolSources[k] || [] })).sort((a, b) => a.name.localeCompare(b.name));
+    // the same tool from two places ("thieves-tools" from the class, "Thieves’ Tools" from the background) is one line
+    const toolMap = new Map<string, { name: string; sources: string[] }>();
+    for (const k of fx.tools) {
+      const name = toolName(k);
+      const id = slug(name.replace(/[’']/g, ""));
+      const cur = toolMap.get(id) || { name, sources: [] };
+      cur.sources.push(...(fx.toolSources[k] || []));
+      toolMap.set(id, cur);
+    }
+    const tools = [...toolMap.values()].sort((a, b) => a.name.localeCompare(b.name));
     const setOrigin = (i: number, v: string) => {
       const next = [...origin];
       next[i] = v;
@@ -2126,6 +2147,8 @@ export default function Sheet() {
         <ul className="plist">
           {senses.map((x, i) => <li key={i}>{x.text} <span className="mut">· {x.source}</span></li>)}
           <li>Passive Perception {d.passivePerception}</li>
+          <li>Passive Investigation {10 + (d.skills["Investigation"]?.value ?? d.mods.Intelligence)}</li>
+          <li>Passive Insight {10 + (d.skills["Insight"]?.value ?? d.mods.Wisdom)}</li>
         </ul>
         <h3>Languages</h3>
         <ul className="plist">
@@ -2989,7 +3012,8 @@ export default function Sheet() {
                   weapons={weapons}
                   armor={armor}
                   strength={d.scores.Strength}
-                  size={(sp?.fields["size"] || "Medium").split(/[\s(]/)[0]}
+                  size={fx.size || (sp?.fields["size"] || "Medium").split(/[\s(]/)[0]}
+                  carrySize={fx.carrySize}
                   onChange={setInventory}
                   onReset={resetInventory}
                 />
