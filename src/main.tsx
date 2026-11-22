@@ -5,6 +5,7 @@ import "./styles.css";
 import { ContentProvider, useContent } from "./lib/store.tsx";
 import { SessionProvider, useSession } from "./lib/session.tsx";
 import { CharactersProvider } from "./lib/characters.tsx";
+import { EncountersProvider, useEncounters } from "./lib/encounters.tsx";
 import { cloud, configError } from "./lib/backend.ts";
 import { Join, ResetPassword, RESET_PATH, SignIn } from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
@@ -14,6 +15,7 @@ import Sheet from "./pages/Sheet.tsx";
 import Library from "./pages/Library.tsx";
 import Content from "./pages/Content.tsx";
 import Guide from "./pages/Guide.tsx";
+import { EncounterList, EncounterView } from "./pages/Encounters.tsx";
 
 export const ATTRIBUTION =
   "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.";
@@ -38,6 +40,7 @@ document.documentElement.dataset.theme = initialTheme();
 function Shell() {
   const { ready, error } = useContent();
   const session = useSession();
+  const encounters = useEncounters();
   const [menu, setMenu] = useState(false);
   const [theme, setTheme] = useState(initialTheme);
   const flip = () => {
@@ -62,6 +65,7 @@ function Shell() {
         </button>
         <nav className="topnav" id="topnav" aria-label="Main" onClick={(e) => { if ((e.target as HTMLElement).closest("a,button")) setMenu(false); }}>
           <NavLink to="/" end>Characters</NavLink>
+          {encounters.allowed && <NavLink to="/encounters">Encounters</NavLink>}
           <NavLink to="/library">Library</NavLink>
           <NavLink to="/content">Content packs</NavLink>
           <NavLink to="/guide">Format guide</NavLink>
@@ -81,6 +85,8 @@ function Shell() {
             <Route path="/" element={<Home />} />
             <Route path="/build/:id" element={<Builder />} />
             <Route path="/sheet/:id" element={<Sheet />} />
+            <Route path="/encounters" element={<EncounterList />} />
+            <Route path="/encounters/:id" element={<EncounterView />} />
             <Route path="/library" element={<Library />} />
             <Route path="/content" element={<Content />} />
             <Route path="/guide" element={<Guide />} />
@@ -119,7 +125,9 @@ createRoot(document.getElementById("root")!).render(
       <SessionProvider>
         <ContentProvider>
           <CharactersProvider>
-            <Shell />
+            <EncountersProvider>
+              <Shell />
+            </EncountersProvider>
           </CharactersProvider>
         </ContentProvider>
       </SessionProvider>

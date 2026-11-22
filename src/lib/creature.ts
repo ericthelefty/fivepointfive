@@ -45,6 +45,13 @@ export interface CreatureStats {
   actions: CreatureAction[];
   bonusActions: CreatureAction[];
   reactions: CreatureAction[];
+  /** Legendary Actions, with the uses line (Legendary Action Uses: 3...). */
+  legendary?: CreatureAction[];
+  legendaryUses?: string;
+  /** XP for defeating it (from the CR line: 1/4 (XP 50; PB +2)). */
+  xp?: number;
+  /** Initiative modifier (the Initiative line: +2 (12)), else its Dexterity modifier. */
+  initiative?: number;
 }
 
 const SIZES = ["Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"];
@@ -151,6 +158,11 @@ export function parseCreature(e: Entry): CreatureStats {
     actions: acts("Actions"),
     bonusActions: acts("Bonus Actions"),
     reactions: acts("Reactions"),
+    legendary: acts("Legendary Actions"),
+    // "Legendary Action Uses: 3 (4 in Lair)…": written just above or under the Legendary Actions heading
+    legendaryUses: stripMd(e.body.match(/Legendary Action Uses:[^\n]*/i)?.[0] || "").replace(/\*+/g, "").trim() || undefined,
+    xp: (() => { const m = stripMd(f["cr"] || f["challenge"] || "").match(/XP\s*([\d,]+)/i); return m ? +m[1].replace(/,/g, "") : undefined; })(),
+    initiative: (() => { const m = stripMd(f["initiative"] || "").match(/^([+\-−]?\s*\d+)/); return m ? num(m[1]) : Math.floor(((scores.Dexterity ?? 10) - 10) / 2); })(),
   };
 }
 

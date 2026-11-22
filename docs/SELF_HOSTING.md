@@ -12,6 +12,7 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
 2. Open **SQL Editor** and run each file in [`supabase/migrations/`](../supabase/migrations/), in order: paste its contents and run it, then the next one.
    - [`0001_fivepointfive_instance.sql`](../supabase/migrations/0001_fivepointfive_instance.sql): tables, permissions and invites.
    - [`0002_hidden_characters.sql`](../supabase/migrations/0002_hidden_characters.sql): characters that only their owner and the admin can see.
+   - [`0003_encounters.sql`](../supabase/migrations/0003_encounters.sql): the DM's encounter builder and combat tracker (admins only).
 3. Go to **Project Settings → Data API** (or **API**) and add `fivepointfive` to **Exposed schemas**. Save.
 
 ## 2. Set up sign-in
@@ -53,6 +54,7 @@ Then in **Authentication → URL Configuration**, set **Site URL** to your site'
 | Upload content packs (.md) | ✓ | ✓ |
 | Invite people, remove members, change roles | | ✓ |
 | Turn the shared game log on or off | | ✓ |
+| Build and run encounters (combat tracker) | | ✓ |
 
 Permissions are enforced by the database (row-level security), not just the app.
 

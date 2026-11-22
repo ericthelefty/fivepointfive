@@ -6,7 +6,8 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
-Nothing yet.
+- **Database:** `supabase/migrations/0003_encounters.sql`.
+- Encounters, for the DM (the admin on an instance): build a fight from the Library's monsters and your characters, with its difficulty under the 2024 XP budget, then run it. The tracker keeps initiative order, the round and whose turn it is, HP and conditions for everyone in one place, and clickable stat blocks with a roll log. Characters' HP and conditions stay linked to their sheets.
 
 ## 0.3.0 (2026-11-22)
 
