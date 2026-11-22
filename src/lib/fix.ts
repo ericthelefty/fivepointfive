@@ -89,7 +89,7 @@ export function checkFile(
   known: { classes: string[] } = { classes: [] },
 ): FileReport {
   const base: FileReport = { file, original: text, fixed: text, fixes: [], suggestions: [], entries: [] };
-  if (!/\.md$/i.test(file)) return { ...base, rejected: "Only .md files are accepted." };
+  if (!/\.md$/i.test(file)) return { ...base, rejected: /\.zip$/i.test(file) ? "This .zip couldn’t be opened." : "Only .md files (or a .zip of them) are accepted." };
   if (/\u0000/.test(text) || /[\x01-\x08\x0e-\x1f]/.test(text.slice(0, 2000)))
     return { ...base, rejected: "This doesn’t look like a text file." };
   if (!text.trim()) return { ...base, rejected: "The file is empty." };

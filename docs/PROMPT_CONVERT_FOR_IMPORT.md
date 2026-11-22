@@ -32,7 +32,7 @@ If you can't browse, rely on this prompt, and say so in your report.
 
 ## 2. Files
 
-- **Output.** One `.md` file per entry, named after it in kebab-case (`barkskin-hide.md`), plus a `pack.md`. Group them in folders by type if you like (`classes/`, `spells/`); the app reads every `.md` file it's given.
+- **Output.** One `.md` file per entry, named after it in kebab-case (`barkskin-hide.md`), plus a `pack.md`. Group them in folders by type if you like (`classes/`, `spells/`). Deliver them as a `.zip` (the app unpacks it), or as one combined `.md` file with the entries one after another, `pack.md` first.
 - **`pack.md`** names the pack and sets the ID used in every entry ID:
   ```markdown
   # Eric's Homebrew

@@ -16,7 +16,7 @@ The app doesn't read rules from prose. What an entry *does* (proficiencies, choi
 
 ### Files and packs
 
-- Files are UTF-8 text with the `.md` extension. **Only `.md` files are accepted**; anything else (images, .txt, .zip) is skipped with a note in the import preview.
+- Files are UTF-8 text with the `.md` extension. You can import `.md` files directly, or a **`.zip`** of them: the app unpacks it in your browser and imports every `.md` file inside, in any folder. Anything else (images, .txt, files inside a zip that aren’t .md) is skipped with a note in the import preview.
 - A **pack** is a set of `.md` files imported together. An optional `pack.md` (`**Type:** Pack`) names the collection and gives credit (see section 2); without one, the pack is called whatever you type in the Pack name box, or **My Homebrew**.
 - One file can hold **one entry or many**. Each entry starts with a level-1 heading (`# Name`).
 

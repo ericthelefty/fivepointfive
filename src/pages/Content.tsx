@@ -4,6 +4,7 @@ import { packIdFor, useContent, type UserPack } from "../lib/store.tsx";
 import { applySuggestion, checkFile, type FileReport } from "../lib/fix.ts";
 import { useSession } from "../lib/session.tsx";
 import { cloud } from "../lib/backend.ts";
+import { readUploads } from "../lib/zip.ts";
 
 
 export default function Content() {
@@ -13,6 +14,8 @@ export default function Content() {
   const [packName, setPackName] = useState("");
   const [over, setOver] = useState(false);
   const [saved, setSaved] = useState("");
+  /** Notes about .zip files: what was skipped or couldn't be read. */
+  const [zipNotes, setZipNotes] = useState<string[]>([]);
   const classes = content.byType("Class").map((c) => c.name);
   const known = { classes };
   // pack.md's **ID:** wins; otherwise the ID comes from the pack name
@@ -21,11 +24,10 @@ export default function Content() {
 
   const addFiles = async (files: FileList | File[]) => {
     setSaved("");
-    const next: FileReport[] = [];
-    for (const f of Array.from(files)) {
-      const text = /\.md$/i.test(f.name) ? await f.text() : "";
-      next.push(checkFile(f.name, text, draftId, known));
-    }
+    // .md files as they are; a .zip is unpacked into the .md files inside it
+    const { files: uploads, notes } = await readUploads(files);
+    setZipNotes(notes);
+    const next: FileReport[] = uploads.map((u) => checkFile(u.name, u.text, draftId, known));
     const merged = [...reports.filter((r) => !next.some((n) => n.file === r.file)), ...next];
     setReports(merged);
     // a pack.md names the collection
@@ -106,10 +108,11 @@ export default function Content() {
             onDrop={(e) => { e.preventDefault(); setOver(false); addFiles(e.dataTransfer.files); }}
           >
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e3b45a" strokeWidth="1.6" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v4h16v-4" /></svg>
-            <span style={{ color: "var(--ink)", fontWeight: 600 }}>Drop .md files here</span>
-            <span className="faint">or click to choose files · .md only</span>
-            <input type="file" multiple accept=".md,text/markdown" className="sr-only" onChange={(e) => e.target.files && addFiles(e.target.files)} />
+            <span style={{ color: "var(--ink)", fontWeight: 600 }}>Drop .md or .zip files here</span>
+            <span className="faint">or click to choose files · a .zip is unpacked and its .md files imported</span>
+            <input type="file" multiple accept=".md,.zip,text/markdown,application/zip" className="sr-only" onChange={(e) => e.target.files && addFiles(e.target.files)} />
           </label>
+          {zipNotes.length > 0 && <div className="inset" role="status">{zipNotes.map((n) => <div key={n}>{n}</div>)}</div>}
           {saved && <div className="inset" role="status">{saved}</div>}
         </section>
 
@@ -117,7 +120,7 @@ export default function Content() {
           {reports.length === 0 ? (
             <div className="stack">
               <h2>Import preview</h2>
-              <p className="muted">Drop one or more .md files to see what will be added before anything is saved. Simple formatting problems are fixed for you; anything uncertain is listed for you to decide.</p>
+              <p className="muted">Drop one or more .md files, or a .zip of them, to see what will be added before anything is saved. Simple formatting problems are fixed for you; anything uncertain is listed for you to decide.</p>
               <p className="faint">New to the format? The <Link to="/guide">guide</Link> has templates for each type, or open any entry in the <Link to="/library">Library</Link> and view it “As .md”.</p>
             </div>
           ) : (
