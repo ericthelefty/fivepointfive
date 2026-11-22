@@ -6,7 +6,7 @@ import { armorTable, derive, newCharacter, type Character } from "./rules.ts";
 import { classInfos } from "./multiclass.ts";
 import { computeModif, evalAmount } from "./modif.ts";
 import { carryingCapacity } from "./inventory.ts";
-import { applyForm, formEligible, parseCreature } from "./creature.ts";
+import { applyForm, formEligible, parseCreature, parseStatBlockMd } from "./creature.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
 const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : f.endsWith(".md") ? [join(d, f)] : []));
@@ -268,7 +268,7 @@ describe("checks found by comparing with D&D Beyond", () => {
   it("Primal Knowledge lists the Barbarian skill list (from: $#skills)", () => {
     const c = base({ level: 3, classId: "srd:class/barbarian", classSkills: ["Animal Handling", "Intimidation"] });
     const p = fxOf(c).pending.find((x) => x.key.endsWith("#primal-skill"))!;
-    expect(p.options!.map((o) => o.value).sort()).toEqual(["Animal Handling", "Athletics", "Intimidation", "Nature", "Perception", "Survival"]);
+    expect(p.options!.map((o) => o.value).sort()).toEqual(["Athletics", "Nature", "Perception", "Survival"]); // not the class skills you already have
     c.choices = { "srd:class/barbarian#primal-skill": ["Survival"] };
     expect(fxOf(c).skills.has("Survival")).toBe(true);
   });
@@ -296,5 +296,50 @@ describe("checks found by comparing with D&D Beyond", () => {
   it("steps(...) works as one term of a sum", () => {
     const env = { level: 7, total: 7, pb: 3, mods: { Strength: 0, Dexterity: 0, Constitution: 0, Intelligence: 0, Wisdom: 3, Charisma: 0 }, scores: {}, classLevels: {} } as never;
     expect(evalAmount("steps(2: 1d8, 7: 2d8) + mod:wis", env)).toEqual({ dice: ["2d8"], flat: 3 });
+  });
+  it("Skilled doesn't offer skills you already have", () => {
+    const c = base({ level: 1, classId: "srd:class/fighter", speciesId: "srd:species/human", backgroundId: "srd:background/soldier", classSkills: ["Acrobatics", "Perception"] });
+    const p = fxOf(c).pending.find((x) => x.key.endsWith("skilled#skilled"))!;
+    const opts = p.options!.map((o) => o.value);
+    expect(opts).not.toContain("Perception"); // class skill
+    expect(opts).not.toContain("Athletics"); // Soldier background
+    expect(opts).toContain("Arcana");
+    expect(opts.some((o) => /Thieves/.test(o))).toBe(true);
+  });
+  it("A cantrip pick leaves out cantrips you already know (High Elf and Magic Initiate)", () => {
+    const c = base({ level: 1, classId: "srd:class/fighter", speciesId: "srd:species/elf", speciesChoice: "High Elf", backgroundId: "srd:background/sage",
+      choices: { "srd:species/elf#high-elf-cantrip": ["srd:spell/ray-of-frost"], "srd:feat/magic-initiate#mi-list": ["wizard"], "srd:feat/magic-initiate#mi-cantrips": ["srd:spell/ray-of-frost", "srd:spell/light"] } } as Partial<Character>);
+    const fx = fxOf(c);
+    const elf = fx.pending.find((p) => p.key.endsWith("#high-elf-cantrip"))!;
+    const mi = fx.pending.find((p) => p.key.endsWith("#mi-cantrips"))!;
+    // whichever is read second can't take the other's cantrip
+    const both = elf.chosen.includes("srd:spell/ray-of-frost") && mi.chosen.includes("srd:spell/ray-of-frost");
+    expect(both).toBe(false);
+    expect([...elf.chosen, ...mi.chosen]).toContain("srd:spell/ray-of-frost");
+    expect(mi.chosen).toContain("srd:spell/light");
+  });
+  it("Evocation Savant adds one pick for each new spell slot level, from levels you have slots for", () => {
+    const wiz = (level: number) => base({ level, classId: "srd:class/wizard", subclassId: "srd:subclass/evoker" });
+    expect(fxOf(wiz(3)).pending.some((p) => p.key.endsWith("#savant-more"))).toBe(false);
+    const p6 = fxOf(wiz(6)).pending.find((p) => p.key.endsWith("#savant-more"))!;
+    expect(p6.count).toBe(1);
+    expect(p6.options!.map((o) => o.label)).toContain("Fireball");
+    expect(p6.options!.map((o) => o.label)).not.toContain("Cone of Cold");
+    expect(fxOf(wiz(9)).pending.find((p) => p.key.endsWith("#savant-more"))!.count).toBe(3);
+    const w = wiz(6);
+    w.choices = { "srd:subclass/evoker#savant": ["srd:spell/burning-hands", "srd:spell/shatter"] };
+    expect(fxOf(w).pending.find((p) => p.key.endsWith("#savant-more"))!.options!.map((o) => o.label)).not.toContain("Shatter");
+  });
+
+  it("A summon's 'add your Proficiency Bonus to any ability check or saving throw' goes into its saves", () => {
+    const md = [
+      "*Small Celestial, Neutral*", "", "**AC** 13", "", "**HP** 20", "", "**Speed** 30 ft.", "",
+      "|  |  | MOD | SAVE |", "| --- | --- | --- | --- |", "| STR | 1 | −5 | −5 |", "| DEX | 14 | +2 | +2 |", "| CON | 10 | +0 | +0 |",
+      "|  |  | MOD | SAVE |", "| INT | 15 | +2 | +2 |", "| WIS | 15 | +2 | +2 |", "| CHA | 16 | +3 | +3 |", "",
+      "***Traits***", "", "***Pact Bond.*** Add your Proficiency Bonus to any ability check or saving throw the vestige makes.",
+    ].join("\n");
+    const cr = parseStatBlockMd("x", "Vestige", md, { pb: 3, mods: {}, classLevels: {} });
+    expect(cr.saves.Strength).toBe(-2);
+    expect(cr.saves.Charisma).toBe(6);
   });
 });

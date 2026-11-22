@@ -15,7 +15,7 @@ import { features, parseTables, slug, spellInfo, stripMd, type Entry } from "./p
 import { CUSTOM_HANDLERS } from "./custom/index.ts";
 import { classTable, tableRow, mod, profBonus, finalScores, speciesChoice, type Character } from "./rules.ts";
 import { ABILITIES, SKILLS, closest } from "./fix.ts";
-import { SUBCLASS_LEVEL, classInfos, spellSlots } from "./multiclass.ts";
+import { SUBCLASS_LEVEL, casterInfoOf, classInfos, spellSlots } from "./multiclass.ts";
 import type { Item } from "./inventory.ts";
 
 // ------------------------------------------------------------------ vocabulary
@@ -2037,17 +2037,42 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       let storedIn: PendingChoice["storedIn"];
       if (a.opts.kind === "class" && v.id === "skills" && kinds[0] === "skill") storedIn = "classSkills";
       if (a.opts.kind === "species" && kinds.length === 1 && kinds[0] === "skill") storedIn = "extraSkills";
-      const count = evalNumber(v.count ?? 1, env) || 1;
+      // picks that come with new spell slot levels (Evocation Savant: one more spell each time this class reaches a new slot level)
+      const cinfo = a.opts.info;
+      const topSlot = (lvl: number) => Math.max(0, ...((cinfo && casterInfoOf({ cls: cinfo.cls, sub: cinfo.sub, level: lvl })?.slots) || []).filter((s) => +s.count > 0).map((s) => s.level));
+      const perSlot = v.at === "new-slot-level" ? Math.max(0, topSlot(cinfo?.level ?? 0) - topSlot(a.featureLevel)) : null;
+      if (perSlot === 0) return true;
+      // `slot: available`: spells of a level you have slots for in this class
+      const vs: Val = v.from?.spell?.slot === "available"
+        ? { ...v, from: { ...v.from, spell: { ...Object.fromEntries(Object.entries(v.from.spell).filter(([k]) => k !== "slot")), level: Array.from({ length: topSlot(cinfo?.level ?? 0) }, (_, i) => i + 1) } } }
+        : v;
+      const count = (evalNumber(v.count ?? 1, env) || 1) * (perSlot ?? 1);
       let chosen = chosenFor(key, v, a.ctx, storedIn, a.opts.info);
       // `from: $#skills`: the same list as another choice in this entry (Primal Knowledge: the Barbarian skill list)
       const src = typeof v.from === "string" && v.from.startsWith("$#") ? chooseIn(e, v.from.slice(2)) : undefined;
-      let options = choiceOptions(src ? { ...v, from: src.from } : v, a.ctx);
+      let options = choiceOptions(src ? { ...vs, from: src.from } : vs, a.ctx);
       // Expertise: only skills you're proficient in, and not ones you already have Expertise in from another pick
       const needsProf = v.from?.proficient === "skill" || (Array.isArray(v.from?.all) && v.from.all.some((x: Val) => x?.proficient === "skill"));
       if (options && v.grants === "expertise" && needsProf) {
         const prof = skillsHeld(a.ctx, key);
         options = options.filter((o) => prof.skills.has(o.value) && !prof.expert.has(o.value));
         chosen = chosen.filter((x) => options!.some((o) => o.value === x));
+      }
+      // a spell for the spellbook: not one an earlier pick already put there (Evocation Savant's later picks)
+      if (options && v.grants === "spellbook" && r.bookSpells.length) {
+        const inBook = new Set(r.bookSpells.map((b) => b.name));
+        options = options.filter((o) => !inBook.has(o.label));
+        chosen = chosen.filter((x) => options!.some((o) => o.value === x));
+      }
+      // a new skill proficiency (Skilled, Primal Knowledge): not one you already have from elsewhere
+      if (options && v.grants === "proficiency" && !storedIn && kinds.includes("skill")) {
+        // fixed sources, plus picks already read (so two picks that share a skill don't cancel each other out)
+        const c = a.ctx.c;
+        const held = new Set<string>([...(c.classSkills || []), ...(c.extraSkills || []), ...r.pending.filter((p) => p.key !== key).flatMap((p) => p.chosen)]);
+        const bg = stripMd(a.ctx.background?.fields["skill proficiencies"] || "");
+        for (const s of SKILLS) if (bg.includes(s)) held.add(s);
+        options = options.filter((o) => !SKILLS.includes(o.value) || !held.has(o.value));
+        chosen = chosen.filter((x) => !SKILLS.includes(x) || !held.has(x));
       }
       const hint = options && options.length < count && needsProf && v.grants === "expertise"
         ? "Only skills you're proficient in can get Expertise: pick your class skills on the Skills & spells step, then come back."
@@ -2265,7 +2290,14 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         const ch = v.choose;
         const key = a.slot ? `${a.slot}/${e.id}#${ch.id}` : `${e.id}#${ch.id}`;
         const count = evalNumber(ch.count ?? 1, env) || 1;
-        const options = choiceOptions({ kind: "spell", from: ch.from }, a.ctx);
+        let options = choiceOptions({ kind: "spell", from: ch.from }, a.ctx);
+        // a cantrip pick leaves out cantrips you already know (High Elf after Magic Initiate); picks read earlier win
+        if (options && ch.from?.spell?.level === 0) {
+          const c = a.ctx.c;
+          const knownNames = new Set<string>([...(c.cantrips || []), ...(c.multiclass || []).flatMap((m) => m.cantrips || []), ...r.grantedSpells.map((g) => g.spell.name)]);
+          const knownIds = new Set<string>(r.pending.filter((p) => p.key !== key).flatMap((p) => p.chosen));
+          options = options.filter((o) => !knownIds.has(o.value) && !knownNames.has(o.label));
+        }
         const listOpen = typeof ch.from?.spell?.list === "string" && ch.from.spell.list.startsWith("choice:");
         const chosen = (a.ctx.c.choices?.[key] || []).filter((x) => !options || options.some((o) => o.value === x)).slice(0, count);
         r.pending.push({

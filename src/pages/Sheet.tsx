@@ -2533,6 +2533,15 @@ export default function Sheet() {
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               {editable && <Link className="sbtn ghost sm" to={`/build/${c.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Edit in builder</Link>}
+              {editable && (() => {
+                // picks still to make (a new feature, or an old pick that's no longer allowed)
+                const open = fx.pending.filter((pc) => pc.options && pc.options.length > 0 && pc.chosen.length < Math.min(pc.count, pc.options.length));
+                return open.length > 0 && (
+                  <Tip tip={`Still to choose: ${open.map((pc) => pc.label).join("; ")}`}>
+                    <Link className="tag warn" to={`/build/${c.id}`} style={{ alignSelf: "center", textDecoration: "none" }}>{open.length} choice{open.length > 1 ? "s" : ""} left</Link>
+                  </Tip>
+                );
+              })()}
               {cloud && editable && (
                 <button className={`sbtn sm ${row?.hidden ? "" : "ghost"}`} aria-pressed={!!row?.hidden} onClick={() => chars.setHidden(c.id, !row?.hidden)}>
                   {row?.hidden ? "Hidden · show to group" : "Hide from group"}

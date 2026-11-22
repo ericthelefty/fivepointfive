@@ -339,5 +339,13 @@ export function parseStatBlockMd(id: string, name: string, md: string, x: Summon
   const entry = { id, pack: "", type: "Creature", name, tags: [], tagline, fields: { ...fields, ac: String(ac ?? fields["ac"] ?? 10), hp: String(hp ?? fields["hp"] ?? 1) }, body: body.join("\n"), sections } as unknown as Entry;
   const cr = parseCreature(entry);
   if (cr.crText === "None") cr.cr = 0;
+  // "Add your Proficiency Bonus to any ability check or saving throw it makes" (the vestige's Pact Bond): into its saves and listed skills
+  const bond = cr.traits.map((t) => stripMd(t.text).match(/\badd (\d+) to any ability check or saving throw\b/i) || stripMd(t.text).match(/\badd (\d+) to (?:any|all) (?:of its )?saving throws\b/i)).find(Boolean);
+  if (bond) {
+    const n = +bond[1];
+    const checksToo = /ability check/i.test(bond[0]);
+    for (const ab of ABILITIES) cr.saves[ab] = (cr.saves[ab] ?? Math.floor((cr.scores[ab] - 10) / 2)) + n;
+    if (checksToo) for (const k of Object.keys(cr.skills)) cr.skills[k] += n;
+  }
   return cr;
 }

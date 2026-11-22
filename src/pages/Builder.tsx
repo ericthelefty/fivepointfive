@@ -12,7 +12,7 @@ import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
 import { modifFor, scoreBreakdown, multiclassSkillChoice, setSlotFeat, skillChoiceOf, speciesSkillChoice, validIncreases, type PendingChoice } from "../lib/modif.ts";
 import { Md, MdInline } from "../lib/md.tsx";
-import { features, stripMd, type Entry } from "../lib/parse.ts";
+import { features, spellInfo, stripMd, type Entry } from "../lib/parse.ts";
 import {
   ABBR, ABILITIES, POINT_COST, SKILLS, STANDARD_ARRAY, abilityList, armorTable, classSpells,
   derive, equipmentOptions, featName, finalScores, fmt, listOf, mod, pointBuyUsed, speciesChoice,
@@ -828,7 +828,10 @@ function ClassSpells({ c, update, index }: StepProps & { index: number }) {
   const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter((x) => x !== v) : list.length < max ? [...list, v] : list);
   const multi = extraClasses(c).length > 0;
   // subclass, oath and feat spells that are always prepared: shown, but not counted against the prepared limit
-  const always = new Map(modifFor(c, content).grantedSpells.filter((g) => g.prepared).map((g) => [g.spell.name, g.source]));
+  const granted = modifFor(c, content).grantedSpells;
+  const always = new Map(granted.filter((g) => g.prepared).map((g) => [g.spell.name, g.source]));
+  // cantrips you already know from a species, feat or subclass (Light Bearer, Magic Initiate)
+  const knownCantrips = new Map(granted.filter((g) => spellInfo(g.spell)?.level === 0).map((g) => [g.spell.name, g.source]));
   if (!caster) return null;
   const alwaysShown = [...spellsByLevel.entries()].filter(([l]) => l > 0 && l <= caster.maxSpellLevel).flatMap(([, list]) => list).filter((x) => always.has(x.name)).length;
   return (
@@ -843,7 +846,7 @@ function ClassSpells({ c, update, index }: StepProps & { index: number }) {
             {multi ? " Spell slots for all your classes together are shown on the sheet." : ` Slots: ${caster.slots.map((s) => `${s.count}× level ${s.level}`).join(", ")}.`}
           </p>
           {caster.cantrips > 0 && (
-            <SpellGroup title={`Cantrips (${info.cantrips.length}/${caster.cantrips})`} spells={spellsByLevel.get(0) || []} chosen={info.cantrips} onToggle={(n) => update(patchClass(c, index, { cantrips: toggle(info.cantrips, n, caster.cantrips) }))} />
+            <SpellGroup title={`Cantrips (${info.cantrips.length}/${caster.cantrips})`} spells={spellsByLevel.get(0) || []} chosen={info.cantrips} known={knownCantrips} onToggle={(n) => update(patchClass(c, index, { cantrips: toggle(info.cantrips, n, caster.cantrips) }))} />
           )}
           {Array.from({ length: caster.maxSpellLevel }, (_, i) => i + 1).map((lvl) => (
             <SpellGroup key={lvl} title={`Level ${lvl}`} spells={spellsByLevel.get(lvl) || []} chosen={info.spells} always={always} onToggle={(n) => update(patchClass(c, index, { spells: toggle(info.spells, n, caster.prepared) }))} />
@@ -855,7 +858,7 @@ function ClassSpells({ c, update, index }: StepProps & { index: number }) {
   );
 }
 
-function SpellGroup({ title, spells, chosen, onToggle, always }: { title: string; spells: Entry[]; chosen: string[]; onToggle: (n: string) => void; always?: Map<string, string> }) {
+function SpellGroup({ title, spells, chosen, onToggle, always, known }: { title: string; spells: Entry[]; chosen: string[]; onToggle: (n: string) => void; always?: Map<string, string>; known?: Map<string, string> }) {
   const [open, setOpen] = useState<string>();
   return (
     <div style={{ marginTop: 14 }}>
@@ -865,6 +868,8 @@ function SpellGroup({ title, spells, chosen, onToggle, always }: { title: string
           <span key={s.id} style={{ display: "inline-flex" }}>
             {always?.has(s.name) ? (
               <button className="pill" aria-pressed disabled title={`Always prepared (${always.get(s.name)}); doesn't count against your prepared spells`}>{s.name} · Always prepared</button>
+            ) : known?.has(s.name) && !chosen.includes(s.name) ? (
+              <button className="pill" disabled title={`You already know it (${known.get(s.name)})`}>{s.name} · known</button>
             ) : (
               <button className="pill" aria-pressed={chosen.includes(s.name)} onClick={() => onToggle(s.name)}>{s.name}</button>
             )}
