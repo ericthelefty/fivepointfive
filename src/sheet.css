@@ -134,7 +134,7 @@
 .sheetv .lc.test { border-left-color: var(--s-pur); }
 .sheetv .lc.dmg { border-left-color: var(--s-red); }
 .sheetv .lc.heal { border-left-color: var(--s-grn); }
-.sheetv .lc.info, .sheetv .lc.event { border-left-color: var(--s-gold2); }
+.sheetv .lc.info, .sheetv .lc.event, .sheetv .lc.roll { border-left-color: var(--s-gold2); }
 .sheetv .lc.crit { border-left-color: var(--s-gold); background: linear-gradient(180deg, #3a2c14, var(--s-well2)); }
 .sheetv .lc.fumble { border-left-color: #8a4b8a; }
 .sheetv .lc.old { opacity: .82; }
@@ -559,3 +559,9 @@
 .sheetv .lc.rolling { border-left-color: var(--line); }
 .sheetv .lc.rolling .big { color: var(--s-mut); animation: none; }
 .sheetv .lc.rolling .det { color: var(--s-mut); font-style: italic; }
+.sheetv .lc.rolling .dots { display: flex; justify-content: center; }
+.sheetv .lc.rolling .dots i { font-style: normal; opacity: 0; animation: dotin 1.2s steps(1, end) infinite; }
+.sheetv .lc.rolling .dots i:nth-child(2) { animation-delay: .3s; }
+.sheetv .lc.rolling .dots i:nth-child(3) { animation-delay: .6s; }
+@keyframes dotin { 0% { opacity: 0; } 1%, 75% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sheetv .lc.rolling .dots i { animation: none; opacity: 1; } }

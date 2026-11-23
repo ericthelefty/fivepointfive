@@ -11,7 +11,7 @@ export interface LogEntry {
   title: string;
   total: string;
   detail: string; // trusted HTML built by the app (escaped user text)
-  cls: "atk" | "test" | "dmg" | "heal" | "info" | "crit" | "fumble" | "event";
+  cls: "atk" | "test" | "dmg" | "heal" | "info" | "crit" | "fumble" | "event" | "roll";
 }
 
 export interface PlayState {

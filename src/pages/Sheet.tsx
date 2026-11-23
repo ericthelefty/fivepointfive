@@ -424,7 +424,7 @@ export default function Sheet() {
     setPlay((cur) => ({ log: [entry, ...cur.log].slice(0, 150) }));
     setFlash(entry.id);
     let hold = 0;
-    if (["test", "atk", "crit", "fumble", "dmg", "heal"].includes(entry.cls)) {
+    if (["test", "atk", "crit", "fumble", "dmg", "heal", "roll"].includes(entry.cls)) {
       playDice((entry.detail.match(/\[/g) || []).length || 1);
       if (dice3dOn()) {
         // the dice in the roll's breakdown: "d20 [<b>17</b>, 4]", "2d6 [3, 5]"
@@ -3139,7 +3139,7 @@ export default function Sheet() {
               {[4, 6, 8, 10, 12, 20, 100].map((f) => (
                 <button key={f} className="dbtn" onClick={() => {
                   const r = roll(`1d${f}`)!;
-                  log({ title: `d${f}`, total: String(r.total), cls: f === 20 && r.total === 20 ? "crit" : "info", detail: esc(describeRolled(r)) });
+                  log({ title: `d${f}`, total: String(r.total), cls: f === 20 && r.total === 20 ? "crit" : "roll", detail: esc(describeRolled(r)) });
                 }}>d{f}</button>
               ))}
             </div>
@@ -3147,7 +3147,7 @@ export default function Sheet() {
               e.preventDefault();
               const r = roll(custom);
               if (!r) { log({ title: "Couldn’t read that roll", total: "", cls: "event", detail: `Try something like 2d6+1d4+3.` }); return; }
-              log({ title: custom.replace(/\s+/g, ""), total: String(r.total), cls: "info", detail: esc(describeRolled(r)) });
+              log({ title: custom.replace(/\s+/g, ""), total: String(r.total), cls: "roll", detail: `${eqOf(r)}${esc(describeRolled(r))}` });
             }}>
               <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. 2d6+1d4+3" aria-label="Custom roll" />
               <button className="sbtn sm">Roll</button>
@@ -3171,7 +3171,7 @@ export default function Sheet() {
                 <div key={e.id} className={`lc ${rolling === e.id ? "rolling" : e.cls} ${i === 0 && flash === e.id ? "flash" : ""} ${i > 0 ? "old" : ""}`}>
                   <div className="ch"><span className="ct">{e.title}</span><span className="tm">{e.t}</span></div>
                   {rolling === e.id ? (
-                    <div className="cb"><div className="big">…</div><div className="det">Rolling…</div></div>
+                    <div className="cb"><div className="big dots" aria-label="Rolling"><i>.</i><i>.</i><i>.</i></div><div className="det">Rolling</div></div>
                   ) : (
                     <div className="cb">
                       {e.total !== "" && <div className="big">{e.total}</div>}
