@@ -555,3 +555,7 @@
 .sheetv .lc.flash .big { position: relative; z-index: 1; transform-origin: center; animation: bigpop .9s cubic-bezier(.2, .8, .3, 1); }
 @keyframes bigpop { 0% { transform: scale(1); } 22% { transform: scale(2); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .sheetv .lc.flash .big { animation: none; } }
+/* the newest roll while its dice are still landing */
+.sheetv .lc.rolling { border-left-color: var(--line); }
+.sheetv .lc.rolling .big { color: var(--s-mut); animation: none; }
+.sheetv .lc.rolling .det { color: var(--s-mut); font-style: italic; }

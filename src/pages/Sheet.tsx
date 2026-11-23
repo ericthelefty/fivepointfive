@@ -125,6 +125,9 @@ export default function Sheet() {
   const [dice3d, setDice3dState] = useState(dice3dOn);
   const [diceFx, setDiceFx] = useState<{ key: string; dice: { sides: number; value: number; kept: boolean }[]; crit: boolean; mod: number; tilt: number }>();
   const diceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** The newest roll, while its 3D dice and modifier are still landing: its total stays hidden so the dice reveal it. */
+  const [rolling, setRolling] = useState<string>();
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [bookPick, setBookPick] = useState("");
   /** Spells by casting time, for the Actions tab (like D&D Beyond): Bonus Action, Reaction, longer ones, Rituals. */
   const spellChips = (kind: "bonus" | "reaction" | "other" | "ritual", label = kind === "ritual" ? "Ritual Spells" : "Spells") => {
@@ -420,6 +423,7 @@ export default function Sheet() {
     if (acts?.length) actions.current[entry.id] = acts;
     setPlay((cur) => ({ log: [entry, ...cur.log].slice(0, 150) }));
     setFlash(entry.id);
+    let hold = 0;
     if (["test", "atk", "crit", "fumble", "dmg", "heal"].includes(entry.cls)) {
       playDice((entry.detail.match(/\[/g) || []).length || 1);
       if (dice3dOn()) {
@@ -439,12 +443,19 @@ export default function Sheet() {
           setDiceFx({ key: entry.id, dice, crit: entry.cls === "crit", mod, tilt });
           clearTimeout(diceTimer.current);
           diceTimer.current = setTimeout(() => setDiceFx(undefined), 1700);
+          // keep the total out of the log until the dice have landed and the modifier has appeared
+          if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+            hold = dice.length * 60 + 900;
+            setRolling(entry.id);
+            clearTimeout(holdTimer.current);
+            holdTimer.current = setTimeout(() => setRolling(undefined), hold);
+          }
         }
       }
     }
-    if (entry.cls === "crit") { setCritFx(true); setTimeout(() => setCritFx(false), 700); }
+    if (entry.cls === "crit") setTimeout(() => { setCritFx(true); setTimeout(() => setCritFx(false), 700); }, hold);
     // with the log hidden on a phone, show the result briefly so the roll isn't lost
-    if (logGone.current) setToast(entry);
+    if (logGone.current) setTimeout(() => setToast(entry), hold);
     if (sharedLog && supabase && editable) {
       supabase.from("log").insert({ character_id: c.id, entry: { ...entry, who: c.name || "Unnamed" } }).then(() => undefined);
     }
@@ -3157,13 +3168,17 @@ export default function Sheet() {
               <div className="empty">Rolls, damage, healing, conditions and rests are recorded here for this character. Click any ability, save, skill, attack or the dice above to roll.</div>
             ) : (
               p.log.map((e, i) => (
-                <div key={e.id} className={`lc ${e.cls} ${i === 0 && flash === e.id ? "flash" : ""} ${i > 0 ? "old" : ""}`}>
+                <div key={e.id} className={`lc ${rolling === e.id ? "rolling" : e.cls} ${i === 0 && flash === e.id ? "flash" : ""} ${i > 0 ? "old" : ""}`}>
                   <div className="ch"><span className="ct">{e.title}</span><span className="tm">{e.t}</span></div>
-                  <div className="cb">
-                    {e.total !== "" && <div className="big">{e.total}</div>}
-                    <div className="det" dangerouslySetInnerHTML={{ __html: e.detail }} />
-                  </div>
-                  {actions.current[e.id] && (
+                  {rolling === e.id ? (
+                    <div className="cb"><div className="big">…</div><div className="det">Rolling…</div></div>
+                  ) : (
+                    <div className="cb">
+                      {e.total !== "" && <div className="big">{e.total}</div>}
+                      <div className="det" dangerouslySetInnerHTML={{ __html: e.detail }} />
+                    </div>
+                  )}
+                  {rolling !== e.id && actions.current[e.id] && (
                     <div className="cact">
                       {actions.current[e.id].map((a, j) => (
                         <button key={j} className="sbtn sm" onClick={a.run}>{a.label}</button>

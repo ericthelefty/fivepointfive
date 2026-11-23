@@ -15,6 +15,7 @@ If you run your own instance, check the **Database** line of each version: when 
 - On laptops and desktops the six ability scores sit in one row under AC and the other stats, and the tiles are shorter, so the stats, abilities and hit points fit on one screen.
 - Game log: attack and damage rolls show the dice and the modifier beside the total (for example 13 + 6), and the newest total pops to twice its size for a moment.
 - 3D dice: the roll's modifier lands beside the dice, slanted at a different random angle every roll, in a gold that suits the light or dark theme.
+- With 3D dice on, a roll's game log card says "Rolling…" until the dice and modifier have landed, then shows the total (a critical hit's flash waits too), so the log doesn't give the result away first.
 - Tidier roll bar: advantage, normal and disadvantage across the top; the next-roll bonus with Heroic Inspiration, 3D dice and dice sound as small icon toggles beside it. It takes about half the height.
 - Short rest and Long rest moved to the top of the sheet, on the line with the character's name.
 - On tablets the six ability scores stay in one row, and the hit dice sit beside the Heal and Damage buttons instead of on a row of their own.
