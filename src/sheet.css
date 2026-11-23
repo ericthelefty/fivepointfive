@@ -587,7 +587,9 @@
 @keyframes shimsweep { to { transform: translateX(130%); } }
 
 /* a framed tile is its own stacking layer (isolation), so the one showing a tooltip is lifted above its neighbours */
-.sheetv .frm:hover, .sheetv .frm:focus-within, .sheetv .tip:has(.tipbox.open) { z-index: 30; }
+.sheetv .stat.frm:hover, .sheetv .stat.frm:focus-within, .sheetv .tip:has(.tipbox.open) { z-index: 30; }
+/* the ability score's rivet overlaps its tile, so it always sits above it */
+.sheetv .ab .abs { z-index: 31; }
 
 /* explain mode: a switch centred at the very bottom of the sheet; hovered numbers show their working */
 .sheetv .explainbar { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; margin: 28px auto 8px; max-width: 560px; order: 999; }
@@ -598,19 +600,15 @@
 .sheetv .exsw.on { border-color: var(--s-gold2); color: var(--s-gold); }
 .sheetv .exsw.on .knob { background: var(--accent-bg); border-color: var(--s-gold2); }
 .sheetv .exsw.on .knob::after { transform: translateX(16px); background: var(--s-gold); }
-.sheetv.explain [data-ex] { cursor: help; outline: 1px dashed var(--s-gold2); outline-offset: 2px; }
-.sheetv.explain .stat.frm[data-ex], .sheetv.explain .hpv[data-ex] { outline-offset: 0; }
+.sheetv.explain :is([data-ex], [data-title], .tip) { cursor: help; }
+/* one look for everything that explains itself: no dotted underlines on the sheet */
+.sheetv .tip { text-decoration: none; cursor: inherit; }
 .sheetv .explainpill { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 70; background: var(--s-panel); border: 1px solid var(--s-gold2); color: var(--ink); border-radius: 999px; padding: 8px 16px; font-size: 13px; box-shadow: 0 6px 20px rgba(0, 0, 0, .45); }
 .sheetv .explainpill b { color: var(--s-gold); }
-.sheetv .expanel { position: fixed; z-index: 1000; background: var(--s-panel); border: 1px solid var(--s-gold2); border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 36px rgba(0, 0, 0, .55); pointer-events: none; font-size: 13px; }
-.sheetv .exh { font: 600 15px Cinzel, Georgia, serif; color: var(--s-gold); margin-bottom: 8px; }
-.sheetv .exrows { display: flex; flex-direction: column; gap: 4px; }
-.sheetv .exr { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; }
-.sheetv .exr span { color: var(--muted); }
-.sheetv .exr b { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.sheetv .exr.tot { border-top: 1px solid var(--line); padding-top: 5px; margin-top: 2px; }
-.sheetv .exr.tot span { color: var(--ink); font-weight: 600; }
-.sheetv .exr.tot b { color: var(--s-gold); font-size: 15px; }
-.sheetv .exbig { font: 700 24px Cinzel, Georgia, serif; margin-bottom: 4px; }
-.sheetv .exn { margin: 8px 0 0; color: var(--s-mut); font-size: 12.5px; line-height: 1.45; }
+.sheetv .exbox { display: flex; flex-direction: column; gap: 2px; min-width: 200px; max-width: min(300px, calc(100vw - 16px)); }
+.sheetv .exbox .exh { margin-bottom: 3px; }
+.sheetv .exbox .exr { display: flex; justify-content: space-between; gap: 14px; }
+.sheetv .exbox .exr b { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sheetv .exbox .exr.tot { border-top: 1px solid currentColor; border-top-color: color-mix(in srgb, currentColor 30%, transparent); padding-top: 3px; margin-top: 2px; }
+.sheetv .exbox .exn { margin-top: 4px; opacity: .8; }
 @media (max-width: 900px) { .sheetv .explainpill { bottom: 162px; } .sheetv.loghid .explainpill { bottom: 60px; } }

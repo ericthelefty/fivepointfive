@@ -6,7 +6,7 @@ import { useCharacters } from "../lib/characters.tsx";
 import { useSession } from "../lib/session.tsx";
 import { cloud, supabase } from "../lib/backend.ts";
 import { Md } from "../lib/md.tsx";
-import { Btn, Tip } from "../lib/tip.tsx";
+import { Btn, Tip, TipsOn } from "../lib/tip.tsx";
 import { dice3dOn, playDice, setDice3d, setSound, soundOn } from "../lib/sound.ts";
 import { applyForm, crLabel, formEligible, parseCreature, parseStatBlockMd, statBlockMd, type CreatureAction, type CreatureStats } from "../lib/creature.ts";
 import { features, slug, spellInfo, stripMd, trimClassTable, type Entry } from "../lib/parse.ts";
@@ -97,9 +97,23 @@ export default function Sheet() {
   const [nextBonus, setNextBonus] = useState("");
   const [tab, setTab] = useState<Tab>("actions");
   const [hpAmt, setHpAmt] = useState("");
-  /** Explain mode: hovering or tapping a number shows how it's worked out (rolls pause while it's on). */
+  /** Explainer mode: hovering over a number shows how it's worked out. */
   const [explain, setExplain] = useState(false);
   const [exAt, setExAt] = useState<{ key: string; rect: DOMRect }>();
+  const rootRef = useRef<HTMLDivElement>(null);
+  // no browser tooltips on the sheet: each title moves to data-title, which Explainer mode shows in its own bubble
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const stash = (el: Element) => { const t = el.getAttribute("title"); if (t) { el.setAttribute("data-title", t); el.removeAttribute("title"); } };
+    root.querySelectorAll("[title]").forEach(stash);
+    const mo = new MutationObserver((ms) => ms.forEach((m) => {
+      if (m.type === "attributes") stash(m.target as Element);
+      else m.addedNodes.forEach((n) => { if (n instanceof Element) { stash(n); n.querySelectorAll("[title]").forEach(stash); } });
+    }));
+    mo.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["title"] });
+    return () => mo.disconnect();
+  });
   const [custom, setCustom] = useState("");
   const [logOpen, setLogOpen] = useState(false);
   /** The trade picked in each Convert row (index into its options). */
@@ -2569,6 +2583,7 @@ export default function Sheet() {
     return `Score ${d.scores[a]} = ${base} (${how})${bg ? ` + ${bg} background` : ""}${rest ? ` ${rest > 0 ? "+" : "−"} ${Math.abs(rest)} from feats and features` : ""}. Modifier = (score − 10) ÷ 2, rounded down.`;
   };
   const explainOf = (key: string): Ex | undefined => {
+    if (key.startsWith("t:")) return { title: "", rows: [], total: "", notes: [key.slice(2)] };
     const [kind, arg] = key.split(":");
     if (kind === "ab") {
       const a = arg;
@@ -2642,19 +2657,16 @@ export default function Sheet() {
     return undefined;
   };
   const exInfo = explain && exAt ? explainOf(exAt.key) : undefined;
-  const exFind = (t: EventTarget | null) => (t instanceof Element ? (t.closest("[data-ex]") as HTMLElement | null) : null);
-  const exShow = (el: HTMLElement | null) => { if (el) setExAt({ key: el.dataset.ex!, rect: el.getBoundingClientRect() }); };
+  const exFind = (t: EventTarget | null) => (t instanceof Element ? (t.closest("[data-ex], [data-title]") as HTMLElement | null) : null);
+  const exKey = (el: HTMLElement) => el.dataset.ex ?? `t:${el.dataset.title}`;
+  const exShow = (el: HTMLElement | null) => { if (el) setExAt({ key: exKey(el), rect: el.getBoundingClientRect() }); };
 
   return (
-    <div className={`sheetv ${narrow && logHidden ? "loghid" : ""} ${critFx ? "critfx" : ""} ${explain ? "explain" : ""}`}
-      onMouseOver={explain ? (e) => { const el = exFind(e.target); if (el && el.dataset.ex !== exAt?.key) exShow(el); } : undefined}
+    <TipsOn.Provider value={explain}>
+    <div ref={rootRef} className={`sheetv ${narrow && logHidden ? "loghid" : ""} ${critFx ? "critfx" : ""} ${explain ? "explain" : ""}`}
+      onMouseOver={explain ? (e) => { const el = exFind(e.target); if (el && exKey(el) !== exAt?.key) exShow(el); } : undefined}
       onMouseLeave={explain ? () => setExAt(undefined) : undefined}
-      onFocusCapture={explain ? (e) => exShow(exFind(e.target)) : undefined}
-      onClickCapture={explain ? (e) => {
-        const el = exFind(e.target);
-        // explain mode: a click on a number explains it instead of rolling
-        if (el) { e.preventDefault(); e.stopPropagation(); exShow(el); }
-      } : undefined}>
+      onMouseOut={explain ? (e) => { if (!exFind(e.relatedTarget)) setExAt(undefined); } : undefined}>
       {drawerPanel()}
       {diceFx && (
         <div key={diceFx.key} className="dice3d" aria-hidden="true">
@@ -3337,32 +3349,31 @@ export default function Sheet() {
       )}
       <div className="explainbar">
         <button className={`exsw ${explain ? "on" : ""}`} role="switch" aria-checked={explain} onClick={() => { setExplain(!explain); setExAt(undefined); }}>
-          <span className="knob" aria-hidden="true" /> Explain mode
+          <span className="knob" aria-hidden="true" /> Explainer mode
         </button>
-        <p>Hover over or tap any number to see how it’s worked out, like why Stealth is higher than History. While it’s on, clicking a number explains it instead of rolling.</p>
+        <p>Hover over any number to see how it’s worked out, like why Stealth is higher than History. Clicking still rolls as usual.</p>
       </div>
       {explain && (
-        <button className="explainpill" onClick={() => { setExplain(false); setExAt(undefined); }}>Explain mode is on · <b>Turn off</b></button>
+        <button className="explainpill" onClick={() => { setExplain(false); setExAt(undefined); }}>Explainer mode is on · <b>Turn off</b></button>
       )}
       {exInfo && exAt && (() => {
-        const W = 320, r = exAt.rect, vw = window.innerWidth, vh = window.innerHeight;
-        const left = Math.max(8, Math.min(r.left, vw - W - 8));
-        const below = r.bottom + 260 < vh || r.top < 260;
+        // the same bubble as the sheet's other tooltips: above the number, lined up with its nearer edge
+        const r = exAt.rect, vw = window.innerWidth, vh = window.innerHeight;
+        const x = r.left + r.width / 2 > vw / 2 ? { right: Math.max(8, vw - r.right) } : { left: Math.max(8, r.left) };
+        const above = r.top > 110;
         return (
-          <div className="expanel" role="tooltip" style={below ? { left, top: r.bottom + 8, width: W } : { left, bottom: vh - r.top + 8, width: W }}>
-            <div className="exh">{exInfo.title}</div>
-            {exInfo.rows.length > 0 && (
-              <div className="exrows">
-                {exInfo.rows.map((row, i) => <div key={i} className="exr"><span>{row.label}</span><b>{row.value}</b></div>)}
-                <div className="exr tot"><span>Total</span><b>{exInfo.total}</b></div>
-              </div>
-            )}
-            {exInfo.rows.length === 0 && <div className="exbig">{exInfo.total}</div>}
-            {exInfo.notes.filter(Boolean).map((n, i) => <p key={i} className="exn">{n}</p>)}
-          </div>
+          <span role="tooltip" className={`tipbox open exbox ${above ? "" : "below"} ${"left" in x ? "left" : ""}`}
+            style={{ position: "fixed", ...x, ...(above ? { bottom: vh - r.top + 8 } : { top: r.bottom + 8 }) }}>
+            {exInfo.title && <b className="exh">{exInfo.title}</b>}
+            {exInfo.rows.map((row, i) => <span key={i} className="exr"><span>{row.label}</span><b>{row.value}</b></span>)}
+            {exInfo.rows.length > 0 && <span className="exr tot"><span>Total</span><b>{exInfo.total}</b></span>}
+            {exInfo.rows.length === 0 && exInfo.total !== "" && <span className="exr"><span>Total</span><b>{exInfo.total}</b></span>}
+            {exInfo.notes.filter(Boolean).map((n, i) => <span key={i} className={exInfo.title ? "exn" : ""}>{n}</span>)}
+          </span>
         );
       })()}
     </div>
+    </TipsOn.Provider>
   );
 }
 

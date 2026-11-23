@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
 /**
  * One tooltip, opened the way each device expects:
@@ -77,10 +77,17 @@ function useTip() {
   return { trigger, bubble };
 }
 
+/**
+ * Whether tooltips show at all. The play sheet turns them off unless Explainer mode is on, so the sheet stays
+ * uncluttered; everywhere else they're on.
+ */
+export const TipsOn = createContext(true);
+
 /** Text or a small label that explains itself when clicked or tapped. Don't wrap other buttons or inputs in it. */
 export function Tip({ tip, children, className }: { tip?: ReactNode; children: ReactNode; className?: string }) {
+  const on = useContext(TipsOn);
   const { trigger, bubble } = useTip();
-  if (!tip) return <>{children}</>;
+  if (!tip || !on) return className ? <span className={className}>{children}</span> : <>{children}</>;
   return (
     <span {...trigger} className={`tip ${className || ""}`}>
       {children}
@@ -94,8 +101,9 @@ export function Tip({ tip, children, className }: { tip?: ReactNode; children: R
  * so the wrapper around it carries the tooltip.
  */
 export function Btn({ why, disabled, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { why?: string }) {
+  const on = useContext(TipsOn);
   const { trigger, bubble } = useTip();
-  if (!disabled || !why) return <button {...rest} disabled={disabled} />;
+  if (!disabled || !why || !on) return <button {...rest} disabled={disabled} />;
   return (
     <span {...trigger} className="why">
       <button {...rest} disabled tabIndex={-1} />
