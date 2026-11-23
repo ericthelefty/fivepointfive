@@ -79,9 +79,11 @@ export default function Sheet() {
   const [c, setC] = useState<Character | undefined>(row?.c);
   const dirty = useRef(false);
   const editable = chars.canEdit(id);
+  // take in changes made elsewhere (the DM's encounter tracker, this character open on another device, another tab),
+  // unless an edit made here is still on its way to being saved
   useEffect(() => {
-    if (row && (!c || c.id !== row.c.id)) setC(row.c);
-  }, [row]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (row && row.c !== c && (!c || c.id !== row.c.id || !dirty.current)) setC(row.c);
+  }, [row?.c]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (c && dirty.current) {
       dirty.current = false;

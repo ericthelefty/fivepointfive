@@ -12,7 +12,7 @@ import { useEncounters } from "../lib/encounters.tsx";
 import { cloud } from "../lib/backend.ts";
 import { parseCreature, crValue, type CreatureStats } from "../lib/creature.ts";
 import { d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
-import { esc, timeNow, type LogEntry } from "../lib/play.ts";
+import { esc, playOf, timeNow, type LogEntry } from "../lib/play.ts";
 import { classInfos, classLabel } from "../lib/multiclass.ts";
 import {
   combatTables, difficulty, monsterMax, newEncounter, newUid, nextTurn, npcHp, numberedName, pcCombat, pcHp, prevTurn, turnOrder, xpBudgetTable,
@@ -130,10 +130,10 @@ export function EncounterView() {
   const budget = useMemo(() => xpBudgetTable(content.entries), [content.entries]);
   const conditionNames = useMemo(() => content.byType("Rule").filter((e) => e.tags.includes("Condition")).map((e) => e.name).sort(), [content]);
 
-  // characters change on their own sheets: on an instance, look again every so often while the fight runs
+  // characters' changes arrive live; as a fallback (Realtime off, a dropped connection), look again now and then
   useEffect(() => {
     if (!cloud || tab !== "run") return;
-    const t = setInterval(() => { if (!chars.saving) chars.reload(); }, 15000);
+    const t = setInterval(() => { if (!chars.saving) chars.reload(); }, 60000);
     return () => clearInterval(t);
   }, [tab, chars.saving]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -287,16 +287,20 @@ export function EncounterView() {
 
   const condsOf = (cb: Combatant) => (cb.kind === "pc" ? pcOf(cb)?.conditions || [] : cb.conditions || []);
   const toggleCond = (cb: Combatant, k: string) => {
+    const had = condsOf(cb).includes(k);
     if (cb.kind === "pc") {
       const row = chars.get(cb.ref);
       if (!row) return;
-      const cur = row.c.play?.conditions || [];
-      const next = cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k];
-      chars.save({ ...row.c, play: { ...(row.c.play || {}), conditions: next } });
+      const p = playOf(row.c);
+      const next = had ? p.conditions.filter((x) => x !== k) : [...p.conditions, k];
+      // a line in the character's own log, so the player sees what changed and who changed it
+      const line: LogEntry = { id: newUid(), t: timeNow(), cls: "info", title: `${k} ${had ? "removed" : "added"} by the DM`, total: "", detail: "" };
+      chars.save({ ...row.c, play: { ...p, conditions: next, log: [line, ...p.log].slice(0, 150) } });
     } else {
       const cur = cb.conditions || [];
-      setCb(cb.uid, { conditions: cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k] });
+      setCb(cb.uid, { conditions: had ? cur.filter((x) => x !== k) : [...cur, k] });
     }
+    log({ title: `${nameOf(cb)}: ${k} ${had ? "removed" : "added"}`, total: "", cls: "info", detail: cb.kind === "pc" ? "On their sheet." : "" });
   };
 
   // --------------------------------------------------------------- views
@@ -449,7 +453,7 @@ export function EncounterView() {
           </div>
         ))}
       </div>
-      <p className="note" style={{ marginTop: 8 }}>Damage, healing and conditions you set here go to {nameOf(cb)}’s sheet, and the player sees them there.</p>
+      <p className="note" style={{ marginTop: 8 }}>Damage, healing and conditions you set here go to {nameOf(cb)}’s sheet: the player sees them within a second or two, with a line in their game log.</p>
     </div>
   );
   const runTab = (
