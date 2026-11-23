@@ -11,7 +11,7 @@ import { dice3dOn, playDice, setDice3d, setSound, soundOn } from "../lib/sound.t
 import { applyForm, crLabel, formEligible, parseCreature, parseStatBlockMd, statBlockMd, type CreatureAction, type CreatureStats } from "../lib/creature.ts";
 import { features, slug, spellInfo, stripMd, trimClassTable, type Entry } from "../lib/parse.ts";
 import {
-  ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, derive, featName, fmt, speciesChoice, traits, wornGear,
+  ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, derive, featName, fmt, hitDie, speciesChoice, traits, wornGear,
   type Character,
   intro,
 } from "../lib/rules.ts";
@@ -97,6 +97,9 @@ export default function Sheet() {
   const [nextBonus, setNextBonus] = useState("");
   const [tab, setTab] = useState<Tab>("actions");
   const [hpAmt, setHpAmt] = useState("");
+  /** Explain mode: hovering or tapping a number shows how it's worked out (rolls pause while it's on). */
+  const [explain, setExplain] = useState(false);
+  const [exAt, setExAt] = useState<{ key: string; rect: DOMRect }>();
   const [custom, setCustom] = useState("");
   const [logOpen, setLogOpen] = useState(false);
   /** The trade picked in each Convert row (index into its options). */
@@ -2545,19 +2548,113 @@ export default function Sheet() {
     dc: casters.map((k) => `${k.info.cls.name}: DC ${k.dc} = 8 + Proficiency ${fmt(d.pb)} + ${k.ab || "ability"} ${fmt(k.mod)}${k.dc - 8 - d.pb - k.mod ? ` ${fmt(k.dc - 8 - d.pb - k.mod)} from items and features` : ""}; spell attack ${fmt(k.atk)}`).join(" · ") + ". Click for a spell attack roll.",
   };
   /** How an attack's to-hit adds up. */
-  const toHitTip = (a: Attack) => {
-    const m = a.ability ? d.mods[a.ability] : 0;
-    const rest = a.toHit - m;
-    const parts = [`${a.ability || "Ability"} ${fmt(m)}`];
-    if (rest >= d.pb) parts.push(`Proficiency ${fmt(d.pb)}`);
-    else if (rest < d.pb && rest >= 0 && a.ability) parts.push("not proficient");
-    const extra = rest >= d.pb ? rest - d.pb : rest;
-    if (extra) parts.push(`${fmt(extra)} from ${a.note || "bonuses"}`);
-    return `${fmt(a.toHit)} to hit: ${parts.join(" · ")}.`;
+
+  // ------------------------------------------------------------ explain mode
+  type Ex = { title: string; rows: { label: string; value: string }[]; total: string; notes: string[] };
+  const ab3 = (a: string) => a.slice(0, 3).toLowerCase();
+  const exBonus = (pred: (to: string) => boolean) => fx.bonuses.filter((b) => pred(b.to)).map((b) => ({ label: b.source, value: fmt(b.value) }));
+  /** Adds an "other" row when the listed parts don't add up to the number on the sheet. */
+  const settle = (rows: Ex["rows"], total: number, otherLabel = "Other features and items") => {
+    const sum = rows.reduce((n, r) => n + (parseInt(r.value.replace("−", "-"), 10) || 0), 0);
+    return total !== sum ? [...rows, { label: otherLabel, value: fmt(total - sum) }] : rows;
   };
+  const rollNotes = (ctx: RollContext) => {
+    const cm = conditionMods(p, ctx);
+    const adv = [...cm.adv, ...advantageFor(fx, ctx)], dis = [...cm.dis, ...disadvantageFor(fx, ctx)];
+    return [...adv.map((x) => `Advantage: ${x}`), ...dis.map((x) => `Disadvantage: ${x}`), ...(cm.penalty ? [`−${cm.penalty} from Exhaustion on the roll`] : []), ...(cm.autoFail ? [`Automatically fails: ${cm.autoFail}`] : [])];
+  };
+  const scoreNote = (a: string) => {
+    const base = c.base?.[a] ?? 10, bg = c.bonus?.[a] ?? 0, rest = d.scores[a] - base - bg;
+    const how = { standard: "standard array", pointbuy: "point buy", "point-buy": "point buy", roll: "rolled", manual: "entered" }[c.method as string] || c.method;
+    return `Score ${d.scores[a]} = ${base} (${how})${bg ? ` + ${bg} background` : ""}${rest ? ` ${rest > 0 ? "+" : "−"} ${Math.abs(rest)} from feats and features` : ""}. Modifier = (score − 10) ÷ 2, rounded down.`;
+  };
+  const explainOf = (key: string): Ex | undefined => {
+    const [kind, arg] = key.split(":");
+    if (kind === "ab") {
+      const a = arg;
+      const rows = settle([{ label: `${a} modifier`, value: fmt(d.mods[a]) }, ...exBonus((t) => t === `check:${ab3(a)}` || t === "check:all")], d.mods[a] + fxPlus(`check:${ab3(a)}`) + fxPlus("check:all"));
+      return { title: `${a} check`, rows, total: fmt(rows.reduce((n, r) => n + (parseInt(r.value.replace("−", "-"), 10) || 0), 0)), notes: [scoreNote(a), ...rollNotes({ kind: "check", ability: a })] };
+    }
+    if (kind === "sv") {
+      const a = arg, sv = d.saves[a];
+      const rows = settle([
+        { label: `${a} modifier`, value: fmt(d.mods[a]) },
+        ...(sv.prof ? [{ label: `Proficiency (${infos.find((i) => i.starting)?.cls.name || "class"} saving throw)`, value: fmt(d.pb) }] : []),
+        ...exBonus((t) => t === `save:${ab3(a)}` || t === "save:all"),
+      ], sv.value);
+      return { title: `${a} saving throw`, rows, total: fmt(sv.value), notes: [...(sv.prof ? [] : ["Not proficient in this save."]), ...rollNotes({ kind: "save", ability: a })] };
+    }
+    if (kind === "sk") {
+      const sk = arg, alt = skillAlt(sk), ab = alt?.ability || SKILL_ABILITY[sk], prof = d.skills[sk].prof;
+      const bgHas = (bg?.fields["skill proficiencies"] || "").includes(sk);
+      // a pick made in the builder (College of Lore's Bonus Proficiencies, Skilled…): name what it came from
+      const picked = Object.entries(c.choices || {}).find(([k, v]) => v.includes(sk) && !/expertise/i.test(k))?.[0];
+      const pickedFrom = picked ? content.byId(picked.split("#")[0])?.name || titleWords(picked.split("#")[0]) : undefined;
+      const src = bgHas ? `${bg!.name} background` : c.classSkills.includes(sk) ? `${infos.find((i) => i.starting)?.cls.name || "class"} skill` : c.extraSkills.includes(sk) ? "chosen extra skill" : pickedFrom || "a feat or feature";
+      const rows = settle([
+        { label: `${ab} modifier${alt ? ` (${alt.source})` : ""}`, value: fmt(d.mods[ab]) },
+        ...(prof ? [{ label: `Proficiency (${src})`, value: fmt(d.pb) }] : []),
+        ...(prof && fx.expertise.has(sk) ? [{ label: "Expertise (proficiency again)", value: fmt(d.pb) }] : []),
+        ...(!prof && fx.halfProficiency ? [{ label: `Half proficiency${infos.some((i) => i.cls.name === "Bard") ? " (Jack of All Trades)" : ""}: half of ${fmt(d.pb)}, rounded down`, value: fmt(Math.floor(d.pb / 2)) }] : []),
+        ...exBonus((t) => t === `skill:${sk.toLowerCase().replace(/ /g, "-")}` || t === `check:${ab3(ab)}` || t === "check:all"),
+      ], skillValue(sk));
+      return { title: `${sk} check`, rows, total: fmt(skillValue(sk)), notes: [...(prof || fx.halfProficiency ? [] : ["Not proficient: just the ability modifier."]), ...rollNotes({ kind: "check", ability: ab, skill: sk, proficient: prof })] };
+    }
+    if (kind === "pp") {
+      const rows = settle([{ label: "Base", value: "10" }, { label: "Perception check modifier", value: fmt(skillValue("Perception")) }], d.passivePerception, "Advantage, disadvantage or features");
+      return { title: "Passive Perception", rows, total: String(d.passivePerception), notes: ["What you notice without rolling. Advantage adds 5, disadvantage takes 5 away."] };
+    }
+    if (kind === "pb") return { title: "Proficiency Bonus", rows: [{ label: `Character level ${c.level}`, value: fmt(d.pb) }], total: fmt(d.pb), notes: ["Set by your total level: +2 at levels 1–4, +3 at 5–8, +4 at 9–12, +5 at 13–16, +6 at 17–20. It's added to everything you're proficient in."] };
+    if (kind === "init") {
+      const listed = [{ label: "Dexterity modifier", value: fmt(d.mods.Dexterity) }, ...exBonus((t) => t === "initiative" || t === "init")];
+      const gap = d.initiative - listed.reduce((n, r) => n + (parseInt(r.value.replace("−", "-"), 10) || 0), 0);
+      const rows = settle(fx.halfProficiency && gap === Math.floor(d.pb / 2) ? [...listed, { label: `Half proficiency${infos.some((i) => i.cls.name === "Bard") ? " (Jack of All Trades)" : ""}`, value: fmt(gap) }] : listed, d.initiative);
+      return { title: "Initiative", rows, total: fmt(d.initiative), notes: ["Rolled at the start of a fight to set the turn order.", ...rollNotes({ kind: "init", ability: "Dexterity" })] };
+    }
+    if (kind === "speed") return { title: "Speed", rows: [], total: `${speed} ft`, notes: [statTip.speed] };
+    if (kind === "ac") return { title: "Armor Class", rows: [], total: String(d.ac), notes: [statTip.ac, "An attack hits you if its roll equals or beats this."] };
+    if (kind === "dc") {
+      const k = casters[0];
+      if (!k) return undefined;
+      const dcRows = settle([{ label: "Base", value: "8" }, { label: "Proficiency Bonus", value: fmt(d.pb) }, { label: `${k.ab} modifier`, value: fmt(k.mod) }], k.dc);
+      return { title: `Spell save DC (${k.info.cls.name})`, rows: dcRows, total: String(k.dc), notes: [`Spell attack ${fmt(k.atk)} = Proficiency ${fmt(d.pb)} + ${k.ab} ${fmt(k.mod)}${k.atk - d.pb - k.mod ? ` ${fmt(k.atk - d.pb - k.mod)} from items and features` : ""}.`, ...casters.slice(1).map((x) => `${x.info.cls.name}: DC ${x.dc}, spell attack ${fmt(x.atk)} (${x.ab}).`)] };
+    }
+    if (kind === "hp") {
+      const con = d.mods.Constitution;
+      const rows = infos.flatMap((i) => {
+        const die = hitDie(i.cls), avg = die / 2 + 1;
+        return i.starting
+          ? [{ label: `${i.cls.name} level 1: d${die} at its maximum ${die}, Con ${fmt(con)}`, value: fmt(die + con) },
+             ...(i.level > 1 ? [{ label: `${i.cls.name} levels 2–${i.level}: ${i.level - 1} × (${avg} average + Con ${fmt(con)})`, value: fmt((i.level - 1) * (avg + con)) }] : [])]
+          : [{ label: `${i.cls.name} ${i.level} level${i.level > 1 ? "s" : ""}: ${i.level} × (${avg} average + Con ${fmt(con)})`, value: fmt(i.level * (avg + con)) }];
+      });
+      return { title: "Hit Point maximum", rows: settle(rows, hpMax, "Feats and features (Tough, Dwarven Toughness…)"), total: String(hpMax), notes: [`Now ${hpCur} of ${hpMax}${p.hpTemp ? `, plus ${p.hpTemp} temporary` : ""}.`] };
+    }
+    if (kind === "atk") {
+      const a = attacks[+arg];
+      if (!a) return undefined;
+      if (formCr) return { title: `${a.name}: attack`, rows: [], total: fmt(a.toHit), notes: [`The ${formCr.name}’s attack bonus.`] };
+      const m = a.ability ? d.mods[a.ability] : 0;
+      const rest = a.toHit - m, prof = rest >= d.pb && a.ability;
+      const rows = settle([{ label: `${a.ability || "Ability"} modifier`, value: fmt(m) }, ...(prof ? [{ label: "Proficiency (you're trained with it)", value: fmt(d.pb) }] : [])], a.toHit, a.note || "Bonuses");
+      return { title: `${a.name}: to hit`, rows, total: fmt(a.toHit), notes: [...(prof ? [] : a.ability ? ["Not proficient with this weapon, so no Proficiency Bonus."] : []), `Damage: ${a.damage} ${a.type}.`, ...rollNotes({ kind: "attack" })] };
+    }
+    return undefined;
+  };
+  const exInfo = explain && exAt ? explainOf(exAt.key) : undefined;
+  const exFind = (t: EventTarget | null) => (t instanceof Element ? (t.closest("[data-ex]") as HTMLElement | null) : null);
+  const exShow = (el: HTMLElement | null) => { if (el) setExAt({ key: el.dataset.ex!, rect: el.getBoundingClientRect() }); };
 
   return (
-    <div className={`sheetv ${narrow && logHidden ? "loghid" : ""} ${critFx ? "critfx" : ""}`}>
+    <div className={`sheetv ${narrow && logHidden ? "loghid" : ""} ${critFx ? "critfx" : ""} ${explain ? "explain" : ""}`}
+      onMouseOver={explain ? (e) => { const el = exFind(e.target); if (el && el.dataset.ex !== exAt?.key) exShow(el); } : undefined}
+      onMouseLeave={explain ? () => setExAt(undefined) : undefined}
+      onFocusCapture={explain ? (e) => exShow(exFind(e.target)) : undefined}
+      onClickCapture={explain ? (e) => {
+        const el = exFind(e.target);
+        // explain mode: a click on a number explains it instead of rolling
+        if (el) { e.preventDefault(); e.stopPropagation(); exShow(el); }
+      } : undefined}>
       {drawerPanel()}
       {diceFx && (
         <div key={diceFx.key} className="dice3d" aria-hidden="true">
@@ -2638,13 +2735,13 @@ export default function Sheet() {
         </section>
 
         <section className="stats" {...bo("stats")}>
-          <Tip className="stat frm shield" tip={statTip.ac}><div className="sl">Armor</div><div className="sv2">{d.ac}</div><div className="sl">Class</div></Tip>
-          <button className="stat frm notch" title={statTip.init} onClick={() => test("Initiative", d.initiative, { kind: "init", ability: "Dexterity" })}><div className="sl">Initiative</div><div className="sv2">{fmt(d.initiative)}</div><div className="ss">click to roll</div></button>
-          <Tip className="stat frm notch" tip={statTip.speed}><div className="sl">Speed</div><div className="sv2">{speed} ft</div><div className="ss">{speed === 0 && d.speed ? "conditions" : ""}</div></Tip>
-          <Tip className="stat frm notch" tip={statTip.pb}><div className="sl">Proficiency</div><div className="sv2">{fmt(d.pb)}</div><div className="ss" /></Tip>
-          <Tip className="stat frm notch" tip={statTip.pp}><div className="sl">Passive Perception</div><div className="sv2">{d.passivePerception}</div><div className="ss" /></Tip>
+          <span className="stat frm shield" data-ex="ac"><div className="sl">Armor</div><div className="sv2">{d.ac}</div><div className="sl">Class</div></span>
+          <button className="stat frm notch" data-ex="init" onClick={() => test("Initiative", d.initiative, { kind: "init", ability: "Dexterity" })}><div className="sl">Initiative</div><div className="sv2">{fmt(d.initiative)}</div><div className="ss">click to roll</div></button>
+          <span className="stat frm notch" data-ex="speed"><div className="sl">Speed</div><div className="sv2">{speed} ft</div><div className="ss">{speed === 0 && d.speed ? "conditions" : ""}</div></span>
+          <span className="stat frm notch" data-ex="pb"><div className="sl">Proficiency</div><div className="sv2">{fmt(d.pb)}</div><div className="ss" /></span>
+          <span className="stat frm notch" data-ex="pp"><div className="sl">Passive Perception</div><div className="sv2">{d.passivePerception}</div><div className="ss" /></span>
           {castAb && (
-            <button className="stat spell" title={statTip.dc} onClick={() => attack({ name: "Spell", toHit: spellAtk, damage: "0", type: "", note: "" })}>
+            <button className="stat spell" data-ex="dc" onClick={() => attack({ name: "Spell", toHit: spellAtk, damage: "0", type: "", note: "" })}>
               <div className="sl">Spell Save DC</div>{casters.length > 1 && new Set(casters.map((k) => k.dc)).size > 1 ? <div className="sv2">{casters.map((k) => k.dc).join(" / ")}</div> : <div className="sv2 gemv">{spellDC}</div>}
               <div className="ss">{casters.length > 1 && new Set(casters.map((k) => `${k.ab}${k.atk}`)).size > 1 ? casters.map((k) => `${k.info.cls.name} ${fmt(k.atk)}`).join(" · ") : `atk ${fmt(casters[0]?.atk ?? spellAtk)} · ${ABBR[casters[0]?.ab || castAb]}`}</div>
             </button>
@@ -2656,10 +2753,10 @@ export default function Sheet() {
             <div key={a} className="ab">
               <div className="abf frm cut">
                 <div className="abn">{a}</div>
-                <button className="abm" title={`Roll ${a} check`} onClick={() => test(`${a} check`, d.mods[a], { kind: "check", ability: a })}>{fmt(d.mods[a])}</button>
+                <button className="abm" data-ex={`ab:${a}`} title={`Roll ${a} check`} onClick={() => test(`${a} check`, d.mods[a], { kind: "check", ability: a })}>{fmt(d.mods[a])}</button>
               </div>
               <div className="abs" title={`${a} score`}>{d.scores[a]}</div>
-              <button className={`sv ${d.saves[a].prof ? "p" : ""}`} title={`Roll ${a} save`} onClick={() => test(`${a} save`, d.saves[a].value, { kind: "save", ability: a })}>
+              <button className={`sv ${d.saves[a].prof ? "p" : ""}`} data-ex={`sv:${a}`} title={`Roll ${a} save`} onClick={() => test(`${a} save`, d.saves[a].value, { kind: "save", ability: a })}>
                 <span className={`dot ${d.saves[a].prof ? "p1" : ""}`} />Save {fmt(d.saves[a].value)}
               </button>
             </div>
@@ -2671,7 +2768,7 @@ export default function Sheet() {
             <section className="spanel skills" {...bo("skills")}>
               <h3>Skills</h3>
               {SKILLS.map((s) => (
-                <button key={s} className="sk" title={skillAlt(s) ? `Using ${skillAlt(s)!.ability} (${skillAlt(s)!.source})` : undefined}
+                <button key={s} className="sk" data-ex={`sk:${s}`} title={skillAlt(s) ? `Using ${skillAlt(s)!.ability} (${skillAlt(s)!.source})` : undefined}
                   onClick={() => test(`${s} check`, skillValue(s), { kind: "check", ability: skillAlt(s)?.ability || SKILL_ABILITY[s], skill: s, proficient: d.skills[s].prof })}>
                   <span className={`dot ${d.skills[s].prof ? (fx.expertise.has(s) ? "p1 ex" : "p1") : fx.halfProficiency ? "half" : ""}`} />
                   <span className="skn">{s}{skillTag(s)}</span>
@@ -2773,7 +2870,7 @@ export default function Sheet() {
                       {attacks.map((a, i) => (
                         <tr key={`${a.name}-${i}`}>
                           <td><b>{a.name}</b><div className="note">{a.note}</div></td>
-                          <td><Tip tip={formCr ? `The ${formCr.name}’s attack bonus.` : toHitTip(a)}>{fmt(a.toHit)}</Tip></td>
+                          <td><span data-ex={`atk:${i}`}>{fmt(a.toHit)}</span></td>
                           <td>{a.damage} {a.type}{a.versatile ? <div className="note">two hands {a.versatile}</div> : null}</td>
                           <td>
                             <div className="rowbtn">
@@ -3088,7 +3185,7 @@ export default function Sheet() {
           </div>
           <div className="hpm">
             <div className="sl">Hit Points</div>
-            <div className="hpv">
+            <div className="hpv" data-ex="hp">
               <span className={hpCur === 0 ? "bad" : ""}>{hpCur}</span>
               <span className="mut">/ {hpMax}</span>
               {p.hpTemp > 0 && <span className="temp">+{p.hpTemp} temp</span>}
@@ -3238,6 +3335,33 @@ export default function Sheet() {
           </div>
         </div>
       )}
+      <div className="explainbar">
+        <button className={`exsw ${explain ? "on" : ""}`} role="switch" aria-checked={explain} onClick={() => { setExplain(!explain); setExAt(undefined); }}>
+          <span className="knob" aria-hidden="true" /> Explain mode
+        </button>
+        <p>Hover over or tap any number to see how it’s worked out, like why Stealth is higher than History. While it’s on, clicking a number explains it instead of rolling.</p>
+      </div>
+      {explain && (
+        <button className="explainpill" onClick={() => { setExplain(false); setExAt(undefined); }}>Explain mode is on · <b>Turn off</b></button>
+      )}
+      {exInfo && exAt && (() => {
+        const W = 320, r = exAt.rect, vw = window.innerWidth, vh = window.innerHeight;
+        const left = Math.max(8, Math.min(r.left, vw - W - 8));
+        const below = r.bottom + 260 < vh || r.top < 260;
+        return (
+          <div className="expanel" role="tooltip" style={below ? { left, top: r.bottom + 8, width: W } : { left, bottom: vh - r.top + 8, width: W }}>
+            <div className="exh">{exInfo.title}</div>
+            {exInfo.rows.length > 0 && (
+              <div className="exrows">
+                {exInfo.rows.map((row, i) => <div key={i} className="exr"><span>{row.label}</span><b>{row.value}</b></div>)}
+                <div className="exr tot"><span>Total</span><b>{exInfo.total}</b></div>
+              </div>
+            )}
+            {exInfo.rows.length === 0 && <div className="exbig">{exInfo.total}</div>}
+            {exInfo.notes.filter(Boolean).map((n, i) => <p key={i} className="exn">{n}</p>)}
+          </div>
+        );
+      })()}
     </div>
   );
 }

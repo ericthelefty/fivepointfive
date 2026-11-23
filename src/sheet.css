@@ -585,3 +585,32 @@
   transform: translateX(-130%); animation: shimsweep 1.1s cubic-bezier(.4, 0, .2, 1) var(--d, 0ms) both; }
 :root[data-theme="light"] .sheetv .shim::after { background: linear-gradient(105deg, transparent 30%, rgba(255, 244, 214, .6) 47%, rgba(255, 255, 255, .9) 50%, rgba(255, 244, 214, .6) 53%, transparent 70%); }
 @keyframes shimsweep { to { transform: translateX(130%); } }
+
+/* a framed tile is its own stacking layer (isolation), so the one showing a tooltip is lifted above its neighbours */
+.sheetv .frm:hover, .sheetv .frm:focus-within, .sheetv .tip:has(.tipbox.open) { z-index: 30; }
+
+/* explain mode: a switch centred at the very bottom of the sheet; hovered numbers show their working */
+.sheetv .explainbar { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; margin: 28px auto 8px; max-width: 560px; order: 999; }
+.sheetv .explainbar p { margin: 0; font-size: 13px; color: var(--s-mut); line-height: 1.45; }
+.sheetv .exsw { display: inline-flex; align-items: center; gap: 10px; background: var(--s-panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px 6px 6px; font-weight: 700; font-size: 14px; min-height: 40px; }
+.sheetv .exsw .knob { width: 40px; height: 24px; border-radius: 999px; background: var(--s-well); border: 1px solid var(--line); position: relative; transition: background .2s; }
+.sheetv .exsw .knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--s-mut); transition: transform .2s, background .2s; }
+.sheetv .exsw.on { border-color: var(--s-gold2); color: var(--s-gold); }
+.sheetv .exsw.on .knob { background: var(--accent-bg); border-color: var(--s-gold2); }
+.sheetv .exsw.on .knob::after { transform: translateX(16px); background: var(--s-gold); }
+.sheetv.explain [data-ex] { cursor: help; outline: 1px dashed var(--s-gold2); outline-offset: 2px; }
+.sheetv.explain .stat.frm[data-ex], .sheetv.explain .hpv[data-ex] { outline-offset: 0; }
+.sheetv .explainpill { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 70; background: var(--s-panel); border: 1px solid var(--s-gold2); color: var(--ink); border-radius: 999px; padding: 8px 16px; font-size: 13px; box-shadow: 0 6px 20px rgba(0, 0, 0, .45); }
+.sheetv .explainpill b { color: var(--s-gold); }
+.sheetv .expanel { position: fixed; z-index: 1000; background: var(--s-panel); border: 1px solid var(--s-gold2); border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 36px rgba(0, 0, 0, .55); pointer-events: none; font-size: 13px; }
+.sheetv .exh { font: 600 15px Cinzel, Georgia, serif; color: var(--s-gold); margin-bottom: 8px; }
+.sheetv .exrows { display: flex; flex-direction: column; gap: 4px; }
+.sheetv .exr { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; }
+.sheetv .exr span { color: var(--muted); }
+.sheetv .exr b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sheetv .exr.tot { border-top: 1px solid var(--line); padding-top: 5px; margin-top: 2px; }
+.sheetv .exr.tot span { color: var(--ink); font-weight: 600; }
+.sheetv .exr.tot b { color: var(--s-gold); font-size: 15px; }
+.sheetv .exbig { font: 700 24px Cinzel, Georgia, serif; margin-bottom: 4px; }
+.sheetv .exn { margin: 8px 0 0; color: var(--s-mut); font-size: 12.5px; line-height: 1.45; }
+@media (max-width: 900px) { .sheetv .explainpill { bottom: 162px; } .sheetv.loghid .explainpill { bottom: 60px; } }
