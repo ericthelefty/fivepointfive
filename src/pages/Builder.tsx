@@ -12,7 +12,7 @@ import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
 import { modifFor, scoreBreakdown, multiclassSkillChoice, setSlotFeat, skillChoiceOf, speciesSkillChoice, validIncreases, type PendingChoice } from "../lib/modif.ts";
 import { Md, MdInline } from "../lib/md.tsx";
-import { features, spellInfo, stripMd, type Entry } from "../lib/parse.ts";
+import { features, spellInfo, stripMd, trimClassTable, type Entry } from "../lib/parse.ts";
 import {
   ABBR, ABILITIES, POINT_COST, SKILLS, STANDARD_ARRAY, abilityList, armorTable, classSpells,
   derive, equipmentOptions, featName, finalScores, fmt, listOf, mod, pointBuyUsed, speciesChoice,
@@ -369,7 +369,7 @@ function ClassStep({ c, update }: StepProps) {
                         : <span className="tag ok" style={{ marginLeft: 6 }}>✓ {ch.total} choice{ch.total === 1 ? "" : "s"} made</span>)}
                     </summary>
                     {ch.total > 0 && <p className="faint" style={{ margin: "4px 0" }}>{ch.onAbility ? "Make this choice on the Ability scores step." : "Make this choice in the choices above."}</p>}
-                    <Md md={f.md} />
+                    <Md md={trimClassTable(f.md, shown.name, kLevel)} />
                   </details>
                 );
               })}

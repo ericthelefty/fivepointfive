@@ -244,3 +244,33 @@ export function spellInfo(e: Entry): { level: number; school: string; classes: s
   if (m) return { level: 0, school: m[1], classes: m[2].split(",").map((c) => c.trim()) };
   return null;
 }
+
+/**
+ * A class's progression table ("#### Warlock Features") sits inside one of its features in the SRD
+ * (Pact Magic, Lay On Hands…). On a sheet the whole 20-level table is noise, so it becomes one line
+ * with this character's row; with no level given the table is just left out.
+ */
+export function trimClassTable(md: string, className: string, level?: number): string {
+  const lines = md.split("\n");
+  const h = lines.findIndex((l) => new RegExp(`^#{2,6}\\s+${className.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} Features\\s*$`, "i").test(l.trim()));
+  if (h < 0) return md;
+  let t = h + 1;
+  while (t < lines.length && !lines[t].trim().startsWith("|")) t++;
+  let end = t;
+  while (end < lines.length && lines[end].trim().startsWith("|")) end++;
+  const rows = lines.slice(t, end).map((l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim()));
+  let summary = "";
+  if (level && rows.length > 2) {
+    const head = rows[0];
+    const row = rows.slice(2).find((r) => parseInt(r[0], 10) === level);
+    if (row) {
+      const skip = /^(level|proficiency bonus|class features)$/i;
+      const slot = /^Spell Slots per Spell Level (\d)$/i;
+      const slots = head.map((c, i) => [c.match(slot)?.[1], row[i]]).filter(([l, v]) => l && v && v !== "—").map(([l, v]) => `L${l} ×${v}`);
+      const bits = head.map((c, i) => (skip.test(c) || slot.test(c) || !row[i] || row[i] === "—" ? "" : `${c} ${row[i]}`)).filter(Boolean);
+      if (slots.length) bits.push(`Spell Slots ${slots.join(", ")}`);
+      if (bits.length) summary = `*At ${className} level ${level}:* ${bits.join(" · ")}`;
+    }
+  }
+  return [...lines.slice(0, h), ...(summary ? [summary] : []), ...lines.slice(end)].join("\n").replace(/\n{3,}/g, "\n\n");
+}

@@ -9,7 +9,7 @@ import { Md } from "../lib/md.tsx";
 import { Btn, Tip } from "../lib/tip.tsx";
 import { dice3dOn, playDice, setDice3d, setSound, soundOn } from "../lib/sound.ts";
 import { applyForm, crLabel, formEligible, parseCreature, parseStatBlockMd, statBlockMd, type CreatureAction, type CreatureStats } from "../lib/creature.ts";
-import { features, slug, spellInfo, stripMd, type Entry } from "../lib/parse.ts";
+import { features, slug, spellInfo, stripMd, trimClassTable, type Entry } from "../lib/parse.ts";
 import {
   ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, derive, featName, fmt, speciesChoice, traits, wornGear,
   type Character,
@@ -443,9 +443,9 @@ export default function Sheet() {
           setDiceFx({ key: entry.id, dice, crit: entry.cls === "crit", mod, tilt });
           clearTimeout(diceTimer.current);
           diceTimer.current = setTimeout(() => setDiceFx(undefined), 1700);
-          // keep the total out of the log until the dice have landed and the modifier has appeared
+          // keep the total out of the log until the modifier appears beside the dice (the same moment)
           if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-            hold = dice.length * 60 + 900;
+            hold = dice.length * 60 + 450;
             setRolling(entry.id);
             clearTimeout(holdTimer.current);
             holdTimer.current = setTimeout(() => setRolling(undefined), hold);
@@ -2979,7 +2979,7 @@ export default function Sheet() {
                   {(featFilter === "all" || featFilter === "class") && allFeats.map((f, i) => (
                     <details key={`f${i}`} className="feat" open={featFilter === "class" || undefined}>
                       <summary>{f.name} <span className="mut">· {f.src === f.classLevel.replace(/ \d+$/, "") ? f.classLevel : `${f.src} · ${f.classLevel}`}</span>{featureBadges(f.name)}{autoTag(infos.flatMap((i) => [i.cls, i.sub]).find((e) => e?.name === f.src)?.id, f.name)}</summary>
-                      <Md md={f.md} />
+                      <Md md={(() => { const k = infos.find((x) => x.cls.name === f.src || x.sub?.name === f.src); return k ? trimClassTable(f.md, k.cls.name, k.level) : f.md; })()} />
                       {featureExtras(f.name)}
                     </details>
                   ))}
