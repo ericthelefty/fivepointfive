@@ -21,8 +21,11 @@ If you run your own instance, check the **Database** line of each version: when 
 - Hit points moved to the top of the right-hand column, above the roll bar, in a smaller box. On phones and tablets they still follow the stats.
 - Edit in builder (and the "choices left" tag) sits right next to the character's name.
 - Every time a sheet opens or reloads, a band of light sweeps across everything you can click to roll (abilities, saves, skills, initiative, attacks, the dice), one after another, so new players can see what's clickable. Skipped with reduced motion.
-- The Spend Hit Die button explains itself in Explainer mode: what Hit Dice do, and why it's greyed out (full Hit Points, or none left until a Long Rest).
+- The Spend Hit Die button only shows when you can use it (you've taken damage and have Hit Dice left); Explainer mode says what Hit Dice do.
 - Explainer mode: a switch centred at the bottom of the sheet. With it on, hovering over a number shows how it's worked out, part by part with a total: abilities, saves, skills (proficiency and where it came from, expertise, Jack of All Trades), passive Perception, AC, initiative, speed, Proficiency Bonus, spell save DC and spell attack, Hit Point maximum and attack bonuses, plus any advantage or disadvantage that applies. The breakdown appears in the same light bubble as the sheet's other tips. Clicking still rolls. The old hover tips on AC, speed, Proficiency, passive Perception and attack bonuses are replaced by it.
+- Explainer mode explains rules and controls too: advantage and disadvantage, Short and Long Rests, Heal, Damage and Temporary Hit Points, attack and damage rolls, the dice roller and the header buttons. Every number's breakdown ends with how you can change it, and AC now shows its parts (armor, Dexterity, shield, features).
+- "Change after a rest" choices with many options (Weapon Mastery) put the options under the feature's name instead of squeezing it.
+- The roll-button shimmer is easier to see in the light theme.
 - With Explainer mode off, nothing on the sheet pops up on hover: no tips, no browser tooltips, and no dotted underlines. Turn it on and every tip, every button's explanation (including why a greyed-out button can't be used) and every number's breakdown appears on hover in the same bubble.
 - A tooltip on a framed box (Speed, Proficiency…) no longer slips behind the boxes below it.
 - Hovering an ability score no longer cuts off the round score badge under it.

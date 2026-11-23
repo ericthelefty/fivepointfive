@@ -36,6 +36,34 @@ import { casterEntry, casterInfoOf, casterKindOf, classFeatures, classInfos, cla
 type Tab = "actions" | "effects" | "spells" | "features" | "conditions" | "inventory" | "background" | "notes";
 type CardAction = { label: string; run: () => void };
 
+/** Rules and controls explained in Explainer mode (shown on hover; see the sheet's data-title handling). */
+const HOW = {
+  modes: "Roll one d20 normally. With Advantage, roll two d20s and keep the higher; with Disadvantage, roll two and keep the lower. If something gives you both, they cancel out and you roll one d20. Your pick here applies to every d20 roll until you set it back to Normal; the sheet also adds advantage or disadvantage from your conditions and features on its own.",
+  rests: "Short Rest: about 1 hour of light activity. You can spend Hit Dice to heal, and features that come back on a Short Rest (like Pact Magic slots) return. Long Rest: at least 8 hours, mostly sleeping. You regain all your Hit Points, Hit Dice and spell slots, most features come back, and Exhaustion goes down by 1. You must wait 16 hours after one Long Rest before starting another.",
+  heal: "Adds the amount you typed to your current Hit Points, up to your maximum. Healing someone at 0 Hit Points brings them back up and clears their Death Saving Throws.",
+  damage: "Takes the amount you typed from your Temporary Hit Points first, then your Hit Points. At 0 Hit Points you fall Unconscious and start making Death Saving Throws; if the damage left over after reaching 0 equals or beats your Hit Point maximum, you die outright.",
+  temp: "Temporary Hit Points: a buffer that takes damage before your real Hit Points and can't be healed. They don't add up: a new batch replaces the old one only if you choose it. A Long Rest clears them.",
+  amount: "Type a number, then press Heal, Damage or + Temp. Enter takes damage.",
+  attack: "Roll a d20 plus this attack bonus. If the total equals or beats the target's Armor Class, it hits. A natural 20 is a Critical Hit (roll the damage dice twice); a natural 1 always misses.",
+  dmg: "Roll this weapon's damage. Roll it after the attack hits; on a Critical Hit, use the crit damage button on the attack's card in the game log instead.",
+  die: "Roll this die on its own, with no modifier, for anything the sheet doesn't roll for you.",
+  custom: "Type any dice, like 2d6+1d4+3, and press Roll.",
+};
+/** Explainer mode: how a number on the sheet can be changed, by what it is. */
+const CHANGE: Record<string, string> = {
+  ab: "Set your scores in the builder (Ability scores step), and your background raises two or three of them. Ability Score Improvement (levels 4, 8, 12, 16 and 19), other feats and some magic items raise them later.",
+  sv: "Your first class decides which saves you're proficient in, and that can't be swapped. A feat like Resilient adds one; the rest rises with the ability score.",
+  sk: "Proficiencies come from your background, your class skill picks and feats like Skilled, all chosen in the builder. Raising the ability score raises the skill too.",
+  pp: "It rises with Wisdom, with proficiency in Perception, and with features like the Observant feat.",
+  pb: "It only goes up as your total character level does.",
+  init: "Raise your Dexterity, or take the Alert feat, which adds your Proficiency Bonus.",
+  speed: "Your species sets it. Conditions, heavy armor you're too weak for and some features change it while they apply.",
+  ac: "Equip different armor or a shield in your Inventory, raise your Dexterity, or use a feature like Unarmored Defense. Magic armor and items can add to it.",
+  dc: "It rises with your spellcasting ability and your Proficiency Bonus; some magic items add to it.",
+  hp: "It goes up each time you level up, and when your Constitution rises (that counts for every level you have). The Tough feat adds 2 per level.",
+  atk: "Equip a different weapon in your Inventory. Finesse weapons can use Dexterity instead of Strength, and you only add your Proficiency Bonus with weapons you're trained in.",
+};
+
 /** Boxes on the sheet that can be put in a different order on phones (Layout button). */
 const BOXES: [string, string][] = [
   ["ident", "Name & conditions"], ["stats", "AC, initiative, speed…"], ["hp", "Hit points"], ["abil", "Ability scores & saves"], ["skills", "Skills"],
@@ -393,10 +421,6 @@ export default function Sheet() {
   const pools = hitDicePools(infos);
   const hdUsedOf = (die: number) => (p.hdUsedBy ? p.hdUsedBy[die] || 0 : die === pools[0]?.die ? p.hdUsed : 0);
   const hdLeft = pools.reduce((n, pl) => n + pl.count - hdUsedOf(pl.die), 0);
-  /** Why a Spend Hit Die button is greyed out. */
-  const hdWhy = (none: boolean) => none
-    ? "Hit Dice: you've spent them all. You get them all back when you finish a Long Rest."
-    : "Hit Dice heal you: spend one to roll it plus your Constitution modifier and regain that many Hit Points. You're at full Hit Points, so there's nothing to heal right now.";
   // attacks: weapons that are equipped (magic weapons use their base weapon)
   const wielded = inv.items.flatMap((it) => {
     const w = it.equipped && it.qty > 0 && it.base ? weapons.find((x) => x.name === it.base) : undefined;
@@ -2627,7 +2651,11 @@ export default function Sheet() {
       return { title: "Initiative", rows, total: fmt(d.initiative), notes: ["Rolled at the start of a fight to set the turn order.", ...rollNotes({ kind: "init", ability: "Dexterity" })] };
     }
     if (kind === "speed") return { title: "Speed", rows: [], total: `${speed} ft`, notes: [statTip.speed] };
-    if (kind === "ac") return { title: "Armor Class", rows: [], total: String(d.ac), notes: [statTip.ac, "An attack hits you if its roll equals or beats this."] };
+    if (kind === "ac") {
+      if (formCr) return { title: "Armor Class", rows: [], total: String(d.ac), notes: [statTip.ac] };
+      const rows = d.acParts.map((x, i) => ({ label: x.label, value: i === 0 && x.value >= 0 ? String(x.value) : fmt(x.value) }));
+      return { title: "Armor Class", rows: settle(rows, d.ac), total: String(d.ac), notes: ["An attack hits you if its roll equals or beats this."] };
+    }
     if (kind === "dc") {
       const k = casters[0];
       if (!k) return undefined;
@@ -2656,7 +2684,11 @@ export default function Sheet() {
     }
     return undefined;
   };
-  const exInfo = explain && exAt ? explainOf(exAt.key) : undefined;
+  const exInfo = (() => {
+    const ex = explain && exAt ? explainOf(exAt.key) : undefined;
+    const how = exAt && CHANGE[exAt.key.split(":")[0]];
+    return ex && how ? { ...ex, notes: [...ex.notes, `How to change it: ${how}`] } : ex;
+  })();
   const exFind = (t: EventTarget | null) => (t instanceof Element ? (t.closest("[data-ex], [data-title]") as HTMLElement | null) : null);
   const exKey = (el: HTMLElement) => el.dataset.ex ?? `t:${el.dataset.title}`;
   const exShow = (el: HTMLElement | null) => { if (el) setExAt({ key: exKey(el), rect: el.getBoundingClientRect() }); };
@@ -2689,7 +2721,7 @@ export default function Sheet() {
             <div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <h1 className="disp">{c.name || "Unnamed character"}</h1>
-                {editable && <Link className="sbtn ghost sm" to={`/build/${c.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Edit in builder</Link>}
+                {editable && <Link className="sbtn ghost sm" title="Change your species, class, ability scores, feats and other choices in the character builder." to={`/build/${c.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Edit in builder</Link>}
                 {editable && (() => {
                   // picks still to make (a new feature, or an old pick that's no longer allowed)
                   const open = fx.pending.filter((pc) => pc.options && pc.options.length > 0 && pc.chosen.length < Math.min(pc.count, pc.options.length));
@@ -2707,8 +2739,8 @@ export default function Sheet() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <button className="sbtn sm" onClick={shortRest}>Short rest</button>
-              <button className="sbtn sm" onClick={longRest}>Long rest</button>
+              <button className="sbtn sm" title={HOW.rests} onClick={shortRest}>Short rest</button>
+              <button className="sbtn sm" title={HOW.rests} onClick={longRest}>Long rest</button>
               <span className="hsep" aria-hidden="true" />
               {cloud && editable && (
                 <button className={`sbtn sm ${row?.hidden ? "" : "ghost"}`} aria-pressed={!!row?.hidden} onClick={() => chars.setHidden(c.id, !row?.hidden)}>
@@ -2716,7 +2748,7 @@ export default function Sheet() {
                 </button>
               )}
               <button className="sbtn ghost sm mobonly" title="Change the order of the boxes on the sheet (phone layout)" onClick={() => setLayoutOpen(true)}>Layout</button>
-              <button className="sbtn ghost sm" onClick={() => window.print()}>Print</button>
+              <button className="sbtn ghost sm" title="Print the sheet, or save it as a PDF from the print window." onClick={() => window.print()}>Print</button>
             </div>
           </div>
           {cloud && row?.hidden && (
@@ -2886,8 +2918,8 @@ export default function Sheet() {
                           <td>{a.damage} {a.type}{a.versatile ? <div className="note">two hands {a.versatile}</div> : null}</td>
                           <td>
                             <div className="rowbtn">
-                              <button className="sbtn sm" onClick={() => attack(a)}>Attack</button>
-                              <button className="sbtn sm ghost" onClick={() => rollDamage(a.name, a.damage, false, a.type, false, dmgMods(a, false))}>Damage</button>
+                              <button className="sbtn sm" title={HOW.attack} onClick={() => attack(a)}>Attack</button>
+                              <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(a.name, a.damage, false, a.type, false, dmgMods(a, false))}>Damage</button>
                               {a.versatile && <button className="sbtn sm ghost" onClick={() => attack(a, true)}>Two hands</button>}
                             </div>
                           </td>
@@ -3191,9 +3223,9 @@ export default function Sheet() {
       <div className="side">
         <section className="spanel hp frm cut" {...bo("hp")}>
           <div className="hpc">
-            <button className="sbtn grn" onClick={heal}>Heal</button>
-            <input type="number" min={0} placeholder="0" aria-label="Amount" value={hpAmt} onChange={(e) => setHpAmt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && takeDamage()} />
-            <button className="sbtn red" onClick={takeDamage}>Damage</button>
+            <button className="sbtn grn" title={HOW.heal} onClick={heal}>Heal</button>
+            <input type="number" min={0} placeholder="0" aria-label="Amount" title={HOW.amount} value={hpAmt} onChange={(e) => setHpAmt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && takeDamage()} />
+            <button className="sbtn red" title={HOW.damage} onClick={takeDamage}>Damage</button>
           </div>
           <div className="hpm">
             <div className="sl">Hit Points</div>
@@ -3205,12 +3237,12 @@ export default function Sheet() {
             <div className="hbar"><div style={{ width: `${pct}%` }} className={pct < 25 ? "low" : pct < 50 ? "mid" : ""} /></div>
           </div>
           <div className="hpx">
-            <button className="sbtn sm ghost" onClick={addTemp} title="Add the amount as Temporary Hit Points">+ Temp</button>
+            <button className="sbtn sm ghost" onClick={addTemp} title={HOW.temp}>+ Temp</button>
             <span>Hit Dice: {pools.map((pl, i) => <span key={pl.die}>{i ? " · " : ""}<b>{pl.count - hdUsedOf(pl.die)}</b>/{pl.count} d{pl.die}</span>)}</span>
             {pools.length > 1 ? pools.map((pl) => (
-              <Btn key={pl.die} className="sbtn sm ghost" disabled={hdUsedOf(pl.die) >= pl.count || hpCur >= hpMax} why={hdWhy(hdUsedOf(pl.die) >= pl.count)} title={`Spend a Hit Die: roll a d${pl.die} plus your Constitution modifier and regain that many Hit Points (usually during a Short Rest)`} onClick={() => spendHitDie(pl.die)}>Spend d{pl.die}</Btn>
+              hdUsedOf(pl.die) < pl.count && hpCur < hpMax && <Btn key={pl.die} className="sbtn sm ghost" title={`Spend a Hit Die: roll a d${pl.die} plus your Constitution modifier and regain that many Hit Points (usually during a Short Rest)`} onClick={() => spendHitDie(pl.die)}>Spend d{pl.die}</Btn>
             )) : (
-              <Btn className="sbtn sm ghost" disabled={hdLeft <= 0 || hpCur >= hpMax} why={hdWhy(hdLeft <= 0)} title={`Spend a Hit Die: roll a d${pools[0]?.die} plus your Constitution modifier and regain that many Hit Points (usually during a Short Rest)`} onClick={() => spendHitDie()}>Spend d{pools[0]?.die}</Btn>
+              hdLeft > 0 && hpCur < hpMax && <Btn className="sbtn sm ghost" title={`Spend a Hit Die: roll a d${pools[0]?.die} plus your Constitution modifier and regain that many Hit Points (usually during a Short Rest)`} onClick={() => spendHitDie()}>Spend d{pools[0]?.die}</Btn>
             )}
             {hpCur === 0 && (
               <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -3223,9 +3255,9 @@ export default function Sheet() {
         </section>
         <div className="rollbar" {...bo("rollbar")}>
           <div className="seg" role="group" aria-label="Roll mode">
-            <button className={mode === "dis" ? "on dis" : ""} onClick={() => setMode("dis")}>Disadvantage</button>
-            <button className={mode === "normal" ? "on" : ""} onClick={() => setMode("normal")}>Normal</button>
-            <button className={mode === "adv" ? "on adv" : ""} onClick={() => setMode("adv")}>Advantage</button>
+            <button className={mode === "dis" ? "on dis" : ""} title={HOW.modes} onClick={() => setMode("dis")}>Disadvantage</button>
+            <button className={mode === "normal" ? "on" : ""} title={HOW.modes} onClick={() => setMode("normal")}>Normal</button>
+            <button className={mode === "adv" ? "on adv" : ""} title={HOW.modes} onClick={() => setMode("adv")}>Advantage</button>
           </div>
           <div className="rbrow">
             <label className="nb" title="A one-time modifier for your next d20 roll, like Bardic Inspiration (1d6) or Guidance (1d4). Clears after one roll.">
@@ -3265,13 +3297,13 @@ export default function Sheet() {
             )}
             <button className="sbtn sm ghost mobonly" onClick={() => setLogOpen(!logOpen)}>{logOpen ? "Collapse" : "Expand"}</button>
             <button className="sbtn sm ghost mobonly" title="Hide the Game Log" onClick={() => { setLogHidden(true); setLogOpen(false); }}>Hide</button>
-            {logView === "mine" && <button className="sbtn sm ghost" onClick={copyLog}>Copy</button>}
-            {logView === "mine" && <button className="sbtn sm ghost" onClick={() => { if (confirm("Clear this character’s game log?")) setPlay({ log: [] }); }}>Clear</button>}
+            {logView === "mine" && <button className="sbtn sm ghost" title="Copy this character’s game log as text." onClick={copyLog}>Copy</button>}
+            {logView === "mine" && <button className="sbtn sm ghost" title="Delete everything in this character’s game log." onClick={() => { if (confirm("Clear this character’s game log?")) setPlay({ log: [] }); }}>Clear</button>}
           </div>
           <div className="tray">
             <div className="dbtns">
               {[4, 6, 8, 10, 12, 20, 100].map((f) => (
-                <button key={f} className="dbtn" onClick={() => {
+                <button key={f} className="dbtn" title={HOW.die} onClick={() => {
                   const r = roll(`1d${f}`)!;
                   log({ title: `d${f}`, total: String(r.total), cls: f === 20 && r.total === 20 ? "crit" : "roll", detail: esc(describeRolled(r)) });
                 }}>d{f}</button>
@@ -3283,7 +3315,7 @@ export default function Sheet() {
               if (!r) { log({ title: "Couldn’t read that roll", total: "", cls: "event", detail: `Try something like 2d6+1d4+3.` }); return; }
               log({ title: custom.replace(/\s+/g, ""), total: String(r.total), cls: "roll", detail: `${eqOf(r)}${esc(describeRolled(r))}` });
             }}>
-              <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. 2d6+1d4+3" aria-label="Custom roll" />
+              <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. 2d6+1d4+3" aria-label="Custom roll" title={HOW.custom} />
               <button className="sbtn sm">Roll</button>
             </form>
           </div>

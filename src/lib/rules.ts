@@ -365,6 +365,8 @@ export interface Derived {
   hp: number;
   ac: number;
   acNote: string;
+  /** How the AC adds up, part by part (Explainer mode). */
+  acParts: { label: string; value: number }[];
   initiative: number;
   speed: number;
   passivePerception: number;
@@ -430,11 +432,14 @@ export function derive(
   const { worn, shield, label: wornLabel } = wornGear(c, lib);
   let ac = 10 + mods.Dexterity;
   let acNote = "10 + Dex";
+  let acParts: { label: string; value: number }[] = [{ label: "Base (no armor)", value: 10 }, { label: "Dexterity modifier", value: mods.Dexterity }];
   if (worn) {
     const base = +(worn.ac.match(/^(\d+)/)?.[1] || 10);
-    const dex = /Dex modifier \(max 2\)/.test(worn.ac) ? Math.min(2, mods.Dexterity) : /Dex/.test(worn.ac) ? mods.Dexterity : 0;
+    const capped = /Dex modifier \(max 2\)/.test(worn.ac);
+    const dex = capped ? Math.min(2, mods.Dexterity) : /Dex/.test(worn.ac) ? mods.Dexterity : 0;
     ac = base + dex;
     acNote = wornLabel || worn.name;
+    acParts = [{ label: wornLabel || worn.name, value: base }, ...(/Dex/.test(worn.ac) ? [{ label: `Dexterity modifier${capped ? " (medium armor: at most +2)" : ""}`, value: dex }] : [])];
   }
   // Modif: alternative AC formulas (best one wins) and AC bonuses
   if (fx && !worn) {
@@ -445,12 +450,14 @@ export function derive(
       if (n !== null && n > ac) {
         ac = n;
         acNote = b.source;
+        acParts = [{ label: `${b.source} (${b.expr})`, value: n }];
       }
     }
   }
   if (shield) {
     ac += 2;
     acNote += " + Shield";
+    acParts.push({ label: "Shield", value: 2 });
   }
   if (fx) {
     const wornCat = worn ? worn.category.toLowerCase() : "";
@@ -460,16 +467,18 @@ export function derive(
       if (b.armor && !b.armor.some((k) => wornCat.startsWith(k))) continue;
       ac += b.value;
       acNote += ` + ${b.source.replace(/ \(.*\)$/, "")}`;
+      acParts.push({ label: b.source, value: b.value });
     }
   }
   if (fx?.acFloor && ac < fx.acFloor.value) {
     ac = fx.acFloor.value;
     acNote = fx.acFloor.source;
+    acParts = [{ label: `${fx.acFloor.source} (your AC can't be lower)`, value: ac }];
   }
   return {
     scores, mods, pb, saves, skills,
     hp: hp + plus("hp:max") + plus("hp:per-level") * c.level,
-    ac, acNote,
+    ac, acNote, acParts,
     initiative: mods.Dexterity + plus("initiative") + plus("check:dex") + plus("check:all") + (fx?.halfProficiency ? Math.floor(pb / 2) : 0),
     speed: Math.max(speedOf(lib.species), fx?.speedSet ?? 0) + plus("speed:walk"),
     passivePerception: 10 + skills.Perception.value + plus("passive:perception"),
