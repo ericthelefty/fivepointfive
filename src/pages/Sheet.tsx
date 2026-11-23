@@ -38,7 +38,10 @@ type CardAction = { label: string; run: () => void };
 
 /** Rules and controls explained in Explainer mode (shown on hover; see the sheet's data-title handling). */
 const HOW = {
-  modes: "Roll one d20 normally. With Advantage, roll two d20s and keep the higher; with Disadvantage, roll two and keep the lower. If something gives you both, they cancel out and you roll one d20. Your pick here applies to every d20 roll until you set it back to Normal; the sheet also adds advantage or disadvantage from your conditions and features on its own.",
+  modeTail: "If something gives you both Advantage and Disadvantage, they cancel out and you roll one d20. Your pick here applies to every d20 roll until you set it back to Normal; the sheet also adds advantage or disadvantage from your conditions and features on its own.",
+  dis: "Disadvantage: roll two d20s and keep the lower one.",
+  normal: "Normal: roll one d20.",
+  adv: "Advantage: roll two d20s and keep the higher one.",
   rests: "Short Rest: about 1 hour of light activity. You can spend Hit Dice to heal, and features that come back on a Short Rest (like Pact Magic slots) return. Long Rest: at least 8 hours, mostly sleeping. You regain all your Hit Points, Hit Dice and spell slots, most features come back, and Exhaustion goes down by 1. You must wait 16 hours after one Long Rest before starting another.",
   heal: "Adds the amount you typed to your current Hit Points, up to your maximum. Healing someone at 0 Hit Points brings them back up and clears their Death Saving Throws.",
   damage: "Takes the amount you typed from your Temporary Hit Points first, then your Hit Points. At 0 Hit Points you fall Unconscious and start making Death Saving Throws; if the damage left over after reaching 0 equals or beats your Hit Point maximum, you die outright.",
@@ -127,7 +130,7 @@ export default function Sheet() {
   const [hpAmt, setHpAmt] = useState("");
   /** Explainer mode: hovering over a number shows how it's worked out. */
   const [explain, setExplain] = useState(false);
-  const [exAt, setExAt] = useState<{ key: string; rect: DOMRect }>();
+  const [exAt, setExAt] = useState<{ key: string; rect: DOMRect; el: HTMLElement }>();
   const rootRef = useRef<HTMLDivElement>(null);
   // no browser tooltips on the sheet: each title moves to data-title, which Explainer mode shows in its own bubble
   useEffect(() => {
@@ -386,6 +389,9 @@ export default function Sheet() {
   const spellAtk = casters[0]?.atk ?? 0;
   const slots: Slot[] = spellSlots(infos, content.entries);
   const slotKey = (s: Slot) => (s.pact ? `p${s.level}` : String(s.level));
+  // which classes the slots come from (Explainer mode)
+  const pactClass = casters.find((k) => casterKindOf(k.info) === "pact")?.info.cls.name;
+  const slotClasses = casters.filter((k) => casterKindOf(k.info) !== "pact").map((k) => k.info.cls.name).join(" and ");
   // limited uses all come from Effects (class features, feats, species, items)
   const resources = [
     ...fx.resources.map((r) => {
@@ -992,6 +998,25 @@ export default function Sheet() {
     );
   };
   /** When a use comes back, in words. */
+  /** Explainer mode: where a limited use comes from, in a new player's words ("from your Paladin class: Paladin's Smite"). */
+  const sourceText = (r: { name: string; entryId: string; itemId?: string }) => {
+    if (r.entryId === "custom") return "One of your own features (added under Features & Feats).";
+    if (r.itemId) { const it = inv.items.find((x) => x.id === r.itemId); return `From an item you carry: ${it?.name || content.byId(r.entryId)?.name || "a magic item"}.`; }
+    const e = content.byId(r.entryId);
+    if (!e) return "";
+    const base = r.name.replace(/\s*\(.*\)$/, "").toLowerCase();
+    const feat = ["Class", "Subclass"].includes(e.type)
+      ? features(e).find((f) => f.name.toLowerCase() === base) || features(e).find((f) => f.md.toLowerCase().includes(base))
+      : undefined;
+    const owner = infos.find((i) => i.cls.id === e.id || i.sub?.id === e.id);
+    const what = e.type === "Class" ? `your ${e.name} class`
+      : e.type === "Subclass" ? `your ${e.name} subclass${owner ? ` (${owner.cls.name})` : ""}`
+      : e.type === "Species" ? `being ${/^[aeiou]/i.test(e.name) ? "an" : "a"} ${e.name}`
+      : e.type === "Background" ? `your ${e.name} background`
+      : e.type === "Feat" ? `the ${e.name} feat`
+      : e.name;
+    return `From ${what}${feat && feat.name.toLowerCase() !== base ? `: the ${feat.name} feature` : ""}${feat ? ` (gained at ${owner ? owner.cls.name : e.name} level ${feat.level})` : ""}.`;
+  };
   const refreshText = (r: { recover: string; regain?: string }) =>
     r.recover === "short" ? "It comes back when you finish a Short or Long Rest."
     : r.recover === "shortOne" ? "One use comes back when you finish a Short Rest, and all of them on a Long Rest."
@@ -2691,12 +2716,12 @@ export default function Sheet() {
   })();
   const exFind = (t: EventTarget | null) => (t instanceof Element ? (t.closest("[data-ex], [data-title]") as HTMLElement | null) : null);
   const exKey = (el: HTMLElement) => el.dataset.ex ?? `t:${el.dataset.title}`;
-  const exShow = (el: HTMLElement | null) => { if (el) setExAt({ key: exKey(el), rect: el.getBoundingClientRect() }); };
+  const exShow = (el: HTMLElement | null) => { if (el) setExAt({ key: exKey(el), rect: el.getBoundingClientRect(), el }); };
 
   return (
     <TipsOn.Provider value={explain}>
     <div ref={rootRef} className={`sheetv ${narrow && logHidden ? "loghid" : ""} ${critFx ? "critfx" : ""} ${explain ? "explain" : ""}`}
-      onMouseOver={explain ? (e) => { const el = exFind(e.target); if (el && exKey(el) !== exAt?.key) exShow(el); } : undefined}
+      onMouseOver={explain ? (e) => { const el = exFind(e.target); if (el && el !== exAt?.el) exShow(el); } : undefined}
       onMouseLeave={explain ? () => setExAt(undefined) : undefined}
       onMouseOut={explain ? (e) => { if (!exFind(e.relatedTarget)) setExAt(undefined); } : undefined}>
       {drawerPanel()}
@@ -2780,7 +2805,7 @@ export default function Sheet() {
 
         <section className="stats" {...bo("stats")}>
           <span className="stat frm shield" data-ex="ac"><div className="sl">Armor</div><div className="sv2">{d.ac}</div><div className="sl">Class</div></span>
-          <button className="stat frm notch" data-ex="init" onClick={() => test("Initiative", d.initiative, { kind: "init", ability: "Dexterity" })}><div className="sl">Initiative</div><div className="sv2">{fmt(d.initiative)}</div><div className="ss">click to roll</div></button>
+          <button className="stat frm notch" data-ex="init" onClick={() => test("Initiative", d.initiative, { kind: "init", ability: "Dexterity" })}><div className="sl">Initiative</div><div className="sv2">{fmt(d.initiative)}</div></button>
           <span className="stat frm notch" data-ex="speed"><div className="sl">Speed</div><div className="sv2">{speed} ft</div><div className="ss">{speed === 0 && d.speed ? "conditions" : ""}</div></span>
           <span className="stat frm notch" data-ex="pb"><div className="sl">Proficiency</div><div className="sv2">{fmt(d.pb)}</div><div className="ss" /></span>
           <span className="stat frm notch" data-ex="pp"><div className="sl">Passive Perception</div><div className="sv2">{d.passivePerception}</div><div className="ss" /></span>
@@ -2835,7 +2860,7 @@ export default function Sheet() {
                         const key = slotKey(s);
                         return (
                           <div key={key} className="slot">
-                            <Tip tip={s.pact ? "Pact Magic: comes back on a Short or Long Rest." : `Level ${s.level} spell slots: they come back on a Long Rest.`}><span className="sl">{s.pact && slots.some((x) => !x.pact) ? "Pact " : ""}L{s.level}</span></Tip>
+                            <Tip tip={s.pact ? `Pact Magic, from your ${pactClass || "Warlock"} class (gained at level 1): these slots come back on a Short or Long Rest.` : `Level ${s.level} spell slots, from your ${slotClasses || "class's"} spellcasting: they come back on a Long Rest.`}><span className="sl">{s.pact && slots.some((x) => !x.pact) ? "Pact " : ""}L{s.level}</span></Tip>
                             {/* a negative count is extra slots (created with Font of Magic; gone after a Long Rest) */}
                             <Pips n={s.max + Math.max(0, -(p.slotsUsed[key] || 0))} used={Math.max(0, p.slotsUsed[key] || 0)} onToggle={(i) => setPlay((cur) => {
                               const u = cur.slotsUsed[key] || 0, extra = Math.max(0, -u), shown = Math.max(0, u);
@@ -2849,7 +2874,7 @@ export default function Sheet() {
                 )}
                 {resources.map((r) => (
                   <div key={r.key} className="slot">
-                    <Tip tip={`${r.die ? `Each is a ${r.die}. ` : ""}${refreshText(r)}`}><span className="sl">{r.name}{r.die ? ` (${r.die})` : ""}</span></Tip>
+                    <Tip tip={`${sourceText(r)} ${r.die ? `Each is a ${r.die}. ` : ""}${refreshText(r)}`.trim()}><span className="sl">{r.name}{r.die ? ` (${r.die})` : ""}</span></Tip>
                     {r.max <= 10 ? (
                       <Pips n={r.max} used={p.resUsed[r.key] || 0} onToggle={(i) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: i < (cur.resUsed[r.key] || 0) ? i : i + 1 } }))} />
                     ) : (
@@ -3010,7 +3035,7 @@ export default function Sheet() {
                   {(actFilter === "all" || actFilter === "action") && (
                     <div className="note" style={{ marginTop: 12 }}>
                       <b>Actions in Combat:</b> {COMBAT_ACTIONS.map((x, j) => (
-                        <span key={x.name}>{j ? ", " : ""}<span className="cact-name" title={`${x.name}: ${x.text}`}>{x.name}</span></span>
+                        <span key={x.name}>{j ? ", " : ""}<button className="linkish" onClick={() => setDrawer({ kind: "feature", title: x.name, sub: "Action everyone can take", md: x.text })}>{x.name}</button></span>
                       ))}
                     </div>
                   )}
@@ -3255,9 +3280,9 @@ export default function Sheet() {
         </section>
         <div className="rollbar" {...bo("rollbar")}>
           <div className="seg" role="group" aria-label="Roll mode">
-            <button className={mode === "dis" ? "on dis" : ""} title={HOW.modes} onClick={() => setMode("dis")}>Disadvantage</button>
-            <button className={mode === "normal" ? "on" : ""} title={HOW.modes} onClick={() => setMode("normal")}>Normal</button>
-            <button className={mode === "adv" ? "on adv" : ""} title={HOW.modes} onClick={() => setMode("adv")}>Advantage</button>
+            <button className={mode === "dis" ? "on dis" : ""} title={`${HOW.dis} ${HOW.modeTail}`} onClick={() => setMode("dis")}>Disadvantage</button>
+            <button className={mode === "normal" ? "on" : ""} title={`${HOW.normal} ${HOW.modeTail}`} onClick={() => setMode("normal")}>Normal</button>
+            <button className={mode === "adv" ? "on adv" : ""} title={`${HOW.adv} ${HOW.modeTail}`} onClick={() => setMode("adv")}>Advantage</button>
           </div>
           <div className="rbrow">
             <label className="nb" title="A one-time modifier for your next d20 roll, like Bardic Inspiration (1d6) or Guidance (1d4). Clears after one roll.">
