@@ -15,7 +15,7 @@ import {
   type Character,
   intro,
 } from "../lib/rules.ts";
-import { combineModes, d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
+import { combineModes, d20, describeRolled, roll, type Mode, type Rolled } from "../lib/dice.ts";
 import {
   CONDITION_EFFECTS, attackFor, avgDice, conditionMods, esc, playOf, type Weapon,
   timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
@@ -492,6 +492,13 @@ export default function Sheet() {
     return r;
   };
 
+  /** "dice + modifier" shown beside a roll's total in the game log. */
+  const eqHtml = (dice: number, mod: number) =>
+    `<span class="eq"><span class="eqd" title="Dice">${dice}</span>${mod ? `<span class="eqo">${mod < 0 ? "−" : "+"}</span><span class="eqm" title="Modifier">${Math.abs(mod)}</span>` : ""}</span>`;
+  const eqOf = (r: Rolled) => {
+    const dice = r.parts.filter((x) => x.rolls).reduce((n, x) => n + x.value, 0);
+    return eqHtml(dice, r.total - dice);
+  };
   const rollDamage = (title: string, expr: string, crit: boolean, type = "", heal = false, mods: { minDie?: number; maximize?: string; floorSource?: string } = {}) => {
     const r = roll(expr, { doubleDice: crit, minDie: mods.minDie, maximize: !!mods.maximize });
     if (!r) return;
@@ -503,7 +510,7 @@ export default function Sheet() {
       title: `${title} ${heal ? "healing" : "damage"}`,
       total: String(Math.max(0, r.total)),
       cls: heal ? "heal" : "dmg",
-      detail: `${esc(describeRolled(r))}${type ? ` · ${esc(type)}` : ""}${why.length ? `<div>${esc(why.join(" · "))}</div>` : ""}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}`,
+      detail: `${eqOf(r)}${esc(describeRolled(r))}${type ? ` · ${esc(type)}` : ""}${why.length ? `<div>${esc(why.join(" · "))}</div>` : ""}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}`,
     });
   };
 
@@ -718,7 +725,7 @@ export default function Sheet() {
         total: String(r.total),
         cls: crit ? "crit" : r.fumble ? "fumble" : "atk",
         detail:
-          `d20 [${r.rolls.map((x) => (r.rolls.length > 1 && x === r.kept ? `<b>${x}</b>` : x)).join(", ")}] ${fmt(a.toHit)}${cm.penalty ? ` −${cm.penalty} exhaustion` : ""}${r.extra ? ` ${esc(describeRolled(r.extra))}` : ""}` +
+          `${eqHtml(r.kept, r.total - r.kept)}d20 [${r.rolls.map((x) => (r.rolls.length > 1 && x === r.kept ? `<b>${x}</b>` : x)).join(", ")}] ${fmt(a.toHit)}${cm.penalty ? ` −${cm.penalty} exhaustion` : ""}${r.extra ? ` ${esc(describeRolled(r.extra))}` : ""}` +
           (why.length ? `<div>${esc(why.join(" · "))}</div>` : "") +
           (crit ? `<div class="vd crit">Critical hit!${critNote}</div>` : r.fumble ? `<div class="vd bad">Natural 1: miss</div>` : ""),
       },
@@ -743,7 +750,7 @@ export default function Sheet() {
     log(
       {
         title: `${a.name}: attack`, total: String(r.total), cls: crit ? "crit" : r.fumble ? "fumble" : "atk",
-        detail: `d20 [${r.rolls.map((x) => (r.rolls.length > 1 && x === r.kept ? `<b>${x}</b>` : x)).join(", ")}] ${fmt(a.toHit)}${r.extra ? ` ${esc(describeRolled(r.extra))}` : ""}` +
+        detail: `${eqHtml(r.kept, r.total - r.kept)}d20 [${r.rolls.map((x) => (r.rolls.length > 1 && x === r.kept ? `<b>${x}</b>` : x)).join(", ")}] ${fmt(a.toHit)}${r.extra ? ` ${esc(describeRolled(r.extra))}` : ""}` +
           (mode !== "normal" ? `<div>${mode === "adv" ? "Advantage" : "Disadvantage"} (roll bar)</div>` : "") +
           (crit ? `<div class="vd crit">Critical hit!</div>` : r.fumble ? `<div class="vd bad">Natural 1: miss</div>` : ""),
       },
@@ -1338,7 +1345,7 @@ export default function Sheet() {
                 const expr = [dice, extra].filter(Boolean).join("+");
                 if (expr) {
                   const r = roll(expr);
-                  if (r) log({ title: `${t.name} damage`, total: String(r.total), cls: "dmg", detail: `${esc(describeRolled(r))}${main.type && main.type !== "weapon" ? ` · ${esc(main.type)}` : " · the weapon’s damage type"}${spent ? `<div>Traded ${spent}d${dm?.[2]} for the effects below.</div>` : ""}${lines}` });
+                  if (r) log({ title: `${t.name} damage`, total: String(r.total), cls: "dmg", detail: `${eqOf(r)}${esc(describeRolled(r))}${main.type && main.type !== "weapon" ? ` · ${esc(main.type)}` : " · the weapon’s damage type"}${spent ? `<div>Traded ${spent}d${dm?.[2]} for the effects below.</div>` : ""}${lines}` });
                 } else log({ title: t.name, total: "", cls: "event", detail: `All its dice traded for effects.${lines}` });
                 setRiderPick((m) => ({ ...m, [t.key]: [] }));
               };
@@ -2595,22 +2602,23 @@ export default function Sheet() {
           )}
         </section>
 
+        <section className="abil" {...bo("abil")}>
+          {ABILITIES.map((a) => (
+            <div key={a} className="ab">
+              <div className="abf frm cut">
+                <div className="abn">{a}</div>
+                <button className="abm" title={`Roll ${a} check`} onClick={() => test(`${a} check`, d.mods[a], { kind: "check", ability: a })}>{fmt(d.mods[a])}</button>
+              </div>
+              <div className="abs" title={`${a} score`}>{d.scores[a]}</div>
+              <button className={`sv ${d.saves[a].prof ? "p" : ""}`} title={`Roll ${a} save`} onClick={() => test(`${a} save`, d.saves[a].value, { kind: "save", ability: a })}>
+                <span className={`dot ${d.saves[a].prof ? "p1" : ""}`} />Save {fmt(d.saves[a].value)}
+              </button>
+            </div>
+          ))}
+        </section>
+
         <div className="cols">
           <div className="left">
-            <section className="abil" {...bo("abil")}>
-              {ABILITIES.map((a) => (
-                <div key={a} className="ab">
-                  <div className="abf frm cut">
-                    <div className="abn">{a}</div>
-                    <button className="abm" title={`Roll ${a} check`} onClick={() => test(`${a} check`, d.mods[a], { kind: "check", ability: a })}>{fmt(d.mods[a])}</button>
-                  </div>
-                  <div className="abs" title={`${a} score`}>{d.scores[a]}</div>
-                  <button className={`sv ${d.saves[a].prof ? "p" : ""}`} title={`Roll ${a} save`} onClick={() => test(`${a} save`, d.saves[a].value, { kind: "save", ability: a })}>
-                    <span className={`dot ${d.saves[a].prof ? "p1" : ""}`} />Save {fmt(d.saves[a].value)}
-                  </button>
-                </div>
-              ))}
-            </section>
             <section className="spanel skills" {...bo("skills")}>
               <h3>Skills</h3>
               {SKILLS.map((s) => (

@@ -12,6 +12,8 @@ If you run your own instance, check the **Database** line of each version: when 
 - Adding or removing a condition from the encounter tracker puts a line in the character's game log.
 - New look for the play sheet ("Forged"): each kind of number has its own frame. Armor Class sits in a shield, initiative, speed, proficiency and passive Perception in notched plates, the spell save DC in a gem, and each ability's modifier in a cut-corner tile with the score in a round rivet below it. Hit points get a gold frame with Heal, the amount and Damage stacked on the left. Skill and save proficiency marks are diamonds: filled for proficient, ringed for expertise, half-filled for half proficiency.
 - On phones, Hit points now come right after AC and the other stats by default (Layout still lets you move them).
+- On laptops and desktops the six ability scores sit in one row under AC and the other stats, and the tiles are shorter, so the stats, abilities and hit points fit on one screen.
+- Game log: attack and damage rolls show the dice and the modifier beside the total (for example 13 + 6), and the newest total pops to twice its size for a moment.
 
 ## 0.3.0 (2026-11-22)
 

@@ -39,9 +39,9 @@
 .sheetv .cols { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 16px; }
 .sheetv .spanel { background: var(--s-panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
 .sheetv .spanel h3 { margin: 0 0 10px; font-size: 15px; color: var(--s-gold); font-family: Cinzel, Georgia, serif; }
-.sheetv .abil { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.sheetv .abil { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
 .sheetv .ab { background: linear-gradient(180deg, var(--s-panel2), var(--s-panel)); border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.sheetv .abn { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--s-mut); }
+.sheetv .abn { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--s-mut); }
 .sheetv .abm { font-family: Cinzel, Georgia, serif; font-size: 28px; font-weight: 700; background: none; border: 1px solid transparent; border-radius: 8px; width: 100%; padding: 0; }
 .sheetv .abm:hover { border-color: var(--s-gold2); background: #2b2430; }
 .sheetv .abs { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 0 9px; background: var(--s-well); }
@@ -162,7 +162,6 @@
 
 @media (max-width: 1100px) {
   .sheetv .cols { grid-template-columns: 1fr; }
-  .sheetv .abil { grid-template-columns: repeat(6, 1fr); }
   .sheetv .skills { columns: 3; column-gap: 12px; }
   .sheetv .skills h3 { column-span: all; }
   .sheetv .sk { break-inside: avoid; }
@@ -485,24 +484,25 @@
 .sheetv .frm.shield::after { inset: 2.5px; }
 
 /* stat row: shield for AC, notched plates for the rest, a gem for the spell save DC */
-.sheetv .stats { align-items: stretch; }
-.sheetv .stats .stat { min-height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.sheetv .stats { align-items: stretch; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
+@media (max-width: 1150px) { .sheetv .abn { font-size: 10px; letter-spacing: .02em; } .sheetv .stats .sl { letter-spacing: .04em; } }
+.sheetv .stats .stat { min-height: 88px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
 .sheetv .stat.frm { border-radius: 0; }
 .sheetv button.stat.frm:hover, .sheetv .stat.frm.tip:hover { --fe: var(--s-gold2); }
-.sheetv .stat.shield { padding: 8px 4px 16px; }
-.sheetv .stat.shield .sv2 { font-size: 30px; line-height: 1.05; }
+.sheetv .stat.shield { padding: 6px 4px 12px; }
+.sheetv .stat.shield .sv2 { font-size: 26px; line-height: 1.05; }
 .sheetv .stat.shield .sl { font-size: 10px; letter-spacing: .14em; }
 .sheetv .stat.spell { background: none; border: 0; }
 .sheetv button.stat.spell:hover .gemv { --fe: var(--s-gold); }
-.sheetv .gemv { position: relative; isolation: isolate; width: 56px; height: 56px; margin: 3px auto; display: flex; align-items: center; justify-content: center; font-size: 21px; --fe: var(--s-pur); }
+.sheetv .gemv { position: relative; isolation: isolate; width: 48px; height: 48px; margin: 2px auto; display: flex; align-items: center; justify-content: center; font-size: 21px; --fe: var(--s-pur); }
 .sheetv .gemv::before, .sheetv .gemv::after { content: ""; position: absolute; z-index: -1; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .sheetv .gemv::before { inset: 0; background: var(--fe); }
 .sheetv .gemv::after { inset: 2px; background: var(--s-panel); }
 
 /* abilities: cut-corner tile with the modifier, the score in a round rivet, the save underneath */
 .sheetv .ab { background: none; border: 0; padding: 0 0 2px; gap: 0; }
-.sheetv .abf { width: 100%; padding: 10px 6px 18px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.sheetv .abm { font-size: 30px; }
+.sheetv .abf { width: 100%; padding: 8px 6px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.sheetv .abm { font-size: 28px; line-height: 1.15; }
 .sheetv .abs { position: relative; z-index: 1; margin-top: -16px; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1.5px solid var(--s-gold2); background: var(--s-well); color: var(--s-gold); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13.5px; }
 .sheetv .ab .sv { margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; }
 
@@ -523,11 +523,12 @@
 .sheetv .hp .hpc .sbtn.sm { min-height: 26px; }
 .sheetv .hp .hpm { min-width: 0; }
 .sheetv .hp .hpm .sl { color: var(--s-gold); letter-spacing: .14em; }
-.sheetv .hp .hpv { font-size: 38px; }
+.sheetv .hp .hpv { font-size: 34px; }
 .sheetv .hbar { height: 8px; margin-top: 10px; background: var(--s-well); }
 
 @media (max-width: 620px) {
   .sheetv .abil { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .sheetv .stats { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sheetv .abm { font-size: 26px; }
   .sheetv .abn { font-size: 9.5px; letter-spacing: .04em; }
   .sheetv .ab .sv { font-size: 11.5px; padding: 3px 2px; gap: 4px; }
@@ -537,3 +538,12 @@
   .sheetv .hp.frm { grid-template-columns: 84px minmax(0, 1fr); padding: 12px 14px 12px 12px; }
   .sheetv .hp .hpv { font-size: 32px; }
 }
+
+/* game log: dice + modifier beside the total, and the newest total pops to twice its size */
+.sheetv .eq { display: inline-flex; align-items: center; gap: 3px; margin-right: 8px; vertical-align: middle; font-family: Cinzel, Georgia, serif; }
+.sheetv .eq .eqd { font-size: 17px; font-weight: 700; color: var(--ink); background: var(--s-panel3); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; line-height: 1.35; }
+.sheetv .eq .eqo { font-size: 15px; color: var(--s-mut); }
+.sheetv .eq .eqm { font-size: 17px; font-weight: 700; color: var(--s-gold); }
+.sheetv .lc.flash .big { position: relative; z-index: 1; transform-origin: center; animation: bigpop .9s cubic-bezier(.2, .8, .3, 1); }
+@keyframes bigpop { 0% { transform: scale(1); } 22% { transform: scale(2); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .sheetv .lc.flash .big { animation: none; } }
