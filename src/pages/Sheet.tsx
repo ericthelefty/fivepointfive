@@ -123,7 +123,7 @@ export default function Sheet() {
   const [critFx, setCritFx] = useState(false);
   /** Dice tumbling onto the sheet after a roll (the "3D dice" toggle). */
   const [dice3d, setDice3dState] = useState(dice3dOn);
-  const [diceFx, setDiceFx] = useState<{ key: string; dice: { sides: number; value: number; kept: boolean }[]; crit: boolean }>();
+  const [diceFx, setDiceFx] = useState<{ key: string; dice: { sides: number; value: number; kept: boolean }[]; crit: boolean; mod: number; tilt: number }>();
   const diceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [bookPick, setBookPick] = useState("");
   /** Spells by casting time, for the Actions tab (like D&D Beyond): Bonus Action, Reaction, longer ones, Rituals. */
@@ -432,7 +432,11 @@ export default function Sheet() {
           for (const v of vals) if (dice.length < 8 && /\d/.test(v)) dice.push({ sides: +m[2], value: parseInt(v.replace(/§/g, ""), 10), kept: !anyKept || v.includes("§") });
         }
         if (dice.length) {
-          setDiceFx({ key: entry.id, dice, crit: entry.cls === "crit" });
+          // the modifier lands beside the dice: what the total adds beyond the dice kept, on a tag at a random slant
+          const total = parseInt(entry.total.replace("−", "-"), 10);
+          const mod = Number.isFinite(total) ? total - dice.filter((x) => x.kept).reduce((n, x) => n + x.value, 0) : 0;
+          const tilt = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 10);
+          setDiceFx({ key: entry.id, dice, crit: entry.cls === "crit", mod, tilt });
           clearTimeout(diceTimer.current);
           diceTimer.current = setTimeout(() => setDiceFx(undefined), 1700);
         }
@@ -2528,6 +2532,11 @@ export default function Sheet() {
               <span>{x.value}</span>
             </div>
           ))}
+          {diceFx.mod !== 0 && (
+            <div className="dmod" style={{ animationDelay: `${diceFx.dice.length * 60 + 450}ms`, ["--tilt" as string]: `${diceFx.tilt.toFixed(1)}deg` }}>
+              {diceFx.mod < 0 ? "−" : "+"}{Math.abs(diceFx.mod)}
+            </div>
+          )}
         </div>
       )}
       <div className="smain">

@@ -14,6 +14,7 @@ If you run your own instance, check the **Database** line of each version: when 
 - On phones, Hit points now come right after AC and the other stats by default (Layout still lets you move them).
 - On laptops and desktops the six ability scores sit in one row under AC and the other stats, and the tiles are shorter, so the stats, abilities and hit points fit on one screen.
 - Game log: attack and damage rolls show the dice and the modifier beside the total (for example 13 + 6), and the newest total pops to twice its size for a moment.
+- 3D dice: the roll's modifier lands beside the dice, slanted at a different random angle every roll, in a gold that suits the light or dark theme.
 
 ## 0.3.0 (2026-11-22)
 

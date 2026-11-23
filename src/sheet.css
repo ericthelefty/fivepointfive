@@ -364,7 +364,11 @@
 @keyframes dieroll { 0% { transform: translateY(-140px) rotateX(var(--spin)) rotateZ(calc(var(--spin) / 2)); opacity: 0; } 30% { opacity: 1; }
   70% { transform: translateY(8px) rotateX(0) rotateZ(0); } 85% { transform: translateY(-4px); } 100% { transform: translateY(0); } }
 @keyframes dicefade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .sheetv .die3d { animation: none; } }
+/* the roll's modifier beside the dice, at a random slant; gold that suits the light or dark theme */
+.sheetv .dmod { align-self: center; font: 700 34px/1 var(--serif, Georgia, serif); color: var(--s-gold); padding: 0 4px;
+  text-shadow: 0 2px 10px var(--bg), 0 0 2px var(--bg); transform: rotate(var(--tilt, -8deg)); animation: modin .35s cubic-bezier(.2, .9, .3, 1.4) both; }
+@keyframes modin { 0% { opacity: 0; transform: rotate(var(--tilt, -8deg)) scale(.4) translateX(-30px); } 100% { opacity: 1; transform: rotate(var(--tilt, -8deg)) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .sheetv .die3d { animation: none; } .sheetv .dmod { animation: none; } }
 
 /* spells tab: header numbers, search, level chips, level groups with their slots, one-line rows */
 .sheetv .sphead { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
