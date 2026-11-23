@@ -2550,7 +2550,10 @@ export default function Sheet() {
                 {infos.filter((i) => i.sub).map((i) => ` · ${i.sub!.name}`).join("")}{bg ? ` · ${bg.name}` : ""}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <button className="sbtn sm" onClick={shortRest}>Short rest</button>
+              <button className="sbtn sm" onClick={longRest}>Long rest</button>
+              <span className="hsep" aria-hidden="true" />
               {editable && <Link className="sbtn ghost sm" to={`/build/${c.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Edit in builder</Link>}
               {editable && (() => {
                 // picks still to make (a new feature, or an old pick that's no longer allowed)
@@ -3079,20 +3082,21 @@ export default function Sheet() {
             <button className={mode === "normal" ? "on" : ""} onClick={() => setMode("normal")}>Normal</button>
             <button className={mode === "adv" ? "on adv" : ""} onClick={() => setMode("adv")}>Advantage</button>
           </div>
-          <label className="nb" title="A one-time modifier for your next d20 roll, like Bardic Inspiration (1d6) or Guidance (1d4). Clears after one roll.">
-            Next roll bonus
-            <input value={nextBonus} onChange={(e) => setNextBonus(e.target.value)} placeholder="+2 or 1d4" />
-          </label>
-          <button className={`sbtn ${p.inspiration ? "gold" : "ghost"}`} onClick={() => { setPlay({ inspiration: !p.inspiration }); log({ title: p.inspiration ? "Used Heroic Inspiration" : "Gained Heroic Inspiration", total: "", cls: "event", detail: p.inspiration ? "Reroll any die immediately after rolling it." : "" }); }}>
-            {p.inspiration ? "★ Inspired" : "☆ Inspiration"}
-          </button>
-          <button className="sbtn ghost" aria-pressed={dice3d} onClick={() => { setDice3d(!dice3d); setDice3dState(!dice3d); }}>{dice3d ? "🎲 3D dice on" : "🎲 3D dice off"}</button>
-          <button className={`sbtn ghost ${sound ? "on" : ""}`} aria-pressed={sound} onClick={() => { setSound(!sound); setSoundState(!sound); if (!sound) setTimeout(() => playDice(2), 0); }}>
-            {sound ? "🔊 Dice sound" : "🔈 Dice sound"}
-          </button>
-          <div className="rests">
-            <button className="sbtn ghost" onClick={shortRest}>Short rest</button>
-            <button className="sbtn ghost" onClick={longRest}>Long rest</button>
+          <div className="rbrow">
+            <label className="nb" title="A one-time modifier for your next d20 roll, like Bardic Inspiration (1d6) or Guidance (1d4). Clears after one roll.">
+              <span className="vh">Next roll bonus</span>
+              <input value={nextBonus} onChange={(e) => setNextBonus(e.target.value)} placeholder="Next roll: +2 or 1d4" />
+            </label>
+            <button className="ibtn insp" aria-pressed={!!p.inspiration} aria-label="Heroic Inspiration" title={p.inspiration ? "Heroic Inspiration: you have it. Click to use it." : "Heroic Inspiration: click when you gain it."}
+              onClick={() => { setPlay({ inspiration: !p.inspiration }); log({ title: p.inspiration ? "Used Heroic Inspiration" : "Gained Heroic Inspiration", total: "", cls: "event", detail: p.inspiration ? "Reroll any die immediately after rolling it." : "" }); }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z" fill={p.inspiration ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
+            </button>
+            <button className="ibtn" aria-pressed={dice3d} aria-label="3D dice" title={dice3d ? "3D dice: on" : "3D dice: off"} onClick={() => { setDice3d(!dice3d); setDice3dState(!dice3d); }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M12 2.5l8.5 4.9v9.2L12 21.5l-8.5-4.9V7.4z" /><path d="M12 2.5v6.8M3.5 7.4l8.5 1.9 8.5-1.9M12 9.3l-5 8.6M12 9.3l5 8.6M7 17.9h10" /></svg>
+            </button>
+            <button className="ibtn" aria-pressed={sound} aria-label="Dice sound" title={sound ? "Dice sound: on" : "Dice sound: off"} onClick={() => { setSound(!sound); setSoundState(!sound); if (!sound) setTimeout(() => playDice(2), 0); }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />{sound ? <path d="M15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11" /> : <path d="M16 9.5l5 5M21 9.5l-5 5" />}</svg>
+            </button>
           </div>
         </div>
 
