@@ -3010,7 +3010,7 @@ export default function Sheet() {
                   {(actFilter === "all" || actFilter === "action") && (
                     <div className="note" style={{ marginTop: 12 }}>
                       <b>Actions in Combat:</b> {COMBAT_ACTIONS.map((x, j) => (
-                        <span key={x.name}>{j ? ", " : ""}<button className="linkish" onClick={() => setDrawer({ kind: "feature", title: x.name, sub: "Action everyone can take", md: x.text })}>{x.name}</button></span>
+                        <span key={x.name}>{j ? ", " : ""}<span className="cact-name" title={`${x.name}: ${x.text}`}>{x.name}</span></span>
                       ))}
                     </div>
                   )}

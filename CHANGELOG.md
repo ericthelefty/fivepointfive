@@ -26,6 +26,7 @@ If you run your own instance, check the **Database** line of each version: when 
 - Explainer mode explains rules and controls too: advantage and disadvantage, Short and Long Rests, Heal, Damage and Temporary Hit Points, attack and damage rolls, the dice roller and the header buttons. Every number's breakdown ends with how you can change it, and AC now shows its parts (armor, Dexterity, shield, features).
 - "Change after a rest" choices with many options (Weapon Mastery) put the options under the feature's name instead of squeezing it.
 - The roll-button shimmer is easier to see in the light theme.
+- "Actions in Combat" (Dash, Dodge, Help, Hide…) are plain names now; turn on Explainer mode and hover one to read what it does, instead of opening the side panel.
 - The AC / initiative / speed / proficiency / passive Perception / spell DC row is narrower: compact boxes lined up on the left instead of stretched across the sheet.
 - With Explainer mode off, nothing on the sheet pops up on hover: no tips, no browser tooltips, and no dotted underlines. Turn it on and every tip, every button's explanation (including why a greyed-out button can't be used) and every number's breakdown appears on hover in the same bubble.
 - A tooltip on a framed box (Speed, Proficiency…) no longer slips behind the boxes below it.
