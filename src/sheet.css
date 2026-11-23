@@ -3,6 +3,7 @@
   --s-panel: #1d191f; --s-panel2: #262128; --s-panel3: #2f2932; --s-well: #151217; --s-well2: #18141a;
   --s-mut: #a69b92; --s-gold: #e3b25e; --s-gold2: #a97c33; --s-red: #d9604f; --s-grn: #6cbf7d; --s-blu: #79a7e6; --s-pur: #b496ea;
   --s-adv-bg: #23472c; --s-adv-tx: #bff0c8; --s-dis-bg: #4a2320; --s-dis-tx: #f6c2ba;
+  --s-edge: #4a3f4d;
   display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start;
 }
 .sheetv .disp { font-family: Cinzel, Georgia, serif; letter-spacing: .03em; }
@@ -332,6 +333,7 @@
   --s-panel: #fbf6ea; --s-panel2: #f6eedc; --s-panel3: #efe4cc; --s-well: #f1e7d1; --s-well2: #f5ecd8;
   --s-mut: #6b5b48; --s-gold: #8a5a12; --s-gold2: #b88a3a; --s-red: #b5432f; --s-grn: #2f7a43; --s-blu: #2f5fa8; --s-pur: #6a46a8;
   --s-adv-bg: #d6ecd6; --s-adv-tx: #22562e; --s-dis-bg: #f3d6cf; --s-dis-tx: #7a2a20;
+  --s-edge: #cdb991;
 }
 :root[data-theme="light"] .sheetv .sbtn:hover, :root[data-theme="light"] .sheetv .abm:hover { background: #e9dcc0; }
 :root[data-theme="light"] .sheetv .schip.bad, :root[data-theme="light"] .sheetv .condbtn[aria-pressed="true"] { background: #f3d6cf; border-color: #c97a6c; color: #7a2a20; }
@@ -462,4 +464,76 @@
   .sheetv .trow { grid-template-columns: 52px minmax(0, 1fr); }
   .sheetv .trow .thp, .sheetv .trow .tside { grid-column: 2; align-items: flex-start; }
   .sheetv .tside { flex-direction: row; gap: 10px; }
+}
+
+/* ---------- Forged: each kind of number has its own frame ----------
+   Shapes are drawn by ::before (the edge) and ::after (the fill) behind the content,
+   so tooltips and focus rings inside a frame are never clipped. */
+.sheetv .frm { position: relative; isolation: isolate; background: none; border: 0; --fe: var(--s-edge); }
+.sheetv .frm::before, .sheetv .frm::after { content: ""; position: absolute; z-index: -1; pointer-events: none; }
+.sheetv .frm::before { inset: 0; background: var(--fe); }
+.sheetv .frm::after { inset: 1.5px; background: linear-gradient(180deg, var(--s-panel2), var(--s-panel)); }
+.sheetv .frm.cut::before { clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px); }
+.sheetv .frm.cut::after { clip-path: polygon(11.4px 0, calc(100% - 11.4px) 0, 100% 11.4px, 100% calc(100% - 11.4px), calc(100% - 11.4px) 100%, 11.4px 100%, 0 calc(100% - 11.4px), 0 11.4px); }
+.sheetv .frm.notch::before { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%); }
+.sheetv .frm.notch::after { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 13.4px), calc(100% - 13.4px) 100%, 0 100%); }
+.sheetv .frm.shield::before, .sheetv .frm.shield::after {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 112'%3E%3Cpath d='M50 1 L97 13 V52 C97 83 77 101 50 111 C23 101 3 83 3 52 V13 Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 112'%3E%3Cpath d='M50 1 L97 13 V52 C97 83 77 101 50 111 C23 101 3 83 3 52 V13 Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.sheetv .frm.shield { --fe: var(--s-gold2); }
+.sheetv .frm.shield::after { inset: 2.5px; }
+
+/* stat row: shield for AC, notched plates for the rest, a gem for the spell save DC */
+.sheetv .stats { align-items: stretch; }
+.sheetv .stats .stat { min-height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.sheetv .stat.frm { border-radius: 0; }
+.sheetv button.stat.frm:hover, .sheetv .stat.frm.tip:hover { --fe: var(--s-gold2); }
+.sheetv .stat.shield { padding: 8px 4px 16px; }
+.sheetv .stat.shield .sv2 { font-size: 30px; line-height: 1.05; }
+.sheetv .stat.shield .sl { font-size: 10px; letter-spacing: .14em; }
+.sheetv .stat.spell { background: none; border: 0; }
+.sheetv button.stat.spell:hover .gemv { --fe: var(--s-gold); }
+.sheetv .gemv { position: relative; isolation: isolate; width: 56px; height: 56px; margin: 3px auto; display: flex; align-items: center; justify-content: center; font-size: 21px; --fe: var(--s-pur); }
+.sheetv .gemv::before, .sheetv .gemv::after { content: ""; position: absolute; z-index: -1; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.sheetv .gemv::before { inset: 0; background: var(--fe); }
+.sheetv .gemv::after { inset: 2px; background: var(--s-panel); }
+
+/* abilities: cut-corner tile with the modifier, the score in a round rivet, the save underneath */
+.sheetv .ab { background: none; border: 0; padding: 0 0 2px; gap: 0; }
+.sheetv .abf { width: 100%; padding: 10px 6px 18px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.sheetv .abm { font-size: 30px; }
+.sheetv .abs { position: relative; z-index: 1; margin-top: -16px; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1.5px solid var(--s-gold2); background: var(--s-well); color: var(--s-gold); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13.5px; }
+.sheetv .ab .sv { margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+/* proficiency marks: diamonds (filled = proficient, ringed = expertise, half = half proficiency) */
+.sheetv .dot { width: 9px; height: 9px; border-radius: 1px; transform: rotate(45deg); }
+.sheetv .dot.ex { box-shadow: 0 0 0 1.5px var(--s-panel), 0 0 0 2.75px var(--s-gold); }
+.sheetv .dot.half { border-color: var(--s-gold); background: linear-gradient(135deg, var(--s-gold) 50%, transparent 50%); }
+.sheetv .pip { border-radius: 2px; transform: rotate(45deg) scale(.82); }
+
+/* panels: squarer corners */
+.sheetv .spanel { border-radius: 4px; }
+
+/* hit points: gold cut frame; Heal / amount / Damage stacked on the left */
+.sheetv .hp.frm { --fe: var(--s-gold2); grid-template-columns: 92px minmax(0, 1fr); gap: 10px 16px; padding: 14px 18px 14px 14px; }
+.sheetv .hp .hpc { flex-direction: column; flex-wrap: nowrap; gap: 4px; align-items: stretch; }
+.sheetv .hp .hpc input { flex: none; height: 34px; width: 100%; box-sizing: border-box; text-align: center; font-weight: 700; min-height: 32px; padding: 2px 4px; }
+.sheetv .hp .hpc .sbtn { min-height: 32px; padding: 4px 6px; }
+.sheetv .hp .hpc .sbtn.sm { min-height: 26px; }
+.sheetv .hp .hpm { min-width: 0; }
+.sheetv .hp .hpm .sl { color: var(--s-gold); letter-spacing: .14em; }
+.sheetv .hp .hpv { font-size: 38px; }
+.sheetv .hbar { height: 8px; margin-top: 10px; background: var(--s-well); }
+
+@media (max-width: 620px) {
+  .sheetv .abil { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .sheetv .abm { font-size: 26px; }
+  .sheetv .abn { font-size: 9.5px; letter-spacing: .04em; }
+  .sheetv .ab .sv { font-size: 11.5px; padding: 3px 2px; gap: 4px; }
+  .sheetv .stats .stat { min-height: 92px; }
+  .sheetv .stat.shield .sv2 { font-size: 26px; }
+  .sheetv .gemv { width: 46px; height: 46px; font-size: 18px; }
+  .sheetv .hp.frm { grid-template-columns: 84px minmax(0, 1fr); padding: 12px 14px 12px 12px; }
+  .sheetv .hp .hpv { font-size: 32px; }
 }

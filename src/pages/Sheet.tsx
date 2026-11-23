@@ -38,8 +38,8 @@ type CardAction = { label: string; run: () => void };
 
 /** Boxes on the sheet that can be put in a different order on phones (Layout button). */
 const BOXES: [string, string][] = [
-  ["ident", "Name & conditions"], ["stats", "AC, initiative, speed…"], ["abil", "Ability scores & saves"], ["skills", "Skills"], ["profs", "Senses, languages & tools"],
-  ["hp", "Hit points"], ["slots", "Spell slots & uses"], ["tabs", "Actions, Spells & other tabs"], ["rollbar", "Advantage, bonus & rests"],
+  ["ident", "Name & conditions"], ["stats", "AC, initiative, speed…"], ["hp", "Hit points"], ["abil", "Ability scores & saves"], ["skills", "Skills"],
+  ["profs", "Senses, languages & tools"], ["slots", "Spell slots & uses"], ["tabs", "Actions, Spells & other tabs"], ["rollbar", "Advantage, bonus & rests"],
 ];
 const LAYOUT_KEY = "fpf.layout";
 /** The actions everyone can take (SRD 5.2.1 "Actions"), for the Actions tab. */
@@ -2582,14 +2582,14 @@ export default function Sheet() {
         </section>
 
         <section className="stats" {...bo("stats")}>
-          <Tip className="stat" tip={statTip.ac}><div className="sl">Armor Class</div><div className="sv2">{d.ac}</div><div className="ss">{d.acNote}</div></Tip>
-          <button className="stat" title={statTip.init} onClick={() => test("Initiative", d.initiative, { kind: "init", ability: "Dexterity" })}><div className="sl">Initiative</div><div className="sv2">{fmt(d.initiative)}</div><div className="ss">click to roll</div></button>
-          <Tip className="stat" tip={statTip.speed}><div className="sl">Speed</div><div className="sv2">{speed} ft</div><div className="ss">{speed === 0 && d.speed ? "conditions" : ""}</div></Tip>
-          <Tip className="stat" tip={statTip.pb}><div className="sl">Proficiency</div><div className="sv2">{fmt(d.pb)}</div><div className="ss" /></Tip>
-          <Tip className="stat" tip={statTip.pp}><div className="sl">Passive Perception</div><div className="sv2">{d.passivePerception}</div><div className="ss" /></Tip>
+          <Tip className="stat frm shield" tip={statTip.ac}><div className="sl">Armor</div><div className="sv2">{d.ac}</div><div className="sl">Class</div></Tip>
+          <button className="stat frm notch" title={statTip.init} onClick={() => test("Initiative", d.initiative, { kind: "init", ability: "Dexterity" })}><div className="sl">Initiative</div><div className="sv2">{fmt(d.initiative)}</div><div className="ss">click to roll</div></button>
+          <Tip className="stat frm notch" tip={statTip.speed}><div className="sl">Speed</div><div className="sv2">{speed} ft</div><div className="ss">{speed === 0 && d.speed ? "conditions" : ""}</div></Tip>
+          <Tip className="stat frm notch" tip={statTip.pb}><div className="sl">Proficiency</div><div className="sv2">{fmt(d.pb)}</div><div className="ss" /></Tip>
+          <Tip className="stat frm notch" tip={statTip.pp}><div className="sl">Passive Perception</div><div className="sv2">{d.passivePerception}</div><div className="ss" /></Tip>
           {castAb && (
-            <button className="stat" title={statTip.dc} onClick={() => attack({ name: "Spell", toHit: spellAtk, damage: "0", type: "", note: "" })}>
-              <div className="sl">Spell Save DC</div><div className="sv2">{casters.length > 1 && new Set(casters.map((k) => k.dc)).size > 1 ? casters.map((k) => k.dc).join(" / ") : spellDC}</div>
+            <button className="stat spell" title={statTip.dc} onClick={() => attack({ name: "Spell", toHit: spellAtk, damage: "0", type: "", note: "" })}>
+              <div className="sl">Spell Save DC</div>{casters.length > 1 && new Set(casters.map((k) => k.dc)).size > 1 ? <div className="sv2">{casters.map((k) => k.dc).join(" / ")}</div> : <div className="sv2 gemv">{spellDC}</div>}
               <div className="ss">{casters.length > 1 && new Set(casters.map((k) => `${k.ab}${k.atk}`)).size > 1 ? casters.map((k) => `${k.info.cls.name} ${fmt(k.atk)}`).join(" · ") : `atk ${fmt(casters[0]?.atk ?? spellAtk)} · ${ABBR[casters[0]?.ab || castAb]}`}</div>
             </button>
           )}
@@ -2600,11 +2600,13 @@ export default function Sheet() {
             <section className="abil" {...bo("abil")}>
               {ABILITIES.map((a) => (
                 <div key={a} className="ab">
-                  <div className="abn">{a}</div>
-                  <button className="abm" title={`Roll ${a} check`} onClick={() => test(`${a} check`, d.mods[a], { kind: "check", ability: a })}>{fmt(d.mods[a])}</button>
-                  <div className="abs">{d.scores[a]}</div>
+                  <div className="abf frm cut">
+                    <div className="abn">{a}</div>
+                    <button className="abm" title={`Roll ${a} check`} onClick={() => test(`${a} check`, d.mods[a], { kind: "check", ability: a })}>{fmt(d.mods[a])}</button>
+                  </div>
+                  <div className="abs" title={`${a} score`}>{d.scores[a]}</div>
                   <button className={`sv ${d.saves[a].prof ? "p" : ""}`} title={`Roll ${a} save`} onClick={() => test(`${a} save`, d.saves[a].value, { kind: "save", ability: a })}>
-                    Save {fmt(d.saves[a].value)}
+                    <span className={`dot ${d.saves[a].prof ? "p1" : ""}`} />Save {fmt(d.saves[a].value)}
                   </button>
                 </div>
               ))}
@@ -2614,7 +2616,7 @@ export default function Sheet() {
               {SKILLS.map((s) => (
                 <button key={s} className="sk" title={skillAlt(s) ? `Using ${skillAlt(s)!.ability} (${skillAlt(s)!.source})` : undefined}
                   onClick={() => test(`${s} check`, skillValue(s), { kind: "check", ability: skillAlt(s)?.ability || SKILL_ABILITY[s], skill: s, proficient: d.skills[s].prof })}>
-                  <span className={`dot ${d.skills[s].prof ? "p1" : ""}`} />
+                  <span className={`dot ${d.skills[s].prof ? (fx.expertise.has(s) ? "p1 ex" : "p1") : fx.halfProficiency ? "half" : ""}`} />
                   <span className="skn">{s}{skillTag(s)}</span>
                   <span className="ska">{ABBR[skillAlt(s)?.ability || SKILL_ABILITY[s]]}</span>
                   <span className="skb">{fmt(skillValue(s))}</span>
@@ -2625,8 +2627,14 @@ export default function Sheet() {
           </div>
 
           <div className="right">
-            <section className="spanel hp" {...bo("hp")}>
-              <div>
+            <section className="spanel hp frm cut" {...bo("hp")}>
+              <div className="hpc">
+                <button className="sbtn grn" onClick={heal}>Heal</button>
+                <input type="number" min={0} placeholder="0" aria-label="Amount" value={hpAmt} onChange={(e) => setHpAmt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && takeDamage()} />
+                <button className="sbtn red" onClick={takeDamage}>Damage</button>
+                <button className="sbtn sm ghost" onClick={addTemp}>Temp</button>
+              </div>
+              <div className="hpm">
                 <div className="sl">Hit Points</div>
                 <div className="hpv">
                   <span className={hpCur === 0 ? "bad" : ""}>{hpCur}</span>
@@ -2634,12 +2642,6 @@ export default function Sheet() {
                   {p.hpTemp > 0 && <span className="temp">+{p.hpTemp} temp</span>}
                 </div>
                 <div className="hbar"><div style={{ width: `${pct}%` }} className={pct < 25 ? "low" : pct < 50 ? "mid" : ""} /></div>
-              </div>
-              <div className="hpc">
-                <input type="number" min={0} placeholder="Amount" aria-label="Amount" value={hpAmt} onChange={(e) => setHpAmt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && takeDamage()} />
-                <button className="sbtn red" onClick={takeDamage}>Damage</button>
-                <button className="sbtn grn" onClick={heal}>Heal</button>
-                <button className="sbtn ghost" onClick={addTemp}>Temp</button>
               </div>
               <div className="hpx">
                 <span>Hit Dice: {pools.map((pl, i) => <span key={pl.die}>{i ? " · " : ""}<b>{pl.count - hdUsedOf(pl.die)}</b>/{pl.count} d{pl.die}</span>)}</span>
