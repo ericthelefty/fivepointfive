@@ -565,3 +565,14 @@
 .sheetv .lc.rolling .dots i:nth-child(3) { animation-delay: .6s; }
 @keyframes dotin { 0% { opacity: 0; } 1%, 75% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .sheetv .lc.rolling .dots i { animation: none; opacity: 1; } }
+
+/* hit points live at the top of the side column, about the size of the roll bar */
+@media (min-width: 901px) {
+  .sheetv .side .hp.frm { margin: 0; flex: none; grid-template-columns: 84px minmax(0, 1fr); gap: 6px 14px; padding: 10px 14px 10px 10px; }
+  .sheetv .side .hp .hpc { gap: 3px; }
+  .sheetv .side .hp .hpc .sbtn, .sheetv .side .hp .hpc input { min-height: 28px; height: 28px; padding-top: 0; padding-bottom: 0; font-size: 13px; }
+  .sheetv .side .hp .hpv { font-size: 30px; }
+  .sheetv .side .hp .hbar { margin-top: 6px; }
+  .sheetv .side .hp .hpx { font-size: 12px; gap: 6px; }
+  .sheetv .side .hp .hpx .sbtn.sm { min-height: 26px; padding: 2px 8px; font-size: 12px; }
+}

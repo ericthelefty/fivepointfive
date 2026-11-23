@@ -2658,39 +2658,6 @@ export default function Sheet() {
           </div>
 
           <div className="right">
-            <section className="spanel hp frm cut" {...bo("hp")}>
-              <div className="hpc">
-                <button className="sbtn grn" onClick={heal}>Heal</button>
-                <input type="number" min={0} placeholder="0" aria-label="Amount" value={hpAmt} onChange={(e) => setHpAmt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && takeDamage()} />
-                <button className="sbtn red" onClick={takeDamage}>Damage</button>
-                <button className="sbtn sm ghost" onClick={addTemp}>Temp</button>
-              </div>
-              <div className="hpm">
-                <div className="sl">Hit Points</div>
-                <div className="hpv">
-                  <span className={hpCur === 0 ? "bad" : ""}>{hpCur}</span>
-                  <span className="mut">/ {hpMax}</span>
-                  {p.hpTemp > 0 && <span className="temp">+{p.hpTemp} temp</span>}
-                </div>
-                <div className="hbar"><div style={{ width: `${pct}%` }} className={pct < 25 ? "low" : pct < 50 ? "mid" : ""} /></div>
-              </div>
-              <div className="hpx">
-                <span>Hit Dice: {pools.map((pl, i) => <span key={pl.die}>{i ? " · " : ""}<b>{pl.count - hdUsedOf(pl.die)}</b>/{pl.count} d{pl.die}</span>)}</span>
-                {pools.length > 1 ? pools.map((pl) => (
-                  <button key={pl.die} className="sbtn sm ghost" disabled={hdUsedOf(pl.die) >= pl.count || hpCur >= hpMax} onClick={() => spendHitDie(pl.die)}>Spend d{pl.die}</button>
-                )) : (
-                  <button className="sbtn sm ghost" disabled={hdLeft <= 0 || hpCur >= hpMax} onClick={() => spendHitDie()}>Spend Hit Die</button>
-                )}
-                {hpCur === 0 && (
-                  <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    Death saves: ✓ <Marks n={3} count={p.deathS} label="success" onSet={(v) => setPlay({ deathS: v })} />
-                    ✗ <Marks n={3} f count={p.deathF} label="failure" onSet={(v) => setPlay({ deathF: v })} />
-                    <button className="sbtn sm red" onClick={deathSave}>Roll death save</button>
-                  </span>
-                )}
-              </div>
-            </section>
-
             {(slots.length > 0 || resources.length > 0 || fx.converts.length > 0) && (
               <section className="spanel slotbar" {...bo("slots")}>
                 {slots.length > 0 && (
@@ -3087,6 +3054,38 @@ export default function Sheet() {
       </div>
 
       <div className="side">
+        <section className="spanel hp frm cut" {...bo("hp")}>
+          <div className="hpc">
+            <button className="sbtn grn" onClick={heal}>Heal</button>
+            <input type="number" min={0} placeholder="0" aria-label="Amount" value={hpAmt} onChange={(e) => setHpAmt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && takeDamage()} />
+            <button className="sbtn red" onClick={takeDamage}>Damage</button>
+          </div>
+          <div className="hpm">
+            <div className="sl">Hit Points</div>
+            <div className="hpv">
+              <span className={hpCur === 0 ? "bad" : ""}>{hpCur}</span>
+              <span className="mut">/ {hpMax}</span>
+              {p.hpTemp > 0 && <span className="temp">+{p.hpTemp} temp</span>}
+            </div>
+            <div className="hbar"><div style={{ width: `${pct}%` }} className={pct < 25 ? "low" : pct < 50 ? "mid" : ""} /></div>
+          </div>
+          <div className="hpx">
+            <button className="sbtn sm ghost" onClick={addTemp} title="Add the amount as Temporary Hit Points">+ Temp</button>
+            <span>Hit Dice: {pools.map((pl, i) => <span key={pl.die}>{i ? " · " : ""}<b>{pl.count - hdUsedOf(pl.die)}</b>/{pl.count} d{pl.die}</span>)}</span>
+            {pools.length > 1 ? pools.map((pl) => (
+              <button key={pl.die} className="sbtn sm ghost" disabled={hdUsedOf(pl.die) >= pl.count || hpCur >= hpMax} onClick={() => spendHitDie(pl.die)}>Spend d{pl.die}</button>
+            )) : (
+              <button className="sbtn sm ghost" disabled={hdLeft <= 0 || hpCur >= hpMax} onClick={() => spendHitDie()} title="Spend a Hit Die to heal">Spend d{pools[0]?.die}</button>
+            )}
+            {hpCur === 0 && (
+              <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                Death saves: ✓ <Marks n={3} count={p.deathS} label="success" onSet={(v) => setPlay({ deathS: v })} />
+                ✗ <Marks n={3} f count={p.deathF} label="failure" onSet={(v) => setPlay({ deathF: v })} />
+                <button className="sbtn sm red" onClick={deathSave}>Roll death save</button>
+              </span>
+            )}
+          </div>
+        </section>
         <div className="rollbar" {...bo("rollbar")}>
           <div className="seg" role="group" aria-label="Roll mode">
             <button className={mode === "dis" ? "on dis" : ""} onClick={() => setMode("dis")}>Disadvantage</button>
