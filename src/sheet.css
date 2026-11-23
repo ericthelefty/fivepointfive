@@ -587,9 +587,9 @@
 .sheetv .shimhost { position: relative; }
 .sheetv .shim { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; z-index: 2; }
 .sheetv .shim::after { content: ""; position: absolute; inset: 0;
-  background: linear-gradient(105deg, transparent 30%, rgba(255, 228, 160, .45) 47%, rgba(255, 255, 255, .7) 50%, rgba(255, 228, 160, .45) 53%, transparent 70%);
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 228, 160, .45) 48.5%, rgba(255, 255, 255, .75) 50%, rgba(255, 228, 160, .45) 51.5%, transparent 58%);
   transform: translateX(-130%); animation: shimsweep 1.1s cubic-bezier(.4, 0, .2, 1) var(--d, 0ms) both; }
-:root[data-theme="light"] .sheetv .shim::after { background: linear-gradient(105deg, transparent 28%, rgba(196, 146, 63, .35) 45%, rgba(138, 90, 18, .55) 50%, rgba(196, 146, 63, .35) 55%, transparent 72%); }
+:root[data-theme="light"] .sheetv .shim::after { background: linear-gradient(105deg, transparent 42%, rgba(196, 146, 63, .4) 48.5%, rgba(138, 90, 18, .6) 50%, rgba(196, 146, 63, .4) 51.5%, transparent 58%); }
 @keyframes shimsweep { to { transform: translateX(130%); } }
 
 /* a framed tile is its own stacking layer (isolation), so the one showing a tooltip is lifted above its neighbours */
@@ -618,3 +618,76 @@
 .sheetv .exbox .exr.tot { border-top: 1px solid currentColor; border-top-color: color-mix(in srgb, currentColor 30%, transparent); padding-top: 3px; margin-top: 2px; }
 .sheetv .exbox .exn { margin-top: 4px; opacity: .8; }
 @media (max-width: 900px) { .sheetv .explainpill { bottom: 162px; } .sheetv.loghid .explainpill { bottom: 60px; } }
+
+/* ---------- dense laptop/desktop layout (design A): one band of abilities and stats, then
+   saves & senses | skills | actions, with the game log in a narrower side column ---------- */
+@media (min-width: 1101px) {
+  .sheetv { grid-template-columns: minmax(0, 1fr) 290px; gap: 16px; }
+  .sheetv .smain { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 14px; align-items: start; }
+  .sheetv .smain > * { grid-column: 1 / -1; }
+  .sheetv .smain > .abil { grid-column: 1; grid-row: 2; margin: 0 0 10px; }
+  .sheetv .smain > .stats { grid-column: 2; grid-row: 2; margin: 0 0 10px; }
+  .sheetv .ident h1 { font-size: 26px; }
+  .sheetv .ident .chips { margin-top: 4px; }
+  .sheetv .ident { margin-bottom: 8px; }
+
+  /* abilities: six small tiles */
+  .sheetv .abil { grid-template-columns: repeat(6, 70px); gap: 6px; }
+  .sheetv .abf { padding: 5px 3px 12px; }
+  .sheetv .abn { font-size: 8.5px; letter-spacing: .02em; }
+  .sheetv .abm { font-size: 21px; line-height: 1.15; }
+  .sheetv .abs { width: 24px; height: 24px; margin-top: -12px; font-size: 11px; }
+  .sheetv .ab .sv { margin-top: 4px; font-size: 10.5px; padding: 1px 2px; gap: 3px; }
+  .sheetv .ab .sv .dot { width: 6px; height: 6px; }
+
+  /* stats: the rest of the band */
+  .sheetv .stats { gap: 6px; }
+  .sheetv .stats .stat { min-height: 0; height: 74px; padding: 3px 2px; }
+  .sheetv .stats .sl { font-size: 8.5px; letter-spacing: .04em; line-height: 1.15; }
+  .sheetv .stats .sv2 { font-size: 19px; }
+  .sheetv .stats .ss { font-size: 9.5px; }
+  .sheetv .stat.shield .sv2 { font-size: 18px; }
+  .sheetv .stat.shield .sl { font-size: 7.5px; }
+  .sheetv .gemv { width: 32px; height: 32px; font-size: 13px; }
+
+  /* saves & senses | skills | actions */
+  .sheetv .cols { grid-template-columns: 196px 214px minmax(0, 1fr); gap: 10px; align-items: start; }
+  .sheetv .cols > .left { display: contents; }
+  .sheetv .cols .left > * { grid-column: 1; }
+  .sheetv .cols .left > .skills { grid-column: 2; grid-row: 1 / span 6; }
+  .sheetv .cols > .right { grid-column: 3; grid-row: 1 / span 6; min-width: 0; }
+  .sheetv .skills { padding: 6px 4px; }
+  .sheetv .skills h3 { margin: 0 6px 4px; font-size: 13px; }
+  .sheetv .sk { padding: 2px 6px; font-size: 12.5px; gap: 7px; }
+  .sheetv .sk .dot { width: 7px; height: 7px; }
+  .sheetv .ska { font-size: 9.5px; }
+  .sheetv .spanel.profs { padding: 8px 10px; font-size: 12.5px; }
+  .sheetv .spanel.profs h3 { font-size: 13px; margin-bottom: 4px; }
+  .sheetv .spanel { margin-bottom: 10px; }
+  .sheetv .slotbar { padding: 8px 10px; gap: 6px; }
+  .sheetv .slot { padding: 2px 7px; }
+  .sheetv .slot .sl { font-size: 9.5px; }
+  .sheetv .pip { width: 13px; height: 13px; }
+  .sheetv table.atks td, .sheetv table.atks th { padding-top: 5px; padding-bottom: 5px; }
+  /* name, Edit and the class line on one line */
+  .sheetv .ident > div:first-child > div:first-child { display: flex; align-items: center; column-gap: 14px; flex-wrap: wrap; min-width: 0; }
+  .sheetv .ident .sub { margin-top: 0; font-size: 13px; }
+  .sheetv .ident > div:first-child { flex-wrap: nowrap !important; align-items: center !important; }
+  .sheetv .ident > div:first-child > div:first-child { flex: 1 1 auto; flex-wrap: nowrap; }
+  .sheetv .ident .sub { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheetv .ident > div:first-child > div:last-child { flex: none; flex-wrap: nowrap !important; }
+  .sheetv .cols { grid-template-columns: 180px 200px minmax(0, 1fr); }
+  .sheetv table.atks { font-size: 12.5px; }
+  .sheetv table.atks .rowbtn { flex-wrap: nowrap; }
+  .sheetv table.atks .rowbtn .sbtn { padding: 2px 8px; min-height: 26px; }
+  /* tabs on one line that scrolls sideways (arrows show when there's more) */
+  .sheetv .stabs { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; margin-bottom: 8px; }
+  .sheetv .stabs::-webkit-scrollbar { display: none; }
+  .sheetv .stabs button { flex: 0 0 auto; white-space: nowrap; padding: 6px 9px; font-size: 13.5px; }
+  .sheetv .tabsw.more-r .tabmore.r, .sheetv .tabsw.more-l .tabmore.l { display: flex; position: absolute; top: 0; bottom: 1px; width: 40px; align-items: center; border: 0;
+    color: var(--s-gold); font-size: 24px; font-weight: 700; line-height: 1; padding: 0 4px 2px; z-index: 2; }
+  .sheetv .tabsw .tabmore.r { right: 0; justify-content: flex-end; background: linear-gradient(90deg, rgba(0,0,0,0), var(--bg) 62%); }
+  .sheetv .tabsw .tabmore.l { left: 0; justify-content: flex-start; background: linear-gradient(270deg, rgba(0,0,0,0), var(--bg) 62%); }
+  .sheetv .chipsrow { gap: 4px; margin-bottom: 6px; }
+  .sheetv .chipsrow button { padding: 2px 9px; font-size: 11.5px; }
+}

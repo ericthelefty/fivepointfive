@@ -966,7 +966,8 @@ export default function Sheet() {
       notes.push(`${x.source}: rolled ${values.join(", ")}`);
     }
     setPlay({ hpCur: hpMax, hpTemp: 0, hdUsed: 0, hdUsedBy: {}, deathS: 0, deathF: 0, slotsUsed: {}, resUsed, exhaustion: Math.max(0, p.exhaustion - 1), concentration: undefined, active: [], memorize: undefined, ...(inspire ? { inspiration: true } : {}), ...(Object.keys(recorded).length ? { recorded } : {}) });
-    log({ title: "Long rest", total: "", cls: "event", detail: `HP restored to ${hpMax}. All Hit Dice, spell slots and class resources regained.${p.exhaustion ? " Exhaustion reduced by 1." : ""}${inspire && !p.inspiration ? ` ${esc(inspire.source)}: you gain Heroic Inspiration.` : ""}${notes.map((x) => `<div>${esc(x)}</div>`).join("")}${(p.active || []).length ? `<div>Ended: ${esc((p.active || []).map((x) => x.name).join(", "))}</div>` : ""}` });
+    log({ title: "Long rest", total: "", cls: "event", detail: `HP restored to ${hpMax}. All Hit Dice, spell slots and class resources regained.${p.exhaustion ? " Exhaustion reduced by 1." : ""}${inspire && !p.inspiration ? ` ${esc(inspire.source)}: you gain Heroic Inspiration.` : ""}${notes.map((x) => `<div>${esc(x)}</div>`).join("")}${(p.active || []).length ? `<div>Ended: ${esc((p.active || []).map((x) => x.name).join(", "))}</div>` : ""}` },
+      restSwaps.length ? [{ label: `Change ${restSwaps.map((pc) => pc.feature).filter((x, i, a) => a.indexOf(x) === i).join(", ")}`, run: openRestChoices }] : undefined);
   };
 
   // ------------------------------------------------------- feature actions
@@ -1554,7 +1555,7 @@ export default function Sheet() {
     return (
       <>
         <h3 style={{ marginTop: 16 }}>Weapon Mastery</h3>
-        <p className="note" style={{ marginTop: 0 }}>You can use the mastery property of: {fx.masteries.join(", ")}. Change them in the <Link to={`/build/${c.id}`}>builder</Link>.</p>
+        <p className="note" style={{ marginTop: 0 }}>You can use the mastery property of: {fx.masteries.join(", ")}. Whenever you finish a Long Rest you can <button className="linkish" onClick={openRestChoices}>pick different weapons</button>; you can also change them anytime in the <Link to={`/build/${c.id}`}>builder</Link>.</p>
         {rows.length === 0 ? <p className="note">None of the weapons you’re holding are ones you’ve mastered.</p> : (
           <table className="atks bonusacts">
             <tbody>
@@ -2085,12 +2086,15 @@ export default function Sheet() {
     );
   };
   /** Choices a feature lets you change after a rest (Circle of the Land's land, Hunter's Prey), right on the sheet. */
+  /** Open Features & Feats at "Change after a rest" (Weapon Mastery, prepared options…). */
+  const openRestChoices = () => { setTab("features"); setTimeout(() => document.getElementById("restchoices")?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); };
+  const restSwaps = fx.pending.filter((pc) => pc.swap?.some((x) => x === "long" || x === "short") && pc.options && pc.options.length <= 60 && !pc.storedIn && !pc.amounts);
   const restChoicesPanel = () => {
     const list = fx.pending.filter((pc) => pc.swap?.some((x) => x === "long" || x === "short") && pc.options && pc.options.length <= 60 && !pc.storedIn && !pc.amounts);
     if (!list.length) return null;
     const setChoice = (key: string, vals: string[]) => { dirty.current = true; setC((prev) => (prev ? { ...prev, choices: { ...(prev.choices || {}), [key]: vals } } : prev)); };
     return (
-      <div className="spanel" style={{ marginBottom: 12 }}>
+      <div className="spanel" id="restchoices" style={{ marginBottom: 12 }}>
         <h3 style={{ marginTop: 0 }}>Change after a rest</h3>
         <p className="note" style={{ marginTop: 0 }}>Features you can switch when you finish a rest. The sheet applies the new choice right away.</p>
         {list.map((pc) => (
