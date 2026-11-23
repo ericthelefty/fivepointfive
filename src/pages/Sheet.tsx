@@ -188,6 +188,28 @@ export default function Sheet() {
     const t = setTimeout(() => setToast(undefined), 2600);
     return () => clearTimeout(t);
   }, [toast]);
+  // the first time a sheet opens in a session, a band of light sweeps across everything that rolls
+  const cid = c?.id;
+  useEffect(() => {
+    if (!cid) return;
+    const key = `fpf.shimmer.${cid}`;
+    try { if (sessionStorage.getItem(key) || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return; sessionStorage.setItem(key, "1"); } catch { return; }
+    const added: HTMLElement[] = [];
+    const start = setTimeout(() => {
+      const els = Array.from(document.querySelectorAll<HTMLElement>(".sheetv .smain :is(.abm, .ab .sv, .sk, button.stat, table.atks button), .sheetv .dbtn"));
+      els.forEach((el, i) => {
+        const sh = document.createElement("span");
+        sh.className = "shim";
+        sh.setAttribute("aria-hidden", "true");
+        sh.style.setProperty("--d", `${Math.min(i * 40, 1400)}ms`);
+        el.classList.add("shimhost");
+        el.appendChild(sh);
+        added.push(sh);
+      });
+    }, 250);
+    const end = setTimeout(() => added.forEach((sh) => { sh.parentElement?.classList.remove("shimhost"); sh.remove(); }), 3200);
+    return () => { clearTimeout(start); clearTimeout(end); added.forEach((sh) => { sh.parentElement?.classList.remove("shimhost"); sh.remove(); }); };
+  }, [cid]);
   const saveLayout = (L: string[] | null) => {
     try { if (L) localStorage.setItem(LAYOUT_KEY, JSON.stringify(L)); else localStorage.removeItem(LAYOUT_KEY); } catch { /* ignore */ }
     setLayout(L || loadLayout());

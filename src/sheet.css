@@ -576,3 +576,12 @@
   .sheetv .side .hp .hpx { font-size: 12px; gap: 6px; }
   .sheetv .side .hp .hpx .sbtn.sm { min-height: 26px; padding: 2px 8px; font-size: 12px; }
 }
+
+/* shimmer: the first time a sheet opens in a session, light sweeps across each roll button */
+.sheetv .shimhost { position: relative; }
+.sheetv .shim { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; z-index: 2; }
+.sheetv .shim::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 228, 160, .45) 47%, rgba(255, 255, 255, .7) 50%, rgba(255, 228, 160, .45) 53%, transparent 70%);
+  transform: translateX(-130%); animation: shimsweep 1.1s cubic-bezier(.4, 0, .2, 1) var(--d, 0ms) both; }
+:root[data-theme="light"] .sheetv .shim::after { background: linear-gradient(105deg, transparent 30%, rgba(255, 244, 214, .6) 47%, rgba(255, 255, 255, .9) 50%, rgba(255, 244, 214, .6) 53%, transparent 70%); }
+@keyframes shimsweep { to { transform: translateX(130%); } }
