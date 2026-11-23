@@ -20,7 +20,8 @@ If you run your own instance, check the **Database** line of each version: when 
 - Features like Pact Magic, Lay On Hands and Bardic Inspiration no longer show the class's whole 20-level table (the SRD prints it inside them). The sheet and builder show one line with your row instead, e.g. "At Bard level 6: Bardic Die D8 · Cantrips 3 · Prepared Spells 10 · Spell Slots L1 ×4, L2 ×3, L3 ×3".
 - Hit points moved to the top of the right-hand column, above the roll bar, in a smaller box. On phones and tablets they still follow the stats.
 - Edit in builder (and the "choices left" tag) sits right next to the character's name.
-- The first time a sheet opens in a session, a band of light sweeps across everything you can click to roll (abilities, saves, skills, initiative, attacks, the dice), one after another, so new players can see what's clickable. Skipped with reduced motion.
+- Every time a sheet opens or reloads, a band of light sweeps across everything you can click to roll (abilities, saves, skills, initiative, attacks, the dice), one after another, so new players can see what's clickable. Skipped with reduced motion.
+- The Spend Hit Die button explains itself: hover for what Hit Dice do, and clicking it while it's greyed out says why (full Hit Points, or none left until a Long Rest).
 - Tidier roll bar: advantage, normal and disadvantage across the top; the next-roll bonus with Heroic Inspiration, 3D dice and dice sound as small icon toggles beside it. It takes about half the height.
 - Short rest and Long rest moved to the top of the sheet, on the line with the character's name.
 - On tablets the six ability scores stay in one row, and the hit dice sit beside the Heal and Damage buttons instead of on a row of their own.

@@ -188,12 +188,10 @@ export default function Sheet() {
     const t = setTimeout(() => setToast(undefined), 2600);
     return () => clearTimeout(t);
   }, [toast]);
-  // the first time a sheet opens in a session, a band of light sweeps across everything that rolls
+  // whenever a sheet opens (or reloads), a band of light sweeps across everything that rolls
   const cid = c?.id;
   useEffect(() => {
-    if (!cid) return;
-    const key = `fpf.shimmer.${cid}`;
-    try { if (sessionStorage.getItem(key) || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return; sessionStorage.setItem(key, "1"); } catch { return; }
+    if (!cid || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     const added: HTMLElement[] = [];
     const start = setTimeout(() => {
       const els = Array.from(document.querySelectorAll<HTMLElement>(".sheetv .smain :is(.abm, .ab .sv, .sk, button.stat, table.atks button), .sheetv .dbtn"));
@@ -378,6 +376,10 @@ export default function Sheet() {
   const pools = hitDicePools(infos);
   const hdUsedOf = (die: number) => (p.hdUsedBy ? p.hdUsedBy[die] || 0 : die === pools[0]?.die ? p.hdUsed : 0);
   const hdLeft = pools.reduce((n, pl) => n + pl.count - hdUsedOf(pl.die), 0);
+  /** Why a Spend Hit Die button is greyed out. */
+  const hdWhy = (none: boolean) => none
+    ? "Hit Dice: you've spent them all. You get them all back when you finish a Long Rest."
+    : "Hit Dice heal you: spend one to roll it plus your Constitution modifier and regain that many Hit Points. You're at full Hit Points, so there's nothing to heal right now.";
   // attacks: weapons that are equipped (magic weapons use their base weapon)
   const wielded = inv.items.flatMap((it) => {
     const w = it.equipped && it.qty > 0 && it.base ? weapons.find((x) => x.name === it.base) : undefined;
@@ -3097,9 +3099,9 @@ export default function Sheet() {
             <button className="sbtn sm ghost" onClick={addTemp} title="Add the amount as Temporary Hit Points">+ Temp</button>
             <span>Hit Dice: {pools.map((pl, i) => <span key={pl.die}>{i ? " · " : ""}<b>{pl.count - hdUsedOf(pl.die)}</b>/{pl.count} d{pl.die}</span>)}</span>
             {pools.length > 1 ? pools.map((pl) => (
-              <button key={pl.die} className="sbtn sm ghost" disabled={hdUsedOf(pl.die) >= pl.count || hpCur >= hpMax} onClick={() => spendHitDie(pl.die)}>Spend d{pl.die}</button>
+              <Btn key={pl.die} className="sbtn sm ghost" disabled={hdUsedOf(pl.die) >= pl.count || hpCur >= hpMax} why={hdWhy(hdUsedOf(pl.die) >= pl.count)} title={`Spend a Hit Die: roll a d${pl.die} plus your Constitution modifier and regain that many Hit Points (usually during a Short Rest)`} onClick={() => spendHitDie(pl.die)}>Spend d{pl.die}</Btn>
             )) : (
-              <button className="sbtn sm ghost" disabled={hdLeft <= 0 || hpCur >= hpMax} onClick={() => spendHitDie()} title="Spend a Hit Die to heal">Spend d{pools[0]?.die}</button>
+              <Btn className="sbtn sm ghost" disabled={hdLeft <= 0 || hpCur >= hpMax} why={hdWhy(hdLeft <= 0)} title={`Spend a Hit Die: roll a d${pools[0]?.die} plus your Constitution modifier and regain that many Hit Points (usually during a Short Rest)`} onClick={() => spendHitDie()}>Spend d{pools[0]?.die}</Btn>
             )}
             {hpCur === 0 && (
               <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
