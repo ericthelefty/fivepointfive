@@ -651,11 +651,9 @@
   .sheetv .gemv { width: 32px; height: 32px; font-size: 13px; }
 
   /* saves & senses | skills | actions */
-  .sheetv .cols { grid-template-columns: 196px 214px minmax(0, 1fr); gap: 10px; align-items: start; }
-  .sheetv .cols > .left { display: contents; }
-  .sheetv .cols .left > * { grid-column: 1; }
-  .sheetv .cols .left > .skills { grid-column: 2; grid-row: 1 / span 6; }
-  .sheetv .cols > .right { grid-column: 3; grid-row: 1 / span 6; min-width: 0; }
+  /* skills, then defenses / senses / languages, in one left column; spell slots and the tabs get the rest */
+  .sheetv .cols { grid-template-columns: 220px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .sheetv .cols > .right { min-width: 0; }
   .sheetv .skills { padding: 6px 4px; }
   .sheetv .skills h3 { margin: 0 6px 4px; font-size: 13px; }
   .sheetv .sk { padding: 2px 6px; font-size: 12.5px; gap: 7px; }
@@ -676,7 +674,6 @@
   .sheetv .ident > div:first-child > div:first-child { flex: 1 1 auto; flex-wrap: nowrap; }
   .sheetv .ident .sub { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sheetv .ident > div:first-child > div:last-child { flex: none; flex-wrap: nowrap !important; }
-  .sheetv .cols { grid-template-columns: 180px 200px minmax(0, 1fr); }
   .sheetv table.atks { font-size: 12.5px; }
   .sheetv table.atks .rowbtn { flex-wrap: nowrap; }
   .sheetv table.atks .rowbtn .sbtn { padding: 2px 8px; min-height: 26px; }

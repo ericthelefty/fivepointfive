@@ -3412,7 +3412,7 @@ export default function Sheet() {
         <button className={`exsw ${explain ? "on" : ""}`} role="switch" aria-checked={explain} onClick={() => { setExplain(!explain); setExAt(undefined); }}>
           <span className="knob" aria-hidden="true" /> Explainer mode
         </button>
-        <p>Enable Explainer mode to hover over items on the sheet and see what they are, how each number is worked out, and how you can change it, like why Stealth is higher than History. Clicking still rolls as usual.</p>
+        <p>Enable Explainer mode to hover over items on the sheet and see what they are, how each number is worked out, and how you can change it. Clicking still rolls as usual.</p>
       </div>
       {explain && (
         <button className="explainpill" onClick={() => { setExplain(false); setExAt(undefined); }}>Explainer mode is on · <b>Turn off</b></button>
