@@ -238,3 +238,55 @@ label.radio input { margin-top: 3px; }
 .assignrow select { font-size: 13px; padding: 2px 6px; min-height: 30px; max-width: 70%; }
 .demobar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 8px 16px; background: var(--accent-bg); border-bottom: 1px solid var(--accent); font-size: 13.5px; text-align: center; }
 .tipbox.shifted::after { display: none; }
+
+/* ---------- loot: the "battle is over" pop-up and the loot page ---------- */
+.lootpop { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(8, 6, 9, .72); padding: 20px; }
+.lootpop-box { width: min(360px, 100%); text-align: center; border: 2px solid #e3b25e; border-radius: 16px; padding: 26px 20px 16px;
+  background: radial-gradient(circle at 50% 0, #4a3618, #1d191f 70%); color: #f2eadf; box-shadow: 0 20px 50px rgba(0, 0, 0, .7); }
+.lootpop-icon { font-size: 40px; line-height: 1; }
+.lootpop-title { font: 700 28px Cinzel, Georgia, serif; color: #e3b25e; margin-top: 8px; }
+.lootpop-sub { font-size: 13px; color: #c9bfb6; margin-top: 4px; }
+.lootpop-claim { margin-top: 18px; width: 100%; height: 48px; border-radius: 10px; border: 2px solid #e3b25e; background: #a97c33; color: #1d1408; font: 700 16px Inter, system-ui, sans-serif; cursor: pointer; }
+.lootpop-ignore { margin-top: 8px; width: 100%; height: 42px; border-radius: 10px; border: 1px solid #4a3f4d; background: transparent; color: #c9bfb6; font: 600 14px Inter, system-ui, sans-serif; cursor: pointer; }
+.lootpop-note { font-size: 11.5px; color: #8d8279; margin-top: 8px; }
+.lootv { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
+.lootv .gold { color: #e3b25e; }
+.lootv .lab { font: 600 10px Inter, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.loothead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.loothead h1 { margin: 0; font-family: var(--serif); font-size: 24px; }
+.lootlist { display: flex; flex-direction: column; }
+.lootrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 160px) auto; gap: 10px; align-items: center; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+.lootrow.done { opacity: .85; }
+.lootname b { font-size: 14px; }
+.lootval { font-weight: 700; color: #e3b25e; font-size: 12.5px; margin-left: 4px; }
+.lootname .faint { font-size: 11.5px; }
+.lootwho { display: flex; gap: 4px; flex-wrap: wrap; }
+.chipx { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); }
+.chipx.me { border-color: #a97c33; color: #e3b25e; }
+.chipx.none { opacity: .6; }
+.lootact { display: flex; gap: 6px; justify-content: flex-end; align-items: center; white-space: nowrap; }
+.lbtn { height: 34px; padding: 0 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.lbtn.want { border: 1.5px solid #a97c33; background: transparent; color: #e3b25e; }
+.lbtn.want.on { background: #a97c33; color: #1d1408; }
+.lbtn.want.claimed { border-style: dashed; border-color: #7d6a4c; color: #c9a96e; background: #231d17; }
+.lbtn.leave { border: 1px solid var(--line); background: transparent; color: var(--ink); font-weight: 600; }
+.lbtn.leave.on { background: #3a333d; }
+.lootwon { color: #6cbf7d; font-weight: 600; font-size: 12.5px; white-space: normal; }
+.lootlost { color: var(--muted); font-size: 12.5px; white-space: normal; }
+.lootfoot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.lootfoot .btn { margin-left: auto; }
+.lootside { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 12px; }
+.lootroll { border: 1.5px solid #a97c33; border-radius: 12px; background: linear-gradient(180deg, #2f2618, #1d191f); padding: 14px; color: #f2eadf; }
+.lootdice { display: flex; justify-content: space-around; margin: 12px 0 8px; }
+.lootdie { text-align: center; font-size: 12px; }
+.lootdie .dd { display: inline-grid; place-items: center; width: 44px; height: 44px; font: 700 20px Cinzel, Georgia, serif; color: #1d1408;
+  background: linear-gradient(145deg, #f3d9a0, #c4923f); clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
+.lootdie .dd.lo { filter: grayscale(.7); opacity: .6; }
+@media (max-width: 760px) {
+  .lootv { grid-template-columns: 1fr; }
+  .lootside { position: static; order: -1; }
+  .lootrow { grid-template-columns: 1fr; gap: 6px; padding: 10px 2px; }
+  .lootact { justify-content: stretch; }
+  .lootact .lbtn { flex: 1; height: 40px; }
+}
+:root[data-theme="light"] .lbtn.want.claimed { background: #f6ebcf; color: #8a5a12; }

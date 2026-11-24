@@ -17,16 +17,16 @@ describe("merging two edits of a character", () => {
     expect(m.play!.hpCur).toBe(22);
   });
 
-  it("applies both sides' HP changes (the DM's damage and the player's healing)", () => {
+  it("applies both sides' HP changes (the GM's damage and the player's healing)", () => {
     const local = ch({ ...base.play, hpCur: 35 }); // healed 5
-    const remote = ch({ ...base.play, hpCur: 23 }); // 7 damage from the DM
+    const remote = ch({ ...base.play, hpCur: 23 }); // 7 damage from the GM
     expect(mergeCharacter(base, local, remote).play!.hpCur).toBe(28);
     expect(mergeCharacter(base, ch({ ...base.play, hpCur: 2 }), ch({ ...base.play, hpCur: 1 })).play!.hpCur).toBe(0);
   });
 
   it("combines condition changes and keeps both sides' log entries", () => {
     const local = ch({ ...base.play, conditions: [], log: [entry("mine"), entry("a")] }); // stood up, rolled
-    const remote = ch({ ...base.play, conditions: ["Prone", "Poisoned"], log: [entry("dm"), entry("a")] }); // DM poisoned them
+    const remote = ch({ ...base.play, conditions: ["Prone", "Poisoned"], log: [entry("dm"), entry("a")] }); // GM poisoned them
     const m = mergeCharacter(base, local, remote);
     expect(m.play!.conditions).toEqual(["Poisoned"]);
     expect(m.play!.log!.map((x) => x.id)).toEqual(["dm", "mine", "a"]);

@@ -13,6 +13,7 @@ import Admin from "./pages/Admin.tsx";
 import Home from "./pages/Home.tsx";
 import Builder from "./pages/Builder.tsx";
 import Sheet from "./pages/Sheet.tsx";
+import LootPage, { LootPopup } from "./pages/Loot.tsx";
 import Library from "./pages/Library.tsx";
 import Content from "./pages/Content.tsx";
 import Guide from "./pages/Guide.tsx";
@@ -114,6 +115,7 @@ function Shell() {
             <Route path="/demo" element={<DemoStart />} />
             <Route path="/build/:id" element={<Builder />} />
             <Route path="/sheet/:id" element={<Sheet />} />
+            <Route path="/loot/:id" element={<LootPage />} />
             <Route path="/encounters" element={<EncounterList />} />
             <Route path="/encounters/:id" element={<EncounterView />} />
             <Route path="/library" element={<Library />} />
@@ -122,6 +124,7 @@ function Shell() {
             <Route path="/settings" element={cloud ? <Admin /> : <div className="panel">This copy of fivepointfive runs in local-only mode: everything is saved in this browser. See the README to set up a shared instance.</div>} />
             <Route path="*" element={<div className="panel">Page not found. <Link to="/">Go home</Link></div>} />
           </Routes>
+          {cloud && <LootPopup />}
           </Gate>
         )}
       </main>

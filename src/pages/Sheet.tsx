@@ -137,7 +137,7 @@ export default function Sheet() {
     window.addEventListener("unhandledrejection", quiet);
     return () => { window.removeEventListener("error", quiet); window.removeEventListener("unhandledrejection", quiet); };
   }, []);
-  // take in changes made elsewhere (the DM's encounter tracker, this character open on another device, another tab),
+  // take in changes made elsewhere (the GM's encounter tracker, this character open on another device, another tab),
   // unless an edit made here is still on its way to being saved
   useEffect(() => {
     if (row && row.c !== c && (!c || c.id !== row.c.id || !dirty.current)) setC(row.c);
@@ -1358,7 +1358,7 @@ export default function Sheet() {
     return {
       id: `text:${cp.uid}`, name: name[0].toUpperCase() + name.slice(1), size: "", type: "", tagline: t, cr: 0, crText: "—", ac: ac ? +ac : 10, hp: hp || 1, hpText: "",
       speedText: t.match(/Speed\s*\d+\s*ft\.?/i)?.[0].replace(/^Speed\s*/i, "") || "—", walk: 0, fly: 0, swim: 0, climb: 0, burrow: 0, swarm: false,
-      scores: Object.fromEntries(ABILITIES.map((a) => [a, 10])), saves: {}, skills: {}, senses: "", languages: "", defenses: [], traits: [], actions: [], bonusActions: [], reactions: [],
+      scores: Object.fromEntries(ABILITIES.map((a) => [a, 10])), saves: {}, skills: {}, senses: "", languages: "", gear: [], defenses: [], traits: [], actions: [], bonusActions: [], reactions: [],
     };
   };
   /** The `summon` blocks in a spell's Effects. */
@@ -2029,7 +2029,7 @@ export default function Sheet() {
         return freeLeft > 0
           ? <button className="sbtn sm ghost" title="One of the two Wizard spells you add to your spellbook when you gain a Wizard level. It costs nothing." onClick={() => addToBook(n, L, "level")}>Add to spellbook</button>
           : <Btn className="sbtn sm ghost" disabled={gold < L * 50 && !house} why={`Copying a level ${L} spell costs ${L * 50} GP; you have ${gold} GP.`}
-              onClick={() => { if (confirm(`Copy ${n} into your spellbook?\n\nCopying a Spell into the Book: for each level of the spell, the transcription takes 2 hours and costs 50 GP. For this level ${L} spell that's ${L * 2} hours and ${L * 50} GP, taken from your coins.\n\nYou can copy a Wizard spell you find, such as on a Spell Scroll. Your DM decides which spells you find.`)) addToBook(n, L, "copied"); }}>Copy · {L * 50} GP</Btn>;
+              onClick={() => { if (confirm(`Copy ${n} into your spellbook?\n\nCopying a Spell into the Book: for each level of the spell, the transcription takes 2 hours and costs 50 GP. For this level ${L} spell that's ${L * 2} hours and ${L * 50} GP, taken from your coins.\n\nYou can copy a Wizard spell you find, such as on a Spell Scroll. Your GM decides which spells you find.`)) addToBook(n, L, "copied"); }}>Copy · {L * 50} GP</Btn>;
       }
       const on = prepared.includes(n);
       return <Btn className={`sbtn sm ${on ? "gold" : ""}`} aria-pressed={on} disabled={!on && prepCount >= ci.prepared && !house} why={`You can prepare ${ci.prepared} spells; unprepare one first.`}
@@ -2064,7 +2064,7 @@ export default function Sheet() {
         )}
         <div className="mgrhelp">
           <p><b>Cantrips and prepared spells.</b> You know your cantrips and can cast them at will, without expending a spell slot. A level 1+ spell must be on your list of prepared spells for you to cast it, and casting it expends a spell slot. In play you can cast only your cantrips and prepared spells, including spells you always have prepared (from a subclass or feat); those are the spells on your Spells and Actions tabs. Everything else listed here is a spell you could prepare instead.</p>
-          {wizard && <p><b>Spellbook.</b> Your spellbook holds your Wizard spells, and you prepare spells from it. Whenever you gain a Wizard level after 1, you add two Wizard spells of your choice to it. <b>Copying a Spell into the Book:</b> when you find a level 1+ Wizard spell, such as on a Spell Scroll, you can copy it in if it’s of a level you can prepare; for each level of the spell, the transcription takes 2 hours and costs 50 GP. The cost is a rule; which spells you find is up to your DM.</p>}
+          {wizard && <p><b>Spellbook.</b> Your spellbook holds your Wizard spells, and you prepare spells from it. Whenever you gain a Wizard level after 1, you add two Wizard spells of your choice to it. <b>Copying a Spell into the Book:</b> when you find a level 1+ Wizard spell, such as on a Spell Scroll, you can copy it in if it’s of a level you can prepare; for each level of the spell, the transcription takes 2 hours and costs 50 GP. The cost is a rule; which spells you find is up to your GM.</p>}
         </div>
         <p className="note" style={{ margin: "4px 0 8px" }}>
           {prepRule(casterEntry(k.info)) ? <><b>Changing Your Prepared Spells.</b> {prepRule(casterEntry(k.info))}</> : null}
@@ -2283,7 +2283,7 @@ export default function Sheet() {
             <Btn className="sbtn sm" disabled={!pick || (freeLeft <= 0 && !house)} why={!pick ? "Choose a spell first." : `You’ve added all ${free} spells your Wizard levels give you. Copy a spell you find instead.`}
               onClick={() => { setBook([...book, { name: pick, how: "level" }]); setBookPick(""); }}>Add to spellbook</Btn>
             <Btn className="sbtn sm ghost" disabled={!pick || (gold < copyCost && !house)} why={!pick ? "Choose a spell first." : `Copying it costs ${copyCost} GP; you have ${gold}.`}
-              onClick={() => { if (confirm(`Copy ${pick} into your spellbook?\n\nCopying a Spell into the Book: for each level of the spell, the transcription takes 2 hours and costs 50 GP. For this level ${pickLvl} spell that's ${pickLvl * 2} hours and ${copyCost} GP, taken from your coins.\n\nYou can copy a Wizard spell you find, such as on a Spell Scroll. Your DM decides which spells you find.`)) copy(); }}>{pick ? `Copy (${copyCost} GP, ${pickLvl * 2} hours)` : "Copy"}</Btn>
+              onClick={() => { if (confirm(`Copy ${pick} into your spellbook?\n\nCopying a Spell into the Book: for each level of the spell, the transcription takes 2 hours and costs 50 GP. For this level ${pickLvl} spell that's ${pickLvl * 2} hours and ${copyCost} GP, taken from your coins.\n\nYou can copy a Wizard spell you find, such as on a Spell Scroll. Your GM decides which spells you find.`)) copy(); }}>{pick ? `Copy (${copyCost} GP, ${pickLvl * 2} hours)` : "Copy"}</Btn>
           </div>
         )}
       </div>

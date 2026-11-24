@@ -1,8 +1,8 @@
 /**
  * Merging two edits of the same character: the version both started from (`base`), this browser's (`local`) and the
- * one saved elsewhere (`remote`), for example a player's sheet and the DM's encounter tracker changing the same
+ * one saved elsewhere (`remote`), for example a player's sheet and the GM's encounter tracker changing the same
  * character at once. Whatever only one side changed is kept; when both changed the same thing:
- * - HP and Temporary HP: both changes apply (the DM's 7 damage and the player's 5 healing both count);
+ * - HP and Temporary HP: both changes apply (the GM's 7 damage and the player's 5 healing both count);
  * - conditions: additions and removals from both sides apply;
  * - the game log: entries from both sides are kept;
  * - anything else: this browser's change wins.

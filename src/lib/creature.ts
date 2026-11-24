@@ -40,6 +40,8 @@ export interface CreatureStats {
   skills: Record<string, number>;
   senses: string;
   languages: string;
+  /** Equipment it carries that can be taken when it's defeated (the stat block's Gear entry), as written. */
+  gear: string[];
   defenses: string[];
   traits: { name: string; text: string }[];
   actions: CreatureAction[];
@@ -153,6 +155,7 @@ export function parseCreature(e: Entry): CreatureStats {
     scores, saves, skills,
     senses: stripMd(f["senses"] || ""),
     languages: stripMd(f["languages"] || ""),
+    gear: stripMd(f["gear"] || "").split(/,\s*/).map((x) => x.trim()).filter(Boolean),
     defenses,
     traits: runIns(sec("Traits")).map((x) => ({ name: x.name, text: stripMd(x.text) })),
     actions: acts("Actions"),

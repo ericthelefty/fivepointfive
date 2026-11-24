@@ -1,7 +1,7 @@
 /**
- * Encounters: the DM builds a fight (monsters from the Library, characters from the instance) and runs it:
+ * Encounters: the GM builds a fight (monsters from the Library, characters from the instance) and runs it:
  * initiative order, whose turn it is, HP for everyone in one place, and clickable stat blocks.
- * Only the admin (the DM) sees encounters on an instance; in local mode they're yours.
+ * Only the admin (the GM) sees encounters on an instance; in local mode they're yours.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -13,6 +13,8 @@ import { cloud } from "../lib/backend.ts";
 import { parseCreature, crValue, type CreatureStats } from "../lib/creature.ts";
 import { d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import { esc, playOf, timeNow, type LogEntry } from "../lib/play.ts";
+import { applyDraft, cpText, linesOf, lootFromMonsters, lootGroupOf } from "../lib/loot.ts";
+import { sendLoot, useLoot } from "../lib/lootStore.tsx";
 import { classInfos, classLabel } from "../lib/multiclass.ts";
 import {
   combatTables, difficulty, monsterMax, newEncounter, newUid, nextTurn, npcHp, numberedName, pcCombat, pcHp, prevTurn, turnOrder, xpBudgetTable,
@@ -26,7 +28,7 @@ function NotAllowed() {
   return (
     <div className="panel">
       <h2 style={{ marginTop: 0 }}>Encounters</h2>
-      <p>Encounters are the DM’s tools: only the instance’s admin can build and run them.</p>
+      <p>Encounters are the GM’s tools: only the instance’s admin can build and run them.</p>
       <Link to="/">Back to characters</Link>
     </div>
   );
@@ -113,12 +115,14 @@ export function EncounterView() {
   const content = useContent();
   const chars = useCharacters();
   const creatures = useCreatures();
-  const [tab, setTabState] = useState<"build" | "run">(() => (new URLSearchParams(location.search).get("tab") === "run" ? "run" : "build"));
+  const [tab, setTabState] = useState<"build" | "run" | "loot">(() => { const t = new URLSearchParams(location.search).get("tab"); return t === "run" || t === "loot" ? t : "build"; });
   // keep the open tab in the address, so a reload (or a link) comes back to it
-  const setTab = (t: "build" | "run") => {
+  const setTab = (t: "build" | "run" | "loot") => {
     setTabState(t);
-    history.replaceState(history.state, "", `${location.pathname}${t === "run" ? "?tab=run" : ""}`);
+    history.replaceState(history.state, "", `${location.pathname}${t !== "build" ? `?tab=${t}` : ""}`);
   };
+  const [lootQ, setLootQ] = useState("");
+  const [sending, setSending] = useState(false);
   const [q, setQ] = useState("");
   const [crMax, setCrMax] = useState("");
   const [preview, setPreview] = useState<string>();
@@ -143,6 +147,7 @@ export function EncounterView() {
   }, [tab, chars.saving]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const e = enc.get(id);
+  const sent = useLoot(e?.lootId);
   if (!enc.allowed) return <NotAllowed />;
   if (!enc.ready) return <p className="muted">Loading…</p>;
   if (!e) return <div className="panel">Encounter not found. <Link to="/encounters">Back to encounters</Link></div>;
@@ -212,7 +217,7 @@ export function EncounterView() {
       let detail = `d20 [${r.rolls.map((x) => (r.rolls.length > 1 && x === r.kept ? `<b>${x}</b>` : x)).join(", ")}] ${fmt(toHit)}${mode !== "normal" ? `<div>${mode === "adv" ? "Advantage" : "Disadvantage"}</div>` : ""}`;
       if (crit) detail += `<div class="vd crit">Critical hit</div>`;
       if (r.fumble) detail += `<div class="vd bad">Natural 1: a miss</div>`;
-      // roll the damage with it (doubled dice on a critical hit), so the DM sees both at once
+      // roll the damage with it (doubled dice on a critical hit), so the GM sees both at once
       const dmg = damage.length && !r.fumble ? roll(damage.map((x) => x.expr).join("+"), { doubleDice: crit }) : null;
       if (dmg) detail += `<div>Damage if it hits: <b>${Math.max(0, dmg.total)}</b> ${esc(damage.map((x) => x.type).join(" + "))} · ${esc(describeRolled(dmg))}</div>`;
       log({ title: `${title}: attack`, total: String(r.total), cls: crit ? "crit" : r.fumble ? "fumble" : "atk", detail });
@@ -277,13 +282,20 @@ export function EncounterView() {
     }
     return got;
   };
-  /** Mid-fight: everyone rolls again, and the round carries on from the top of the new order. */
+  /**
+   * Roll initiative for everyone, monsters and characters. Asks first when it would replace initiative already
+   * rolled; mid-fight the round number stays and the turn goes to whoever is first in the new order.
+   */
   const reroll = () => {
-    if (!confirm("Re-roll initiative for everyone, monsters and characters? The round number stays; the turn goes to whoever is first in the new order.")) return;
+    const had = e.combatants.some((c) => c.init !== undefined);
+    if (had && !confirm(e.round > 0
+      ? "Re-roll initiative for everyone, monsters and characters? Everyone’s current initiative is replaced. The round number stays; the turn goes to whoever is first in the new order."
+      : "Re-roll initiative for everyone, monsters and characters? Everyone’s current initiative is replaced.")) return;
     const got = rollInit("all");
+    if (e.round === 0) return;
     put((x) => {
       const list = x.combatants.map((c) => (got.has(c.uid) ? { ...c, init: got.get(c.uid) } : c));
-      const first = turnOrder(list, bonusOf).find((c) => !c.out);
+      const first = turnOrder(list, bonusOf).find((c) => !c.out && !c.surrendered);
       return { combatants: list, turn: first?.uid ?? x.turn };
     });
   };
@@ -298,10 +310,20 @@ export function EncounterView() {
     if (n.round > e.round) log({ title: `Round ${n.round}`, total: "", cls: "event", detail: "" });
   };
   const prev = () => put((x) => prevTurn(turnOrder(x.combatants, bonusOf), x.turn, x.round));
+  /** Start the fight over: round, turn and initiative cleared, monsters back to full HP with no conditions. */
+  const restart = () => {
+    if (!confirm("Restart the encounter? The round counter, turn and everyone’s initiative are cleared, and monsters and others go back to full Hit Points with no conditions. Characters’ HP and conditions stay as they are on their sheets. The log is kept.")) return;
+    put((x) => ({
+      round: 0, turn: undefined, lootDraft: undefined, lootId: undefined,
+      combatants: x.combatants.map((c) => (c.kind === "pc" ? { ...c, init: undefined } : { ...c, init: undefined, out: false, surrendered: false, temp: undefined, conditions: [], hp: c.maxHp ?? c.hp })),
+    }));
+    log({ title: "The encounter restarts", total: "", cls: "event", detail: "Monsters are back to full Hit Points." });
+  };
   const endFight = () => {
     if (!confirm("End the fight? Initiative and the round counter are cleared; HP stays as it is.")) return;
     put((x) => ({ round: 0, turn: undefined, combatants: x.combatants.map((c) => ({ ...c, init: undefined })) }));
     log({ title: "The fight ends", total: "", cls: "event", detail: "" });
+    if (lootGroups.some((g) => !g.removed) && !e.lootId) setTab("loot");
   };
 
   const applyHp = (cb: Combatant, kind: "damage" | "heal") => {
@@ -314,7 +336,7 @@ export function EncounterView() {
       const row = chars.get(cb.ref);
       const p = pcOf(cb);
       if (!row || !p) return;
-      chars.save(pcHp(row.c, n, kind, p.hpMax, "from the DM"));
+      chars.save(pcHp(row.c, n, kind, p.hpMax, "from the GM"));
     } else if (h) {
       setCb(cb.uid, npcHp(cb, n, kind, h.max));
     }
@@ -334,7 +356,7 @@ export function EncounterView() {
       const p = playOf(row.c);
       const next = had ? p.conditions.filter((x) => x !== k) : [...p.conditions, k];
       // a line in the character's own log, so the player sees what changed and who changed it
-      const line: LogEntry = { id: newUid(), t: timeNow(), cls: "info", title: `${k} ${had ? "removed" : "added"} by the DM`, total: "", detail: "" };
+      const line: LogEntry = { id: newUid(), t: timeNow(), cls: "info", title: `${k} ${had ? "removed" : "added"} by the GM`, total: "", detail: "" };
       chars.save({ ...row.c, play: { ...p, conditions: next, log: [line, ...p.log].slice(0, 150) } });
     } else {
       const cur = cb.conditions || [];
@@ -496,6 +518,109 @@ export function EncounterView() {
       <p className="note" style={{ marginTop: 8 }}>Damage, healing and conditions you set here go to {nameOf(cb)}’s sheet: the player sees them within a second or two, with a line in their game log.</p>
     </div>
   );
+  // --------------------------------------------------------------- loot
+  /** Only the fallen give up their gear: monsters at 0 Hit Points, and any that surrendered. */
+  const fallen = e.combatants.filter((c) => c.kind === "monster" && (c.surrendered || hpOf(c)?.cur === 0));
+  const rarityOf = (ref?: string) => content.byId(ref)?.tagline?.match(/\b(very rare|uncommon|common|rare|legendary|artifact)\b/i)?.[1];
+  const found = lootFromMonsters(fallen.map((c) => ({ name: stOf(c)?.name || c.name, gear: stOf(c)?.gear || [] })), tables, rarityOf);
+  const lootGroups = applyDraft(found, e.lootDraft);
+  const draft = e.lootDraft || {};
+  const setDraft = (d: Partial<NonNullable<typeof e.lootDraft>>) => put((x) => ({ lootDraft: { ...(x.lootDraft || {}), ...d } }));
+  const lootPlayers = [...new Set(e.combatants.filter((c) => c.kind === "pc" && c.ref).map((c) => c.ref!))];
+  const lootLines = linesOf(lootGroups);
+  const send = async () => {
+    if (!lootLines.length || !lootPlayers.length) return;
+    if (!confirm(`Send ${lootLines.length} item${lootLines.length > 1 ? "s" : ""} to ${lootPlayers.map((r) => chars.get(r)?.c.name || "a character").join(", ")}? Each of them gets a pop-up to claim their loot.`)) return;
+    setSending(true);
+    try {
+      const lid = await sendLoot({ encounterId: e.id, name: e.name, players: lootPlayers, lines: lootLines });
+      put({ lootId: lid });
+      log({ title: "Loot sent to the players", total: "", cls: "event", detail: `${lootLines.length} item${lootLines.length > 1 ? "s" : ""}` }, lootPlayers);
+    } catch (err) {
+      alert(`Couldn’t send the loot: ${(err as Error).message}`);
+    }
+    setSending(false);
+  };
+  const lootMatches = lootQ.trim().length >= 2 ? tables.catalog.filter((c) => c.name.toLowerCase().includes(lootQ.trim().toLowerCase())).slice(0, 8) : [];
+  const addLoot = (name: string) => {
+    if (!name.trim()) return;
+    setDraft({ added: [...(draft.added || []), lootGroupOf(name.trim(), tables, rarityOf)] });
+    setLootQ("");
+  };
+  const lootTab = e.lootId ? (
+    <div className="spanel lootgm">
+      <div className="lootgmh"><span className="disp">Loot sent</span><span className="note">{sent.loot?.status === "closed" ? "Closed" : "The players are choosing."}</span>
+        <Link className="sbtn sm ghost" to={`/loot/${e.lootId}`} style={{ marginLeft: "auto", textDecoration: "none" }}>Open the loot page</Link>
+        {sent.loot?.status === "open" && <button className="sbtn sm gold" onClick={() => { if (confirm("Close the loot? Items still waiting on answers are settled now: no answer counts as Leave.")) sent.close(); }}>Close loot</button>}
+      </div>
+      <table className="lt">
+        <thead><tr><th>Item</th><th>From</th><th>Wants it</th><th>Result</th></tr></thead>
+        <tbody>
+          {sent.items.map((it) => {
+            const w = sent.choices.filter((c) => c.item_id === it.id && c.choice === "want").map((c) => chars.get(c.character_id)?.c.name || "?");
+            const last = it.rolls?.[it.rolls.length - 1];
+            return (
+              <tr key={it.id}>
+                <td><b>{it.item.name}</b> <span className="note">{cpText(it.item.valueCp)}</span></td>
+                <td className="note">{it.item.source}</td>
+                <td className="note">{w.join(", ") || "—"}</td>
+                <td>{it.status === "won" ? <span className="lootwon">{chars.get(it.winner || "")?.c.name || "?"}{last ? ` · d20 ${Object.values(last).sort((a, b) => b - a).join(" vs ")}` : ""}</span> : it.status === "left" ? <span className="note">Nobody took it</span> : <span className="note">Choosing</span>}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="note" style={{ marginBottom: 0 }}>Restart the encounter to clear this and loot again.</p>
+    </div>
+  ) : (
+    <div className="spanel lootgm">
+      <div className="lootgmh"><span className="disp">Review loot</span><span className="note">Gear from monsters at 0 HP or that surrendered, most valuable first. Players see this list only after you send it.</span></div>
+      {lootGroups.length === 0 ? (
+        <p className="note">Nothing to loot yet. A monster gives up the gear on its stat block when it drops to 0 Hit Points or surrenders (tick Surrendered on the Run tab).</p>
+      ) : (
+        <table className="lt">
+          <thead><tr><th>Item</th><th>From</th><th>Qty</th><th style={{ textAlign: "right" }}>Value</th><th style={{ textAlign: "right" }}>Weight</th><th></th></tr></thead>
+          <tbody>
+            {lootGroups.map((g) => {
+              const fromText = [...new Set(g.sources)].map((n) => { const k = g.sources.filter((x) => x === n).length; return k > 1 ? `${n} ×${k}` : n; }).join(", ");
+              return (
+                <tr key={g.key} className={g.removed ? "gone" : ""}>
+                  <td><b>{g.name}</b><div className="note">{g.detail}</div></td>
+                  <td className="note">{fromText}</td>
+                  <td>
+                    <span className="step">
+                      <button aria-label={`One fewer ${g.name}`} disabled={g.removed || g.qty <= 1} onClick={() => setDraft({ qty: { ...(draft.qty || {}), [g.key]: g.qty - 1 } })}>−</button>
+                      <span>{g.removed ? 0 : g.qty}</span>
+                      <button aria-label={`One more ${g.name}`} disabled={g.removed || g.qty >= g.max} onClick={() => setDraft({ qty: { ...(draft.qty || {}), [g.key]: g.qty + 1 } })}>+</button>
+                    </span>
+                    {!g.removed && g.qty < g.max && <span className="note"> of {g.max}</span>}
+                  </td>
+                  <td style={{ textAlign: "right" }}><b>{cpText(g.valueCp)}</b>{g.qty > 1 && g.valueCp !== undefined && !g.removed && <div className="note">{cpText(g.valueCp * g.qty)} total</div>}</td>
+                  <td style={{ textAlign: "right" }} className="note">{g.weight ? `${g.weight} lb.` : "—"}</td>
+                  <td style={{ textAlign: "right" }}>
+                    {g.removed
+                      ? <button className="sbtn sm ghost" onClick={() => setDraft({ removed: (draft.removed || []).filter((k) => k !== g.key), qty: { ...(draft.qty || {}), [g.key]: g.max } })}>Undo</button>
+                      : <button className="sbtn sm ghost" onClick={() => setDraft({ removed: [...(draft.removed || []), g.key] })}>Remove</button>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      <div className="lootadd">
+        <input value={lootQ} placeholder="Add an item that isn’t on a stat block (a chest, a key…)" onChange={(x) => setLootQ(x.target.value)} onKeyDown={(x) => { if (x.key === "Enter") addLoot(lootMatches[0]?.name || lootQ); }} />
+        <button className="sbtn ghost" onClick={() => addLoot(lootMatches[0]?.name || lootQ)}>Add</button>
+      </div>
+      {lootMatches.length > 0 && <div className="rowbtn" style={{ flexWrap: "wrap" }}>{lootMatches.map((c) => <button key={c.name} className="sbtn sm ghost" onClick={() => addLoot(c.name)}>{c.name}</button>)}</div>}
+      <div className="lootgmf">
+        <span className="note">{lootLines.length} item{lootLines.length === 1 ? "" : "s"} · {cpText(lootLines.reduce((n, l) => n + (l.valueCp || 0), 0))} in all · going to <b>{lootPlayers.map((r) => chars.get(r)?.c.name || "?").join(", ") || "no one (add characters on the Build tab)"}</b></span>
+        {!cloud && <span className="note">Players claim loot from their own devices, so sending it needs a shared instance.</span>}
+        <button className="sbtn gold" disabled={!cloud || sending || !lootLines.length || !lootPlayers.length} onClick={send}>Send to players</button>
+      </div>
+    </div>
+  );
+
   const runTab = (
     <div className="encgrid run">
       <div>
@@ -508,14 +633,16 @@ export function EncounterView() {
             {e.round === 0 ? (
               <>
                 <button className="sbtn ghost" disabled={!e.combatants.length} onClick={() => rollInit("monsters")}>Roll initiative for monsters</button>
-                <button className="sbtn ghost" disabled={!e.combatants.length} onClick={() => rollInit("all")}>Roll initiative for everyone</button>
+                <button className="sbtn ghost" disabled={!e.combatants.length} onClick={reroll}>Roll initiative for everyone</button>
                 <button className="sbtn gold" disabled={!e.combatants.length} onClick={start}>Start</button>
+                <button className="sbtn ghost" disabled={!e.combatants.length} onClick={restart}>Restart</button>
               </>
             ) : (
               <>
                 <button className="sbtn ghost" onClick={prev}>Previous</button>
                 <button className="sbtn gold" onClick={next}>Next turn</button>
-                <button className="sbtn ghost" onClick={reroll}>Re-roll initiative</button>
+                <button className="sbtn ghost" onClick={reroll}>Roll initiative</button>
+                <button className="sbtn ghost" onClick={restart}>Restart</button>
                 <button className="sbtn ghost" onClick={endFight}>End fight</button>
               </>
             )}
@@ -530,7 +657,7 @@ export function EncounterView() {
               const isTurn = cb.uid === e.turn;
               const down = h && h.cur === 0;
               return (
-                <div key={cb.uid} className={`trow ${isTurn ? "turn" : ""} ${selCb?.uid === cb.uid ? "sel" : ""} ${cb.out ? "out" : ""}`}>
+                <div key={cb.uid} className={`trow ${isTurn ? "turn" : ""} ${selCb?.uid === cb.uid ? "sel" : ""} ${cb.out || cb.surrendered ? "out" : ""}`}>
                   <div className="initcell">
                   <input className="initbox" type="number" inputMode="numeric" aria-label={`Initiative for ${nameOf(cb)}`} value={cb.init ?? ""} placeholder="–"
                     onChange={(x) => setCb(cb.uid, { init: x.target.value === "" ? undefined : +x.target.value })} />
@@ -567,9 +694,16 @@ export function EncounterView() {
                       <option value="">+ Condition</option>
                       {conditionNames.filter((k) => !conds.includes(k)).map((k) => <option key={k} value={k}>{k}</option>)}
                     </select>
-                    <label className="note" style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                      <input type="checkbox" checked={!!cb.out} onChange={(x) => setCb(cb.uid, { out: x.target.checked })} /> Out
-                    </label>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <label className="note" style={{ display: "flex", gap: 4, alignItems: "center" }} title="Out of the fight (dead, fled): skipped when the turn moves on.">
+                        <input type="checkbox" checked={!!cb.out} onChange={(x) => setCb(cb.uid, { out: x.target.checked })} /> Out
+                      </label>
+                      {cb.kind !== "pc" && (
+                        <label className="note" style={{ display: "flex", gap: 4, alignItems: "center" }} title="Gave up: skipped when the turn moves on, and its gear can be looted.">
+                          <input type="checkbox" checked={!!cb.surrendered} onChange={(x) => { setCb(cb.uid, { surrendered: x.target.checked }); if (x.target.checked) log({ title: `${nameOf(cb)} surrenders`, total: "", cls: "event", detail: "" }); }} /> Surrendered
+                        </label>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -630,10 +764,11 @@ export function EncounterView() {
         <div className="rowbtn" role="tablist" aria-label="Encounter view">
           <button role="tab" className={`sbtn ${tab === "build" ? "gold" : "ghost"}`} aria-selected={tab === "build"} onClick={() => setTab("build")}>Build</button>
           <button role="tab" className={`sbtn ${tab === "run" ? "gold" : "ghost"}`} aria-selected={tab === "run"} onClick={() => setTab("run")}>Run{e.round ? ` · round ${e.round}` : ""}</button>
+          <button role="tab" className={`sbtn ${tab === "loot" ? "gold" : "ghost"}`} aria-selected={tab === "loot"} onClick={() => setTab("loot")}>Loot{!e.lootId && lootGroups.some((g) => !g.removed) ? ` · ${lootLines.length}` : ""}</button>
         </div>
       </div>
       {enc.error && <div className="spanel warnline">{enc.error}</div>}
-      {tab === "build" ? buildTab : runTab}
+      {tab === "build" ? buildTab : tab === "loot" ? lootTab : runTab}
     </div>
   );
 }

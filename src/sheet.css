@@ -879,3 +879,23 @@
 .sheetv .initroll { height: 22px; border-radius: 6px; border: 1px solid var(--line); background: var(--s-panel2); color: var(--s-mut); font-size: 11px; font-weight: 700; padding: 0; }
 .sheetv .initroll:hover { color: var(--s-gold); border-color: var(--s-gold2); }
 .sheetv .enctag { margin-top: 3px; font-size: 11px; color: var(--s-mut); }
+
+/* encounter loot: the GM's review list and the live results after sending */
+.sheetv .lootgm { display: flex; flex-direction: column; gap: 10px; }
+.sheetv .lootgmh { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sheetv .lootgmh .disp { font-size: 18px; color: var(--s-gold); }
+.sheetv table.lt { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sheetv table.lt th { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--s-mut); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.sheetv table.lt td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.sheetv table.lt tr.gone td:not(:last-child) { opacity: .4; }
+.sheetv table.lt tr.gone td:first-child b { text-decoration: line-through; }
+.sheetv .step { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.sheetv .step span { padding: 0 9px; font-weight: 700; min-width: 14px; text-align: center; }
+.sheetv .step button { width: 28px; height: 28px; border: 0; background: var(--s-panel); color: var(--ink); }
+.sheetv .step button:disabled { opacity: .4; }
+.sheetv .lootadd { display: flex; gap: 8px; }
+.sheetv .lootadd input { flex: 1; min-height: 34px; }
+.sheetv .lootgmf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; }
+.sheetv .lootgmf .sbtn.gold { margin-left: auto; }
+.sheetv .lootwon { color: var(--s-grn); font-weight: 600; }
+@media (max-width: 700px) { .sheetv table.lt { display: block; overflow-x: auto; } }

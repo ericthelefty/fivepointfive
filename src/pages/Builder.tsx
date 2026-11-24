@@ -419,7 +419,7 @@ function MulticlassPanel({ c, update, onEdit }: StepProps & { onEdit?: (index: n
         <div className="inset" role="status" style={{ borderColor: "var(--warn)" }}>
           <strong>Doesn’t meet the multiclass prerequisites:</strong>
           <ul style={{ margin: "6px 0 0 18px" }}>{problems.map((p) => <li key={p}>{p}</li>)}</ul>
-          <div className="faint" style={{ marginTop: 4 }}>You can keep it if your DM allows, or turn off “Use prerequisites” in the Details step’s settings.</div>
+          <div className="faint" style={{ marginTop: 4 }}>You can keep it if your GM allows, or turn off “Use prerequisites” in the Details step’s settings.</div>
         </div>
       )}
       <div className="stack" style={{ gap: 10, marginTop: 10 }}>

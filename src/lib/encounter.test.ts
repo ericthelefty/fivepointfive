@@ -76,7 +76,7 @@ describe("combat tracker", () => {
     expect(npcHp({ ...cb("a"), hp: 4 }, 9, "heal", 10).hp).toBe(10);
   });
 
-  it("a character's numbers come from their sheet, and the DM's damage goes back to it", () => {
+  it("a character's numbers come from their sheet, and the GM's damage goes back to it", () => {
     const c: Character = {
       ...newCharacter(), id: "pc1", name: "Bram", level: 5, classId: "srd:class/fighter", subclassId: "srd:subclass/champion", speciesId: "srd:species/dwarf", backgroundId: "srd:background/soldier",
       base: { Strength: 15, Dexterity: 14, Constitution: 13, Intelligence: 8, Wisdom: 10, Charisma: 12 }, bonus: { Strength: 2, Constitution: 1 }, classSkills: ["Perception", "Survival"], equipClass: "A", equipBackground: "A",
@@ -85,13 +85,13 @@ describe("combat tracker", () => {
     expect(p.hpMax).toBeGreaterThan(40);
     expect(p.hpCur).toBe(p.hpMax);
     expect(p.ac).toBeGreaterThanOrEqual(16);
-    const hurt = pcHp({ ...c, play: { ...playOf(c), hpTemp: 4 } }, 10, "damage", p.hpMax, "from the DM");
+    const hurt = pcHp({ ...c, play: { ...playOf(c), hpTemp: 4 } }, 10, "damage", p.hpMax, "from the GM");
     expect(playOf(hurt).hpTemp).toBe(0);
     expect(playOf(hurt).hpCur).toBe(p.hpMax - 6);
-    expect(playOf(hurt).log[0].title).toMatch(/from the DM/);
-    const down = pcHp(c, 999, "damage", p.hpMax, "from the DM");
+    expect(playOf(hurt).log[0].title).toMatch(/from the GM/);
+    const down = pcHp(c, 999, "damage", p.hpMax, "from the GM");
     expect(playOf(down).hpCur).toBe(0);
-    const up = pcHp({ ...down, play: { ...playOf(down), deathF: 2 } }, 5, "heal", p.hpMax, "from the DM");
+    const up = pcHp({ ...down, play: { ...playOf(down), deathF: 2 } }, 5, "heal", p.hpMax, "from the GM");
     expect(playOf(up)).toMatchObject({ hpCur: 5, deathF: 0, deathS: 0 });
   });
 });

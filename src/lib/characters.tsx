@@ -289,7 +289,7 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Save a character, but only over the version this browser last saw: if someone else saved in between (the DM's
+   * Save a character, but only over the version this browser last saw: if someone else saved in between (the GM's
    * tracker, the player's sheet on another device), merge with theirs and try again, so neither change is lost.
    * Then tell other open sheets what changed, in a few bytes.
    */

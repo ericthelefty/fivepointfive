@@ -1,5 +1,5 @@
 /**
- * Encounters, from browser storage (local mode) or the instance database, where only admins (the DM) can see them.
+ * Encounters, from browser storage (local mode) or the instance database, where only admins (the GM) can see them.
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { cloud, supabase } from "./backend.ts";

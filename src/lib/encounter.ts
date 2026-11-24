@@ -1,8 +1,9 @@
 /**
- * Encounters: the DM's encounter builder and combat tracker. An encounter holds the monsters and characters in a fight,
+ * Encounters: the GM's encounter builder and combat tracker. An encounter holds the monsters and characters in a fight,
  * their initiative, whose turn it is, and a roll log. Monsters keep their own HP here; characters' HP stays on their
  * sheets (see pcCombat and pcHp).
  */
+import type { LootDraft } from "./loot.ts";
 import { parseTables, type Entry } from "./parse.ts";
 import { type Character, derive, wornGear, armorTable, type Derived } from "./rules.ts";
 import { classInfos, casterEntry, casterKindOf } from "./multiclass.ts";
@@ -24,13 +25,15 @@ export interface Combatant {
   hp?: number;
   maxHp?: number;
   temp?: number;
-  /** Others (no stat block): what the DM typed in. */
+  /** Others (no stat block): what the GM typed in. */
   ac?: number;
   initBonus?: number;
   conditions?: string[];
   note?: string;
   /** Out of the fight (dead, fled): skipped when the turn moves on. */
   out?: boolean;
+  /** Gave up: skipped when the turn moves on, and hands over its gear as loot (as a monster at 0 HP does). */
+  surrendered?: boolean;
 }
 
 export interface Encounter {
@@ -43,6 +46,10 @@ export interface Encounter {
   /** Whose turn it is (a combatant uid). */
   turn?: string;
   log: LogEntry[];
+  /** The GM's edits to the loot before sending it (the gear itself is worked out from the defeated monsters). */
+  lootDraft?: LootDraft;
+  /** The loot sent to the players, once it has been. */
+  lootId?: string;
   updated: number;
 }
 
@@ -111,26 +118,26 @@ export function turnOrder(list: Combatant[], bonusOf: (c: Combatant) => number):
 
 /** The next turn: the next combatant still in the fight, wrapping to the top as a new round. */
 export function nextTurn(order: Combatant[], cur: string | undefined, round: number): { turn?: string; round: number } {
-  const live = order.filter((c) => !c.out);
+  const live = order.filter((c) => !c.out && !c.surrendered);
   if (!live.length) return { turn: undefined, round };
   if (!cur || round === 0) return { turn: live[0].uid, round: Math.max(1, round) };
   const i = order.findIndex((c) => c.uid === cur);
   for (let k = 1; k <= order.length; k++) {
     const j = i + k;
     const c = order[j % order.length];
-    if (!c.out) return { turn: c.uid, round: j >= order.length ? round + 1 : round };
+    if (!c.out && !c.surrendered) return { turn: c.uid, round: j >= order.length ? round + 1 : round };
   }
   return { turn: cur, round };
 }
 
 /** The previous turn, stepping back a round past the top. */
 export function prevTurn(order: Combatant[], cur: string | undefined, round: number): { turn?: string; round: number } {
-  if (!cur || round <= 1 && order.findIndex((c) => c.uid === cur) <= order.findIndex((c) => !c.out)) return { turn: cur, round };
+  if (!cur || round <= 1 && order.findIndex((c) => c.uid === cur) <= order.findIndex((c) => !c.out && !c.surrendered)) return { turn: cur, round };
   const i = order.findIndex((c) => c.uid === cur);
   for (let k = 1; k <= order.length; k++) {
     const j = i - k;
     const c = order[(j + order.length * 2) % order.length];
-    if (!c.out) return { turn: c.uid, round: j < 0 ? Math.max(1, round - 1) : round };
+    if (!c.out && !c.surrendered) return { turn: c.uid, round: j < 0 ? Math.max(1, round - 1) : round };
   }
   return { turn: cur, round };
 }
@@ -207,7 +214,7 @@ export function pcCombat(c: Character, content: { entries: Entry[]; byId: (id?: 
 }
 
 /**
- * Damage or healing the DM applies to a character, written to their sheet: Temporary Hit Points take damage first;
+ * Damage or healing the GM applies to a character, written to their sheet: Temporary Hit Points take damage first;
  * healing a character at 0 HP clears their death saves. A line goes into the character's own log too.
  */
 export function pcHp(c: Character, amount: number, kind: "damage" | "heal", hpMax: number, from: string): Character {
