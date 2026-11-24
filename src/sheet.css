@@ -357,7 +357,18 @@
 .sheetv .die3d { width: 58px; height: 58px; display: grid; place-items: center; font: 700 22px/1 var(--serif, Georgia, serif); color: #1d1408;
   background: linear-gradient(145deg, #f3d9a0, #c4923f); box-shadow: 0 8px 18px rgba(0, 0, 0, .45), inset 0 2px 0 rgba(255, 255, 255, .5);
   animation: dieroll .75s cubic-bezier(.2, .8, .3, 1) both; transform-style: preserve-3d; }
-.sheetv .die3d span { text-shadow: 0 1px 0 rgba(255, 255, 255, .5); }
+/* motion blur: each die sits in a wrapper that blurs it, with a faint trail behind, while it's moving fast,
+   clearing as it slows (on the wrapper, since the die's clipped shape would cut a blur on the die itself off) */
+.sheetv .diewrap { perspective: 600px; animation: dieblur .75s linear both; }
+@keyframes dieblur {
+  0% { filter: blur(3.5px) drop-shadow(0 -26px 6px rgba(196, 146, 63, .55)); }
+  22% { filter: blur(2.5px) drop-shadow(0 -16px 5px rgba(196, 146, 63, .4)); }
+  38% { filter: blur(1px) drop-shadow(0 -6px 3px rgba(196, 146, 63, .15)); }
+  50%, 100% { filter: none; }
+}
+/* the number shows only on the last spin, so the die doesn't read as a spinning coin */
+.sheetv .die3d span { text-shadow: 0 1px 0 rgba(255, 255, 255, .5); animation: dienum .75s linear both; }
+@keyframes dienum { 0%, 34% { opacity: 0; } 46%, 100% { opacity: 1; } }
 .sheetv .die3d.d20, .sheetv .die3d.dx { clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
 .sheetv .die3d.d12 { clip-path: polygon(50% 0, 95% 35%, 78% 95%, 22% 95%, 5% 35%); }
 .sheetv .die3d.d10 { clip-path: polygon(50% 0, 100% 45%, 50% 100%, 0 45%); }
@@ -373,7 +384,7 @@
 .sheetv .dmod { align-self: center; font: 700 34px/1 var(--serif, Georgia, serif); color: var(--s-gold); padding: 0 4px;
   text-shadow: 0 2px 10px var(--bg), 0 0 2px var(--bg); transform: rotate(var(--tilt, -8deg)); animation: modin .35s cubic-bezier(.2, .9, .3, 1.4) both; }
 @keyframes modin { 0% { opacity: 0; transform: rotate(var(--tilt, -8deg)) scale(.4) translateX(-30px); } 100% { opacity: 1; transform: rotate(var(--tilt, -8deg)) scale(1); } }
-@media (prefers-reduced-motion: reduce) { .sheetv .die3d { animation: none; } .sheetv .dmod { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .sheetv .die3d, .sheetv .die3d span, .sheetv .diewrap { animation: none; } .sheetv .dmod { animation: none; } }
 
 /* spells tab: header numbers, search, level chips, level groups with their slots, one-line rows */
 .sheetv .sphead { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
@@ -821,21 +832,31 @@
 @media (prefers-reduced-motion: reduce) { .sheetv.phone .msheet, .sheetv.phone.ms-dice .rollbar, .sheetv.phone.ms-hp .side .hp { animation: none; } }
 @media print { .sheetv .mtop, .sheetv .mfab, .sheetv .msheet, .sheetv .mback, .sheetv .mstats { display: none !important; } }
 
-/* phones: tumble the dice flat (spin, squash and bounce) instead of the 3D flip, which mobile
+/* phones: tumble the dice flat (spin and bounce) instead of the 3D flip, which mobile
    browsers draw skewed on clipped shapes; and give the modifier a dark outline so it reads on any background */
 @media (max-width: 900px) {
   .sheetv .dice3d { perspective: none; bottom: 24%; }
   .sheetv .die3d { width: 64px; height: 64px; font-size: 25px; transform-style: flat; animation-name: dieroll2; animation-duration: .8s; }
+  .sheetv .die3d span { animation-name: dienum2; animation-duration: .8s; }
+  .sheetv .diewrap { perspective: none; animation-name: dieblur2; animation-duration: .8s; }
   .sheetv .dmod { font-size: 42px; color: #f5c66f; -webkit-text-stroke: 5px #120f13; paint-order: stroke fill;
     text-shadow: 0 0 6px #120f13, 0 0 14px #120f13, 0 3px 18px rgba(0, 0, 0, .9); }
 }
+/* phones: the dice come in from up and to the left, so the trail points that way */
+@keyframes dieblur2 {
+  0% { filter: blur(3.5px) drop-shadow(-14px -28px 6px rgba(196, 146, 63, .55)); }
+  30% { filter: blur(2.5px) drop-shadow(-8px -18px 5px rgba(196, 146, 63, .4)); }
+  48% { filter: blur(1px) drop-shadow(-3px -6px 3px rgba(196, 146, 63, .15)); }
+  58%, 100% { filter: none; }
+}
+@keyframes dienum2 { 0%, 42% { opacity: 0; } 54%, 100% { opacity: 1; } }
 @keyframes dieroll2 {
-  0% { transform: translate(-60px, -160px) rotate(calc(var(--spin) * -1)) scale(.6); opacity: 0; }
+  0% { transform: translate(-60px, -160px) rotate(calc(var(--spin) * -1)); opacity: 0; }
   20% { opacity: 1; }
-  35% { transform: translate(-30px, -60px) rotate(calc(var(--spin) * -.55)) scale(1.05, .8); }
-  55% { transform: translate(-8px, 6px) rotate(calc(var(--spin) * -.18)) scale(.88, 1.1); }
-  72% { transform: translate(0, -10px) rotate(-12deg) scale(1.04, .94); }
-  86% { transform: translate(0, 2px) rotate(4deg) scale(.98, 1.02); }
+  35% { transform: translate(-30px, -60px) rotate(calc(var(--spin) * -.55)); }
+  55% { transform: translate(-8px, 6px) rotate(calc(var(--spin) * -.18)); }
+  72% { transform: translate(0, -10px) rotate(-12deg); }
+  86% { transform: translate(0, 2px) rotate(4deg); }
   100% { transform: none; opacity: 1; }
 }
 :root[data-theme="light"] .sheetv .dmod { -webkit-text-stroke-color: #fbf6ea; }

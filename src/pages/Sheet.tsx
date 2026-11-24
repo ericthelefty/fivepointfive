@@ -3368,9 +3368,11 @@ export default function Sheet() {
       {diceFx && (
         <div key={diceFx.key} className="dice3d" aria-hidden="true">
           {diceFx.dice.map((x, i) => (
-            <div key={i} className={`die3d d${[4, 6, 8, 10, 12, 20].includes(x.sides) ? x.sides : "x"} ${x.kept ? "" : "dropped"} ${diceFx.crit && x.sides === 20 && x.kept ? "crit" : ""}`}
+            <div key={i} className="diewrap" style={{ animationDelay: `${i * 60}ms` }}>
+            <div className={`die3d d${[4, 6, 8, 10, 12, 20].includes(x.sides) ? x.sides : "x"} ${x.kept ? "" : "dropped"} ${diceFx.crit && x.sides === 20 && x.kept ? "crit" : ""}`}
               style={{ animationDelay: `${i * 60}ms`, ["--spin" as string]: `${(i % 2 ? -1 : 1) * (540 + ((i * 97) % 300))}deg` }}>
-              <span>{x.value}</span>
+              <span style={{ animationDelay: `${i * 60}ms` }}>{x.value}</span>
+            </div>
             </div>
           ))}
           {diceFx.mod !== 0 && (
