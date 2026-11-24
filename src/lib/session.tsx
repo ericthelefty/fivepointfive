@@ -36,7 +36,7 @@ interface SessionState {
 }
 
 const Ctx = createContext<SessionState | null>(null);
-const DEFAULT_SETTINGS: Settings = { shared_log: false, instance_name: "fivepointfive", hidden_backgrounds: [] };
+const DEFAULT_SETTINGS: Settings = { shared_log: false, instance_name: "", hidden_backgrounds: [] };
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>(cloud ? "loading" : "local");

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/backend.ts";
 import { useSession, type Member } from "../lib/session.tsx";
+import { useCharacters } from "../lib/characters.tsx";
 import AdminBackgrounds from "./AdminBackgrounds.tsx";
 import { NewPasswordForm } from "./Auth.tsx";
 
@@ -13,15 +14,28 @@ interface Invite {
   used_by: string | null;
   used_at: string | null;
   revoked: boolean;
+  /** A character the invite hands over when it's used (migration 0011). */
+  character_id: string | null;
 }
 
 export default function Admin() {
   const session = useSession();
   const [invites, setInvites] = useState<Invite[]>([]);
+  const chars = useCharacters();
   const [note, setNote] = useState("");
+  const [inviteChar, setInviteChar] = useState("");
   const [copied, setCopied] = useState<string>();
   const [msg, setMsg] = useState("");
   const [myName, setMyName] = useState(session.me?.display_name || "");
+  // "fivepointfive" was the old default, which means no name
+  const savedInstName = session.settings.instance_name === "fivepointfive" ? "" : session.settings.instance_name || "";
+  const [instName, setInstName] = useState(savedInstName);
+  const [instSaved, setInstSaved] = useState(false);
+  useEffect(() => setInstName(savedInstName), [savedInstName]);
+  const saveInstName = async () => {
+    await session.setSetting("instance_name", instName.trim());
+    setInstSaved(true);
+  };
 
   const load = useCallback(async () => {
     if (!supabase || !session.isAdmin) return;
@@ -36,9 +50,10 @@ export default function Admin() {
 
   const create = async () => {
     if (!supabase || !session.user) return;
-    const { error } = await supabase.from("invites").insert({ note, created_by: session.user.id });
+    const { error } = await supabase.from("invites").insert({ note, created_by: session.user.id, character_id: inviteChar || null });
     if (error) return setMsg(error.message);
     setNote("");
+    setInviteChar("");
     load();
   };
   const revoke = async (id: string) => {
@@ -61,6 +76,9 @@ export default function Admin() {
     session.refresh();
   };
 
+  const isAdminId = (id?: string) => session.members.some((m) => m.user_id === id && m.role === "admin");
+  const giveable = chars.rows.filter((r) => isAdminId(r.owner)).sort((a, b) => (a.c.name || "").localeCompare(b.c.name || ""));
+  const charName = (id: string | null) => (id ? chars.get(id)?.c.name || "a deleted character" : "");
   const status = (i: Invite) =>
     i.revoked ? "Revoked" : i.used_by ? `Used by ${session.nameOf(i.used_by)}` : new Date(i.expires_at) < new Date() ? "Expired" : "Open";
 
@@ -90,6 +108,16 @@ export default function Admin() {
       {session.isAdmin && (
         <>
           <section className="panel stack">
+            <h2>Instance name</h2>
+            <p className="muted" style={{ margin: 0 }}>Your group’s name, shown next to fivepointfive at the top of every page and in the browser tab. Leave it empty for none.</p>
+            <form style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }} onSubmit={(e) => { e.preventDefault(); saveInstName(); }}>
+              <input type="text" value={instName} maxLength={60} onChange={(e) => { setInstName(e.target.value); setInstSaved(false); }} placeholder="e.g. The Hungry Edge" aria-label="Instance name" />
+              <button className="btn small" type="submit" disabled={instName.trim() === savedInstName}>Save</button>
+              {instSaved && <span className="faint" role="status">Saved</span>}
+            </form>
+          </section>
+
+          <section className="panel stack">
             <h2>Shared game log</h2>
             <p className="muted" style={{ margin: 0 }}>When on, every member’s rolls also appear in a live table log that everyone can watch from any character sheet.</p>
             <label style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }}>
@@ -103,18 +131,24 @@ export default function Admin() {
             <p className="muted" style={{ margin: 0 }}>Each link works once and expires after 14 days. Send it however you like: text, Discord, email.</p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Who it’s for (optional)" aria-label="Invite note" />
+              <select value={inviteChar} onChange={(e) => setInviteChar(e.target.value)} aria-label="Character to give with the invite">
+                <option value="">No character</option>
+                {giveable.map((r) => <option key={r.c.id} value={r.c.id}>Give them {r.c.name || "Unnamed"}</option>)}
+              </select>
               <button className="btn primary small" onClick={create}>Create invite link</button>
             </div>
+            <p className="faint" style={{ margin: 0 }}>Pick a character to hand it over when they join: it becomes theirs and its sheet opens once their account is set up. Only characters an admin still owns can be given.</p>
             {invites.length > 0 && (
               <div style={{ overflowX: "auto" }}>
                 <table className="data">
-                  <thead><tr><th>For</th><th>Status</th><th>Link</th><th></th></tr></thead>
+                  <thead><tr><th>For</th><th>Character</th><th>Status</th><th>Link</th><th></th></tr></thead>
                   <tbody>
                     {invites.map((i) => {
                       const open = status(i) === "Open";
                       return (
                         <tr key={i.id}>
                           <td>{i.note || "—"}</td>
+                          <td>{i.character_id ? charName(i.character_id) : "—"}</td>
                           <td>{status(i)}</td>
                           <td>{open ? <code style={{ wordBreak: "break-all" }}>{link(i.token)}</code> : "—"}</td>
                           <td style={{ whiteSpace: "nowrap" }}>

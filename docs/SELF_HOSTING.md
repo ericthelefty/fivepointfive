@@ -20,6 +20,7 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
    - [`0008_loot_coins_and_searches.sql`](../supabase/migrations/0008_loot_coins_and_searches.sql): coins and hidden finds: the coin pot split evenly when the loot closes, hidden tiers only the GM can read, searching bodies, and keeping or sharing what you find.
    - [`0009_sheet_backgrounds.sql`](../supabase/migrations/0009_sheet_backgrounds.sql): a private Storage bucket for each character’s uploaded sheet background, visible to whoever can see the character and changed only by its owner or an admin.
    - [`0010_background_library.sql`](../supabase/migrations/0010_background_library.sql): a shared library of sheet backgrounds that admins add to and every member can pick, and lets admins see, hide or delete any sheet background, including other members’ uploads.
+   - [`0011_invite_characters.sql`](../supabase/migrations/0011_invite_characters.sql): an invite link can come with a character, which becomes the new member’s when they join.
 3. Go to **Project Settings → Data API** (or **API**) and add `fivepointfive` to **Exposed schemas**. Save.
 
 ## 2. Set up sign-in
@@ -47,7 +48,7 @@ Then in **Authentication → URL Configuration**, set **Site URL** to your site'
 ## 4. Claim it and invite people
 
 1. Open your site, choose **Create account**, and sign up. As the first person in, you'll be offered **Become the admin**.
-2. Go to **Settings**, create an invite link for each person, and send it however you like. Each link works once and expires after 14 days.
+2. Go to **Settings**, create an invite link for each person, and send it however you like. Each link works once and expires after 14 days. You can attach a character to a link: it becomes theirs when they join.
 3. Optional: turn on **Shared game log** so everyone's rolls appear live in a table log on every sheet.
 
 ## What members can do

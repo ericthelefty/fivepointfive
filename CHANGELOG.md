@@ -6,6 +6,9 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Admins can name the instance under Settings → Instance name. The name shows next to fivepointfive at the top of every page (in place of the "5.5E compatible" badge on a phone) and in the browser tab.
+- Invite links can come with a character. When creating an invite in Settings, pick "Give them…" a character: when the person joins with that link, the character becomes theirs and its sheet opens as soon as their account is set up. The Invites list shows which character each link gives. Only characters an admin still owns can be given, so a link never takes a character away from a player who already has it.
+- **Database:** `supabase/migrations/0011_invite_characters.sql`.
 - The Notes box on the sheet opens tall enough to show everything in it, and grows as you type, so it never needs its own scrollbar.
 - The line describing the character (level, species, class, subclass, background) sits in small type just below the name on the sheet, instead of beside it.
 - The sheet background picker is now the Background Image button at the bottom of the sheet, under Explainer Mode (on a phone too, instead of in the Sections menu). Its menu opens upward.

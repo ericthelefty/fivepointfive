@@ -70,6 +70,12 @@ function Shell() {
   const session = useSession();
   const encounters = useEncounters();
   const [menu, setMenu] = useState(false);
+  // the group's name (Settings), unless it's still the old default
+  const groupName = cloud && session.status === "ready" && session.settings.instance_name !== "fivepointfive" ? session.settings.instance_name.trim() : "";
+  useEffect(() => {
+    const base = "fivepointfive · 5.5E compatible character builder and play sheet";
+    document.title = groupName ? `${groupName} · fivepointfive` : base;
+  }, [groupName]);
   const [theme, setTheme] = useState(initialTheme);
   const flip = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -87,6 +93,7 @@ function Shell() {
           </svg>
           <b>fivepointfive</b>
           <span className="badge">5.5E compatible</span>
+          {groupName && <span className="instname">{groupName}</span>}
         </Link>
         <button className="btn small menubtn" aria-expanded={menu} aria-controls="topnav" aria-label={menu ? "Close menu" : "Menu"} onClick={() => setMenu(!menu)}>
           {menu ? <span aria-hidden="true" style={{ fontSize: 22, lineHeight: 1 }}>−</span> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>}

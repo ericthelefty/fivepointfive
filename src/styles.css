@@ -42,6 +42,8 @@ code { font-family: var(--mono); font-size: 12px; color: var(--accent-ink); }
 .topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 28px; border-bottom: 1px solid var(--line); background: var(--bar); }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
 .brand b { font-family: var(--serif); font-size: 20px; font-weight: 600; }
+/* the group's name (Settings → Instance name) */
+.instname { color: var(--muted); font-size: 14px; padding-left: 10px; border-left: 1px solid var(--line-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
 .badge { font-size: 11px; color: var(--muted); border: 1px solid var(--line-3); border-radius: 999px; padding: 2px 8px; }
 .topnav { display: flex; gap: 4px; flex-wrap: wrap; }
 .topnav a { text-decoration: none; color: var(--muted); padding: 8px 12px; border-radius: 8px; min-height: 40px; display: inline-flex; align-items: center; }
@@ -140,6 +142,8 @@ label.radio input { margin-top: 3px; }
   .topbar { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; }
   .topbar .brand { min-width: 0; }
   .topbar .brand b { font-size: 17px; white-space: nowrap; }
+  .topbar .brand:has(.instname) .badge { display: none; }
+  .instname { min-width: 0; font-size: 13px; }
   .menubtn { display: inline-flex; margin-left: auto; padding: 0 12px; }
   .topnav { display: none; }
   .topbar.menuopen { flex-wrap: wrap; }

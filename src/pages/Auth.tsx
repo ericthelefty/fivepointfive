@@ -102,6 +102,7 @@ export function SignIn() {
 /** Signed in, but not a member yet: claim an empty instance or redeem an invite. */
 export function Join() {
   const session = useSession();
+  const nav = useNavigate();
   const token = useInviteToken();
   const [name, setName] = useState("");
   const [msg, setMsg] = useState("");
@@ -120,6 +121,8 @@ export function Join() {
     if (data === "invalid") return setMsg("That invite has expired, been used or been revoked. Ask the admin for a new one.");
     if (data === "none") return setMsg("Someone already set up this instance. You’ll need an invite from them.");
     clearInvite();
+    // an invite that came with a character: open its sheet, now that it's theirs
+    if (typeof data === "string" && data.startsWith("member:")) nav(`/sheet/${data.slice("member:".length)}`, { replace: true });
     await session.refresh();
   };
 
