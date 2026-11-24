@@ -41,7 +41,7 @@
 .sheetv .spanel h3 { margin: 0 0 10px; font-size: 15px; color: var(--s-gold); font-family: Cinzel, Georgia, serif; }
 .sheetv .abil { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
 .sheetv .ab { background: linear-gradient(180deg, var(--s-panel2), var(--s-panel)); border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.sheetv .abn { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--s-mut); }
+.sheetv .abn { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--s-mut); }
 .sheetv .abm { font-family: Cinzel, Georgia, serif; font-size: 28px; font-weight: 700; background: none; border: 1px solid transparent; border-radius: 8px; width: 100%; padding: 0; }
 .sheetv .abm:hover { border-color: var(--s-gold2); background: #2b2430; }
 .sheetv .abs { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 0 9px; background: var(--s-well); }
@@ -494,7 +494,7 @@
 
 /* stat row: shield for AC, notched plates for the rest, a gem for the spell save DC */
 .sheetv .stats { align-items: stretch; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; gap: 10px; }
-@media (max-width: 1150px) { .sheetv .abn { font-size: 10px; letter-spacing: .02em; } .sheetv .stats .sl { letter-spacing: .04em; } }
+@media (max-width: 1150px) { .sheetv .abn { font-size: 11.5px; letter-spacing: .08em; } .sheetv .stats .sl { letter-spacing: .04em; } }
 .sheetv .stats .stat { min-height: 62px; padding: 5px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
 .sheetv .stat.frm { border-radius: 0; }
 .sheetv button.stat.frm:hover, .sheetv .stat.frm.tip:hover { --fe: var(--s-gold2); }
@@ -544,7 +544,7 @@
   .sheetv .abil { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .sheetv .stats { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sheetv .abm { font-size: 26px; }
-  .sheetv .abn { font-size: 9.5px; letter-spacing: .04em; }
+  .sheetv .abn { font-size: 11px; letter-spacing: .06em; }
   .sheetv .ab .sv { font-size: 11.5px; padding: 3px 2px; gap: 4px; }
   .sheetv .stats .stat { min-height: 62px; }
   .sheetv .stat.shield .sv2 { font-size: 21px; }

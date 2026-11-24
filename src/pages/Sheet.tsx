@@ -186,6 +186,7 @@ export default function Sheet() {
   const [convPick, setConvPick] = useState<Record<string, number>>({});
   /** The option picked for each choose-one action (Cunning Action, Patient Defense…). */
   const [actPick, setActPick] = useState<Record<string, number>>({});
+  const [areaPick, setAreaPick] = useState<Record<string, number>>({});
   // phones and tablets open with the Game Log hidden (desktop always shows it)
   const narrow = useMedia(NARROW);
   noRolls.current = explain && narrow;
@@ -730,6 +731,8 @@ export default function Sheet() {
   const actWhy = (a: ModifAction, op?: { why?: string }) =>
     a.cast?.scroll && !scrollUse(a.cast.scroll).readable ? "This spell isn’t on your spell list, so you can’t read the scroll." : op ? op.why : whyNot(a.cost, a.name);
   const isBonus = (act: string) => /bonus action/i.test(act || "");
+  /** Special attacks from your species, class, subclass or feats (Breath Weapon): they deal damage and take an action or one of your attacks, so they go with your attacks. */
+  const isSpecialAttack = (a: ModifAction) => !a.id.startsWith("item:") && !a.cast && !a.heal && !a.creates && !!a.damage?.some((x) => x.dice) && !isBonus(a.activation) && !/reaction/i.test(a.activation);
   const bonusRows = (): BonusRow[] => {
     const rows: BonusRow[] = [];
     // the Light property: one extra attack with a different Light weapon
@@ -1147,7 +1150,7 @@ export default function Sheet() {
       check: needs ? { ability: ckAbility, skill, bonus: skill && d.skills[skill] ? d.skills[skill].value : d.mods[ckAbility], source: rule?.source } : undefined,
     };
   };
-  const runFeature = (a: ModifAction, opt?: number) => {
+  const runFeature = (a: ModifAction, opt?: number, now?: { roll?: boolean; area?: string }) => {
     if (a.creates?.weapon) {
       const o = createOptions(a)[opt ?? 0];
       if (o) createItem(a, o);
@@ -1245,10 +1248,13 @@ export default function Sheet() {
         const expr = /^d/.test(n) ? `1${n}` : n;
         acts.push({ label: `Roll ${n}`, run: () => { const r = roll(expr); if (r) log({ title: `${a.name}: ${res.name}`, total: String(r.total), cls: "info", detail: esc(describeRolled(r)) }); } });
       }
+      const area = now?.area || (a.areas?.length === 1 ? a.areas[0] : "");
       log({
         title: a.name, total: "", cls: "event",
-        detail: [a.save ? `${a.save.dc ? `DC <b>${a.save.dc}</b> ` : ""}${esc(a.save.ability)} save${a.save.success === "half" ? " (half on a success)" : ""}` : "", a.options ? `Choose: ${esc(a.options.join(", "))}` : "", esc(a.text || ""), after.slice(3), a.consume ? "Used up." : ""].filter(Boolean).map((x) => `<div>${x}</div>`).join(""),
-      }, acts);
+        detail: [area ? esc(area) : "", a.save ? `${a.save.dc ? `DC <b>${a.save.dc}</b> ` : ""}${esc(a.save.ability)} save${a.save.success === "half" ? " (half on a success)" : ""}` : "", a.options ? `Choose: ${esc(a.options.join(", "))}` : "", now?.roll ? "" : esc(a.text || ""), after.slice(3), a.consume ? "Used up." : ""].filter(Boolean).map((x) => `<div>${x}</div>`).join(""),
+      }, now?.roll ? [] : acts);
+      // used from the Attacks table: roll the damage straight away
+      if (now?.roll) for (const x of (a.damage || []).filter((y) => y.dice)) rollDamage(a.name, x.dice, false, x.type);
     }
     setPlay(patch);
   };
@@ -3164,7 +3170,7 @@ export default function Sheet() {
           {ABILITIES.map((a) => (
             <div key={a} className="ab">
               <div className="abf frm cut">
-                <div className="abn">{a}</div>
+                <div className="abn" title={a}>{a.slice(0, 3)}</div>
                 <button className="abm" data-ex={`ab:${a}`} title={`Roll ${a} check`} onClick={() => test(`${a} check`, d.mods[a], { kind: "check", ability: a })}>{fmt(d.mods[a])}</button>
               </div>
               <div className="abs" title={`${a} score`}>{d.scores[a]}</div>
@@ -3279,7 +3285,7 @@ export default function Sheet() {
                   {(actFilter === "all" || actFilter === "attack") && <>
                   {d.attacksPerAction > 1 && <p className="note" style={{ marginTop: 0 }}>When you take the Attack action, you attack <b>{d.attacksPerAction} times</b>.</p>}
                   <table className="atks atkmain">
-                    <thead><tr><th>Attack</th><th>To hit</th><th>Damage</th><th></th></tr></thead>
+                    <thead><tr><th>Attack</th><th>Hit / DC</th><th>Damage</th><th></th></tr></thead>
                     <tbody>
                       {attacks.map((a, i) => (
                         <tr key={`${a.name}-${i}`}>
@@ -3295,6 +3301,26 @@ export default function Sheet() {
                           </td>
                         </tr>
                       ))}
+                      {fx.actions.filter(isSpecialAttack).map((a) => {
+                        const { res, left, ok } = costInfo(a.cost);
+                        const ai = Math.min(areaPick[a.id] ?? 0, (a.areas?.length || 1) - 1);
+                        return (
+                          <tr key={`sa-${a.id}`}>
+                            <td><b>{a.name}</b><div className="note">{[a.activation, a.source !== a.name ? a.source : ""].filter(Boolean).join(" · ")}</div>{res && <div className="note">{left} / {res.max} use{res.max === 1 ? "" : "s"} · {res.recover === "short" ? "Short or Long Rest" : res.recover === "long" ? "Long Rest" : res.recover === "dawn" ? "dawn" : "no recharge"}</div>}</td>
+                            <td>{a.save ? <span title={a.save.success === "half" ? "Targets take half damage on a success" : undefined}>{a.save.ability.slice(0, 3).toUpperCase()} {a.save.dc ?? ""}</span> : "—"}</td>
+                            <td>
+                              {a.damage!.map((x) => `${x.dice} ${x.type}`.trim()).join(" + ")}
+                              {a.areas && a.areas.length > 1 ? (
+                                <div><select className="optpick" aria-label={`${a.name}: shape`} value={ai} onChange={(e) => setAreaPick((m) => ({ ...m, [a.id]: +e.target.value }))}>
+                                  {a.areas.map((o, i) => <option key={o} value={i}>{o}</option>)}
+                                </select></div>
+                              ) : a.areas?.[0] ? <div className="note">{a.areas[0]}</div> : null}
+                              {a.save?.success === "half" && <div className="note">Half damage on a successful save</div>}
+                            </td>
+                            <td><div className="rowbtn"><Btn className="sbtn sm" disabled={!ok} why={actWhy(a)} onClick={() => runFeature(a, undefined, { roll: true, area: a.areas?.[ai] })}>Use</Btn></div></td>
+                          </tr>
+                        );
+                      })}
                       {spellAttackRows()}
                     </tbody>
                   </table>
@@ -3337,11 +3363,11 @@ export default function Sheet() {
                   {(actFilter === "all" || actFilter === "reaction") && reactionsSection()}
                   {(actFilter === "all" || actFilter === "reaction") && spellChips("reaction")}
                   {(actFilter === "all" || actFilter === "action") && <h3 style={{ marginTop: 16 }}>Actions</h3>}
-                  {(actFilter === "all" || actFilter === "action" || actFilter === "other") && fx.actions.some((x) => !isBonus(x.activation) && !/reaction/i.test(x.activation) && (actFilter === "other" ? !isActionAct(x.activation) : actFilter === "action" ? isActionAct(x.activation) : true)) && (
+                  {(actFilter === "all" || actFilter === "action" || actFilter === "other") && fx.actions.some((x) => !isSpecialAttack(x) && !isBonus(x.activation) && !/reaction/i.test(x.activation) && (actFilter === "other" ? !isActionAct(x.activation) : actFilter === "action" ? isActionAct(x.activation) : true)) && (
                     <table className="atks" style={{ marginTop: 14 }}>
                       <thead><tr><th>Feature or item</th><th>Uses</th><th>Effect</th><th></th></tr></thead>
                       <tbody>
-                        {fx.actions.filter((x) => !isBonus(x.activation) && !/reaction/i.test(x.activation) && (actFilter === "other" ? !isActionAct(x.activation) : actFilter === "action" ? isActionAct(x.activation) : true)).map((a) => {
+                        {fx.actions.filter((x) => !isSpecialAttack(x) && !isBonus(x.activation) && !/reaction/i.test(x.activation) && (actFilter === "other" ? !isActionAct(x.activation) : actFilter === "action" ? isActionAct(x.activation) : true)).map((a) => {
                           const { res, left, ok } = costInfo(a.cost);
                           return (
                             <tr key={a.id}>

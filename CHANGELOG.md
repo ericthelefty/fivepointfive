@@ -6,6 +6,9 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Special attacks from your species, class, subclass or feats (Breath Weapon, End Vibrations) are in the Attacks table: save and DC in the new Hit / DC column, the damage, its area (with a picker when you choose the shape, like Breath Weapon's 15-ft. Cone or 30 × 5 ft. Line), uses left, and one Use button that spends a use and rolls the damage.
+- The sheet's ability boxes use the short names (STR, DEX, CON, INT, WIS, CHA), so they fit their borders.
+- Names built from an effect's id keep small words lower case ("Pact of the Chain", not "Pact Of The Chain").
 - Encounters: the Build tab has Save and Discard changes. Edits on the Build tab are held until you save; Discard changes (or reloading the page) goes back to the last saved version. Leaving the Build tab with unsaved changes asks to save them first. Changes on the Run and Loot tabs still save straight away.
 - Custom items (names that aren't in the SRD, like an Ankheg Claw) are marked with an asterisk on the sheet's Inventory, in the encounter builder and on the loot page, with a footnote explaining it. The GM can give a custom item a value and weight, in a monster's inventory or on the Loot review, so it sorts by value and weighs what it should.
 - **Database:** `supabase/migrations/0008_loot_coins_and_searches.sql`.

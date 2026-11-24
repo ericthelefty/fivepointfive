@@ -99,6 +99,8 @@ describe("Pact of the Chain", () => {
     const opt = fx.summonOptions.find((o) => o.for === "srd:spell/find-familiar")!;
     expect(opt.add).toEqual(expect.arrayContaining(["srd:creature/imp", "srd:creature/pseudodragon", "srd:creature/sphinx-of-wonder", "srd:creature/venomous-snake"]));
     expect(fx.grantedSpells.some((g) => g.spell.id === "srd:spell/find-familiar" && g.atWill)).toBe(true);
+    // a name built from the id keeps "of" and "the" lower case
+    expect(fx.actions.some((a) => a.name === "Pact of the Chain")).toBe(true);
   });
   it("Investment of the Chain Master adds a speed, your save DC and a damage type", () => {
     const { fx } = run(warlock(5, ["Pact of the Chain", "Investment of the Chain Master"]));

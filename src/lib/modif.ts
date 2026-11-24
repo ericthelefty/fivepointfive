@@ -409,6 +409,8 @@ export interface ModifAction {
   cast?: { spellId: string; level?: number; dc?: number; attack?: number; scroll?: ScrollUse };
   save?: { ability: string; dc?: number; success?: string };
   damage?: { dice: string; type: string }[];
+  /** The area it covers ("15-ft. Cone"); more than one when you choose the shape each time (Breath Weapon). */
+  areas?: string[];
   /** Using it uses up one of this inventory item (potions, scrolls). */
   consume?: string;
   /** Pick one of these each use. */
@@ -2218,6 +2220,7 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         cast: spellRef ? { spellId: spellRef.id, level: typeof v["cast-at"] === "number" ? v["cast-at"] : undefined, dc: typeof dc === "number" ? dc : undefined, attack: atk, scroll } : undefined,
         save: v.save ? { ability: ABIL_NAME(String(v.save.ability)), dc: v.save.dc !== undefined ? evalNumber(v.save.dc, env) ?? undefined : typeof dc === "number" ? dc : undefined, success: v.save.success } : undefined,
         damage: dmg,
+        areas: areasOf(v.area),
         consume: v.consume && a.item ? a.item.id : undefined,
         optionCosts: Array.isArray(v["choose-one"]) && v["choose-one"].some((x: Val) => x?.cost) ? v["choose-one"].map((x: Val) => (x?.cost ? costOf(x.cost, a) : undefined)) : undefined,
         options: Array.isArray(v["choose-one"]) ? v["choose-one"].map((x: Val) => {
@@ -2750,8 +2753,22 @@ function firstSentence(md: string): string {
   return p.length > 240 ? p.slice(0, 237).replace(/\s+\S*$/, "") + "…" : p;
 }
 
+/** An action's area as the rules write it: { shape: cone, size: 15 } → "15-ft. Cone"; a line's width is added. */
+function areasOf(area: Val): string[] | undefined {
+  if (!area || typeof area !== "object") return undefined;
+  // a line's width goes with its length, so the shape reads short enough for a phone: "30 × 5 ft. Line"
+  const shapeName = (x: Val) => `${String(x.shape)[0].toUpperCase()}${String(x.shape).slice(1)}`;
+  const one = (x: Val) => (x && typeof x === "object" && x.shape
+    ? typeof x.width === "number" && typeof x.size === "number" ? `${x.size} × ${x.width} ft. ${shapeName(x)}` : `${typeof x.size === "number" ? `${x.size}-ft. ` : ""}${shapeName(x)}`
+    : "");
+  const list = (Array.isArray(area["choose-on-use"]) ? area["choose-on-use"] : [area]).map(one).filter(Boolean);
+  return list.length ? list : undefined;
+}
+
+const SMALL_WORDS = new Set(["of", "the", "and", "or", "a", "an", "to", "in", "on", "for", "with", "at", "by", "from"]);
+/** A name from an id: "pact-of-the-chain" → "Pact of the Chain" (small words stay lower case unless they come first). */
 function titleOf(id?: string): string {
-  return id ? id.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ") : "";
+  return id ? id.split("-").filter(Boolean).map((w, i) => (i > 0 && SMALL_WORDS.has(w) ? w : w[0].toUpperCase() + w.slice(1))).join(" ") : "";
 }
 
 function actLabel(act: Val): string {
