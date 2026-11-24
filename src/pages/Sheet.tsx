@@ -195,6 +195,17 @@ export default function Sheet() {
   const [areaPick, setAreaPick] = useState<Record<string, number>>({});
   /** The attack whose last roll was a critical hit, until the next roll: its Damage button rolls crit damage. */
   const [critFor, setCritFor] = useState<{ name: string; versatile: boolean }>();
+  /** After a Critical Hit, until your next attack or d20 roll: what has already had its dice doubled for that hit
+   *  (each smite and "On a hit" extra doubles once, as the attack's own extra damage). */
+  const [critHit, setCritHit] = useState<{ used: string[] }>();
+  /** Whether this extra damage rolls its dice twice for the Critical Hit you just scored (and mark it used). */
+  const takeCrit = (key: string) => {
+    if (!critHit || critHit.used.includes(key)) return false;
+    setCritHit((cur) => (cur ? { used: [...cur.used, key] } : cur));
+    return true;
+  };
+  /** A smite: a spell you cast right after hitting, adding its damage to that hit (Divine Smite, Searing Smite). */
+  const isSmite = (sp: Entry) => /smite/i.test(sp.name) && /immediately after hitting/i.test(sp.fields["casting time"] || "");
   // phones and tablets open with the Game Log hidden (desktop always shows it)
   const narrow = useMedia(NARROW);
   noRolls.current = explain && narrow;
@@ -570,6 +581,8 @@ export default function Sheet() {
     const entry: LogEntry = { ...e, id: Math.random().toString(36).slice(2, 9), t: timeNow() };
     // any roll after a critical hit ends it: the Damage button goes back to normal damage
     if (["test", "atk", "crit", "fumble", "dmg", "heal", "roll"].includes(entry.cls)) setCritFor(undefined);
+    // a new attack or d20 roll ends the last Critical Hit for smites and "On a hit" extras
+    if (["test", "atk", "fumble"].includes(entry.cls)) setCritHit(undefined);
     if (acts?.length) actions.current[entry.id] = acts;
     setPlay((cur) => ({ log: [entry, ...cur.log].slice(0, 150) }));
     setFlash(entry.id);
@@ -899,6 +912,7 @@ export default function Sheet() {
       [{ label: crit ? `Roll crit damage (${dmg})` : `Roll damage (${dmg})`, run: () => rollDamage(a.name, dmg, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, versatile)) }],
     );
     if (crit) setCritFor({ name: a.name, versatile });
+    setCritHit(crit ? { used: [] } : undefined);
   };
 
   /**
@@ -1542,9 +1556,10 @@ export default function Sheet() {
                 const extra = t.damage!.slice(1).map((x) => x.dice).join("+");
                 const expr = [dice, extra].filter(Boolean).join("+");
                 if (expr) {
-                  const r = roll(expr);
+                  const crit = takeCrit(`rider:${t.key}`);
+                  const r = roll(expr, { doubleDice: crit });
                   if (perUnit && payRes && payN) setPlay((cur) => ({ resUsed: { ...cur.resUsed, [payRes.key]: Math.min(payRes.max, (cur.resUsed[payRes.key] || 0) + payN) } }));
-                  if (r) log({ title: `${t.name} damage`, total: String(r.total), cls: "dmg", detail: `${eqOf(r)}${esc(describeRolled(r))}${main.type && main.type !== "weapon" ? ` · ${esc(main.type)}` : " · the weapon’s damage type"}${spent ? `<div>Traded ${spent}d${dm?.[2]} for the effects below.</div>` : ""}${lines}` });
+                  if (r) log({ title: `${t.name} damage`, total: String(r.total), cls: "dmg", detail: `${eqOf(r)}${esc(describeRolled(r))}${main.type && main.type !== "weapon" ? ` · ${esc(main.type)}` : " · the weapon’s damage type"}${spent ? `<div>Traded ${spent}d${dm?.[2]} for the effects below.</div>` : ""}${lines}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}` });
                 } else log({ title: t.name, total: "", cls: "event", detail: `All its dice traded for effects.${lines}` });
                 setRiderPick((m) => ({ ...m, [t.key]: [] }));
               };
@@ -1992,7 +2007,7 @@ export default function Sheet() {
                         <td>{shortTime(r.sp.fields["casting time"] || "")}</td>
                         <td>{stripMd(r.sp.fields["range"] || "").replace(/ feet/, " ft.")}</td>
                         <td>{pl?.attack ? fmt(n.atk) : pl?.save ? `${pl.save.ability.slice(0, 3).toUpperCase()} ${n.dc}` : "—"}</td>
-                        <td>{dmg ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, dmg, false, pl!.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{dmg}{pl?.attack && pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</button> : pl?.heal ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>{pl.heal} heal</button> : pl?.tempHp ? <span className="effkind">{pl.tempHp} temp HP</span> : pl?.conditions.length ? <Tip tip={`Targets can end up ${pl.conditions.join(" or ")}.`}><span className="effkind cond">{pl.conditions.join(", ")}</span></Tip> : <span className="effkind">{pl?.kind || "—"}</span>}</td>
+                        <td>{dmg ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, dmg, isSmite(r.sp) && takeCrit(`spell:${r.sp.id}`), pl!.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{dmg}{pl?.attack && pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</button> : pl?.heal ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>{pl.heal} heal</button> : pl?.tempHp ? <span className="effkind">{pl.tempHp} temp HP</span> : pl?.conditions.length ? <Tip tip={`Targets can end up ${pl.conditions.join(" or ")}.`}><span className="effkind cond">{pl.conditions.join(", ")}</span></Tip> : <span className="effkind">{pl?.kind || "—"}</span>}</td>
                         <td className="note">{spellNotes(r.sp, pl)}</td>
                       </tr>
                     );
@@ -2178,7 +2193,7 @@ export default function Sheet() {
             <div className="drsum">
               {pl.attack && <span>Spell attack <b>{fmt(n.atk)}</b>{pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</span>}
               {pl.save && <span>{pl.save.ability} save DC <b>{n.dc}</b>{pl.save.success === "half" ? " (half on a success)" : ""}</span>}
-              {pl.damage.length > 0 && <button className="sbtn sm ghost" onClick={() => rollDamage(sp.name, pl.damage.map((x) => x.dice).join("+"), false, pl.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{pl.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}</button>}
+              {pl.damage.length > 0 && <button className="sbtn sm ghost" onClick={() => rollDamage(sp.name, pl.damage.map((x) => x.dice).join("+"), isSmite(sp) && takeCrit(`spell:${sp.id}`), pl.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{pl.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}</button>}
               {pl.heal && <button className="sbtn sm ghost" onClick={() => rollDamage(sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>Heal {pl.heal}</button>}
             </div>
           )}
@@ -2780,7 +2795,7 @@ export default function Sheet() {
       const dmgExpr = plan.damage.map((x) => x.dice).join("+");
       const dmgType = plan.damage.map((x) => x.type).filter(Boolean).join(" + ");
       if (plan.attack) acts.push({ label: `Spell attack (${fmt(spellAtk)})${plan.attack.count > 1 ? ` ×${plan.attack.count}` : ""}`, run: () => attack({ name: s.name, toHit: spellAtk, damage: dmgExpr || "0", type: dmgType, note: "" }) });
-      if (dmg && !plan.attack) acts.push({ label: `Roll damage (${dmgExpr})`, run: () => rollDamage(s.name, dmgExpr, false, dmgType) });
+      if (dmg && !plan.attack) acts.push({ label: `Roll damage (${dmgExpr})`, run: () => rollDamage(s.name, dmgExpr, isSmite(s) && takeCrit(`spell:${s.id}`), dmgType) });
       if (plan.heal) acts.push({ label: `Roll healing (${plan.heal})`, run: () => rollDamage(s.name, plan.heal!, false, "", true, { maximize: fx.maxHealing }) });
       if (plan.tempHp) lines.push(`Temporary HP: ${plan.tempHp}`);
       if (plan.save) lines.push(`${plan.save.ability} save DC <b>${spellDC}</b>${plan.save.success === "half" ? " (half on a success)" : ""}`);
