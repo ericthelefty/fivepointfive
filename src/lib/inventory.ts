@@ -6,7 +6,7 @@
  * read) when it's carried, attuned if it requires attunement, and equipped if
  * it's something you wear or wield.
  */
-import { slug, stripMd, type Entry } from "./parse.ts";
+import { parseTables, slug, stripMd, type Entry } from "./parse.ts";
 import { blocksOf } from "./modif.ts";
 import { equipmentOptions, type ArmorRow, type Character } from "./rules.ts";
 import type { Weapon } from "./play.ts";
@@ -49,7 +49,8 @@ export const newItemId = () => Math.random().toString(36).slice(2, 10);
 
 /** "5 lb." -> 5, "1/4 lb." -> 0.25, "—" -> undefined */
 export function parseWeight(s?: string): number | undefined {
-  const t = stripMd(s || "");
+  // "1½ lb." -> "1.5 lb."
+  const t = stripMd(s || "").replace(/(\d*)\s*([½¼¾])/g, (_, n, f) => String((+n || 0) + ({ "½": 0.5, "¼": 0.25, "¾": 0.75 } as Record<string, number>)[f]));
   const frac = t.match(/(\d+)\s*\/\s*(\d+)\s*lb/);
   if (frac) return +frac[1] / +frac[2];
   const m = t.match(/(\d+(?:\.\d+)?)\s*lb/);
@@ -139,8 +140,39 @@ export function catalog(entries: Entry[], weapons: Weapon[], armor: ArmorRow[]):
     if (e.type === "Gear" || e.type === "Tool")
       out.push({ name: e.name, kind: e.type === "Tool" ? "tool" : "gear", ref: e.id, weight: parseWeight(e.fields["weight"]), cost: e.fields["cost"], tagline: e.type });
     else if (e.type === "Magic Item") out.push({ name: e.name, kind: "magic", ref: e.id, tagline: e.tagline });
+    if (e.type === "Gear" && e.name === "Ammunition") out.push(...ammunitionItems(e));
   }
+  // the Wizard's book: the SRD has no item for it (and no price or weight), only the Spellbook feature
+  if (entries.some((e) => e.type === "Class" && e.name === "Wizard") && !out.some((x) => x.name === "Spellbook"))
+    out.push({ name: "Spellbook", kind: "gear", tagline: "Wizard: holds your Wizard spells (see your Spellbook feature)" });
   return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * The SRD's Ammunition entry lists every kind in one table (Arrows, Bolts, Bullets…): each row becomes an item of its own,
+ * counted one by one, with the weight and price of one piece ("20 for 1 GP, 1 lb." -> 1/20 lb. and 5 CP each).
+ */
+export function ammunitionItems(e: Entry): CatalogItem[] {
+  const t = parseTables(e.body).find((tb) => ["type", "amount", "storage"].every((h) => tb.header.some((x) => x.toLowerCase() === h)));
+  if (!t) return [];
+  const col = (h: string) => t.header.findIndex((x) => x.toLowerCase() === h);
+  const [ti, ai, si, wi, ci] = ["type", "amount", "storage", "weight", "cost"].map(col);
+  return t.rows.flatMap((r) => {
+    const type = stripMd(r[ti] || "").trim();
+    const amount = parseInt(r[ai] || "", 10);
+    if (!type || !amount) return [];
+    // "Bullets, Sling" -> "Sling Bullets"
+    const name = type.includes(",") ? type.split(",").map((x) => x.trim()).reverse().join(" ") : type;
+    const w = parseWeight(r[wi]);
+    const cost = stripMd(r[ci] || "").match(/([\d.]+)\s*(PP|GP|EP|SP|CP)/i);
+    const perCp = cost ? (+cost[1] * ({ pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 } as Record<string, number>)[cost[2].toLowerCase()]) / amount : undefined;
+    return [{
+      name, kind: "gear" as const, ref: e.id,
+      weight: w !== undefined ? w / amount : undefined,
+      cost: perCp !== undefined ? `${+perCp.toFixed(2)} CP` : undefined,
+      tagline: `Ammunition · ${amount} for ${stripMd(r[ci] || "").trim()}${r[si] ? `, kept in a ${stripMd(r[si]).trim()}` : ""}`,
+    }];
+  });
 }
 
 const singulars = (n: string) => {
@@ -150,10 +182,18 @@ const singulars = (n: string) => {
 
 /** Find a catalog item by name, ignoring case, plurals and a parenthetical note. */
 export function findCatalog(name: string, cat: CatalogItem[]): CatalogItem | undefined {
+  const key = (n: string) => n.toLowerCase().replace(/[’‘]/g, "'");
   const bare = name.replace(/\s*\([^)]*\)\s*$/, "").trim();
-  const byName = new Map(cat.map((c) => [c.name.toLowerCase(), c]));
-  for (const cand of [...singulars(name), ...singulars(bare)]) {
-    const hit = byName.get(cand.toLowerCase());
+  const byName = new Map(cat.map((c) => [key(c.name), c]));
+  // "Clothes, Traveler’s" is also "Traveler’s Clothes"
+  for (const c of cat) {
+    const m = c.name.match(/^([^,]+),\s*([^,]+)$/);
+    if (m && !byName.has(key(`${m[2]} ${m[1]}`))) byName.set(key(`${m[2]} ${m[1]}`), c);
+  }
+  // and the other way round: "Bullets, Sling" finds "Sling Bullets"
+  const flip = (n: string) => { const m = n.match(/^([^,]+),\s*([^,]+)$/); return m ? [`${m[2]} ${m[1]}`] : []; };
+  for (const cand of [...singulars(name), ...singulars(bare), ...flip(bare).flatMap(singulars)]) {
+    const hit = byName.get(key(cand));
     if (hit) return hit;
   }
   return undefined;
@@ -334,8 +374,25 @@ export function startingInventory(c: Character, cls: Entry | undefined, bg: Entr
   return { items, coins };
 }
 
+/**
+ * Custom items named like something that's now in the item list (Arrows, Bolts, a Spellbook) become that item,
+ * keeping their quantity, note and whether they're equipped. Returns the same array when nothing changes.
+ */
+export function upgradeCustom(items: Item[], cat: CatalogItem[]): Item[] {
+  let changed = false;
+  const out = items.map((it) => {
+    if (it.kind !== "custom") return it;
+    const hit = findCatalog(it.name, cat);
+    if (!hit) return it;
+    changed = true;
+    const made = itemFrom(hit, it.qty, it.note);
+    return { ...made, id: it.id, equipped: made.equipped ? it.equipped : undefined, attuned: it.attuned };
+  });
+  return changed ? out : items;
+}
+
 /** The saved inventory, or the starting one until the player edits it. */
 export function inventoryOf(c: Character, cls: Entry | undefined, bg: Entry | undefined, cat: CatalogItem[]): { items: Item[]; coins: Coins; fromStart: boolean } {
-  if (c.inventory) return { items: c.inventory, coins: { ...NO_COINS, ...(c.coins || {}) }, fromStart: false };
+  if (c.inventory) return { items: upgradeCustom(c.inventory, cat), coins: { ...NO_COINS, ...(c.coins || {}) }, fromStart: false };
   return { ...startingInventory(c, cls, bg, cat), fromStart: true };
 }

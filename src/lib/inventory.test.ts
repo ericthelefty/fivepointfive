@@ -5,7 +5,7 @@ import { parseFile, type Entry } from "./parse.ts";
 import { armorTable, derive, newCharacter } from "./rules.ts";
 import { weaponTable } from "./play.ts";
 import {
-  attunedCount, carryingCapacity, catalog, inventoryOf, isActive, magicInfo, parseEquipment, setAttuned, setEquipped, totalWeight, type Item,
+  attunedCount, carryingCapacity, catalog, findCatalog, inventoryOf, parseWeight, upgradeCustom, isActive, magicInfo, parseEquipment, setAttuned, setEquipped, totalWeight, type Item,
 } from "./inventory.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
@@ -26,6 +26,41 @@ describe("catalog", () => {
     expect(get("Rope").kind).toBe("gear");
     expect(get("Thieves’ Tools").kind).toBe("tool");
     expect(get("Cloak of Protection").kind).toBe("magic");
+  });
+});
+
+describe("ammunition and other SRD table items", () => {
+  const get = (n: string) => cat.find((c) => c.name === n);
+  it("turns each row of the SRD's Ammunition table into an item counted one by one", () => {
+    expect(get("Arrows")).toMatchObject({ kind: "gear", weight: 0.05, cost: "5 CP" });
+    expect(get("Bolts")).toMatchObject({ kind: "gear", weight: 0.075, cost: "5 CP" });
+    expect(get("Firearm Bullets")).toMatchObject({ weight: 0.2, cost: "30 CP" });
+    expect(get("Sling Bullets")).toMatchObject({ weight: 0.075, cost: "0.2 CP" });
+    expect(get("Needles")).toMatchObject({ weight: 0.02, cost: "2 CP" });
+    expect(get("Arrows")!.tagline).toBe("Ammunition · 20 for 1 GP, kept in a Quiver");
+    expect(get("Arrows")!.ref).toBe(all.find((e) => e.name === "Ammunition")!.id);
+  });
+  it("reads fractions of a pound", () => {
+    expect(parseWeight("1½ lb.")).toBe(1.5);
+    expect(parseWeight("¼ lb.")).toBe(0.25);
+  });
+  it("starting equipment with Arrows, Traveler’s Clothes and a Spellbook has no custom items", () => {
+    const { items } = parseEquipment("Spear, Shortbow, 20 Arrows, Quiver, Traveler’s Clothes, Spellbook, 14 GP", cat);
+    expect(items.filter((i) => i.kind === "custom")).toEqual([]);
+    expect(items.find((i) => i.name === "Arrows")).toMatchObject({ qty: 20, weight: 0.05 });
+    expect(items.find((i) => i.name === "Clothes, Traveler’s")).toBeTruthy();
+    expect(findCatalog("Traveler's Clothes", cat)?.name).toBe("Clothes, Traveler’s");
+    expect(findCatalog("Bullets, Sling", cat)?.name).toBe("Sling Bullets");
+  });
+  it("saved custom items with a catalog name become that item, keeping quantity and note", () => {
+    const saved: Item[] = [
+      { id: "a", name: "Arrows", kind: "custom", qty: 40, equipped: true, note: "silvered" },
+      { id: "b", name: "Basic Wooden Comb", kind: "custom", qty: 1 },
+    ];
+    const up = upgradeCustom(saved, cat);
+    expect(up[0]).toMatchObject({ id: "a", name: "Arrows", kind: "gear", qty: 40, weight: 0.05, note: "silvered", equipped: undefined });
+    expect(up[1]).toBe(saved[1]);
+    expect(upgradeCustom([saved[1]], cat)).toEqual([saved[1]]);
   });
 });
 

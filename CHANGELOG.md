@@ -6,6 +6,10 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Arrows, Bolts, Firearm Bullets, Sling Bullets and Needles are items. The SRD lists them as rows of one Ammunition table; each row is now its own item, counted one by one with the weight and price of a single piece (20 Arrows weigh 1 lb.), and its details open the SRD's Ammunition rules. Starting equipment with "20 Arrows" brings real Arrows instead of a custom item.
+- Starting equipment matches "Traveler’s Clothes" to the SRD's "Clothes, Traveler’s" (and other names the SRD writes back to front), and a Wizard's Spellbook is an item instead of a custom one. The SRD gives the Spellbook no price or weight.
+- Custom items in a saved inventory that are named like an item in the list (Arrows, Bolts, Spellbook…) become that item, keeping their quantity and note.
+- Weights with fractions ("1½ lb.") read correctly.
 - On a wide screen, the Short rest and Long rest buttons are replaced by the campfire button phones use: it opens a small menu with Short Rest and Long Rest. In Explainer Mode the campfire button, Short Rest and Long Rest each explain themselves, on a phone too: the SRD rule, and what each rest does on this sheet (what comes back, what ends, Hit Point Dice left).
 - Admins can name the instance under Settings → Instance name. The name shows next to fivepointfive at the top of every page (in place of the "5.5E compatible" badge on a phone) and in the browser tab.
 - Invite links can come with a character. When creating an invite in Settings, pick "Give them…" a character: when the person joins with that link, the character becomes theirs and its sheet opens as soon as their account is set up. The Invites list shows which character each link gives. Only characters an admin still owns can be given, so a link never takes a character away from a player who already has it.

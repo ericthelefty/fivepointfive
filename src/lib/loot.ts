@@ -52,7 +52,7 @@ export function costCp(cost?: string): number | undefined {
   const m = cost?.replace(/,/g, "").match(/([\d.]+)\s*(PP|GP|EP|SP|CP)/i);
   if (!m) return undefined;
   const per: Record<string, number> = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 };
-  return Math.round(+m[1] * per[m[2].toLowerCase()]);
+  return Math.round(+m[1] * per[m[2].toLowerCase()] * 100) / 100; // a Sling Bullet is 0.2 CP
 }
 
 /** Copper pieces as the coin a player would say: 2500 → "25 GP", 50 → "5 SP". */
