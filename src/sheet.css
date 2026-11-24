@@ -688,3 +688,14 @@
   .sheetv .chipsrow { gap: 4px; margin-bottom: 6px; }
   .sheetv .chipsrow button { padding: 2px 9px; font-size: 11.5px; }
 }
+
+/* Manage Spells panel */
+.sheetv .drawer.wide { width: min(560px, 100vw); }
+.sheetv .mgrcount { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; margin-top: 4px; }
+.sheetv .mgrcount b { color: var(--s-gold); font-size: 15px; }
+.sheetv .mgrsearch { width: 100%; box-sizing: border-box; min-height: 36px; padding: 6px 10px; background: var(--s-well); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; }
+.sheetv .mgrlist { margin-top: 6px; }
+.sheetv .mgrlvl { font: 600 13px Cinzel, Georgia, serif; color: var(--s-gold); margin: 12px 0 4px; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+.sheetv .mgrrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 2px; border-bottom: 1px solid var(--line-2); }
+.sheetv .mgrrow .spname { font-weight: 600; font-size: 14px; text-align: left; }
+.sheetv .mgrrow .tag { white-space: nowrap; font-size: 11px; }

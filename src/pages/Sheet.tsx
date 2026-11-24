@@ -11,7 +11,7 @@ import { dice3dOn, playDice, setDice3d, setSound, soundOn } from "../lib/sound.t
 import { applyForm, crLabel, formEligible, parseCreature, parseStatBlockMd, statBlockMd, type CreatureAction, type CreatureStats } from "../lib/creature.ts";
 import { features, slug, spellInfo, stripMd, trimClassTable, type Entry } from "../lib/parse.ts";
 import {
-  ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, derive, featName, fmt, hitDie, speciesChoice, traits, wornGear,
+  ABBR, ABILITIES, SKILLS, SKILL_ABILITY, armorTable, classSpells, derive, featName, fmt, hitDie, speciesChoice, traits, wornGear,
   type Character,
   intro,
 } from "../lib/rules.ts";
@@ -31,7 +31,7 @@ import {
   type ModifConvert, type ConvertSide, type WeaponInfo,
   type ModifAction, type ModifCost, type ModifCtx, type ModifToggle, type ModifTrigger, readBlocks, resolveRef, type ModifSummon, tableRowFor
 } from "../lib/modif.ts";
-import { casterEntry, casterInfoOf, casterKindOf, classFeatures, classInfos, classLabel, hitDicePools, patchClass, spellSlots, type ClassInfo, type Slot } from "../lib/multiclass.ts";
+import { casterEntry, casterInfoOf, casterKindOf, classFeatures, classInfos, classLabel, hitDicePools, patchClass, spellListClass, spellSlots, type ClassInfo, type Slot } from "../lib/multiclass.ts";
 
 type Tab = "actions" | "effects" | "spells" | "features" | "conditions" | "inventory" | "background" | "notes";
 type CardAction = { label: string; run: () => void };
@@ -202,7 +202,9 @@ export default function Sheet() {
     );
   };
   /** The slide-out details panel: a spell (with the level to cast it at) or a feature. */
-  const [drawer, setDrawer] = useState<{ kind: "spell"; id: string; via?: string; level?: number } | { kind: "feature"; title: string; sub: string; md: string; entryId?: string }>();
+  const [drawer, setDrawer] = useState<{ kind: "spell"; id: string; via?: string; level?: number; back?: number } | { kind: "feature"; title: string; sub: string; md: string; entryId?: string } | { kind: "manage"; k: number }>();
+  /** Manage Spells panel: search text, level filter and whether to show only this caster's spells. */
+  const [mgr, setMgr] = useState<{ q: string; lvl: number | "all"; mine: boolean }>({ q: "", lvl: "all", mine: false });
   const [spellQ, setSpellQ] = useState("");
   const [spellLvl, setSpellLvl] = useState<string>("all");
   /** Actions tab filter chip. */
@@ -472,10 +474,6 @@ export default function Sheet() {
   const setInventory = (items: Item[], coins: Coins) => {
     dirty.current = true;
     setC((prev) => (prev ? { ...prev, inventory: items, coins } : prev));
-  };
-  const resetInventory = () => {
-    dirty.current = true;
-    setC((prev) => (prev ? { ...prev, inventory: undefined, coins: undefined, play: { ...playOf(prev), gear: "" } } : prev));
   };
 
   // ------------------------------------------------------------ state io
@@ -1833,7 +1831,7 @@ export default function Sheet() {
               {k.ci && <span className="mut" style={{ fontSize: 12 }}>{k.ci.cantrips ? `${k.info.cantrips.length}/${k.ci.cantrips} cantrips · ` : ""}{k.info.spells.length}/{k.ci.prepared} prepared{ritualBook()?.k.info.index === k.info.index ? ` · ${ritualBook()!.names.size} in spellbook` : ""}</span>}
             </div>
           ))}
-          {editable && anyCaster && <Link to={`/build/${c.id}`} className="note" style={{ marginLeft: "auto" }}>Change spells</Link>}
+          {editable && anyCaster && <button className="sbtn sm" style={{ marginLeft: "auto" }} title="Search your class's spell list, learn cantrips and choose your prepared spells (Wizards: add spells to your spellbook)." onClick={() => setDrawer({ kind: "manage", k: casters[0]?.info.index ?? 0 })}>Manage Spells</button>}
         </div>
         <input type="search" className="spsearch" placeholder="Search spell names, casting times, damage types, conditions…" value={spellQ} onChange={(e) => setSpellQ(e.target.value)} aria-label="Search spells" />
         <div className="chipsrow" role="group" aria-label="Spell level">
@@ -1896,6 +1894,110 @@ export default function Sheet() {
     );
   };
   /** The slide-out details panel (spells: cast at a level you pick; features: their text and uses). */
+  // ------------------------------------------------------------ Manage Spells
+  /** Classes that change their prepared spells after any Long Rest (the rest swap one when they gain a level). */
+  const PREP_ON_REST = ["Cleric", "Druid", "Paladin", "Wizard"];
+  const managePanel = (kIndex: number): ReactNode => {
+    const k = casters.find((x) => x.info.index === kIndex) || casters[0];
+    if (!k || !k.ci) return <p className="note">This character doesn’t cast spells from a class.</p>;
+    if (!content.loaded.has("spells")) return <p className="note">Loading spells…</p>;
+    const ci = k.ci;
+    const listCls = spellListClass(k.info, content.entries);
+    const byLevel = classSpells(listCls, spells);
+    const always = new Map(fx.grantedSpells.filter((g) => g.prepared).map((g) => [g.spell.name, g.source]));
+    const knownElsewhere = new Map(fx.grantedSpells.filter((g) => spellInfo(g.spell)?.level === 0).map((g) => [g.spell.name, g.source]));
+    const cantrips = k.info.cantrips, prepared = k.info.spells;
+    const prepCount = prepared.filter((n) => !always.has(n)).length;
+    const house = !!c.houseRules;
+    const write = (patch: { cantrips?: string[]; spells?: string[] }) => { dirty.current = true; setC((prev) => (prev ? { ...prev, ...patchClass(prev, k.info.index, patch) } : prev)); };
+    // Wizards keep a spellbook: prepare from it; add spells with level-up picks or by copying (50 GP and 2 hours a level)
+    const wizard = (casterEntry(k.info)?.effects || []).some((f) => /spellbook:/.test(f.yaml));
+    const book = c.spellbook || [];
+    const granted = fx.bookSpells.map((b) => b.name);
+    const bookNames = new Set([...prepared, ...book.map((b) => b.name), ...granted]);
+    const freePicks = 6 + 2 * Math.max(0, k.info.level - 1);
+    const freeUsed = [...bookNames].filter((n) => (spellInfo(spells.find((x) => x.name === n) || ({ tagline: "" } as Entry))?.level || 0) > 0 && !book.some((b) => b.name === n && b.how === "copied") && !(granted.includes(n) && !prepared.includes(n) && !book.some((b) => b.name === n))).length;
+    const freeLeft = freePicks - freeUsed;
+    const gold = inv.coins.gp + inv.coins.pp * 10;
+    const addToBook = (name: string, lvl: number, how: "level" | "copied") => {
+      if (how === "copied") {
+        const cost = lvl * 50;
+        let gp = inv.coins.gp - cost, pp = inv.coins.pp;
+        while (gp < 0 && pp > 0) { pp -= 1; gp += 10; }
+        setInventory(inv.items, { ...inv.coins, gp: Math.max(0, gp), pp });
+        log({ title: `Copied ${name} into the spellbook`, total: `−${cost} GP`, cls: "event", detail: `${lvl * 2} hours of work and ${cost} GP of rare inks.` });
+      } else log({ title: `Added ${name} to the spellbook`, total: "", cls: "event", detail: "One of the spells you add when you gain a Wizard level." });
+      dirty.current = true;
+      setC((prev) => (prev ? { ...prev, spellbook: [...(prev.spellbook || []), { name, how }] } : prev));
+    };
+    const q = mgr.q.trim().toLowerCase();
+    const levels = [0, ...Array.from({ length: ci.maxSpellLevel }, (_, i) => i + 1)].filter((L) => L > 0 || ci.cantrips > 0);
+    const rows = levels.flatMap((L) => (byLevel.get(L) || []).map((sp) => ({ sp, L })))
+      .filter(({ sp, L }) => (mgr.lvl === "all" || mgr.lvl === L)
+        && (!q || sp.name.toLowerCase().includes(q) || (sp.tagline || "").toLowerCase().includes(q) || stripMd(sp.fields["casting time"] || "").toLowerCase().includes(q))
+        && (!mgr.mine || (L === 0 ? cantrips.includes(sp.name) || knownElsewhere.has(sp.name) : prepared.includes(sp.name) || always.has(sp.name) || (wizard && bookNames.has(sp.name)))));
+    const action = (sp: Entry, L: number): ReactNode => {
+      const n = sp.name;
+      if (L === 0) {
+        if (knownElsewhere.has(n)) return <span className="tag plain">Known · {knownElsewhere.get(n)}</span>;
+        const on = cantrips.includes(n);
+        return <Btn className={`sbtn sm ${on ? "gold" : ""}`} aria-pressed={on} disabled={!on && cantrips.length >= ci.cantrips && !house} why={`You know ${ci.cantrips} ${k.info.cls.name} cantrips; remove one first.`}
+          onClick={() => write({ cantrips: on ? cantrips.filter((x) => x !== n) : [...cantrips, n] })}>{on ? "✓ Known" : "Learn"}</Btn>;
+      }
+      if (always.has(n)) return <span className="tag ok">Always prepared · {always.get(n)}</span>;
+      if (wizard && !bookNames.has(n)) {
+        return freeLeft > 0
+          ? <button className="sbtn sm ghost" title="Use one of the spells you add to your book when you gain a Wizard level." onClick={() => addToBook(n, L, "level")}>Add to book</button>
+          : <Btn className="sbtn sm ghost" disabled={gold < L * 50 && !house} why={`Copying a level ${L} spell costs ${L * 50} GP; you have ${gold} GP.`} onClick={() => addToBook(n, L, "copied")}>Copy · {L * 50} GP</Btn>;
+      }
+      const on = prepared.includes(n);
+      return <Btn className={`sbtn sm ${on ? "gold" : ""}`} aria-pressed={on} disabled={!on && prepCount >= ci.prepared && !house} why={`You can prepare ${ci.prepared} spells; unprepare one first.`}
+        onClick={() => write({ spells: on ? prepared.filter((x) => x !== n) : [...prepared, n] })}>{on ? "✓ Prepared" : "Prepare"}</Btn>;
+    };
+    return (
+      <>
+        <h3 className="drtitle">Manage Spells</h3>
+        {casters.length > 1 && (
+          <div className="chipsrow" role="group" aria-label="Class">
+            {casters.map((x) => <button key={x.info.index} className={x.info.index === k.info.index ? "on" : ""} aria-pressed={x.info.index === k.info.index} onClick={() => setDrawer({ kind: "manage", k: x.info.index })}>{x.info.cls.name}</button>)}
+          </div>
+        )}
+        <div className="mgrcount">
+          {ci.cantrips > 0 && <span><b>{cantrips.length}</b>/{ci.cantrips} cantrips</span>}
+          <span><b>{prepCount}</b>/{ci.prepared} prepared</span>
+          {wizard && <span><b>{[...bookNames].length}</b> in spellbook · {Math.max(0, freeLeft)} free to add</span>}
+          <span className="mut">up to level {ci.maxSpellLevel}</span>
+        </div>
+        <p className="note" style={{ margin: "4px 0 8px" }}>
+          {PREP_ON_REST.includes(k.info.cls.name) ? `${k.info.cls.name}s can change their prepared spells whenever they finish a Long Rest.` : `${k.info.cls.name}s can swap one prepared spell (and one cantrip) when they gain a level.`}
+          {wizard ? " You prepare from your spellbook; add new spells with your free picks or by copying them in." : ""}
+        </p>
+        <input className="mgrsearch" value={mgr.q} onChange={(e) => setMgr({ ...mgr, q: e.target.value })} placeholder="Search names, schools or casting times" aria-label="Search spells" />
+        <div className="chipsrow" role="group" aria-label="Spell level" style={{ marginTop: 8 }}>
+          <button className={mgr.lvl === "all" ? "on" : ""} onClick={() => setMgr({ ...mgr, lvl: "all" })}>All</button>
+          {levels.map((L) => <button key={L} className={mgr.lvl === L ? "on" : ""} onClick={() => setMgr({ ...mgr, lvl: L })}>{L ? `${L}${["st", "nd", "rd"][L - 1] || "th"}` : "Cantrips"}</button>)}
+          <button className={mgr.mine ? "on" : ""} aria-pressed={mgr.mine} onClick={() => setMgr({ ...mgr, mine: !mgr.mine })}>Mine only</button>
+        </div>
+        <div className="mgrlist">
+          {rows.length === 0 && <p className="note">No spells match.</p>}
+          {levels.filter((L) => rows.some((r) => r.L === L)).map((L) => (
+            <div key={L}>
+              <div className="mgrlvl">{L ? `Level ${L}` : "Cantrips"}</div>
+              {rows.filter((r) => r.L === L).map(({ sp }) => (
+                <div key={sp.id} className="mgrrow">
+                  <div style={{ minWidth: 0 }}>
+                    <button className="linkish spname" onClick={() => setDrawer({ kind: "spell", id: sp.id, back: k.info.index })}>{sp.name}</button>
+                    <div className="note" style={{ margin: 0 }}>{[spellInfo(sp)?.school, stripMd(sp.fields["casting time"] || ""), stripMd(sp.fields["range"] || ""), /concentration/i.test(sp.fields["duration"] || "") ? "Concentration" : "", isRitual(sp) ? "Ritual" : ""].filter(Boolean).join(" · ")}</div>
+                  </div>
+                  {editable ? action(sp, L) : null}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  };
   const drawerPanel = () => {
     if (!drawer) return null;
     let body: ReactNode = null;
@@ -1913,6 +2015,7 @@ export default function Sheet() {
       const free = r.g?.free ? resources.find((x) => x.key === r.g!.free) : undefined;
       body = (
         <>
+          {drawer.back !== undefined && <button className="linkish" style={{ marginBottom: 6 }} onClick={() => setDrawer({ kind: "manage", k: drawer.back! })}>‹ Back to Manage Spells</button>}
           <div className="mut" style={{ fontSize: 12 }}>{r.source || (r.k ? `${r.k.info.cls.name} spell` : "")}</div>
           <h3 className="drtitle">{sp.name}</h3>
           <div className="note" style={{ marginTop: 0 }}>{sp.tagline}</div>
@@ -1954,6 +2057,8 @@ export default function Sheet() {
           <div className="drbody"><Md md={sp.body} /></div>
         </>
       );
+    } else if (drawer.kind === "manage") {
+      body = managePanel(drawer.k);
     } else {
       body = (
         <>
@@ -1966,7 +2071,7 @@ export default function Sheet() {
     return (
       <>
         <div className="drshade" onClick={() => setDrawer(undefined)} />
-        <aside className="drawer" role="dialog" aria-label="Details">
+        <aside className={`drawer ${drawer.kind === "manage" ? "wide" : ""}`} role="dialog" aria-label={drawer.kind === "manage" ? "Manage Spells" : "Details"}>
           <button className="sbtn sm ghost drclose" aria-label="Close details" onClick={() => setDrawer(undefined)}>✕</button>
           {body}
         </aside>
@@ -3224,7 +3329,6 @@ export default function Sheet() {
                   carrySize={fx.carrySize}
                   spellNames={spellNames}
                   onChange={setInventory}
-                  onReset={resetInventory}
                 />
               )}
 

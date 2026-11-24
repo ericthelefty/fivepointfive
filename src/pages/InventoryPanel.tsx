@@ -26,7 +26,6 @@ interface Props {
   /** Size steps larger for carrying capacity (Powerful Build). */
   carrySize?: number;
   onChange: (items: Item[], coins: Coins) => void;
-  onReset: () => void;
 }
 
 /** An item that names the spell it holds (Spell Scroll: "Spell Scroll (Fireball)"). */
@@ -230,9 +229,6 @@ export default function InventoryPanel(p: Props) {
         {p.fromStart
           ? "This is your starting equipment. Changes you make here are saved with the character."
           : "Equip armor, a shield and weapons to use them; attune to magic items that require it (up to 3)."}
-        {!p.fromStart && !ro && (
-          <> <button className="linkish" onClick={() => { if (confirm("Replace the inventory and coins with the starting equipment chosen in the builder?")) p.onReset(); }}>Reset to starting equipment</button></>
-        )}
       </p>
     </div>
   );
