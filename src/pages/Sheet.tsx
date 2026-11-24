@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import "../sheet.css";
 import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
@@ -117,6 +117,13 @@ function loadLayout(): string[] {
 /** Thrown instead of rolling while Explainer Mode is on on a phone or tablet, where a tap only explains. */
 class RollBlocked extends Error {}
 
+/** Grow the Notes box to fit everything in it, so it never needs its own scrollbar. */
+function fitNotes(el: HTMLTextAreaElement | null) {
+  if (!el || !el.offsetParent) return; // hidden (another section is showing): fitted when it's shown
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+}
+
 export default function Sheet() {
   const { id } = useParams();
   const content = useContent();
@@ -168,6 +175,17 @@ export default function Sheet() {
   const logSeen = useRef<string | undefined>(undefined);
   const tabFirst = useRef(true);
   useEffect(() => { if (tabFirst.current) { tabFirst.current = false; return; } setMsec("tab"); }, [tab]);
+  // the Notes box fits its text whenever it's shown or the notes change (a live update, a narrower screen)
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const notesText = c?.notes;
+  useEffect(() => {
+    const el = notesRef.current;
+    if (!el) return;
+    fitNotes(el);
+    const ro = new ResizeObserver(() => fitNotes(el));
+    ro.observe(el.parentElement || el);
+    return () => ro.disconnect();
+  }, [tab, msec, notesText]);
   useEffect(() => { try { localStorage.setItem("fpf.msec", msec === "tab" ? tab : msec); } catch { /* private browsing */ } }, [msec, tab]);
   const [hpAmt, setHpAmt] = useState("");
   /** Explainer Mode: hovering over a number shows how it's worked out. */
@@ -232,6 +250,19 @@ export default function Sheet() {
   const bgFile = useRef<HTMLInputElement>(null);
   // while a backdrop shows, the body's own background would paint over it; the page background stays on <html>
   const hasBackdrop = !!backdropUrl;
+  // opened from Print on the Characters tab: print once the sheet has loaded, then go back
+  const [params] = useSearchParams();
+  const nav = useNavigate();
+  const printNow = !!c && content.ready && params.get("print") === "1";
+  useEffect(() => {
+    if (!printNow) return;
+    const back = () => {
+      if ((window.history.state as { idx?: number } | null)?.idx) nav(-1);
+      else nav(`/sheet/${id}`, { replace: true });
+    };
+    const t = setTimeout(() => { window.addEventListener("afterprint", back, { once: true }); window.print(); }, 700);
+    return () => { clearTimeout(t); window.removeEventListener("afterprint", back); };
+  }, [printNow]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!hasBackdrop) return;
     document.body.classList.add("sheetbg-on");
@@ -3248,17 +3279,6 @@ export default function Sheet() {
               <span className={`dot ${k === msecKey ? "p1" : ""}`} />{l}{!!n && <span className="badge">{n}</span>}
             </button>
           ))}
-          {editable && (
-            <div className="mbgrow" role="group" aria-label="Sheet background">
-              <div className="eyebrow">Sheet background</div>
-              <div className="mbgopts">{bgOptions(() => setMsheet(""))}</div>
-            </div>
-          )}
-          {cloud && editable && (
-            <div className="mfoot">
-              <button className="sbtn sm ghost" onClick={() => chars.setHidden(c.id, !row?.hidden)}>{row?.hidden ? "Hidden · show to group" : "Hide from group"}</button>
-            </div>
-          )}
         </div>
       )}
       {msheet === "rest" && (
@@ -3342,24 +3362,8 @@ export default function Sheet() {
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               <button className="sbtn sm" title={HOW.rests} onClick={shortRest}>Short rest</button>
               <button className="sbtn sm" title={HOW.rests} onClick={longRest}>Long rest</button>
-              <span className="hsep" aria-hidden="true" />
-              {cloud && editable && (
-                <button className={`sbtn sm ${row?.hidden ? "" : "ghost"}`} aria-pressed={!!row?.hidden} onClick={() => chars.setHidden(c.id, !row?.hidden)}>
-                  {row?.hidden ? "Hidden · show to group" : "Hide from group"}
-                </button>
-              )}
+              <span className="hsep mobonly" aria-hidden="true" />
               <button className="sbtn ghost sm mobonly" title="Change the order of the boxes on the sheet (phone layout)" onClick={() => setLayoutOpen(true)}>Change layout</button>
-              {editable && (
-                <div className="bgpick" ref={bgRef}>
-                  <button className="sbtn ghost sm" aria-haspopup="true" aria-expanded={bgOpen} title="Pick a backdrop for this character’s sheet." onClick={() => setBgOpen((o) => !o)}>Sheet background</button>
-                  {bgOpen && (
-                    <div className="bgmenu" role="menu" aria-label="Sheet background">
-                      {bgOptions(() => setBgOpen(false))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <button className="sbtn ghost sm" title="Print the sheet, or save it as a PDF from the print window." onClick={() => window.print()}>Print</button>
             </div>
           </div>
           {cloud && row?.hidden && (
@@ -3836,7 +3840,7 @@ export default function Sheet() {
               {tab === "notes" && (
                 <div className="spanel">
                   <h3>Notes</h3>
-                  <textarea value={c.notes} onChange={(e) => { dirty.current = true; const v = e.target.value; setC((prev) => (prev ? { ...prev, notes: v } : prev)); }} />
+                  <textarea ref={notesRef} value={c.notes} onInput={(e) => fitNotes(e.currentTarget)} onChange={(e) => { dirty.current = true; const v = e.target.value; setC((prev) => (prev ? { ...prev, notes: v } : prev)); }} />
                 </div>
               )}
             </div>
@@ -3992,6 +3996,18 @@ export default function Sheet() {
         </button>
         <p>{narrow ? "Enable Explainer Mode to tap items on the sheet and see what they are, how each number is worked out, and how you can change it. While it’s on, dice rolling is turned off, so tapping only explains." : "Enable Explainer Mode to hover over items on the sheet and see what they are, how each number is worked out, and how you can change it. Clicking still rolls as usual."}</p>
       </div>
+      {editable && (
+        <div className="bgbar">
+          <div className="bgpick" ref={bgRef}>
+            <button className="sbtn ghost sm" aria-haspopup="true" aria-expanded={bgOpen} title="Pick a background image for this character’s sheet." onClick={() => setBgOpen((o) => !o)}>Background Image</button>
+            {bgOpen && (
+              <div className="bgmenu" role="menu" aria-label="Background Image">
+                {bgOptions(() => setBgOpen(false))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {explain && (
         <button className="explainpill" onClick={() => { setExplain(false); setExAt(undefined); }}>Explainer Mode is on · <b>Turn off</b></button>
       )}

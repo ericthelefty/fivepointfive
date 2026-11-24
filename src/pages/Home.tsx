@@ -158,6 +158,7 @@ export default function Home() {
                   >
                     Export
                   </button>
+                  <Link className="btn small" to={`/sheet/${c.id}?print=1`} title="Open the sheet and print it, or save it as a PDF from the print window.">Print</Link>
                   {mine && (
                     <button className="btn small" onClick={() => confirm(`Delete ${c.name || "this character"}?`) && chars.remove(c.id)}>Delete</button>
                   )}

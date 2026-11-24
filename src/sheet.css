@@ -19,7 +19,7 @@
 
 /* identity + chips */
 .sheetv .ident h1 { margin: 0; font-size: 30px; line-height: 1.1; }
-.sheetv .ident .sub { color: var(--s-mut); margin-top: 4px; }
+.sheetv .ident .sub { color: var(--s-mut); margin-top: 2px; font-size: 13px; }
 .sheetv .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .sheetv .schip { border: 1px solid var(--line); background: var(--s-panel2); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; font-weight: 600; }
 .sheetv .schip.bad { background: #3a1d1a; border-color: #7a3a32; color: #f6c2ba; }
@@ -667,12 +667,11 @@
   .sheetv .slot .sl { font-size: 9.5px; }
   .sheetv .pip { width: 13px; height: 13px; }
   .sheetv table.atks td, .sheetv table.atks th { padding-top: 5px; padding-bottom: 5px; }
-  /* name, Edit and the class line on one line */
-  .sheetv .ident > div:first-child > div:first-child { display: flex; align-items: center; column-gap: 14px; flex-wrap: wrap; min-width: 0; }
-  .sheetv .ident .sub { margin-top: 0; font-size: 13px; }
+  /* name and Edit on one line, the class line small just below */
+  .sheetv .ident > div:first-child > div:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
   .sheetv .ident > div:first-child { flex-wrap: nowrap !important; align-items: center !important; }
-  .sheetv .ident > div:first-child > div:first-child { flex: 1 1 auto; flex-wrap: nowrap; }
-  .sheetv .ident .sub { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheetv .ident > div:first-child > div:first-child { flex: 1 1 auto; }
+  .sheetv .ident .sub { margin-top: 0; font-size: 12.5px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sheetv .ident > div:first-child > div:last-child { flex: none; flex-wrap: nowrap !important; }
   .sheetv table.atks { font-size: 12.5px; }
   .sheetv table.atks .rowbtn { flex-wrap: nowrap; }
@@ -724,7 +723,7 @@
 .sheetv .mtop, .sheetv .mstats, .sheetv .mfab, .sheetv .msheet, .sheetv .mback { display: none; }
 @media (max-width: 900px) {
   .sheetv.phone { padding-bottom: 96px; }
-  .sheetv.phone [data-box], .sheetv.phone .explainbar { order: 0; }
+  .sheetv.phone [data-box], .sheetv.phone .explainbar, .sheetv.phone .bgbar { order: 0; }
   .sheetv.phone .ident, .sheetv.phone .stats, .sheetv.phone .tabsw, .sheetv.phone .stabs { display: none; }
   .sheetv.phone .abil, .sheetv.phone .skills, .sheetv.phone .profs, .sheetv.phone .slotbar, .sheetv.phone [data-box="tabs"] { display: none; }
   .sheetv.phone[data-msec="abil"] .abil { display: grid; }
@@ -798,7 +797,6 @@
   .sheetv .mitem { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--s-well2); color: var(--ink); font-weight: 600; font-size: 15px; text-align: left; }
   .sheetv .mitem.on { border-color: var(--s-gold); background: var(--accent-bg); }
   .sheetv .mitem .badge { margin-left: auto; }
-  .sheetv .mfoot { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
   .sheetv.phone .msheet > .sbtn { min-height: 46px; }
 
   /* the two round buttons */
@@ -961,7 +959,11 @@
 .sheetv .bgopt:hover { border-color: var(--line); }
 .sheetv .bgopt.on { border-color: var(--s-gold2); color: var(--s-gold); }
 .sheetv .bgthumb { width: 84px; height: 56px; border-radius: 6px; background: var(--s-well) center / cover no-repeat; display: grid; place-items: center; color: var(--s-mut); border: 1px solid var(--line); }
-@media print { .sheetbg, .sheetv .bgpick { display: none !important; } }
+@media print { .sheetbg, .sheetv .bgpick, .sheetv .bgbar { display: none !important; } }
+/* the Background Image button sits at the bottom of the page, under Explainer Mode; its menu opens upward */
+.sheetv .bgbar { grid-column: 1 / -1; display: flex; justify-content: center; margin: 4px auto 16px; order: 1000; }
+.sheetv .bgbar .bgmenu { top: auto; bottom: calc(100% + 6px); right: auto; left: 50%; transform: translateX(-50%); }
+@media (max-width: 420px) { .sheetv .bgbar .bgmenu { grid-template-columns: repeat(3, 84px); } }
 body.sheetbg-on { background: transparent !important; }
 .sheetv .mbgrow { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .sheetv .mbgrow .eyebrow { margin-bottom: 6px; }

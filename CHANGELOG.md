@@ -6,6 +6,11 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- The Notes box on the sheet opens tall enough to show everything in it, and grows as you type, so it never needs its own scrollbar.
+- The line describing the character (level, species, class, subclass, background) sits in small type just below the name on the sheet, instead of beside it.
+- The sheet background picker is now the Background Image button at the bottom of the sheet, under Explainer Mode (on a phone too, instead of in the Sections menu). Its menu opens upward.
+- Print moved from the sheet to the Characters tab: each character has a Print button that opens its sheet, brings up the print window, and goes back when you're done.
+- Hide from group is only on the Characters tab now, not on the sheet. A hidden character's sheet still says it's hidden.
 - Explainer Mode is written with a capital M everywhere on the sheet.
 - Admins have a Sheet backgrounds section in Settings. It lists every image on the instance (built in, the shared library, and each character's upload) with the characters using each one. Admins can add images to the library (shrunk to WebP like other uploads), which then show in every member's Sheet background picker; rename or delete library images; delete any character's upload, including ones left over after a character replaced its image or was deleted; and hide the built-in images from the picker. A sheet whose image is deleted or hidden goes back to no background.
 - **Database:** `supabase/migrations/0010_background_library.sql`.
