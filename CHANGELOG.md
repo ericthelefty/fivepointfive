@@ -6,6 +6,8 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- **Database:** `supabase/migrations/0006_small_live_updates.sql`.
+- Live updates are far smaller. A character's game log has its own table, so a roll saves one small line instead of the whole character and its log, and other open screens receive only what changed ("HP 37 → 31"), tagged with a version number. A screen that misses an update notices the gap and fetches a fresh copy, and every screen checks its version numbers once a minute and whenever it comes back to the foreground or reconnects. The game log looks and works the same; existing logs were moved over.
 - Encounters: every combatant has a d20 button under their initiative box to roll just theirs, and "Roll initiative for everyone" and "for monsters" are clearer before the fight. During a fight, Re-roll initiative rolls again for everyone, monsters and characters; the round number stays and the turn goes to whoever is first in the new order.
 - Encounters: every line in the encounter's log (rolls, attacks, damage, initiative, new rounds) also appears in the game log of each character in the fight, tagged with the encounter's name, so players can follow what's happening around them.
 - The badge, page title, README and GitHub description say "5.5E compatible".
