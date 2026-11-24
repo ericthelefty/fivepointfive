@@ -6,6 +6,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { cloud, supabase } from "./backend.ts";
 import { useSession } from "./session.tsx";
+import { removeCharacterBackgrounds } from "./backgrounds.ts";
 import { deleteCharacter as localDelete, loadCharacters, saveCharacter as localSave } from "./store.tsx";
 import { mergeCharacter } from "./merge.ts";
 import { applyOps, diff, type Op } from "./patch.ts";
@@ -391,6 +392,8 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
   const remove = async (id: string) => {
     if (!cloud) localDelete(id);
     else {
+      // its uploaded sheet background goes too (while the character still exists, so the storage rules allow it)
+      await removeCharacterBackgrounds(id).catch(() => undefined);
       const { error: e } = await supabase!.from("characters").delete().eq("id", id);
       if (e) {
         setError(`Couldn’t delete: ${e.message}`);

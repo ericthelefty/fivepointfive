@@ -26,7 +26,7 @@ import InventoryPanel from "./InventoryPanel.tsx";
 import { DetailsForm } from "../components/DetailsForm.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
 import { NARROW, useMedia } from "../lib/useMedia.ts";
-import { SHEET_BACKGROUNDS, sheetBackground } from "../lib/backgrounds.ts";
+import { CUSTOM_BACKGROUND, SHEET_BACKGROUNDS, removeBackground, sheetBackground, uploadBackground, useStoredImage } from "../lib/backgrounds.ts";
 import {
   advantageFor, computeModif, type ScrollUse, disadvantageFor, spellcastingOf, spellMinutes, spellPlan as basePlan, statusOf, treatRoll, weaponFits, weaponProficient,
   type ModifConvert, type ConvertSide, type WeaponInfo,
@@ -219,8 +219,14 @@ export default function Sheet() {
   // the backdrop picker in the sheet's toolbar
   const [bgOpen, setBgOpen] = useState(false);
   const bgRef = useRef<HTMLDivElement>(null);
+  // the character's own uploaded backdrop, if any (downloaded from private storage on a shared instance)
+  const customUrl = useStoredImage(c?.customBackground);
+  const backdropUrl = c?.sheetBackground === CUSTOM_BACKGROUND ? customUrl : sheetBackground(c?.sheetBackground)?.image;
+  const [bgBusy, setBgBusy] = useState(false);
+  const [bgError, setBgError] = useState("");
+  const bgFile = useRef<HTMLInputElement>(null);
   // while a backdrop shows, the body's own background would paint over it; the page background stays on <html>
-  const hasBackdrop = !!sheetBackground(c?.sheetBackground);
+  const hasBackdrop = !!backdropUrl;
   useEffect(() => {
     if (!hasBackdrop) return;
     document.body.classList.add("sheetbg-on");
@@ -3113,18 +3119,68 @@ export default function Sheet() {
   const unread = (() => { const i = p.log.findIndex((e) => e.id === logSeen.current); return i === -1 ? p.log.length : i; })();
   const openLog = () => { logSeen.current = p.log[0]?.id ?? ""; setLogHidden(false); setLogOpen(true); setToast(undefined); setMsheet(""); };
   const closeLog = () => { logSeen.current = p.log[0]?.id ?? ""; setLogHidden(true); setLogOpen(false); };
-  /** The backdrop choices (None, then each image), for the toolbar menu and the phone Sections menu. */
-  const bgOptions = (done: () => void) =>
-    [{ id: "", name: "None", thumb: "" }, ...SHEET_BACKGROUNDS].map((b) => {
-      const on = (c.sheetBackground || "") === b.id;
-      return (
-        <button key={b.id || "none"} role="menuitemradio" aria-checked={on} className={`bgopt ${on ? "on" : ""}`}
-          onClick={() => { dirty.current = true; setC((prev) => (prev ? { ...prev, sheetBackground: b.id || undefined } : prev)); done(); }}>
-          <span className="bgthumb" style={b.thumb ? { backgroundImage: `url(${b.thumb})` } : undefined}>{!b.thumb && "—"}</span>
-          <span>{b.name}</span>
+  const pickBackdrop = (id: string) => { dirty.current = true; setC((prev) => (prev ? { ...prev, sheetBackground: id || undefined } : prev)); };
+  /** Upload the character's own backdrop (replacing the last one) and switch to it. */
+  const uploadBackdrop = async (file: File) => {
+    setBgError("");
+    setBgBusy(true);
+    try {
+      const stored = await uploadBackground(c.id, file, c.customBackground);
+      dirty.current = true;
+      setC((prev) => (prev ? { ...prev, customBackground: stored, sheetBackground: CUSTOM_BACKGROUND } : prev));
+    } catch (e) {
+      setBgError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBgBusy(false);
+    }
+  };
+  const removeBackdrop = async () => {
+    setBgError("");
+    const old = c.customBackground;
+    dirty.current = true;
+    setC((prev) => (prev ? { ...prev, customBackground: undefined, sheetBackground: prev.sheetBackground === CUSTOM_BACKGROUND ? undefined : prev.sheetBackground } : prev));
+    await removeBackground(old);
+  };
+  /** The backdrop choices (None, each image, then the character's own), for the toolbar menu and the phone Sections menu. */
+  const bgOptions = (done: () => void) => (
+    <>
+      {[{ id: "", name: "None", thumb: "" }, ...SHEET_BACKGROUNDS].map((b) => {
+        const on = (c.sheetBackground || "") === b.id;
+        return (
+          <button key={b.id || "none"} role="menuitemradio" aria-checked={on} className={`bgopt ${on ? "on" : ""}`} onClick={() => { pickBackdrop(b.id); done(); }}>
+            <span className="bgthumb" style={b.thumb ? { backgroundImage: `url(${b.thumb})` } : undefined}>{!b.thumb && "—"}</span>
+            <span>{b.name}</span>
+          </button>
+        );
+      })}
+      {c.customBackground ? (
+        <button role="menuitemradio" aria-checked={c.sheetBackground === CUSTOM_BACKGROUND} className={`bgopt ${c.sheetBackground === CUSTOM_BACKGROUND ? "on" : ""}`}
+          onClick={() => { pickBackdrop(CUSTOM_BACKGROUND); done(); }}>
+          <span className="bgthumb" style={customUrl ? { backgroundImage: `url("${customUrl}")` } : undefined}>{!customUrl && "…"}</span>
+          <span>Your image</span>
         </button>
-      );
-    });
+      ) : (
+        <button role="menuitem" className="bgopt" disabled={bgBusy} onClick={() => bgFile.current?.click()}>
+          <span className="bgthumb bgup">{bgBusy ? "…" : "+"}</span>
+          <span>{bgBusy ? "Uploading…" : "Upload"}</span>
+        </button>
+      )}
+      <div className="bgfoot">
+        {c.customBackground && (
+          <>
+            <button className="sbtn ghost sm" disabled={bgBusy} onClick={() => bgFile.current?.click()}>{bgBusy ? "Uploading…" : "Replace your image"}</button>
+            <button className="sbtn ghost sm" disabled={bgBusy} onClick={removeBackdrop}>Remove it</button>
+          </>
+        )}
+        <span className="faint">One image of your own per character. It’s resized and saved as a small WebP file.</span>
+        {bgError && <span className="bgerr" role="alert">{bgError}</span>}
+      </div>
+    </>
+  );
+  const bgInput = (
+    <input ref={bgFile} type="file" accept="image/*" hidden aria-label="Upload a background image"
+      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadBackdrop(f); }} />
+  );
 
   const phoneTop = narrow && (
     <div className="mtop">
@@ -3227,10 +3283,8 @@ export default function Sheet() {
         lastTap.current = e.target instanceof Element ? (e.target.closest("button, a, [role=button]") as HTMLElement | null) : null;
         if (el) { e.preventDefault(); e.stopPropagation(); exShow(el); } else setExAt(undefined);
       } : undefined}>
-      {(() => {
-        const sb = sheetBackground(c.sheetBackground);
-        return sb && <div className="sheetbg" aria-hidden="true" style={{ backgroundImage: `url(${sb.image})` }} />;
-      })()}
+      {editable && bgInput}
+      {backdropUrl && <div className="sheetbg" aria-hidden="true" style={{ backgroundImage: `url("${backdropUrl}")` }} />}
       {drawerPanel()}
       {diceFx && (
         <div key={diceFx.key} className="dice3d" aria-hidden="true">

@@ -65,6 +65,8 @@ export interface Character {
   ignorePrereqs?: boolean;
   /** The backdrop behind the play sheet (an id from backgrounds.ts); none when unset. */
   sheetBackground?: string;
+  /** The character's own uploaded backdrop: "storage:<path>" on a shared instance, a data URL in local-only mode. */
+  customBackground?: string;
 }
 
 export const DETAIL_GROUPS: { title: string; fields: { key: string; label: string; long?: boolean; options?: string[] }[] }[] = [

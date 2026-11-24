@@ -967,3 +967,10 @@ body.sheetbg-on { background: transparent !important; }
 .sheetv .mbgrow .eyebrow { margin-bottom: 6px; }
 .sheetv .mbgopts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .sheetv .mbgopts .bgthumb { width: 100%; height: 52px; }
+.sheetv .bgthumb.bgup { font-size: 22px; font-weight: 700; border-style: dashed; }
+.sheetv .bgfoot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; border-top: 1px solid var(--line); padding-top: 8px; max-width: 300px; }
+.sheetv .bgerr { color: var(--s-red); font-weight: 600; }
+.sheetv .bgmenu { grid-template-columns: repeat(4, 84px); }
+.sheetv .bgmenu .bgthumb { width: 76px; height: 52px; }
+.sheetv .mbgopts { grid-template-columns: repeat(4, 1fr); }
+.sheetv .mbgopts .bgfoot { max-width: none; }
