@@ -63,6 +63,8 @@ export interface Character {
   details?: Partial<Record<DetailKey, string>>;
   /** Skip feat and multiclass prerequisites in the builder (D&D Beyond's "Use prerequisites" off). */
   ignorePrereqs?: boolean;
+  /** The backdrop behind the play sheet (an id from backgrounds.ts); none when unset. */
+  sheetBackground?: string;
 }
 
 export const DETAIL_GROUPS: { title: string; fields: { key: string; label: string; long?: boolean; options?: string[] }[] }[] = [

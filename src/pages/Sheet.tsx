@@ -26,6 +26,7 @@ import InventoryPanel from "./InventoryPanel.tsx";
 import { DetailsForm } from "../components/DetailsForm.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
 import { NARROW, useMedia } from "../lib/useMedia.ts";
+import { SHEET_BACKGROUNDS, sheetBackground } from "../lib/backgrounds.ts";
 import {
   advantageFor, computeModif, type ScrollUse, disadvantageFor, spellcastingOf, spellMinutes, spellPlan as basePlan, statusOf, treatRoll, weaponFits, weaponProficient,
   type ModifConvert, type ConvertSide, type WeaponInfo,
@@ -215,6 +216,24 @@ export default function Sheet() {
   useEffect(() => { if (narrow && !wasNarrow.current) { setLogHidden(true); setLogOpen(false); } wasNarrow.current = narrow; }, [narrow]);
   const [layout, setLayout] = useState<string[]>(loadLayout);
   const [layoutOpen, setLayoutOpen] = useState(false);
+  // the backdrop picker in the sheet's toolbar
+  const [bgOpen, setBgOpen] = useState(false);
+  const bgRef = useRef<HTMLDivElement>(null);
+  // while a backdrop shows, the body's own background would paint over it; the page background stays on <html>
+  const hasBackdrop = !!sheetBackground(c?.sheetBackground);
+  useEffect(() => {
+    if (!hasBackdrop) return;
+    document.body.classList.add("sheetbg-on");
+    return () => document.body.classList.remove("sheetbg-on");
+  }, [hasBackdrop]);
+  useEffect(() => {
+    if (!bgOpen) return;
+    const away = (e: Event) => { if (bgRef.current && !bgRef.current.contains(e.target as Node)) setBgOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setBgOpen(false); };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc); };
+  }, [bgOpen]);
   const [toast, setToast] = useState<LogEntry>();
   // Wild Shape and other forms: the picker, the known-forms manager and its search
   const [formPick, setFormPick] = useState(false);
@@ -3094,6 +3113,19 @@ export default function Sheet() {
   const unread = (() => { const i = p.log.findIndex((e) => e.id === logSeen.current); return i === -1 ? p.log.length : i; })();
   const openLog = () => { logSeen.current = p.log[0]?.id ?? ""; setLogHidden(false); setLogOpen(true); setToast(undefined); setMsheet(""); };
   const closeLog = () => { logSeen.current = p.log[0]?.id ?? ""; setLogHidden(true); setLogOpen(false); };
+  /** The backdrop choices (None, then each image), for the toolbar menu and the phone Sections menu. */
+  const bgOptions = (done: () => void) =>
+    [{ id: "", name: "None", thumb: "" }, ...SHEET_BACKGROUNDS].map((b) => {
+      const on = (c.sheetBackground || "") === b.id;
+      return (
+        <button key={b.id || "none"} role="menuitemradio" aria-checked={on} className={`bgopt ${on ? "on" : ""}`}
+          onClick={() => { dirty.current = true; setC((prev) => (prev ? { ...prev, sheetBackground: b.id || undefined } : prev)); done(); }}>
+          <span className="bgthumb" style={b.thumb ? { backgroundImage: `url(${b.thumb})` } : undefined}>{!b.thumb && "—"}</span>
+          <span>{b.name}</span>
+        </button>
+      );
+    });
+
   const phoneTop = narrow && (
     <div className="mtop">
       <div className="mhd">
@@ -3146,6 +3178,12 @@ export default function Sheet() {
               <span className={`dot ${k === msecKey ? "p1" : ""}`} />{l}{!!n && <span className="badge">{n}</span>}
             </button>
           ))}
+          {editable && (
+            <div className="mbgrow" role="group" aria-label="Sheet background">
+              <div className="eyebrow">Sheet background</div>
+              <div className="mbgopts">{bgOptions(() => setMsheet(""))}</div>
+            </div>
+          )}
           {cloud && editable && (
             <div className="mfoot">
               <button className="sbtn sm ghost" onClick={() => chars.setHidden(c.id, !row?.hidden)}>{row?.hidden ? "Hidden · show to group" : "Hide from group"}</button>
@@ -3189,6 +3227,10 @@ export default function Sheet() {
         lastTap.current = e.target instanceof Element ? (e.target.closest("button, a, [role=button]") as HTMLElement | null) : null;
         if (el) { e.preventDefault(); e.stopPropagation(); exShow(el); } else setExAt(undefined);
       } : undefined}>
+      {(() => {
+        const sb = sheetBackground(c.sheetBackground);
+        return sb && <div className="sheetbg" aria-hidden="true" style={{ backgroundImage: `url(${sb.image})` }} />;
+      })()}
       {drawerPanel()}
       {diceFx && (
         <div key={diceFx.key} className="dice3d" aria-hidden="true">
@@ -3239,6 +3281,16 @@ export default function Sheet() {
                 </button>
               )}
               <button className="sbtn ghost sm mobonly" title="Change the order of the boxes on the sheet (phone layout)" onClick={() => setLayoutOpen(true)}>Change layout</button>
+              {editable && (
+                <div className="bgpick" ref={bgRef}>
+                  <button className="sbtn ghost sm" aria-haspopup="true" aria-expanded={bgOpen} title="Pick a backdrop for this character’s sheet." onClick={() => setBgOpen((o) => !o)}>Sheet background</button>
+                  {bgOpen && (
+                    <div className="bgmenu" role="menu" aria-label="Sheet background">
+                      {bgOptions(() => setBgOpen(false))}
+                    </div>
+                  )}
+                </div>
+              )}
               <button className="sbtn ghost sm" title="Print the sheet, or save it as a PDF from the print window." onClick={() => window.print()}>Print</button>
             </div>
           </div>

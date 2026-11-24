@@ -942,3 +942,21 @@
 .encsave { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* the Damage button right after a Critical Hit */
 .sbtn.critbtn { background: #a97c33; border-color: #e3b25e; color: #1d1408; font-weight: 700; }
+
+/* sheet backdrop: a picked image behind the whole page, tinted so the panels stay readable */
+.sheetbg { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
+.sheetbg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14, 11, 15, .55), rgba(14, 11, 15, .78)); }
+:root[data-theme="light"] .sheetbg::after { background: linear-gradient(180deg, rgba(245, 236, 216, .58), rgba(245, 236, 216, .8)); }
+.sheetv .bgpick { position: relative; }
+.sheetv .bgmenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; display: grid; grid-template-columns: repeat(3, 96px); gap: 8px; padding: 10px;
+  background: var(--s-panel); border: 1px solid var(--s-edge); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+.sheetv .bgopt { display: grid; gap: 5px; justify-items: center; background: none; border: 1px solid transparent; border-radius: 8px; padding: 5px; font-size: 12.5px; font-weight: 600; }
+.sheetv .bgopt:hover { border-color: var(--line); }
+.sheetv .bgopt.on { border-color: var(--s-gold2); color: var(--s-gold); }
+.sheetv .bgthumb { width: 84px; height: 56px; border-radius: 6px; background: var(--s-well) center / cover no-repeat; display: grid; place-items: center; color: var(--s-mut); border: 1px solid var(--line); }
+@media print { .sheetbg, .sheetv .bgpick { display: none !important; } }
+body.sheetbg-on { background: transparent !important; }
+.sheetv .mbgrow { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.sheetv .mbgrow .eyebrow { margin-bottom: 6px; }
+.sheetv .mbgopts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.sheetv .mbgopts .bgthumb { width: 100%; height: 52px; }
