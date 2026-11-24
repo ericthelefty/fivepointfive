@@ -844,3 +844,24 @@
 @media (max-width: 900px) {
   :root[data-theme="light"] .sheetv .dmod { color: #8a5a12; text-shadow: 0 0 6px #fbf6ea, 0 0 14px #fbf6ea; }
 }
+
+/* phones: action tables become cards: name on the left, to-hit and damage on the right,
+   and full-width buttons underneath that are easy to hit with a thumb */
+@media (max-width: 900px) {
+  .sheetv.phone table.atks:not(.invt):not(.sptable) { display: block; overflow: visible; border: 0; }
+  .sheetv.phone table.atks:not(.invt):not(.sptable) thead { display: none; }
+  .sheetv.phone table.atks:not(.invt):not(.sptable) tbody { display: block; }
+  .sheetv.phone table.atks:not(.invt):not(.sptable) tr { display: block; padding: 10px 2px; border-bottom: 1px solid var(--line); }
+  .sheetv.phone table.atks:not(.invt):not(.sptable) td { display: block; padding: 2px 0; border: 0; }
+  .sheetv.phone table.atks:not(.invt):not(.sptable) td:empty { display: none; }
+  .sheetv.phone table.atks:not(.invt):not(.sptable) td:last-child { padding-top: 8px; }
+  .sheetv.phone table.atks .rowbtn { flex-wrap: wrap; gap: 6px; }
+  .sheetv.phone table.atks .rowbtn > .sbtn, .sheetv.phone table.atks td:last-child > .sbtn { flex: 1 1 0; min-height: 40px; padding: 4px 8px; font-size: 13.5px; }
+  .sheetv.phone table.atks td:last-child > .sbtn { width: 100%; }
+  .sheetv.phone table.atkmain.atks:not(.invt):not(.sptable) tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: start; }
+  .sheetv.phone table.atkmain.atks:not(.invt):not(.sptable) td:nth-child(1) { grid-column: 1; grid-row: 1 / span 2; min-width: 0; }
+  .sheetv.phone table.atkmain.atks:not(.invt):not(.sptable) td:nth-child(2) { grid-column: 2; grid-row: 1; text-align: right; font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 18px; }
+  .sheetv.phone table.atkmain.atks:not(.invt):not(.sptable) td:nth-child(3) { grid-column: 2; grid-row: 2; text-align: right; font-size: 12.5px; color: var(--ink); max-width: 46vw; }
+  .sheetv.phone table.atkmain.atks:not(.invt):not(.sptable) td:nth-child(4) { grid-column: 1 / -1; grid-row: 3; }
+  .sheetv.phone table.atks b, .sheetv.phone table.atks .spname { font-size: 14.5px; }
+}

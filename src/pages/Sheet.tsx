@@ -3219,7 +3219,7 @@ export default function Sheet() {
                   {actFilter === "limited" && limitedSection()}
                   {(actFilter === "all" || actFilter === "attack") && <>
                   {d.attacksPerAction > 1 && <p className="note" style={{ marginTop: 0 }}>When you take the Attack action, you attack <b>{d.attacksPerAction} times</b>.</p>}
-                  <table className="atks">
+                  <table className="atks atkmain">
                     <thead><tr><th>Attack</th><th>To hit</th><th>Damage</th><th></th></tr></thead>
                     <tbody>
                       {attacks.map((a, i) => (
