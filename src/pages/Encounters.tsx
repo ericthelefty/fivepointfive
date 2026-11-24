@@ -3,7 +3,7 @@
  * initiative order, whose turn it is, HP for everyone in one place, and clickable stat blocks.
  * Only the admin (the DM) sees encounters on an instance; in local mode they're yours.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import "../sheet.css";
 import { useContent } from "../lib/store.tsx";
@@ -125,6 +125,11 @@ export function EncounterView() {
   const [sel, setSel] = useState<string>();
   const [mode, setMode] = useState<Mode>("normal");
   const [other, setOther] = useState({ name: "", init: "", ac: "", hp: "" });
+  // lines for the characters' own game logs, saved together after each click (see `log`)
+  const pcLines = useRef<Record<string, LogEntry[]>>({});
+  const pcTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const charsRef = useRef(chars);
+  charsRef.current = chars;
 
   const tables = useMemo(() => combatTables(content.entries), [content.entries]);
   const budget = useMemo(() => xpBudgetTable(content.entries), [content.entries]);
@@ -170,7 +175,31 @@ export function EncounterView() {
   const order = turnOrder(e.combatants, bonusOf);
 
   // --------------------------------------------------------------- the roll log
-  const log = (entry: Omit<LogEntry, "id" | "t">) => put((x) => ({ log: [{ ...entry, id: newUid(), t: timeNow() }, ...x.log].slice(0, 100) }));
+  /**
+   * A line in the encounter's log, also added to the game log of every character in the fight, so players see what
+   * happens around them. `except` skips characters whose sheet this same action already wrote to (damage, conditions).
+   * Lines for each character are queued and saved together once the click is done, so two lines from one click
+   * (initiative, then "The fight begins") don't overwrite each other.
+   */
+  const log = (entry: Omit<LogEntry, "id" | "t">, except: (string | undefined)[] = []) => {
+    const line: LogEntry = { ...entry, id: newUid(), t: timeNow() };
+    put((x) => ({ log: [line, ...x.log].slice(0, 100) }));
+    for (const ref of new Set(e.combatants.filter((cb) => cb.kind === "pc" && cb.ref && !except.includes(cb.ref)).map((cb) => cb.ref!))) {
+      const mine: LogEntry = { ...line, id: newUid(), detail: `${line.detail}<div class="enctag">In ${esc(e.name || "the encounter")}</div>` };
+      (pcLines.current[ref] ||= []).unshift(mine);
+    }
+    if (!pcTimer.current) pcTimer.current = setTimeout(() => {
+      pcTimer.current = undefined;
+      const q = pcLines.current;
+      pcLines.current = {};
+      for (const [ref, lines] of Object.entries(q)) {
+        const row = charsRef.current.get(ref);
+        if (!row) continue;
+        const p = playOf(row.c);
+        charsRef.current.save({ ...row.c, play: { ...p, log: [...lines, ...p.log].slice(0, 150) } });
+      }
+    }, 0);
+  };
   const roller: Roller = {
     test: (title, bonus) => {
       const r = d20(bonus, mode);
@@ -230,12 +259,13 @@ export function EncounterView() {
 
   // --------------------------------------------------------------- running
   /** Roll initiative (dice rolled here, outside the update, so each roll happens once). */
-  const rollInit = (which: "monsters" | "all" | "missing"): Map<string, number> => {
+  const rollInit = (which: "monsters" | "all" | "missing" | string): Map<string, number> => {
     const got = new Map<string, number>();
     const lines: string[] = [];
     for (const c of e.combatants) {
       if (which === "monsters" && c.kind === "pc") continue;
       if (which === "missing" && c.init !== undefined) continue;
+      if (!["monsters", "all", "missing"].includes(which) && c.uid !== which) continue;
       const b = bonusOf(c);
       const r = d20(b, "normal");
       got.set(c.uid, r.total);
@@ -246,6 +276,16 @@ export function EncounterView() {
       log({ title: "Initiative", total: "", cls: "event", detail: lines.map((l) => `<div>${l}</div>`).join("") });
     }
     return got;
+  };
+  /** Mid-fight: everyone rolls again, and the round carries on from the top of the new order. */
+  const reroll = () => {
+    if (!confirm("Re-roll initiative for everyone, monsters and characters? The round number stays; the turn goes to whoever is first in the new order.")) return;
+    const got = rollInit("all");
+    put((x) => {
+      const list = x.combatants.map((c) => (got.has(c.uid) ? { ...c, init: got.get(c.uid) } : c));
+      const first = turnOrder(list, bonusOf).find((c) => !c.out);
+      return { combatants: list, turn: first?.uid ?? x.turn };
+    });
   };
   const start = () => {
     rollInit("missing");
@@ -282,7 +322,7 @@ export function EncounterView() {
     log({
       title: `${nameOf(cb)} ${kind === "damage" ? "took damage" : "healed"}`, total: kind === "damage" ? `−${n}` : `+${n}`, cls: kind === "damage" ? "dmg" : "heal",
       detail: h ? `HP ${h.cur} → ${after ?? (kind === "damage" ? Math.max(0, h.cur - Math.max(0, n - h.temp)) : Math.min(h.max, h.cur + n))} / ${h.max}${cb.kind === "pc" ? " · on their sheet" : ""}` : "",
-    });
+    }, [cb.kind === "pc" ? cb.ref : undefined]);
   };
 
   const condsOf = (cb: Combatant) => (cb.kind === "pc" ? pcOf(cb)?.conditions || [] : cb.conditions || []);
@@ -300,7 +340,7 @@ export function EncounterView() {
       const cur = cb.conditions || [];
       setCb(cb.uid, { conditions: had ? cur.filter((x) => x !== k) : [...cur, k] });
     }
-    log({ title: `${nameOf(cb)}: ${k} ${had ? "removed" : "added"}`, total: "", cls: "info", detail: cb.kind === "pc" ? "On their sheet." : "" });
+    log({ title: `${nameOf(cb)}: ${k} ${had ? "removed" : "added"}`, total: "", cls: "info", detail: cb.kind === "pc" ? "On their sheet." : "" }, [cb.kind === "pc" ? cb.ref : undefined]);
   };
 
   // --------------------------------------------------------------- views
@@ -467,14 +507,15 @@ export function EncounterView() {
           <div className="rowbtn">
             {e.round === 0 ? (
               <>
-                <button className="sbtn ghost" onClick={() => rollInit("monsters")}>Roll initiative for monsters</button>
-                <button className="sbtn ghost" onClick={() => rollInit("all")}>Roll for everyone</button>
+                <button className="sbtn ghost" disabled={!e.combatants.length} onClick={() => rollInit("monsters")}>Roll initiative for monsters</button>
+                <button className="sbtn ghost" disabled={!e.combatants.length} onClick={() => rollInit("all")}>Roll initiative for everyone</button>
                 <button className="sbtn gold" disabled={!e.combatants.length} onClick={start}>Start</button>
               </>
             ) : (
               <>
                 <button className="sbtn ghost" onClick={prev}>Previous</button>
                 <button className="sbtn gold" onClick={next}>Next turn</button>
+                <button className="sbtn ghost" onClick={reroll}>Re-roll initiative</button>
                 <button className="sbtn ghost" onClick={endFight}>End fight</button>
               </>
             )}
@@ -490,8 +531,11 @@ export function EncounterView() {
               const down = h && h.cur === 0;
               return (
                 <div key={cb.uid} className={`trow ${isTurn ? "turn" : ""} ${selCb?.uid === cb.uid ? "sel" : ""} ${cb.out ? "out" : ""}`}>
+                  <div className="initcell">
                   <input className="initbox" type="number" inputMode="numeric" aria-label={`Initiative for ${nameOf(cb)}`} value={cb.init ?? ""} placeholder="–"
                     onChange={(x) => setCb(cb.uid, { init: x.target.value === "" ? undefined : +x.target.value })} />
+                  <button className="initroll" aria-label={`Roll initiative for ${nameOf(cb)}`} title={`Roll initiative: d20 ${fmt(bonusOf(cb))}`} onClick={() => rollInit(cb.uid)}>d20</button>
+                  </div>
                   <div className="tmain">
                     <button className="tname linkish" onClick={() => setSel(cb.uid)}>
                       {isTurn && <span aria-label="Their turn">▶ </span>}<b>{nameOf(cb)}</b>

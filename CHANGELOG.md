@@ -6,6 +6,9 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Encounters: every combatant has a d20 button under their initiative box to roll just theirs, and "Roll initiative for everyone" and "for monsters" are clearer before the fight. During a fight, Re-roll initiative rolls again for everyone, monsters and characters; the round number stays and the turn goes to whoever is first in the new order.
+- Encounters: every line in the encounter's log (rolls, attacks, damage, initiative, new rounds) also appears in the game log of each character in the fight, tagged with the encounter's name, so players can follow what's happening around them.
+- The badge, page title, README and GitHub description say "5.5E compatible".
 ## 0.4.0 (2026-11-23)
 
 - **Database:** `supabase/migrations/0003_encounters.sql`, then `0004_live_characters.sql`, then `0005_assign_characters.sql`.

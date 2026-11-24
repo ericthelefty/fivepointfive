@@ -874,3 +874,8 @@
 .sheetv .ichev { color: var(--s-mut); font-size: 12px; transition: transform .15s; }
 .sheetv .iname[aria-expanded="true"] .ichev { transform: rotate(180deg); color: var(--s-gold); }
 @media (max-width: 900px) { .sheetv.phone:not(.ms-none) .explainpill { top: 12px; bottom: auto; } }
+/* encounter tracker: each combatant's initiative box with its own d20 button under it */
+.sheetv .initcell { display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+.sheetv .initroll { height: 22px; border-radius: 6px; border: 1px solid var(--line); background: var(--s-panel2); color: var(--s-mut); font-size: 11px; font-weight: 700; padding: 0; }
+.sheetv .initroll:hover { color: var(--s-gold); border-color: var(--s-gold2); }
+.sheetv .enctag { margin-top: 3px; font-size: 11px; color: var(--s-mut); }
