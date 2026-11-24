@@ -177,7 +177,7 @@ export default function LootPage() {
             return (
               <div key={it.id} className={`lootrow ${won || left ? "done" : ""}`}>
                 <div className="lootname">
-                  <b>{it.item.name}</b> <span className="lootval">{cpText(it.item.valueCp)}</span>
+                  <b>{it.item.name}{it.item.item.kind === "custom" ? "*" : ""}</b> <span className="lootval">{cpText(it.item.valueCp)}</span>
                   <div className="faint">{[it.item.detail, it.item.weight ? `${it.item.weight} lb.` : "", it.item.source].filter(Boolean).join(" · ")}{it.found_by && <> <span className="tagf">Found by {it.found_by === cid ? "you" : nameOf(it.found_by)} · shared</span></>}</div>
                 </div>
                 <div className="lootwho">
@@ -202,6 +202,7 @@ export default function LootPage() {
             );
           })}
         </div>
+        {tab === "items" && L.items.some((it) => it.item.item.kind === "custom") && <p className="faint custnote" style={{ fontSize: 12 }}><b>*</b> Custom item: not in the SRD, so it has no rules of its own.</p>}
         <div className="lootfoot">
           {L.loot.status === "open"
             ? (waiting.length ? <>Waiting on <b>{waiting.map(nameOf).join(", ")}</b>. {isGm ? "" : "The GM can close the loot to settle the rest."}</> : "Everyone has chosen.")
@@ -221,7 +222,7 @@ export default function LootPage() {
             <div className="lootfoundroll"><span className="dd">{shownSearch.total}</span><div>{checkName(bodies.find((b) => b.id === shownSearch.body_id) || { check: "investigation" } as LootBody)}<div className="faint">{shownSearch.detail}</div></div></div>
             {shownSearch.finds.length === 0 ? <div className="faint">You find nothing more.</div> : shownSearch.finds.map((f) => (
               <div key={f.key} className="lootfind">
-                <div><b>{findName(f)}</b> {f.kind === "item" && f.line.valueCp ? <span className="lootval">{cpText(f.line.valueCp)}</span> : f.kind === "coins" ? <span className="faint">coins</span> : null}</div>
+                <div><b>{findName(f)}{f.kind === "item" && f.line.item.kind === "custom" ? "*" : ""}</b> {f.kind === "item" && f.line.valueCp ? <span className="lootval">{cpText(f.line.valueCp)}</span> : f.kind === "coins" ? <span className="faint">coins</span> : null}</div>
                 {f.choice ? <div className="faint">{f.choice === "keep" ? (f.kind === "coins" ? "Kept: it’s in your coin purse." : "Kept: it’s in your Inventory.") : "Shared: it’s on the loot list for the party."}</div>
                   : L.loot!.status === "open" ? (
                     <div className="lootfindb"><button className="lbtn keep" onClick={() => L.decide(shownSearch.id, f.key, "keep")}>Keep it</button><button className="lbtn leave" onClick={() => L.decide(shownSearch.id, f.key, "share")}>Share with the party</button></div>

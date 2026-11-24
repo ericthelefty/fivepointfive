@@ -7,6 +7,14 @@ import { addCoins, findCatalog, itemFrom, newItemId, NO_COINS, type CatalogItem,
 import type { ArmorRow } from "./rules.ts";
 import type { Weapon } from "./play.ts";
 
+/** What the GM set for an item that isn't in the catalog (an Ankheg Claw): its value and weight. */
+export interface CustomDetails { valueCp?: number; weight?: number }
+/** The catalog and weapon and armor tables loot is priced from, plus the GM's details for custom items (by lower-case name). */
+export interface LootTables { catalog: CatalogItem[]; weapons: Weapon[]; armor: ArmorRow[]; custom?: Record<string, CustomDetails> }
+export const customKey = (name: string) => name.trim().toLowerCase();
+/** True when a name has no match in the catalog, so it becomes a custom item. */
+export const isCustomName = (name: string, catalog: CatalogItem[]) => !parseCoins(name) && !findCatalog(parseGear(name).name, catalog);
+
 /** One kind of item in the GM's review list: every copy of it from every defeated monster. */
 export interface LootGroup {
   /** What identifies it in the list (its name, lower case). */
@@ -23,6 +31,8 @@ export interface LootGroup {
   sources: string[];
   /** The inventory item a player gets (quantity 1). */
   item: Item;
+  /** Not in the catalog: the GM's own item. */
+  custom?: boolean;
 }
 
 /** One copy on the players' list. */
@@ -66,7 +76,7 @@ export function parseGear(s: string): { name: string; qty: number } {
  */
 export function lootFromMonsters(
   defeated: { name: string; gear: string[] }[],
-  tables: { catalog: CatalogItem[]; weapons: Weapon[]; armor: ArmorRow[] },
+  tables: LootTables,
   magicRarity: (ref?: string) => string | undefined = () => undefined,
 ): LootGroup[] {
   const groups = new Map<string, LootGroup>();
@@ -85,14 +95,15 @@ export function lootFromMonsters(
 }
 
 /** A group for an item the GM adds by hand (a chest, a key): from the catalog when it's there, otherwise a custom item. */
-export function lootGroupOf(name: string, tables: { catalog: CatalogItem[]; weapons: Weapon[]; armor: ArmorRow[] }, magicRarity: (ref?: string) => string | undefined = () => undefined): LootGroup {
+export function lootGroupOf(name: string, tables: LootTables, magicRarity: (ref?: string) => string | undefined = () => undefined): LootGroup {
   const g = makeGroup(findCatalog(name, tables.catalog), name, tables, magicRarity);
   return { ...g, key: `added:${g.key}:${newItemId()}`, qty: 1, sources: ["Added by the GM"] };
 }
 
-function makeGroup(cat: CatalogItem | undefined, name: string, tables: { weapons: Weapon[]; armor: ArmorRow[] }, magicRarity: (ref?: string) => string | undefined): LootGroup {
+function makeGroup(cat: CatalogItem | undefined, name: string, tables: Omit<LootTables, "catalog">, magicRarity: (ref?: string) => string | undefined): LootGroup {
   if (!cat) {
-    return { key: name.toLowerCase(), name, qty: 0, detail: "", sources: [], item: { id: newItemId(), name, kind: "custom", qty: 1 } };
+    const d = tables.custom?.[customKey(name)];
+    return { key: name.toLowerCase(), name, qty: 0, valueCp: d?.valueCp, weight: d?.weight, detail: "", sources: [], custom: true, item: { id: newItemId(), name, kind: "custom", qty: 1, weight: d?.weight } };
   }
   const w = cat.kind === "weapon" ? tables.weapons.find((x) => x.name === cat.base) : undefined;
   const a = cat.kind === "armor" || cat.kind === "shield" ? tables.armor.find((x) => x.name === cat.base) : undefined;
@@ -185,7 +196,7 @@ export function shareOf(totalCp: number, ways: number): { each: Coins; leftCp: n
 }
 
 /** A hidden find from what the GM typed: coins ("10 GP") or an item (from the catalog when it's there). */
-export function hiddenFindOf(text: string, source: string, tables: { catalog: CatalogItem[]; weapons: Weapon[]; armor: ArmorRow[] }, magicRarity: (ref?: string) => string | undefined = () => undefined): HiddenFind {
+export function hiddenFindOf(text: string, source: string, tables: LootTables, magicRarity: (ref?: string) => string | undefined = () => undefined): HiddenFind {
   const coins = parseCoins(text);
   if (coins) return { kind: "coins", coins };
   const g = makeGroup(findCatalog(text.trim(), tables.catalog), text.trim(), tables, magicRarity);

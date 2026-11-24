@@ -31,7 +31,13 @@ interface EncState {
   get: (id?: string) => Encounter | undefined;
   save: (e: Encounter) => void;
   /** Change an encounter from its latest state, so several changes in one click all land. Keep `fn` free of side effects. */
-  update: (id: string, fn: (cur: Encounter) => Partial<Encounter>) => void;
+  update: (id: string, fn: (cur: Encounter) => Partial<Encounter>, opts?: { hold?: boolean }) => void;
+  /** Encounters with changes held back (Build tab edits) until the GM saves them. */
+  dirty: Set<string>;
+  /** Save the held changes now. */
+  commit: (id: string) => void;
+  /** Throw away the held changes and go back to the last saved version. */
+  revert: (id: string) => Promise<void>;
   create: (e: Encounter) => Promise<void>;
   remove: (id: string) => Promise<void>;
   error?: string;
@@ -47,6 +53,8 @@ export function EncountersProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string>();
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pending = useRef<Record<string, Encounter>>({});
+  const [dirty, setDirty] = useState<Set<string>>(new Set());
+  const markDirty = (id: string, on: boolean) => setDirty((d) => { if (d.has(id) === on) return d; const n = new Set(d); if (on) n.add(id); else n.delete(id); return n; });
 
   useEffect(() => {
     if (!cloud) return;
@@ -94,12 +102,14 @@ export function EncountersProvider({ children }: { children: ReactNode }) {
     timers.current[e.id] = setTimeout(() => flush(e.id), 500);
   };
 
-  const update = (id: string, fn: (cur: Encounter) => Partial<Encounter>) => {
+  const update = (id: string, fn: (cur: Encounter) => Partial<Encounter>, opts?: { hold?: boolean }) => {
+    markDirty(id, !!opts?.hold);
     setList((prev) => {
       const cur = prev.find((x) => x.id === id);
       if (!cur) return prev;
       const next = { ...cur, ...fn(cur), updated: Date.now() };
       const all = prev.map((x) => (x.id === id ? next : x));
+      if (opts?.hold) return all; // held until the GM saves (or thrown away)
       if (!cloud) saveLocal(all);
       else {
         pending.current[id] = next;
@@ -108,6 +118,33 @@ export function EncountersProvider({ children }: { children: ReactNode }) {
       }
       return all;
     });
+  };
+
+  const commit = (id: string) => {
+    markDirty(id, false);
+    setList((prev) => {
+      const cur = prev.find((x) => x.id === id);
+      if (!cur) return prev;
+      if (!cloud) saveLocal(prev);
+      else {
+        pending.current[id] = cur;
+        clearTimeout(timers.current[id]);
+        flush(id);
+      }
+      return prev;
+    });
+  };
+
+  const revert = async (id: string) => {
+    let saved: Encounter | undefined;
+    if (!cloud) saved = loadLocal().find((x) => x.id === id);
+    else if (supabase) {
+      const { data } = await supabase.from("encounters").select("id, data").eq("id", id).maybeSingle();
+      if (data) saved = { ...(data.data as Encounter), id: data.id };
+    }
+    if (!saved) return;
+    markDirty(id, false);
+    setList((prev) => prev.map((x) => (x.id === id ? saved! : x)));
   };
 
   const create = async (e: Encounter) => {
@@ -140,7 +177,7 @@ export function EncountersProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  return <Ctx.Provider value={{ ready, allowed, list, get: (id) => list.find((x) => x.id === id), save, update, create, remove, error }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ ready, allowed, list, get: (id) => list.find((x) => x.id === id), save, update, dirty, commit, revert, create, remove, error }}>{children}</Ctx.Provider>;
 }
 
 export function useEncounters(): EncState {

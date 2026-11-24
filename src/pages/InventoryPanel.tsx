@@ -123,7 +123,7 @@ export default function InventoryPanel(p: Props) {
               <tr key={it.id} className={open === it.id ? "open" : ""}>
                 <td>
                   <button className="iname" onClick={() => setOpen(open === it.id ? undefined : it.id)} aria-expanded={open === it.id}>
-                    <b>{it.name}</b>
+                    <b>{it.name}{it.kind === "custom" ? <span className="custstar" title="Custom item">*</span> : null}</b>
                     <span className="ichev" aria-hidden="true">▾</span>
                   </button>
                   {active && <span className="tagx on" title="Worn or wielded, and attuned if it needs it">Active</span>}
@@ -234,6 +234,7 @@ export default function InventoryPanel(p: Props) {
           ? "This is your starting equipment. Changes you make here are saved with the character."
           : "Equip armor, a shield and weapons to use them; attune to magic items that require it (up to 3)."}
       </p>
+      {p.items.some((it) => it.kind === "custom") && <p className="note custnote"><b>*</b> Custom item: not in the SRD, so it has no rules of its own. Open it to change its name, note or weight.</p>}
     </div>
   );
 }

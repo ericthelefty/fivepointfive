@@ -933,3 +933,10 @@
 .inved .coins label { flex: none; }
 .inved .linkish { justify-self: start; }
 .sheetv .inved .coins { margin-left: 0; }
+.custf { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; font-size: 12px; color: var(--muted); }
+.custf label { display: inline-flex; gap: 4px; align-items: center; }
+.custf input { width: 64px; height: 26px; min-height: 0; padding: 0 6px; text-align: right; background: var(--s-inset, #151217); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; }
+.custrow { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 13px; }
+.custnote { margin: 6px 0 0; }
+.custstar { color: var(--muted); margin-left: 1px; }
+.encsave { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

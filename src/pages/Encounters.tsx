@@ -13,8 +13,8 @@ import { cloud } from "../lib/backend.ts";
 import { parseCreature, crValue, type CreatureStats } from "../lib/creature.ts";
 import { d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import { esc, playOf, timeNow, type LogEntry } from "../lib/play.ts";
-import { applyDraft, coinsCp, coinsText, shareOf, cpText, hasCoins, hiddenFindOf, linesOf, lootFromMonsters, lootGroupOf, sumCoins, type MonsterInv } from "../lib/loot.ts";
-import { invSummary, MonsterInvEditor } from "./MonsterInv.tsx";
+import { applyDraft, coinsCp, coinsText, customKey, shareOf, type CustomDetails, cpText, hasCoins, hiddenFindOf, linesOf, lootFromMonsters, lootGroupOf, sumCoins, type MonsterInv } from "../lib/loot.ts";
+import { CustomFields, CustomNote, invSummary, MonsterInvEditor } from "./MonsterInv.tsx";
 import { sendLoot, useLoot } from "../lib/lootStore.tsx";
 import { classInfos, classLabel } from "../lib/multiclass.ts";
 import {
@@ -119,6 +119,11 @@ export function EncounterView() {
   const [tab, setTabState] = useState<"build" | "run" | "loot">(() => { const t = new URLSearchParams(location.search).get("tab"); return t === "run" || t === "loot" ? t : "build"; });
   // keep the open tab in the address, so a reload (or a link) comes back to it
   const setTab = (t: "build" | "run" | "loot") => {
+    // Build tab edits are held until saved: leaving the tab saves them or stays put
+    if (tab === "build" && t !== "build" && id && enc.dirty.has(id)) {
+      if (!confirm("Save your changes to this encounter first? (Cancel stays on the Build tab.)")) return;
+      enc.commit(id);
+    }
     setTabState(t);
     history.replaceState(history.state, "", `${location.pathname}${t !== "build" ? `?tab=${t}` : ""}`);
   };
@@ -150,12 +155,21 @@ export function EncounterView() {
 
   const e = enc.get(id);
   const sent = useLoot(e?.lootId);
+  const isDirty = !!id && enc.dirty.has(id);
+  // a reload or closing the tab with unsaved Build changes asks first (reloading throws them away)
+  useEffect(() => {
+    if (!isDirty) return;
+    const warn = (ev: BeforeUnloadEvent) => { ev.preventDefault(); ev.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty]);
   if (!enc.allowed) return <NotAllowed />;
   if (!enc.ready) return <p className="muted">Loading…</p>;
   if (!e) return <div className="panel">Encounter not found. <Link to="/encounters">Back to encounters</Link></div>;
 
   // every change goes through the store's latest copy, so several changes in one click all land
-  const put = (patch: Partial<Encounter> | ((x: Encounter) => Partial<Encounter>)) => enc.update(e.id, typeof patch === "function" ? patch : () => patch);
+  // on the Build tab changes are held until the GM saves; on Run and Loot they save straight away (with anything held)
+  const put = (patch: Partial<Encounter> | ((x: Encounter) => Partial<Encounter>)) => enc.update(e.id, typeof patch === "function" ? patch : () => patch, { hold: tab === "build" });
   const setCb = (uid: string, patch: Partial<Combatant>) => put((x) => ({ combatants: x.combatants.map((c) => (c.uid === uid ? { ...c, ...patch } : c)) }));
 
   // --------------------------------------------------------------- who's who
@@ -376,6 +390,8 @@ export function EncounterView() {
   const groups = new Map<string, Combatant[]>();
   for (const c of e.combatants.filter((x) => x.kind === "monster")) groups.set(c.ref || c.name, [...(groups.get(c.ref || c.name) || []), c]);
   const previewSt = preview ? creatures.get(preview) : undefined;
+  const setCustom = (name: string, d: CustomDetails) => put((x) => ({ customItems: { ...(x.customItems || {}), [customKey(name)]: d } }));
+  const lootTables = { ...tables, custom: e.customItems };
 
   const diffColor = { Low: "var(--s-grn)", Moderate: "var(--s-gold)", High: "#f0a196", "Above High": "var(--s-red)", "": "var(--s-mut)" }[diff.label];
 
@@ -424,6 +440,7 @@ export function EncounterView() {
                 </div>
               </div>
               {editing && <MonsterInvEditor name={st?.name || list[0].name} statGear={st?.gear || []} inv={e.inv?.[ref]} count={list.length} catalog={tables.catalog}
+                custom={e.customItems} onCustom={setCustom}
                 onChange={(inv) => put((x) => ({ inv: { ...(x.inv || {}), [ref]: inv } }))} />}
               </div>
             );
@@ -531,10 +548,15 @@ export function EncounterView() {
   const fallen = e.combatants.filter((c) => c.kind === "monster" && (c.surrendered || hpOf(c)?.cur === 0));
   const rarityOf = (ref?: string) => content.byId(ref)?.tagline?.match(/\b(very rare|uncommon|common|rare|legendary|artifact)\b/i)?.[1];
   const invOf = (c: Combatant): MonsterInv => e.inv?.[c.ref || c.name] || {};
-  const found = lootFromMonsters(fallen.map((c) => ({ name: stOf(c)?.name || c.name, gear: invOf(c).gear ?? stOf(c)?.gear ?? [] })), tables, rarityOf);
+  const found = lootFromMonsters(fallen.map((c) => ({ name: stOf(c)?.name || c.name, gear: invOf(c).gear ?? stOf(c)?.gear ?? [] })), lootTables, rarityOf);
   const lootCoins = sumCoins(fallen.map((c) => invOf(c).coins));
   const hiddenTiers = fallen.reduce((n, c) => n + (invOf(c).hidden?.filter((t) => t.finds.length).length || 0), 0);
-  const lootGroups = applyDraft(found, e.lootDraft);
+  // custom items take the GM's latest value and weight (items added by hand were priced when added)
+  const lootGroups = applyDraft(found, e.lootDraft).map((g) => {
+    if (!g.custom) return g;
+    const d = e.customItems?.[customKey(g.name)];
+    return { ...g, valueCp: d?.valueCp, weight: d?.weight, item: { ...g.item, weight: d?.weight } };
+  });
   const draft = e.lootDraft || {};
   const setDraft = (d: Partial<NonNullable<typeof e.lootDraft>>) => put((x) => ({ lootDraft: { ...(x.lootDraft || {}), ...d } }));
   const lootPlayers = [...new Set(e.combatants.filter((c) => c.kind === "pc" && c.ref).map((c) => c.ref!))];
@@ -549,7 +571,7 @@ export function EncounterView() {
       const bodies = fallen.map((c) => ({ id: c.uid, name: c.name, status: c.surrendered ? "Surrendered" : "At 0 HP", check: invOf(c).check || "investigation" as const }));
       const hidden = fallen.map((c) => ({
         bodyId: c.uid,
-        tiers: (invOf(c).hidden || []).filter((t) => t.finds.length).map((t) => ({ dc: t.dc, finds: t.finds.map((f) => hiddenFindOf(f, c.name, tables, rarityOf)) })),
+        tiers: (invOf(c).hidden || []).filter((t) => t.finds.length).map((t) => ({ dc: t.dc, finds: t.finds.map((f) => hiddenFindOf(f, c.name, lootTables, rarityOf)) })),
       })).filter((h) => h.tiers.length);
       const lid = await sendLoot({ encounterId: e.id, name: e.name, players: lootPlayers, lines: lootLines, coins: lootCoins, bodies, hidden });
       put({ lootId: lid });
@@ -562,7 +584,7 @@ export function EncounterView() {
   const lootMatches = lootQ.trim().length >= 2 ? tables.catalog.filter((c) => c.name.toLowerCase().includes(lootQ.trim().toLowerCase())).slice(0, 8) : [];
   const addLoot = (name: string) => {
     if (!name.trim()) return;
-    setDraft({ added: [...(draft.added || []), lootGroupOf(name.trim(), tables, rarityOf)] });
+    setDraft({ added: [...(draft.added || []), lootGroupOf(name.trim(), lootTables, rarityOf)] });
     setLootQ("");
   };
   const lootTab = e.lootId ? (
@@ -579,7 +601,7 @@ export function EncounterView() {
             const last = it.rolls?.[it.rolls.length - 1];
             return (
               <tr key={it.id}>
-                <td><b>{it.item.name}</b> <span className="note">{cpText(it.item.valueCp)}</span></td>
+                <td><b>{it.item.name}{it.item.item.kind === "custom" ? "*" : ""}</b> <span className="note">{cpText(it.item.valueCp)}</span></td>
                 <td className="note">{it.item.source}</td>
                 <td className="note">{w.join(", ") || "—"}</td>
                 <td>{it.status === "won" ? <span className="lootwon">{chars.get(it.winner || "")?.c.name || "?"}{last ? ` · d20 ${Object.values(last).sort((a, b) => b - a).join(" vs ")}` : ""}</span> : it.status === "left" ? <span className="note">Nobody took it</span> : <span className="note">Choosing</span>}</td>
@@ -620,7 +642,7 @@ export function EncounterView() {
               const fromText = [...new Set(g.sources)].map((n) => { const k = g.sources.filter((x) => x === n).length; return k > 1 ? `${n} ×${k}` : n; }).join(", ");
               return (
                 <tr key={g.key} className={g.removed ? "gone" : ""}>
-                  <td><b>{g.name}</b><div className="note">{g.detail}</div></td>
+                  <td><b>{g.name}{g.custom ? "*" : ""}</b><div className="note">{g.detail}</div></td>
                   <td className="note">{fromText}</td>
                   <td>
                     <span className="step">
@@ -630,8 +652,14 @@ export function EncounterView() {
                     </span>
                     {!g.removed && g.qty < g.max && <span className="note"> of {g.max}</span>}
                   </td>
-                  <td style={{ textAlign: "right" }}><b>{cpText(g.valueCp)}</b>{g.qty > 1 && g.valueCp !== undefined && !g.removed && <div className="note">{cpText(g.valueCp * g.qty)} total</div>}</td>
-                  <td style={{ textAlign: "right" }} className="note">{g.weight ? `${g.weight} lb.` : "—"}</td>
+                  {g.custom && !g.removed ? (
+                    <td colSpan={2} style={{ textAlign: "right" }}><CustomFields name={g.name} d={e.customItems?.[customKey(g.name)]} onChange={(d) => setCustom(g.name, d)} /></td>
+                  ) : (
+                    <>
+                      <td style={{ textAlign: "right" }}><b>{cpText(g.valueCp)}</b>{g.qty > 1 && g.valueCp !== undefined && !g.removed && <div className="note">{cpText(g.valueCp * g.qty)} total</div>}</td>
+                      <td style={{ textAlign: "right" }} className="note">{g.weight ? `${g.weight} lb.` : "—"}</td>
+                    </>
+                  )}
                   <td style={{ textAlign: "right" }}>
                     {g.removed
                       ? <button className="sbtn sm ghost" onClick={() => setDraft({ removed: (draft.removed || []).filter((k) => k !== g.key), qty: { ...(draft.qty || {}), [g.key]: g.max } })}>Undo</button>
@@ -647,6 +675,7 @@ export function EncounterView() {
         <input value={lootQ} placeholder="Add an item that isn’t on a stat block (a chest, a key…)" onChange={(x) => setLootQ(x.target.value)} onKeyDown={(x) => { if (x.key === "Enter") addLoot(lootMatches[0]?.name || lootQ); }} />
         <button className="sbtn ghost" onClick={() => addLoot(lootMatches[0]?.name || lootQ)}>Add</button>
       </div>
+      {lootGroups.some((g) => g.custom) && <CustomNote gm />}
       {lootMatches.length > 0 && <div className="rowbtn" style={{ flexWrap: "wrap" }}>{lootMatches.map((c) => <button key={c.name} className="sbtn sm ghost" onClick={() => addLoot(c.name)}>{c.name}</button>)}</div>}
       <div className="lootgmf">
         <span className="note">{lootLines.length} item{lootLines.length === 1 ? "" : "s"} · {cpText(lootLines.reduce((n, l) => n + (l.valueCp || 0), 0))} in all{hasCoins(lootCoins) ? ` · ${coinsText(shareOf(coinsCp(lootCoins), 1).each)} in coins, split evenly` : ""}{hiddenTiers ? ` · ${hiddenTiers} hidden tier${hiddenTiers > 1 ? "s" : ""} to search for` : ""} · going to <b>{lootPlayers.map((r) => chars.get(r)?.c.name || "?").join(", ") || "no one (add characters on the Build tab)"}</b></span>
@@ -796,6 +825,13 @@ export function EncounterView() {
           <input className="encname disp" value={e.name} aria-label="Encounter name" onChange={(x) => put({ name: x.target.value })} onBlur={(x) => { if (!x.target.value.trim()) put({ name: "Untitled encounter" }); }} />
           <div className="note">{summary(e, (c) => stOf(c)?.name || c.name)}{diff.label ? ` · ${diff.label} difficulty` : ""}</div>
         </div>
+        {tab === "build" && (
+          <div className="encsave">
+            <span className="note">{isDirty ? "Unsaved changes" : "All changes saved"}</span>
+            <button className="sbtn ghost" disabled={!isDirty} onClick={() => { if (confirm("Throw away your changes and go back to the last saved version?")) enc.revert(e.id); }}>Discard changes</button>
+            <button className="sbtn gold" disabled={!isDirty} onClick={() => enc.commit(e.id)}>Save</button>
+          </div>
+        )}
         <div className="rowbtn" role="tablist" aria-label="Encounter view">
           <button role="tab" className={`sbtn ${tab === "build" ? "gold" : "ghost"}`} aria-selected={tab === "build"} onClick={() => setTab("build")}>Build</button>
           <button role="tab" className={`sbtn ${tab === "run" ? "gold" : "ghost"}`} aria-selected={tab === "run"} onClick={() => setTab("run")}>Run{e.round ? ` · round ${e.round}` : ""}</button>

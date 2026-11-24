@@ -4,7 +4,24 @@
  */
 import { useState } from "react";
 import { COIN_KEYS, type CatalogItem } from "../lib/inventory.ts";
-import { coinsText, hasCoins, parseCoins, type MonsterInv } from "../lib/loot.ts";
+import { coinsText, customKey, hasCoins, isCustomName, parseCoins, parseGear, type CustomDetails, type MonsterInv } from "../lib/loot.ts";
+
+/** Value (in GP) and weight boxes for a custom item. */
+export function CustomFields({ name, d, onChange }: { name: string; d?: CustomDetails; onChange: (d: CustomDetails) => void }) {
+  return (
+    <span className="custf">
+      <label>Value <input type="number" min={0} step="any" inputMode="decimal" value={d?.valueCp !== undefined ? d.valueCp / 100 : ""} placeholder="—" aria-label={`Value of ${name} in GP`}
+        onChange={(e) => onChange({ ...d, valueCp: e.target.value === "" ? undefined : Math.max(0, Math.round(+e.target.value * 100)) })} /> GP</label>
+      <label>Weight <input type="number" min={0} step="any" inputMode="decimal" value={d?.weight ?? ""} placeholder="—" aria-label={`Weight of ${name} in pounds`}
+        onChange={(e) => onChange({ ...d, weight: e.target.value === "" ? undefined : Math.max(0, +e.target.value) })} /> lb.</label>
+    </span>
+  );
+}
+
+/** The footnote for the asterisk on custom items. */
+export function CustomNote({ gm }: { gm?: boolean }) {
+  return <p className="note custnote"><b>*</b> Custom item: not in the SRD, so it has no rules of its own.{gm ? " Set its value and weight where it’s listed." : ""}</p>;
+}
 
 /** One line for the row in the encounter list: "3 items · 7 GP 4 SP · 2 hidden tiers". */
 export function invSummary(inv: MonsterInv | undefined, statGear: string[]): string {
@@ -31,13 +48,16 @@ function AddBox({ placeholder, catalog, onAdd, coins }: { placeholder: string; c
   );
 }
 
-export function MonsterInvEditor({ name, statGear, inv, onChange, catalog, count }: {
+export function MonsterInvEditor({ name, statGear, inv, onChange, catalog, count, custom, onCustom }: {
   name: string; statGear: string[]; inv: MonsterInv | undefined; onChange: (inv: MonsterInv) => void; catalog: CatalogItem[]; count: number;
+  custom?: Record<string, CustomDetails>; onCustom: (name: string, d: CustomDetails) => void;
 }) {
+  const star = (n: string) => (isCustomName(n, catalog) ? "*" : "");
   const cur = inv || {};
   const gear = cur.gear ?? statGear;
   const set = (patch: Partial<MonsterInv>) => onChange({ ...cur, ...patch });
   const tiers = cur.hidden || [];
+  const customNames = [...new Map([...gear, ...tiers.flatMap((t) => t.finds)].filter((n) => isCustomName(n, catalog)).map((n) => parseGear(n).name).map((n) => [customKey(n), n])).values()];
   const setTier = (i: number, t: { dc: number; finds: string[] }) => set({ hidden: tiers.map((x, j) => (j === i ? t : x)) });
   return (
     <div className="inved">
@@ -45,7 +65,7 @@ export function MonsterInvEditor({ name, statGear, inv, onChange, catalog, count
         <div className="sl">Carried{count > 1 ? ` · each ${name} carries the same` : ""}</div>
         <div className="pills">
           {gear.map((g, i) => (
-            <span key={`${g}-${i}`} className="pill">{g}<button aria-label={`Remove ${g}`} onClick={() => set({ gear: gear.filter((_, j) => j !== i) })}>✕</button></span>
+            <span key={`${g}-${i}`} className="pill">{g}{star(g)}<button aria-label={`Remove ${g}`} onClick={() => set({ gear: gear.filter((_, j) => j !== i) })}>✕</button></span>
           ))}
           {!gear.length && <span className="note">Nothing.</span>}
         </div>
@@ -78,7 +98,7 @@ export function MonsterInvEditor({ name, statGear, inv, onChange, catalog, count
               <button className="sbtn sm ghost" style={{ marginLeft: "auto" }} onClick={() => set({ hidden: tiers.filter((_, j) => j !== i) })}>Remove tier</button>
             </div>
             <div className="pills">
-              {t.finds.map((f, j) => <span key={`${f}-${j}`} className="pill">{f}<button aria-label={`Remove ${f}`} onClick={() => setTier(i, { ...t, finds: t.finds.filter((_, x) => x !== j) })}>✕</button></span>)}
+              {t.finds.map((f, j) => <span key={`${f}-${j}`} className="pill">{f}{star(f)}<button aria-label={`Remove ${f}`} onClick={() => setTier(i, { ...t, finds: t.finds.filter((_, x) => x !== j) })}>✕</button></span>)}
             </div>
             <AddBox coins placeholder="Item or coins (10 GP)" catalog={catalog} onAdd={(s) => setTier(i, { ...t, finds: [...t.finds, s] })} />
           </div>
@@ -86,6 +106,15 @@ export function MonsterInvEditor({ name, statGear, inv, onChange, catalog, count
         <button className="sbtn sm ghost" style={{ alignSelf: "flex-start" }} onClick={() => set({ hidden: [...tiers, { dc: tiers.length ? Math.min(40, tiers[tiers.length - 1].dc + 5) : 15, finds: [] }] })}>+ Add a tier</button>
         <p className="note" style={{ margin: 0 }}>Tiers stack: a high roll finds every tier it meets. Players never see the DCs, and each find can be found only once.{count > 1 ? ` Every ${name} hides the same things.` : ""}</p>
       </div>
+      {customNames.length > 0 && (
+        <div className="invsec">
+          <div className="sl">Custom items</div>
+          {customNames.map((n) => (
+            <div key={n} className="custrow"><b>{n}*</b><CustomFields name={n} d={custom?.[customKey(n)]} onChange={(d) => onCustom(n, d)} /></div>
+          ))}
+          <CustomNote />
+        </div>
+      )}
     </div>
   );
 }
