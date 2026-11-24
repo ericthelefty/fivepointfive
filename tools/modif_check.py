@@ -1,4 +1,4 @@
-"""modif_check: validator for Modif 0.6 (an open format for 5E-compatible rules as data).
+"""modif_check: validator for Modif 0.7 (an open format for 5E-compatible rules as data).
 
 Usage:
   python3 modif_check.py <content pack folder>     reads the ## Effects blocks in every .md entry file
@@ -70,7 +70,7 @@ BLOCKS = {
     'summon-options': F('for', 'add', 'speed', 'save-dc', 'damage-type', 'text'),
     'condition': None,
     'charges': F('max', 'recharge', 'destroy-on', 'start', 'kinds'), 'variant': F('by', 'values', 'roll', 'table'), 'container': F('capacity', 'weight'), 'weapon-rule': None, 'craft': F('items'), 'auto-fail': F('roll'), 'breaks-concentration': None, 'rest': F('kind', 'spend', 'regain'),
-    'poison': F('delivery', 'save', 'damage', 'apply', 'on-failure', 'on-success', 'then', 'delay', 'neutralized-by', 'on-fail-by'), 'weapon-property': F('add', 'remove'), 'curse': F('prevents', 'ends', 'effects'),
+    'poison': F('delivery', 'save', 'damage', 'apply', 'on-failure', 'on-success', 'then', 'delay', 'neutralized-by', 'on-fail-by'), 'weapon-property': F('add', 'remove'), 'wield-as': F('weapon'), 'curse': F('prevents', 'ends', 'effects'),
     'modify': F('target', 'set', 'add', 'max'), 'replace': F('target', 'optional'),
     'custom': F('handler', 'params'),
     'trigger': F('event', 'reaction', 'if', 'offer', 'auto', 'pick', 'dc', 'who', 'group', 'group-exempt', 'if-roll'),

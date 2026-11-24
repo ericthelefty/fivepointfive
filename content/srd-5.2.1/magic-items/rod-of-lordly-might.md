@@ -27,6 +27,7 @@ This rod has a flanged head, and it functions as a magic Mace that grants a +3 b
 
 ## Effects
 ```yaml
+- wield-as: { weapon: mace }
 - bonus: { to: [attack, damage], value: 3, scope: { weapon: { id: self } } }
 - action: { activation: bonus, choose-one: [
               { id: button-1, label: Flame Blade, effects: [ { trait: { light: { bright: 40, dim: 40 } } }, { trigger: { event: hit, scope: { weapon: { id: self } }, auto: true, offer: { damage: { dice: 2d6, type: fire } } } } ] },

@@ -1908,6 +1908,23 @@
      "additionalProperties": false
     },
     "weapon-rule": {},
+    "wield-as": {
+     "type": "object",
+     "properties": {
+      "at": {},
+      "counter": {},
+      "duration": {},
+      "id": {},
+      "label": {},
+      "level": {},
+      "per": {},
+      "scope": {},
+      "text": {},
+      "weapon": {},
+      "when": {}
+     },
+     "additionalProperties": false
+    },
     "zone": {
      "type": "object",
      "properties": {

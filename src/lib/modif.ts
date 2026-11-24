@@ -19,7 +19,7 @@ import { SUBCLASS_LEVEL, casterInfoOf, classInfos, spellSlots } from "./multicla
 import type { Item } from "./inventory.ts";
 
 // ------------------------------------------------------------------ vocabulary
-/** The 70 block types of Modif 0.6. */
+/** The 71 block types of Modif 0.7. */
 export const BLOCKS = [
   "proficiency", "expertise", "mastery", "language", "half-proficiency", "sense", "speed", "size", "defense", "note",
   "trait", "option", "hit-die", "multiclass", "equipment", "bonus", "set", "base", "advantage", "disadvantage",
@@ -28,7 +28,7 @@ export const BLOCKS = [
   "resource", "cast-list", "convert", "action", "toggle", "narrative", "suppress", "aura", "zone", "remove-condition",
   "limit", "grant-spell", "spell-list", "spellcasting", "scaling", "target-effects", "self-effects", "form", "summon", "summon-options",
   "condition", "charges", "variant", "container", "weapon-rule", "craft", "auto-fail", "breaks-concentration", "rest",
-  "poison", "weapon-property", "curse", "modify", "replace", "trigger", "custom",
+  "poison", "weapon-property", "curse", "modify", "replace", "trigger", "custom", "wield-as",
 ];
 const BLOCK_SET = new Set(BLOCKS);
 const RESERVED_KEYS = new Set(["on", "off", "yes", "no", "y", "n", "true", "false"]);
@@ -2725,6 +2725,9 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
       r.converts.push({ ...conv, source: src });
       return true;
     }
+    case "wield-as":
+      // the inventory reads it (the item fights as that weapon); nothing to add here
+      return true;
     case "custom": {
       // hand-coded mechanics (src/lib/custom); an unknown handler shows its text as a reminder
       const h = typeof v?.handler === "string" ? CUSTOM_HANDLERS[v.handler] : undefined;

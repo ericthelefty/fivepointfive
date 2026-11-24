@@ -9,6 +9,7 @@ The staff can be wielded as a magic Quarterstaff. On a hit, it deals damage as a
 
 ## Effects
 ```yaml
+- wield-as: { weapon: quarterstaff }
 - charges: { max: 3, recharge: { dice: 1d3, at: dawn } }
 - trigger: { event: hit, scope: { weapon: { id: self } }, offer: { cost: { charges: 1 }, damage: { dice: 2d10, type: necrotic }, save: { ability: con, dc: 15 },
              on-failure: { apply: { duration: { amount: 1, unit: hour }, effects: [ { disadvantage: { roll: [check:str, check:con, save:str, save:con] } } ] } } } }

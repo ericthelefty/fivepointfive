@@ -1,6 +1,6 @@
-# Modif 0.6 cookbook: writing Effects from rules text
+# Modif 0.7 cookbook: writing Effects from rules text
 
-**The authoring guide for Modif 0.6.** It's informative: the spec, [`MODIF.md`](MODIF.md), is normative and defines every block, field and value. Where they disagree, the spec wins. Lines marked *fivepointfive:* describe that app's behavior, not Modif.
+**The authoring guide for Modif 0.7.** It's informative: the spec, [`MODIF.md`](MODIF.md), is normative and defines every block, field and value. Where they disagree, the spec wins. Lines marked *fivepointfive:* describe that app's behavior, not Modif.
 
 This cookbook is the how-to. It maps the phrases rules text uses to the blocks that express them, using patterns from the SRD 5.2.1 pack. When a recipe doesn't cover something, find the closest SRD entry and copy its shape.
 
@@ -390,6 +390,11 @@ Events include `hit`, `miss`, `crit`, `hit-by`, `damaged`, `{ fail: save | check
 # "Potion of Healing" variants by name, drunk as a Bonus Action and used up
 - variant: { id: heal, by: name, values: { "": 2d4+2, greater: 4d4+4, superior: 8d4+8, supreme: 10d4+20 } }
 - action: { activation: bonus, heal: variant:heal, consume: true }
+# "can be wielded as a magic Quarterstaff that grants a +3 bonus to attack rolls and damage rolls made with it"
+- wield-as: { weapon: quarterstaff }
+- bonus: { to: [attack, damage], value: 3, scope: { weapon: { id: self } } }
+# "When you hit with a melee attack using it, you can expend up to 3 charges … an extra 1d6 Force damage" per charge
+- trigger: { event: hit, scope: { weapon: { id: self, kind: melee } }, offer: { cost: { charges: { min: 1, max: 3 } }, damage: { dice: "dice(cost.charges, d6)", type: force } } }
 # A staff that casts spells from its charges
 - cast-list: { pay-from: charges, spells: [ { spell: $srd/spells/heal, cost: 1 }, { spell: $srd/spells/resurrection, cost: 5 } ] }
 ```

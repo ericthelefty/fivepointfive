@@ -11,6 +11,7 @@ The staff has 10 charges. When you hit with a melee attack using it, you can exp
 
 ## Effects
 ```yaml
+- wield-as: { weapon: quarterstaff }
 - bonus: { to: [attack, damage], value: 3, scope: { weapon: { id: self } } }
 - charges: { max: 10, recharge: { dice: 1d6 + 4, at: dawn }, destroy-on: { roll: 1d20, if: 1, when: last-charge } }
 - trigger: { event: hit, scope: { weapon: { id: self, kind: melee } }, offer: { cost: { charges: { min: 1, max: 3 } }, damage: { dice: "dice(cost.charges, d6)", type: force } } }

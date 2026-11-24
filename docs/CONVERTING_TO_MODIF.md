@@ -7,7 +7,7 @@ You are converting entries in the fivepointfive SRD content pack to **Modif**, t
 ## What to read first
 
 1. `docs/MODIF_COOKBOOK.md`: how to turn rules phrases into blocks, with SRD examples. Use it as your recipe book.
-2. `docs/MODIF.md`: the Modif 0.6 spec. It is the authority on block names, fields and values. Read §2 (where effects live), §3 (values, paths, scopes, conditions), §4 (block index) and the sections for every block you use.
+2. `docs/MODIF.md`: the Modif 0.7 spec. It is the authority on block names, fields and values. Read §2 (where effects live), §3 (values, paths, scopes, conditions), §4 (block index) and the sections for every block you use.
 3. `docs/CONTENT_FORMAT.md` §4: the user-facing summary of Effects.
 4. Files that are already converted (all of the SRD pack's character content). Copy their style exactly, for example:
    - `content/srd-5.2.1/classes/fighter.md`

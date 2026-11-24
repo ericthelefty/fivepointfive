@@ -17,6 +17,7 @@ This staff can be wielded as a magic Quarterstaff that grants a +2 bonus to atta
 
 ## Effects
 ```yaml
+- wield-as: { weapon: quarterstaff }
 - bonus: { to: [attack, damage], value: 2, scope: { weapon: { id: self } } }
 - resource: { id: thunder-lightning, max: 1, reset: dawn, per-property: true }
 - trigger: { event: hit, scope: { weapon: { id: self, kind: melee } }, label: Lightning, offer: { cost: { resource: $#thunder-lightning }, damage: { dice: 2d6, type: lightning } } }

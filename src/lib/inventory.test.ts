@@ -41,6 +41,15 @@ describe("magic items", () => {
     expect(m("Shield, +1, +2, or +3").base).toEqual({ kind: "shield", options: ["Shield"] });
     expect(m("Flame Tongue").base?.options.length).toBeGreaterThan(5);
   });
+  it("reads `wield-as` for items whose tagline names no weapon", () => {
+    const m = (n: string) => magicInfo(byName(n), weapons, armor);
+    expect(m("Staff of Striking").base).toEqual({ kind: "weapon", options: ["Quarterstaff"] });
+    expect(m("Rod of Lordly Might").base).toEqual({ kind: "weapon", options: ["Mace"] });
+    expect(m("Staff of Fire").base).toBeUndefined();
+    // and it doesn't come from the description: the same words without the block give no weapon
+    const e = byName("Staff of Striking");
+    expect(magicInfo({ ...e, effects: [] }, weapons, armor).base).toBeUndefined();
+  });
 });
 
 describe("starting equipment", () => {

@@ -25,6 +25,7 @@ This staff has 20 charges and can be wielded as a magic Quarterstaff that grants
 
 ## Effects
 ```yaml
+- wield-as: { weapon: quarterstaff }
 - bonus: { to: [attack, damage], value: 2, scope: { weapon: { id: self } } }
 - bonus: { to: [ac, save:all, spell:attack], value: 2, when: { wielding: self } }
 - charges: { max: 20, recharge: { dice: 2d8 + 4, at: dawn } }

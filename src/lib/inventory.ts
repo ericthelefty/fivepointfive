@@ -6,7 +6,8 @@
  * read) when it's carried, attuned if it requires attunement, and equipped if
  * it's something you wear or wield.
  */
-import { stripMd, type Entry } from "./parse.ts";
+import { slug, stripMd, type Entry } from "./parse.ts";
+import { blocksOf } from "./modif.ts";
 import { equipmentOptions, type ArmorRow, type Character } from "./rules.ts";
 import type { Weapon } from "./play.ts";
 
@@ -107,10 +108,10 @@ export function magicInfo(e: Entry, weapons: Weapon[], armor: ArmorRow[]): Magic
       if (opts.length) base = { kind: "armor", options: opts.map((a) => a.name) };
     }
   }
-  // staffs and the like that "can be wielded as a magic Quarterstaff" fight as that weapon
+  // `wield-as` in its Effects: an item that fights as a weapon though its tagline names none (a Staff of Striking is a Quarterstaff)
   if (!base) {
-    const as = e.body.match(/wielded as an? magic ([A-Z][\w’' -]*?)(?=[ ,.]| that)/)?.[1];
-    const w = as && weapons.find((x) => x.name.toLowerCase() === as.toLowerCase());
+    const as = blocksOf(e, "wield-as")[0]?.v?.weapon;
+    const w = typeof as === "string" ? weapons.find((x) => slug(x.name) === slug(as.replace(/^.*\//, ""))) : undefined;
     if (w) base = { kind: "weapon", options: [w.name] };
   }
   const equippable =
