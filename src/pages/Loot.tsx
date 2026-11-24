@@ -8,7 +8,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from "reac
 import { cloud } from "../lib/backend.ts";
 import { useSession } from "../lib/session.tsx";
 import { useCharacters } from "../lib/characters.tsx";
-import { coinsCp, coinsText, cpText, hasCoins, shareOf, sumCoins } from "../lib/loot.ts";
+import { coinsCp, coinsText, cpText, hasCoins, shareOf } from "../lib/loot.ts";
 import { ignoreLoot, markSeen, useLoot, useLootWatch, type FoundThing, type LootBody, type LootItemRow, type LootSearchRow } from "../lib/lootStore.tsx";
 import { useContent } from "../lib/store.tsx";
 import { combatTables, pcCombat } from "../lib/encounter.ts";
@@ -139,13 +139,13 @@ export default function LootPage() {
         )}
         {tab === "items" && potCp > 0 && (
           <div className="lootpot">
-            <div className="lootpoth"><b>Shared coins</b><b className="gold">{coinsText(sumCoins([L.loot.coins, L.loot.shared_coins]))}</b></div>
+            <div className="lootpoth"><b>Shared coins</b><b className="gold">{coinsText(shareOf(potCp, 1).each)}</b></div>
             {L.payouts.length ? (
               <div className="faint">Paid out{cid && L.payouts.find((p) => p.character_id === cid) ? <>: <b>{coinsText(L.payouts.find((p) => p.character_id === cid)!.coins)}</b> went into your coin purse</> : ""}.</div>
             ) : (
               <div>Split {players.length} way{players.length > 1 ? "s" : ""}: <b>{coinsText(split.each)}</b> each{split.leftCp ? <>, plus {split.leftCp} CP left over for {split.leftCp > 1 ? "random players" : "a random player"}</> : ""}, paid into everyone’s coin purse when the loot closes.</div>
             )}
-            <div className="faint" style={{ fontSize: 11.5 }}>{[hasCoins(L.loot.coins) ? `Carried ${coinsText(L.loot.coins)}` : "", hasCoins(L.loot.shared_coins) ? `${coinsText(L.loot.shared_coins)} shared from searches` : ""].filter(Boolean).join(" · ")}</div>
+            <div className="faint" style={{ fontSize: 11.5 }}>{[hasCoins(L.loot.coins) ? `Carried ${coinsText(shareOf(coinsCp(L.loot.coins), 1).each)}` : "", hasCoins(L.loot.shared_coins) ? `${coinsText(L.loot.shared_coins)} shared from searches` : ""].filter(Boolean).join(" · ")}</div>
           </div>
         )}
         {tab === "defeated" && (
@@ -168,7 +168,7 @@ export default function LootPage() {
             })}
           </div>
         )}
-        <div className="lootlist" hidden={tab !== "items"}>
+        <div className="lootlist" style={tab !== "items" ? { display: "none" } : undefined}>
           {L.items.map((it) => {
             const w = wants(it);
             const choice = myChoice(it);

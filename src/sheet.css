@@ -932,3 +932,4 @@
 .inved .coins { justify-content: flex-start; }
 .inved .coins label { flex: none; }
 .inved .linkish { justify-self: start; }
+.sheetv .inved .coins { margin-left: 0; }

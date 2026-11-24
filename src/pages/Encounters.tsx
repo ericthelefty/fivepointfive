@@ -13,7 +13,7 @@ import { cloud } from "../lib/backend.ts";
 import { parseCreature, crValue, type CreatureStats } from "../lib/creature.ts";
 import { d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import { esc, playOf, timeNow, type LogEntry } from "../lib/play.ts";
-import { applyDraft, coinsText, cpText, hasCoins, hiddenFindOf, linesOf, lootFromMonsters, lootGroupOf, sumCoins, type MonsterInv } from "../lib/loot.ts";
+import { applyDraft, coinsCp, coinsText, shareOf, cpText, hasCoins, hiddenFindOf, linesOf, lootFromMonsters, lootGroupOf, sumCoins, type MonsterInv } from "../lib/loot.ts";
 import { invSummary, MonsterInvEditor } from "./MonsterInv.tsx";
 import { sendLoot, useLoot } from "../lib/lootStore.tsx";
 import { classInfos, classLabel } from "../lib/multiclass.ts";
@@ -606,7 +606,7 @@ export function EncounterView() {
       <div className="lootgmh"><span className="disp">Review loot</span><span className="note">Gear from monsters at 0 HP or that surrendered, most valuable first. Players see this list only after you send it.</span></div>
       {(hasCoins(lootCoins) || hiddenTiers > 0) && (
         <div className="lootcoins">
-          {hasCoins(lootCoins) && <span><b>Coins</b> {coinsText(lootCoins)} <span className="note">from {fallen.filter((c) => hasCoins(invOf(c).coins)).map((c) => c.name).join(", ")} · split evenly between the characters when the loot closes</span></span>}
+          {hasCoins(lootCoins) && <span><b>Coins</b> {coinsText(shareOf(coinsCp(lootCoins), 1).each)} <span className="note">from {fallen.filter((c) => hasCoins(invOf(c).coins)).map((c) => c.name).join(", ")} · split evenly between the characters when the loot closes</span></span>}
           {hiddenTiers > 0 && <span><b className="hidl">Hidden</b> <span className="note">{hiddenTiers} tier{hiddenTiers > 1 ? "s" : ""} on {fallen.filter((c) => invOf(c).hidden?.some((t) => t.finds.length)).map((c) => c.name).join(", ")}: players find {hiddenTiers > 1 ? "them" : "it"} by searching the bodies. Edit coins and hidden finds on the Build tab.</span></span>}
         </div>
       )}
@@ -649,7 +649,7 @@ export function EncounterView() {
       </div>
       {lootMatches.length > 0 && <div className="rowbtn" style={{ flexWrap: "wrap" }}>{lootMatches.map((c) => <button key={c.name} className="sbtn sm ghost" onClick={() => addLoot(c.name)}>{c.name}</button>)}</div>}
       <div className="lootgmf">
-        <span className="note">{lootLines.length} item{lootLines.length === 1 ? "" : "s"} · {cpText(lootLines.reduce((n, l) => n + (l.valueCp || 0), 0))} in all{hasCoins(lootCoins) ? ` · ${coinsText(lootCoins)} in coins, split evenly` : ""}{hiddenTiers ? ` · ${hiddenTiers} hidden tier${hiddenTiers > 1 ? "s" : ""} to search for` : ""} · going to <b>{lootPlayers.map((r) => chars.get(r)?.c.name || "?").join(", ") || "no one (add characters on the Build tab)"}</b></span>
+        <span className="note">{lootLines.length} item{lootLines.length === 1 ? "" : "s"} · {cpText(lootLines.reduce((n, l) => n + (l.valueCp || 0), 0))} in all{hasCoins(lootCoins) ? ` · ${coinsText(shareOf(coinsCp(lootCoins), 1).each)} in coins, split evenly` : ""}{hiddenTiers ? ` · ${hiddenTiers} hidden tier${hiddenTiers > 1 ? "s" : ""} to search for` : ""} · going to <b>{lootPlayers.map((r) => chars.get(r)?.c.name || "?").join(", ") || "no one (add characters on the Build tab)"}</b></span>
         {!cloud && <span className="note">Players claim loot from their own devices, so sending it needs a shared instance.</span>}
         <button className="sbtn gold" disabled={!cloud || sending || !canSend} onClick={send}>Send to players</button>
       </div>
