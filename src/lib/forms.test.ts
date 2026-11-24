@@ -132,6 +132,13 @@ describe("Pick-and-spend features", () => {
     expect(loh.optionCosts![0]).toMatchObject({ any: true, min: 1 });
     expect(loh.optionHeals![0]).toBe("cost.amount");
   });
+  it("curses like Hex and Bane don't ask whether you're a target; helpful spells like Bless do", () => {
+    const c = base("paladin", "srd:subclass/oath-of-devotion", 5);
+    const keys = ["hex", "bane", "faerie-fire", "bless", "haste"].map((k) => ({ key: `spell:srd:spell/${k}`, name: k, kind: "spell" as const, since: "" }));
+    const { fx } = run({ ...c, play: { ...(c.play || {}), active: keys } } as Character);
+    const asks = Object.fromEntries(fx.activeSpells.map((a) => [a.spell.name, a.targetEffects]));
+    expect(asks).toMatchObject({ Hex: false, Bane: false, "Faerie Fire": false, Bless: true, Haste: true });
+  });
   it("Radiant Strikes adds 1d8 radiant to melee weapon and Unarmed Strike hits, by itself", () => {
     const { fx } = run(base("paladin", "srd:subclass/oath-of-devotion", 11));
     const rs = fx.triggers.find((t) => t.name === "Radiant Strikes")!;

@@ -1179,7 +1179,8 @@ function runModif(ctx: ModifCtx, scores: Record<string, number>, prereqScores: R
     for (const fx of sp.effects || []) {
       for (const b of readBlocks(fx.yaml).blocks) {
         const mine = b.type === "self-effects" || (b.type === "target-effects" && onSelf);
-        if (b.type === "target-effects") targetEffects = true;
+        // a curse on an enemy (Hex, Bane, Faerie Fire) is never cast on yourself, so there's nothing to apply to your sheet
+        if (b.type === "target-effects" && !toBlocks(b.v?.effects).every(isHostileEffect)) targetEffects = true;
         if (mine) {
           for (const inner of toBlocks(b.v?.effects)) {
             lines.push(`On you: ${describeBlock(inner, env)}`);
@@ -2754,6 +2755,15 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
 function firstSentence(md: string): string {
   const p = stripMd(md.split(/\n\s*\n/).find((x) => x.trim() && !x.trim().startsWith("|") && !x.trim().startsWith("#")) || "");
   return p.length > 240 ? p.slice(0, 237).replace(/\s+\S*$/, "") + "…" : p;
+}
+
+/** An effect that only ever hurts whoever has it: Disadvantage, a penalty, being easier to hit or to see. */
+function isHostileEffect(b: { type: string; v: Val }): boolean {
+  if (b.type === "disadvantage") return true;
+  if (b.type === "bonus") return /^-|^−/.test(String(b.v?.value ?? "").trim());
+  if (b.type === "advantage") return /attacks-against-you/.test(JSON.stringify(b.v?.roll ?? ""));
+  if (b.type === "trait") return /cant-be-invisible|"light"/.test(JSON.stringify(b.v ?? ""));
+  return false;
 }
 
 /** Which attacks an automatic, free, always-on hit trigger adds damage to (Radiant Strikes: melee weapons and Unarmed Strikes).

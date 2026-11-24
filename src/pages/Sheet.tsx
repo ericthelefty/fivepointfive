@@ -193,6 +193,8 @@ export default function Sheet() {
   /** The option picked for each choose-one action (Cunning Action, Patient Defense…). */
   const [actPick, setActPick] = useState<Record<string, number>>({});
   const [areaPick, setAreaPick] = useState<Record<string, number>>({});
+  /** The attack whose last roll was a critical hit, until the next roll: its Damage button rolls crit damage. */
+  const [critFor, setCritFor] = useState<{ name: string; versatile: boolean }>();
   // phones and tablets open with the Game Log hidden (desktop always shows it)
   const narrow = useMedia(NARROW);
   noRolls.current = explain && narrow;
@@ -566,6 +568,8 @@ export default function Sheet() {
 
   const log = (e: Omit<LogEntry, "id" | "t">, acts?: CardAction[]) => {
     const entry: LogEntry = { ...e, id: Math.random().toString(36).slice(2, 9), t: timeNow() };
+    // any roll after a critical hit ends it: the Damage button goes back to normal damage
+    if (["test", "atk", "crit", "fumble", "dmg", "heal", "roll"].includes(entry.cls)) setCritFor(undefined);
     if (acts?.length) actions.current[entry.id] = acts;
     setPlay((cur) => ({ log: [entry, ...cur.log].slice(0, 150) }));
     setFlash(entry.id);
@@ -894,6 +898,7 @@ export default function Sheet() {
       },
       [{ label: crit ? `Roll crit damage (${dmg})` : `Roll damage (${dmg})`, run: () => rollDamage(a.name, dmg, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, versatile)) }],
     );
+    if (crit) setCritFor({ name: a.name, versatile });
   };
 
   /**
@@ -1742,7 +1747,7 @@ export default function Sheet() {
             <div className="rowbtn">
               {r.lvl > 0 && !r.g?.atWill && <Btn className="sbtn sm ghost" disabled={!st.ok} why={st.why} title={`Spend ${st.label === "Free" ? "the free use" : "a spell slot"} to cast it, then roll each attack.`} onClick={() => castRow(r)}>{st.label === "Free" ? "Cast free" : "Cast"}</Btn>}
               <button className="sbtn sm" title={`${HOW.attack}${pl.attack.count > 1 ? ` Roll once for each of the ${pl.attack.count} beams or attacks.` : ""}`} onClick={() => attack({ name: r.sp.name, toHit: n.atk, damage: dmg, type, note: "" })}>Attack</button>
-              <button className="sbtn sm ghost" title={`${HOW.dmg}${pl.attack.count > 1 ? " This is one beam's or attack's damage." : ""}`} onClick={() => rollDamage(r.sp.name, dmg, false, type)}>Damage</button>
+              <button className={`sbtn sm ${critFor?.name === r.sp.name ? "critbtn" : "ghost"}`} title={critFor?.name === r.sp.name ? "Your last roll with this spell was a Critical Hit: this rolls its damage dice twice." : `${HOW.dmg}${pl.attack.count > 1 ? " This is one beam's or attack's damage." : ""}`} onClick={() => rollDamage(r.sp.name, dmg, critFor?.name === r.sp.name, type)}>{critFor?.name === r.sp.name ? "Crit damage" : "Damage"}</button>
             </div>
           </td>
         </tr>
@@ -3378,7 +3383,14 @@ export default function Sheet() {
                           <td>
                             <div className="rowbtn">
                               <button className="sbtn sm" title={HOW.attack} onClick={() => attack(a)}>Attack</button>
-                              <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(a.name, a.damage, false, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, false))}>Damage</button>
+                              {(() => {
+                                const c = critFor?.name === a.name ? critFor : undefined;
+                                const dmg = c?.versatile && a.versatile ? a.versatile : a.damage;
+                                return (
+                                  <button className={`sbtn sm ${c ? "critbtn" : "ghost"}`} title={c ? "Your last roll with this attack was a Critical Hit: this rolls its damage dice twice." : HOW.dmg}
+                                    onClick={() => rollDamage(a.name, dmg, !!c, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, !!c?.versatile))}>{c ? "Crit damage" : "Damage"}</button>
+                                );
+                              })()}
                               {a.versatile && <button className="sbtn sm ghost" onClick={() => attack(a, true)}>Two hands</button>}
                             </div>
                           </td>

@@ -940,3 +940,5 @@
 .custnote { margin: 6px 0 0; }
 .custstar { color: var(--muted); margin-left: 1px; }
 .encsave { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* the Damage button right after a Critical Hit */
+.sbtn.critbtn { background: #a97c33; border-color: #e3b25e; color: #1d1408; font-weight: 700; }

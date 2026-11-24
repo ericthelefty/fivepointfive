@@ -6,6 +6,8 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Right after an attack roll that's a Critical Hit, that attack's Damage button in the Attacks table turns gold and reads "Crit damage": it rolls the damage dice twice (two-handed if that's how you swung), then goes back to normal damage. Any other roll in between ends it. Spell attacks like Eldritch Blast work the same way.
+- Curses on an enemy (Hex, Bane, Faerie Fire, Enthrall, Shining Smite) no longer show "I'm a target" under Active now: they only ever hurt their target, so there's nothing to apply to your own sheet. Helpful spells like Bless and Haste still ask.
 - Damage that every hit adds by itself is part of the attack: Radiant Strikes shows and rolls "+ 1d8 radiant" on melee weapons and Unarmed Strikes, a Flame Tongue or Frost Brand adds its dice to its own attacks, and Divine Favor to weapon attacks while it lasts. Bonus damage with a condition (only against some creatures, once per turn, a choice) stays a separate "On a hit" row.
 - "+1, +2, or +3" magic items (Weapon, Armor, Shield, Ammunition) have a Bonus picker in the Inventory, and go by what they're made of: "Longsword, +2" in the Inventory and on the attack, with the bonus applied.
 - Explainer mode explains Heroic Inspiration (the ★ buttons and the label under your name: what it does, whether you have it, how you get it back), and every line under Defenses, Senses, Languages and Tools: where it comes from and what it means, in the SRD's words (Darkvision, Resistance, Immunity…), how a passive score adds up, and for a tool its ability, check bonus, what you use it for and what you can craft with it.
