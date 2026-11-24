@@ -873,3 +873,4 @@
 .sheetv .iname { display: inline-flex; align-items: center; gap: 6px; }
 .sheetv .ichev { color: var(--s-mut); font-size: 12px; transition: transform .15s; }
 .sheetv .iname[aria-expanded="true"] .ichev { transform: rotate(180deg); color: var(--s-gold); }
+@media (max-width: 900px) { .sheetv.phone:not(.ms-none) .explainpill { top: 12px; bottom: auto; } }

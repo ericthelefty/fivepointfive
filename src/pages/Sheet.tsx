@@ -6,7 +6,7 @@ import { useCharacters } from "../lib/characters.tsx";
 import { useSession } from "../lib/session.tsx";
 import { cloud, supabase } from "../lib/backend.ts";
 import { Md } from "../lib/md.tsx";
-import { Btn, Tip, TipsOn } from "../lib/tip.tsx";
+import { Btn, Tip, TipsOn, fitBubble } from "../lib/tip.tsx";
 import { dice3dOn, playDice, setDice3d, setSound, soundOn } from "../lib/sound.ts";
 import { applyForm, crLabel, formEligible, parseCreature, parseStatBlockMd, statBlockMd, type CreatureAction, type CreatureStats } from "../lib/creature.ts";
 import { features, slug, spellInfo, stripMd, trimClassTable, type Entry } from "../lib/parse.ts";
@@ -15,7 +15,7 @@ import {
   type Character,
   intro,
 } from "../lib/rules.ts";
-import { combineModes, d20, describeRolled, roll, type Mode, type Rolled } from "../lib/dice.ts";
+import { combineModes, d20 as d20Dice, describeRolled, roll as rollDice, type Mode, type Rolled } from "../lib/dice.ts";
 import {
   CONDITION_EFFECTS, attackFor, avgDice, conditionMods, esc, playOf, type Weapon,
   timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
@@ -107,6 +107,9 @@ function loadLayout(): string[] {
   return L;
 }
 
+/** Thrown instead of rolling while Explainer mode is on on a phone or tablet, where a tap only explains. */
+class RollBlocked extends Error {}
+
 export default function Sheet() {
   const { id } = useParams();
   const content = useContent();
@@ -116,6 +119,24 @@ export default function Sheet() {
   const [c, setC] = useState<Character | undefined>(row?.c);
   const dirty = useRef(false);
   const editable = chars.canEdit(id);
+  // Explainer mode on a phone or tablet turns every dice roll off, whichever button asked for it
+  const noRolls = useRef(false);
+  const lastTap = useRef<HTMLElement | null>(null);
+  const roll: typeof rollDice = (...a) => { if (noRolls.current) throw new RollBlocked("Dice rolling is off while Explainer mode is on."); return rollDice(...a); };
+  const d20: typeof d20Dice = (...a) => { if (noRolls.current) throw new RollBlocked("Dice rolling is off while Explainer mode is on."); return d20Dice(...a); };
+  useEffect(() => {
+    const quiet = (e: ErrorEvent | PromiseRejectionEvent) => {
+      const err = "reason" in e ? e.reason : e.error;
+      if (!(err instanceof RollBlocked)) return;
+      e.preventDefault();
+      // say why nothing rolled, in the same bubble, beside what was tapped
+      const el = lastTap.current;
+      if (el?.isConnected) setExAt({ key: "t:Dice rolling is off while Explainer mode is on, so a tap only explains. Turn Explainer mode off to roll.", rect: el.getBoundingClientRect(), el });
+    };
+    window.addEventListener("error", quiet);
+    window.addEventListener("unhandledrejection", quiet);
+    return () => { window.removeEventListener("error", quiet); window.removeEventListener("unhandledrejection", quiet); };
+  }, []);
   // take in changes made elsewhere (the DM's encounter tracker, this character open on another device, another tab),
   // unless an edit made here is still on its way to being saved
   useEffect(() => {
@@ -167,6 +188,7 @@ export default function Sheet() {
   const [actPick, setActPick] = useState<Record<string, number>>({});
   // phones and tablets open with the Game Log hidden (desktop always shows it)
   const narrow = useMedia(NARROW);
+  noRolls.current = explain && narrow;
   const [logHidden, setLogHidden] = useState(() => typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches);
   // turning a tablet or resizing the window into the phone layout starts with the Game Log put away
   const wasNarrow = useRef(narrow);
@@ -1486,9 +1508,9 @@ export default function Sheet() {
                 const lines = chosen.map((o) => `<div><b>${esc(o.group.name)}: ${esc(o.label)}</b>${o.save && o.group.dc ? ` · DC <b>${o.group.dc}</b> ${esc(o.save)} save` : ""}${o.text ? ` · ${esc(o.text)}` : ""}</div>`).join("");
                 const extra = t.damage!.slice(1).map((x) => x.dice).join("+");
                 const expr = [dice, extra].filter(Boolean).join("+");
-                if (perUnit && payRes && payN) setPlay((cur) => ({ resUsed: { ...cur.resUsed, [payRes.key]: Math.min(payRes.max, (cur.resUsed[payRes.key] || 0) + payN) } }));
                 if (expr) {
                   const r = roll(expr);
+                  if (perUnit && payRes && payN) setPlay((cur) => ({ resUsed: { ...cur.resUsed, [payRes.key]: Math.min(payRes.max, (cur.resUsed[payRes.key] || 0) + payN) } }));
                   if (r) log({ title: `${t.name} damage`, total: String(r.total), cls: "dmg", detail: `${eqOf(r)}${esc(describeRolled(r))}${main.type && main.type !== "weapon" ? ` · ${esc(main.type)}` : " · the weapon’s damage type"}${spent ? `<div>Traded ${spent}d${dm?.[2]} for the effects below.</div>` : ""}${lines}` });
                 } else log({ title: t.name, total: "", cls: "event", detail: `All its dice traded for effects.${lines}` });
                 setRiderPick((m) => ({ ...m, [t.key]: [] }));
@@ -3055,6 +3077,7 @@ export default function Sheet() {
       onClickCapture={explain && narrow ? (e) => {
         // phones and tablets have no hover: a tap explains instead of rolling
         const el = exFind(e.target);
+        lastTap.current = e.target instanceof Element ? (e.target.closest("button, a, [role=button]") as HTMLElement | null) : null;
         if (el) { e.preventDefault(); e.stopPropagation(); exShow(el); } else setExAt(undefined);
       } : undefined}>
       {drawerPanel()}
@@ -3723,7 +3746,7 @@ export default function Sheet() {
         const x = r.left + r.width / 2 > vw / 2 ? { right: Math.max(8, vw - r.right) } : { left: Math.max(8, r.left) };
         const above = r.top > 110;
         return (
-          <span role="tooltip" className={`tipbox open exbox ${above ? "" : "below"} ${"left" in x ? "left" : ""}`}
+          <span role="tooltip" ref={(el) => fitBubble(el)} className={`tipbox open exbox ${above ? "" : "below"} ${"left" in x ? "left" : ""}`}
             style={{ position: "fixed", ...x, ...(above ? { bottom: vh - r.top + 8 } : { top: r.bottom + 8 }) }}>
             {exInfo.title && <b className="exh">{exInfo.title}</b>}
             {exInfo.rows.map((row, i) => <span key={i} className="exr"><span>{row.label}</span><b>{row.value}</b></span>)}

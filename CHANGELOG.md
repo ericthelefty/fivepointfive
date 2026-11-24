@@ -6,6 +6,8 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Explainer mode: explanation bubbles always fit inside the window; one that would run off an edge moves back in.
+- Explainer mode on phones: every dice roll is off, including buttons that have no explanation of their own. Tapping one says that rolling is off until you turn Explainer mode off.
 - Items you add to your Inventory start closed, with a ▾ beside the name to open the full description.
 - Magic staffs that can be wielded as a weapon (Staff of Striking, Staff of Power and others) now attack as that weapon once equipped: their attack and damage bonuses are added to the attack row (Staff of Striking: +3 to hit and damage), and you're no longer asked to choose a base weapon when there's only one.
 - An item's charges show on its attack row with buttons to spend or restore one. Under "On a hit", the Staff of Striking lets you pick 1 to 3 charges, rolls that many d6 of Force damage and spends the charges.

@@ -8,6 +8,22 @@ import { createContext, useContext, useEffect, useRef, useState, type ButtonHTML
  * A tap or click anywhere else, scrolling or resizing closes it. It's placed against the viewport, so a table that
  * scrolls sideways on a phone can't clip it.
  */
+/**
+ * Keep a tooltip bubble wholly on screen: after it's placed, nudge it back inside the window (8px margin) if any
+ * edge pokes out, and drop its pointer when it had to move, since the pointer would no longer line up.
+ */
+export function fitBubble(el: HTMLElement | null) {
+  if (!el) return;
+  el.style.translate = "";
+  const r = el.getBoundingClientRect();
+  if (!r.width) return;
+  const vw = document.documentElement.clientWidth || window.innerWidth, vh = window.innerHeight, m = 8;
+  const dx = r.left < m ? m - r.left : r.right > vw - m ? Math.max(m - r.left, vw - m - r.right) : 0;
+  const dy = r.top < m ? m - r.top : r.bottom > vh - m ? Math.max(m - r.top, vh - m - r.bottom) : 0;
+  if (dx || dy) el.style.translate = `${Math.round(dx)}px ${Math.round(dy)}px`;
+  el.classList.toggle("shifted", !!(dx || dy));
+}
+
 function useTip() {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<CSSProperties>();
@@ -40,7 +56,7 @@ function useTip() {
   }, [open]);
   const bubble = (text: ReactNode) => {
     const cls = ["tipbox", open && pos ? "open" : "", pos?.top !== undefined ? "below" : "", pos?.left !== undefined ? "left" : ""].filter(Boolean).join(" ");
-    return <span id={id} role="tooltip" className={cls} style={pos}>{text}</span>;
+    return <span id={id} role="tooltip" className={cls} style={pos} ref={open && pos ? (el: HTMLSpanElement | null) => fitBubble(el) : undefined}>{text}</span>;
   };
   const release = () => {
     window.clearTimeout(hold.current.timer);
