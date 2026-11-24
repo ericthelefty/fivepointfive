@@ -70,6 +70,12 @@ const CHANGE: Record<string, string> = {
   ac: "Equip different armor or a shield in your Inventory, raise your Dexterity, or use a feature like Unarmored Defense. Magic armor and items can add to it.",
   dc: "It rises with your spellcasting ability and your Proficiency Bonus; some magic items add to it.",
   hp: "It goes up each time you level up, and when your Constitution rises (that counts for every level you have). The Tough feat adds 2 per level.",
+  insp: "Tap the ★ star (beside the Next roll box, or at the top right on a phone) when you gain it, and again when you spend it. A Long Rest gives it back if a feature says so, like the Human's Resourceful trait.",
+  def: "Defenses come from your species, class, feats and magic items, and some only while a feature or spell is active.",
+  sense: "Senses come from your species and some features, magic items and spells.",
+  passive: "It rises with the ability, with proficiency in the skill, and with features that add to it.",
+  lang: "Choose your two origin languages here or in the builder. Your class, background, feats and some magic items can teach you more.",
+  tool: "Tool proficiencies come from your background, your class and feats like Skilled, chosen in the builder.",
   atk: "Equip a different weapon in your Inventory. Finesse weapons can use Dexterity instead of Strength, and you only add your Proficiency Bonus with weapons you're trained in.",
 };
 
@@ -2466,24 +2472,24 @@ export default function Sheet() {
             <>
               <h3>Defenses</h3>
               <ul className="plist">
-                {fx.defenses.map((x, i) => <li key={i}>{x.text} <span className="mut">· {x.feature}</span></li>)}
-                {formDef.map((t) => <li key={t}>{t} <span className="mut">· {formCr!.name} form</span></li>)}
+                {fx.defenses.map((x, i) => <li key={i} data-ex={`def:${i}`}>{x.text} <span className="mut">· {x.feature}</span></li>)}
+                {formDef.map((t) => <li key={t} data-ex={`def:form:${t}`}>{t} <span className="mut">· {formCr!.name} form</span></li>)}
               </ul>
             </>
           );
         })()}
         <h3>Senses</h3>
         <ul className="plist">
-          {senses.map((x, i) => <li key={i}>{x.text} <span className="mut">· {x.source}</span></li>)}
-          <li>Passive Perception {d.passivePerception}</li>
-          <li>Passive Investigation {10 + (d.skills["Investigation"]?.value ?? d.mods.Intelligence)}</li>
-          <li>Passive Insight {10 + (d.skills["Insight"]?.value ?? d.mods.Wisdom)}</li>
+          {senses.map((x, i) => <li key={i} data-ex={`sense:${i}`}>{x.text} <span className="mut">· {x.source}</span></li>)}
+          <li data-ex="passive:Perception">Passive Perception {d.passivePerception}</li>
+          <li data-ex="passive:Investigation">Passive Investigation {10 + (d.skills["Investigation"]?.value ?? d.mods.Intelligence)}</li>
+          <li data-ex="passive:Insight">Passive Insight {10 + (d.skills["Insight"]?.value ?? d.mods.Wisdom)}</li>
         </ul>
         <h3>Languages</h3>
         <ul className="plist">
-          <li>Common <span className="mut">· every character</span></li>
+          <li data-ex="lang:common:Common">Common <span className="mut">· every character</span></li>
           {[0, 1].map((i) => (
-            <li key={i}>
+            <li key={i} data-ex={`lang:origin:${origin[i] || ""}`}>
               {editable ? (
                 <select className="optpick" aria-label={`Origin language ${i + 1}`} value={origin[i] || ""} onChange={(e) => setOrigin(i, e.target.value)}>
                   <option value="">Choose a language…</option>
@@ -2494,11 +2500,11 @@ export default function Sheet() {
               <span className="mut">· origin</span>
             </li>
           ))}
-          {featureLangs.map((l) => <li key={l.name}>{l.name} <span className="mut">· {l.source}</span></li>)}
+          {featureLangs.map((l) => <li key={l.name} data-ex={`lang:${l.source}:${l.name}`}>{l.name} <span className="mut">· {l.source}</span></li>)}
         </ul>
         <h3>Tools</h3>
         {tools.length === 0 ? <p className="note">No tool proficiencies.</p> : (
-          <ul className="plist">{tools.map((t) => <li key={t.name}>{t.name}{t.sources.length ? <span className="mut"> · {[...new Set(t.sources)].join(", ")}</span> : null}</li>)}</ul>
+          <ul className="plist">{tools.map((t) => <li key={t.name} data-ex={`tool:${t.name}`}>{t.name}{t.sources.length ? <span className="mut"> · {[...new Set(t.sources)].join(", ")}</span> : null}</li>)}</ul>
         )}
       </section>
     );
@@ -2828,6 +2834,12 @@ export default function Sheet() {
 
   // ------------------------------------------------------------ explain mode
   type Ex = { title: string; rows: { label: string; value: string }[]; total: string; notes: string[] };
+  /** The opening of an SRD entry as plain text, for explanations. */
+  const plain = (md: string) => md.replace(/\*\*?|_|`/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\s+/g, " ").trim();
+  // cross-references to other chapters ("See also “Playing the Game”…") mean nothing on the sheet, so they're left out
+  const firstPara = (md: string) => plain(md.split(/\n\s*\n/).map((x) => x.trim()).find((x) => x && !/^(#|\*\*\w[^*]*:\*\*|```|\|)/.test(x)) || "").replace(/\s*See (also )?“[^.]*\.\s*$/, "").trim();
+  /** The SRD's own words for a rule in the glossary (Darkvision, Resistance, Heroic Inspiration…). */
+  const ruleText = (name: string) => { const e = content.byType("Rule").find((x) => x.name.toLowerCase() === name.toLowerCase()); return e ? firstPara(e.body) : ""; };
   const ab3 = (a: string) => a.slice(0, 3).toLowerCase();
   const exBonus = (pred: (to: string) => boolean) => fx.bonuses.filter((b) => pred(b.to)).map((b) => ({ label: b.source, value: fmt(b.value) }));
   /** Adds an "other" row when the listed parts don't add up to the number on the sheet. */
@@ -2921,6 +2933,61 @@ export default function Sheet() {
       const rows = settle([{ label: `${a.ability || "Ability"} modifier`, value: fmt(m) }, ...(prof ? [{ label: "Proficiency (you're trained with it)", value: fmt(d.pb) }] : [])], a.toHit, a.note || "Bonuses");
       return { title: `${a.name}: to hit`, rows, total: fmt(a.toHit), notes: [...(prof ? [] : a.ability ? ["Not proficient with this weapon, so no Proficiency Bonus."] : []), `Damage: ${a.damage} ${a.type}.`, ...rollNotes({ kind: "attack" })] };
     }
+    const rest = key.slice(kind.length + 1);
+    if (kind === "insp") {
+      const auto = fx.onLongRest.filter((x) => x.regain === "heroic-inspiration").map((x) => x.source);
+      return {
+        title: "Heroic Inspiration", rows: [], total: "",
+        notes: [
+          p.inspiration ? "You have it right now." : "You don't have it right now.",
+          ruleText("Heroic Inspiration") || "If you have Heroic Inspiration, you can expend it to reroll any die immediately after rolling it, and you must use the new roll.",
+          "You gain it when your GM awards it, or from a feature." + (auto.length ? ` You regain it on a Long Rest from ${auto.join(", ")}.` : ""),
+          "Spending it here switches it off and notes it in your game log; roll the die again yourself.",
+        ],
+      };
+    }
+    if (kind === "def") {
+      const x = rest.startsWith("form:") ? { text: rest.slice(5), feature: `${formCr?.name || "Wild Shape"} form` } : fx.defenses[+rest];
+      if (!x) return undefined;
+      const term = /immun/i.test(x.text) ? "Immunity" : /resist/i.test(x.text) ? "Resistance" : /vulnerab/i.test(x.text) ? "Vulnerability" : undefined;
+      const cond = conditionEntries.find((e) => new RegExp(`\\b${e.name}\\b`, "i").test(x.text));
+      return { title: x.text, rows: [], total: "", notes: [`From: ${x.feature}.`, ...(term ? [ruleText(term)] : []), ...(!term && /advantage/i.test(x.text) ? [ruleText("Advantage")] : []), ...(cond ? [`${cond.name}: ${firstPara(cond.body)}`] : [])].filter(Boolean) };
+    }
+    if (kind === "sense") {
+      const all = [...fx.senses, ...(formCr?.senses ? [{ text: formCr.senses.replace(/;?\s*Passive Perception \d+/i, "").trim(), source: `${formCr.name} form` }] : [])];
+      const x = all[+rest];
+      if (!x) return undefined;
+      const name = ["Blindsight", "Darkvision", "Tremorsense", "Truesight"].find((n) => new RegExp(n, "i").test(x.text));
+      const range = x.text.match(/(\d+)\s*(?:ft|feet|foot)/i)?.[1];
+      return { title: x.text, rows: [], total: "", notes: [`From: ${x.source}.`, ...(name ? [ruleText(name)] : []), ...(range ? [`Range: ${range} feet.`] : [])].filter(Boolean) };
+    }
+    if (kind === "passive") {
+      const sk = rest, v = d.skills[sk]?.value ?? 0;
+      const rows = [{ label: "Base", value: "10" }, { label: `${sk} check modifier`, value: fmt(v) }];
+      const what = { Perception: "noticing things without searching for them, like a hidden creature or a trap", Investigation: "spotting clues and working things out without searching", Insight: "reading a creature's mood or catching a lie without trying" }[sk] || "";
+      return { title: `Passive ${sk}`, rows, total: String(10 + v), notes: [`A passive check is a check made with no roll: 10 + the modifier. The GM uses it for ${what}. Advantage adds 5, Disadvantage takes 5 away.`] };
+    }
+    if (kind === "lang") {
+      const [how, name] = [rest.split(":")[0], rest.split(":").slice(1).join(":")];
+      const src = how === "common" ? "Every player character knows Common." : how === "origin" ? "One of the two languages you choose when you create your character (from the Standard Languages table, or a rare one with your GM's okay)." : `From: ${how}.`;
+      return { title: name || "Language", rows: [], total: "", notes: [src, "Knowing a language means you can speak it, read it and write it."] };
+    }
+    if (kind === "tool") {
+      const name = rest;
+      const ent = content.byType("Tool").find((t) => slug(t.name.replace(/[’']/g, "")) === slug(name.replace(/[’']/g, "")));
+      const srcs = Object.entries(fx.toolSources).filter(([k]) => slug(k.replace(/[’']/g, "")) === slug(name.replace(/[’']/g, "")) || slug(content.byType("Tool").find((t) => slug(t.name) === slug(k))?.name || "") === slug(name)).flatMap(([, v]) => v);
+      const ab = ent?.fields["ability"];
+      const abMod = ab && d.mods[ab] !== undefined ? d.mods[ab] : undefined;
+      return {
+        title: name, rows: abMod !== undefined ? [{ label: `${ab} modifier`, value: fmt(abMod) }, { label: "Proficiency Bonus", value: fmt(d.pb) }] : [], total: abMod !== undefined ? fmt(abMod + d.pb) : "",
+        notes: [
+          ...(srcs.length ? [`From: ${[...new Set(srcs)].join(", ")}.`] : []),
+          ...(ent?.fields["utilize"] ? [`Use it to: ${plain(ent.fields["utilize"])}.`] : []),
+          ...(ent?.fields["craft"] ? [`You can craft: ${plain(ent.fields["craft"])}.`] : []),
+          "With proficiency you add your Proficiency Bonus to any ability check that uses the tool. If you're also proficient in the skill used for that check, you have Advantage on it too.",
+        ],
+      };
+    }
     return undefined;
   };
   const exInfo = (() => {
@@ -2968,7 +3035,7 @@ export default function Sheet() {
       {activeList.filter((x) => !x.concentration).map((x) => (
         <button key={x.key} className="schip" title="Open the Effects tab" onClick={() => setTab("effects")}>● {x.name}</button>
       ))}
-      {p.inspiration && <span className="schip gold">★ Heroic Inspiration</span>}
+      {p.inspiration && <span className="schip gold" data-ex="insp">★ Heroic Inspiration</span>}
     </div>
   );
   // ---------- phone layout: one section at a time under a header that stays on screen ----------
@@ -3002,7 +3069,7 @@ export default function Sheet() {
           <div className="msub">{sp?.name} · {infos.length > 1 ? classLabel(infos) : `${cls?.name} ${c.level}`}</div>
         </div>
         <button className="mib" aria-label="Short or Long Rest" title={HOW.rests} onClick={() => setMsheet("rest")}>{CAMP_ICON}</button>
-        <button className={`mib ${p.inspiration ? "on" : ""}`} aria-pressed={!!p.inspiration} aria-label="Heroic Inspiration" title={p.inspiration ? "Heroic Inspiration: you have it. Tap to use it." : "Heroic Inspiration: tap when you gain it."} onClick={toggleInsp}>★</button>
+        <button className={`mib ${p.inspiration ? "on" : ""}`} data-ex="insp" aria-pressed={!!p.inspiration} aria-label="Heroic Inspiration" title={p.inspiration ? "Heroic Inspiration: you have it. Tap to use it." : "Heroic Inspiration: tap when you gain it."} onClick={toggleInsp}>★</button>
       </div>
       <div className="mstat">
         <span className="stat frm shield" data-ex="ac"><div className="sl">AC</div><div className="sv2">{d.ac}</div></span>
@@ -3660,7 +3727,7 @@ export default function Sheet() {
               <span className="vh">Next roll bonus</span>
               <input value={nextBonus} onChange={(e) => setNextBonus(e.target.value)} placeholder="Next roll: +2 or 1d4" />
             </label>
-            <button className="ibtn insp" aria-pressed={!!p.inspiration} aria-label="Heroic Inspiration" title={p.inspiration ? "Heroic Inspiration: you have it. Click to use it." : "Heroic Inspiration: click when you gain it."}
+            <button className="ibtn insp" data-ex="insp" aria-pressed={!!p.inspiration} aria-label="Heroic Inspiration" title={p.inspiration ? "Heroic Inspiration: you have it. Click to use it." : "Heroic Inspiration: click when you gain it."}
               onClick={toggleInsp}>
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z" fill={p.inspiration ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
             </button>
