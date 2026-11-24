@@ -16,6 +16,8 @@ export interface Member {
 export interface Settings {
   shared_log: boolean;
   instance_name: string;
+  /** Built-in sheet backgrounds an admin has taken out of the picker. */
+  hidden_backgrounds: string[];
 }
 
 type Status = "loading" | "local" | "signedOut" | "needsInvite" | "empty" | "ready";
@@ -34,7 +36,7 @@ interface SessionState {
 }
 
 const Ctx = createContext<SessionState | null>(null);
-const DEFAULT_SETTINGS: Settings = { shared_log: false, instance_name: "fivepointfive" };
+const DEFAULT_SETTINGS: Settings = { shared_log: false, instance_name: "fivepointfive", hidden_backgrounds: [] };
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>(cloud ? "loading" : "local");

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/backend.ts";
 import { useSession, type Member } from "../lib/session.tsx";
+import AdminBackgrounds from "./AdminBackgrounds.tsx";
 import { NewPasswordForm } from "./Auth.tsx";
 
 interface Invite {
@@ -128,6 +129,8 @@ export default function Admin() {
               </div>
             )}
           </section>
+
+          <AdminBackgrounds />
 
           <section className="panel stack">
             <h2>Members</h2>

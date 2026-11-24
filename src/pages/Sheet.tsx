@@ -26,7 +26,7 @@ import InventoryPanel from "./InventoryPanel.tsx";
 import { DetailsForm } from "../components/DetailsForm.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
 import { NARROW, useMedia } from "../lib/useMedia.ts";
-import { CUSTOM_BACKGROUND, SHEET_BACKGROUNDS, removeBackground, sheetBackground, uploadBackground, useStoredImage } from "../lib/backgrounds.ts";
+import { CUSTOM_BACKGROUND, LIBRARY_PREFIX, SHEET_BACKGROUNDS, StoredThumb, libraryBackground, removeBackground, sheetBackground, uploadBackground, useLibraryBackgrounds, useStoredImage } from "../lib/backgrounds.ts";
 import {
   advantageFor, computeModif, type ScrollUse, disadvantageFor, spellcastingOf, spellMinutes, spellPlan as basePlan, statusOf, treatRoll, weaponFits, weaponProficient,
   type ModifConvert, type ConvertSide, type WeaponInfo,
@@ -221,7 +221,12 @@ export default function Sheet() {
   const bgRef = useRef<HTMLDivElement>(null);
   // the character's own uploaded backdrop, if any (downloaded from private storage on a shared instance)
   const customUrl = useStoredImage(c?.customBackground);
-  const backdropUrl = c?.sheetBackground === CUSTOM_BACKGROUND ? customUrl : sheetBackground(c?.sheetBackground)?.image;
+  // images an admin added to the instance's library, and built-in ones an admin hid
+  const library = useLibraryBackgrounds();
+  const hiddenBgs = session.settings.hidden_backgrounds || [];
+  const libPick = libraryBackground(c?.sheetBackground, library);
+  const libUrl = useStoredImage(libPick ? `storage:${libPick.path}` : undefined);
+  const backdropUrl = c?.sheetBackground === CUSTOM_BACKGROUND ? customUrl : libPick ? libUrl : sheetBackground(c?.sheetBackground, hiddenBgs)?.image;
   const [bgBusy, setBgBusy] = useState(false);
   const [bgError, setBgError] = useState("");
   const bgFile = useRef<HTMLInputElement>(null);
@@ -3144,11 +3149,20 @@ export default function Sheet() {
   /** The backdrop choices (None, each image, then the character's own), for the toolbar menu and the phone Sections menu. */
   const bgOptions = (done: () => void) => (
     <>
-      {[{ id: "", name: "None", thumb: "" }, ...SHEET_BACKGROUNDS].map((b) => {
+      {[{ id: "", name: "None", thumb: "" }, ...SHEET_BACKGROUNDS.filter((b) => !hiddenBgs.includes(b.id))].map((b) => {
         const on = (c.sheetBackground || "") === b.id;
         return (
           <button key={b.id || "none"} role="menuitemradio" aria-checked={on} className={`bgopt ${on ? "on" : ""}`} onClick={() => { pickBackdrop(b.id); done(); }}>
             <span className="bgthumb" style={b.thumb ? { backgroundImage: `url(${b.thumb})` } : undefined}>{!b.thumb && "—"}</span>
+            <span>{b.name}</span>
+          </button>
+        );
+      })}
+      {library.map((b) => {
+        const id = LIBRARY_PREFIX + b.id, on = c.sheetBackground === id;
+        return (
+          <button key={id} role="menuitemradio" aria-checked={on} className={`bgopt ${on ? "on" : ""}`} onClick={() => { pickBackdrop(id); done(); }}>
+            <StoredThumb className="bgthumb" stored={`storage:${b.thumb || b.path}`} />
             <span>{b.name}</span>
           </button>
         );

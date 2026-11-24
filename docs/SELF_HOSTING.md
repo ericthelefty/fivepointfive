@@ -19,6 +19,7 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
    - [`0007_loot.sql`](../supabase/migrations/0007_loot.sql): loot after an encounter: the GM sends the fallen monsters' gear, players claim it, and contested items are rolled for.
    - [`0008_loot_coins_and_searches.sql`](../supabase/migrations/0008_loot_coins_and_searches.sql): coins and hidden finds: the coin pot split evenly when the loot closes, hidden tiers only the GM can read, searching bodies, and keeping or sharing what you find.
    - [`0009_sheet_backgrounds.sql`](../supabase/migrations/0009_sheet_backgrounds.sql): a private Storage bucket for each character’s uploaded sheet background, visible to whoever can see the character and changed only by its owner or an admin.
+   - [`0010_background_library.sql`](../supabase/migrations/0010_background_library.sql): a shared library of sheet backgrounds that admins add to and every member can pick, and lets admins see, hide or delete any sheet background, including other members’ uploads.
 3. Go to **Project Settings → Data API** (or **API**) and add `fivepointfive` to **Exposed schemas**. Save.
 
 ## 2. Set up sign-in

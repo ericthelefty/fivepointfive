@@ -6,6 +6,8 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Admins have a Sheet backgrounds section in Settings. It lists every image on the instance (built in, the shared library, and each character's upload) with the characters using each one. Admins can add images to the library (shrunk to WebP like other uploads), which then show in every member's Sheet background picker; rename or delete library images; delete any character's upload, including ones left over after a character replaced its image or was deleted; and hide the built-in images from the picker. A sheet whose image is deleted or hidden goes back to no background.
+- **Database:** `supabase/migrations/0010_background_library.sql`.
 - Each character can have one sheet background of its own: Upload in the Sheet background menu (Replace your image and Remove it once there is one). The browser shrinks the image and saves it as a small WebP file before it's uploaded; on a shared instance it's kept in private storage that only your group can see, and deleting the character deletes it.
 - The Sea sheet background is a new photo.
 - Character sheets can have a background image: the new Sheet background button next to Print (or the bottom of the Sections menu on a phone) offers None, Forest and Sea. The choice is saved with the character, shows around the edges of the screen and fades to the page colour (dark or parchment, matching the theme) behind the sheet’s text and boxes, so they stay easy to read. It’s left out when you print.

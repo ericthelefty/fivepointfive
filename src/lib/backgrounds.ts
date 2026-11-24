@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import { supabase } from "./backend.ts";
 
 /** Backdrops a player can pick for their character sheet (files in public/backgrounds). */
@@ -12,9 +12,26 @@ export const SHEET_BACKGROUNDS: SheetBackground[] = [
 /** The id a character uses for its own uploaded image. */
 export const CUSTOM_BACKGROUND = "custom";
 
-/** The built-in backdrop a character picked, if it still exists. */
-export function sheetBackground(id?: string): SheetBackground | undefined {
-  return id ? SHEET_BACKGROUNDS.find((b) => b.id === id) : undefined;
+/** The built-in backdrop a character picked, if it still exists and an admin hasn't hidden it. */
+export function sheetBackground(id?: string, hidden: string[] = []): SheetBackground | undefined {
+  return id && !hidden.includes(id) ? SHEET_BACKGROUNDS.find((b) => b.id === id) : undefined;
+}
+
+/** Library images are picked as "lib:<id>". */
+export const LIBRARY_PREFIX = "lib:";
+/** The Storage folder that holds the library (migration 0010). */
+export const LIBRARY_FOLDER = "library";
+
+/** An image an admin added to the instance's shared library. */
+export interface LibraryBackground {
+  id: string;
+  name: string;
+  /** Storage path of the image, "library/<file>". */
+  path: string;
+  /** Storage path of a small preview, if one was made. */
+  thumb: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 /** The private Storage bucket for uploaded backgrounds (migration 0009): one folder per character. */
@@ -115,4 +132,104 @@ export function useStoredImage(stored?: string): string | undefined {
     return () => { live = false; };
   }, [stored]);
   return url;
+}
+
+/** A small preview of a stored image, as a span with the image as its background. */
+export function StoredThumb({ stored, className }: { stored?: string; className?: string }) {
+  const url = useStoredImage(stored);
+  return createElement("span", { className, style: url ? { backgroundImage: `url("${url}")` } : undefined }, url ? null : "…");
+}
+
+// ---- the shared library (shared instances only) ----
+
+let library: LibraryBackground[] = [];
+let libraryLoaded: Promise<void> | null = null;
+const libraryListeners = new Set<(l: LibraryBackground[]) => void>();
+
+/** Fetch the library again and tell every page showing it. */
+export async function refreshLibrary(): Promise<LibraryBackground[]> {
+  if (!supabase) return [];
+  const { data } = await supabase.from("backgrounds").select("*").order("created_at");
+  library = (data || []) as LibraryBackground[];
+  libraryListeners.forEach((f) => f(library));
+  return library;
+}
+
+/** The instance's library images (empty in local-only mode). */
+export function useLibraryBackgrounds(): LibraryBackground[] {
+  const [list, setList] = useState(library);
+  useEffect(() => {
+    libraryListeners.add(setList);
+    if (!libraryLoaded) libraryLoaded = refreshLibrary().then(() => undefined);
+    else setList(library);
+    return () => { libraryListeners.delete(setList); };
+  }, []);
+  return list;
+}
+
+/** The library image a character picked ("lib:<id>"), if it still exists. */
+export function libraryBackground(id: string | undefined, list: LibraryBackground[]): LibraryBackground | undefined {
+  return id?.startsWith(LIBRARY_PREFIX) ? list.find((b) => LIBRARY_PREFIX + b.id === id) : undefined;
+}
+
+/** Admins: add an image to the library, shrunk to WebP with a small preview. */
+export async function addLibraryBackground(file: File, name: string): Promise<LibraryBackground> {
+  if (!supabase) throw new Error("The library needs a shared instance.");
+  if (!file.type.startsWith("image/")) throw new Error("That file isn’t an image.");
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error("That image is over 20 MB. Pick a smaller one.");
+  const [img, small] = await Promise.all([shrinkImage(file), shrinkImage(file, 320, 0.75)]);
+  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const ext = (b: Blob) => (b.type === "image/webp" ? "webp" : "jpg");
+  const path = `${LIBRARY_FOLDER}/${id}.${ext(img)}`;
+  const thumb = `${LIBRARY_FOLDER}/${id}-thumb.${ext(small)}`;
+  const bucket = supabase.storage.from(BACKGROUND_BUCKET);
+  const up = await bucket.upload(path, img, { contentType: img.type, upsert: false });
+  if (up.error) throw new Error(`Couldn’t upload the image: ${up.error.message}`);
+  const upThumb = await bucket.upload(thumb, small, { contentType: small.type, upsert: false });
+  const row = { id, name: name.trim() || file.name.replace(/\.[^.]+$/, "") || "Image", path, thumb: upThumb.error ? null : thumb };
+  const { data, error } = await supabase.from("backgrounds").insert(row).select().single();
+  if (error) {
+    await bucket.remove([path, thumb]);
+    throw new Error(`Couldn’t save the image: ${error.message}`);
+  }
+  await refreshLibrary();
+  return data as LibraryBackground;
+}
+
+/** Admins: rename a library image. */
+export async function renameLibraryBackground(id: string, name: string): Promise<void> {
+  if (!supabase || !name.trim()) return;
+  const { error } = await supabase.from("backgrounds").update({ name: name.trim() }).eq("id", id);
+  if (error) throw new Error(error.message);
+  await refreshLibrary();
+}
+
+/** Admins: delete a library image and its files. */
+export async function deleteLibraryBackground(b: LibraryBackground): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("backgrounds").delete().eq("id", b.id);
+  if (error) throw new Error(error.message);
+  await supabase.storage.from(BACKGROUND_BUCKET).remove([b.path, ...(b.thumb ? [b.thumb] : [])]);
+  await refreshLibrary();
+}
+
+/** An uploaded file in the bucket, as an admin sees it. */
+export interface StoredFile { path: string; size?: number; created_at?: string }
+
+/** Admins: every character upload in the bucket (the library folder is left out), including leftovers. */
+export async function listUploadedFiles(): Promise<StoredFile[]> {
+  if (!supabase) return [];
+  const bucket = supabase.storage.from(BACKGROUND_BUCKET);
+  const { data: top, error } = await bucket.list("", { limit: 1000 });
+  if (error) throw new Error(error.message);
+  const folders = (top || []).filter((f) => !f.id && f.name !== LIBRARY_FOLDER).map((f) => f.name);
+  const lists = await Promise.all(folders.map(async (folder) => {
+    const { data } = await bucket.list(folder, { limit: 100 });
+    return (data || []).filter((f) => f.id).map((f) => ({
+      path: `${folder}/${f.name}`,
+      size: (f.metadata as { size?: number } | null)?.size,
+      created_at: f.created_at || undefined,
+    }));
+  }));
+  return lists.flat();
 }
