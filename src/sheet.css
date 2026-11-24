@@ -699,3 +699,14 @@
 .sheetv .mgrrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 2px; border-bottom: 1px solid var(--line-2); }
 .sheetv .mgrrow .spname { font-weight: 600; font-size: 14px; text-align: left; }
 .sheetv .mgrrow .tag { white-space: nowrap; font-size: 11px; }
+.sheetv .mgrhelp { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--s-well2); font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.sheetv .mgrhelp p { margin: 0; }
+.sheetv .mgrhelp p + p { margin-top: 6px; }
+.sheetv .mgrhelp b { color: var(--ink); }
+.sheetv .inbook { font-size: 10.5px; padding: 0 6px; margin-right: 6px; }
+.sheetv .mgrfree { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+.sheetv .mgrfree summary { cursor: pointer; color: var(--s-gold); font-size: 12.5px; }
+.sheetv .mgrfree div { margin-top: 4px; line-height: 1.45; }
+.sheetv .mgrsteps { margin: 8px 0 0; padding: 8px 10px 8px 28px; border: 1px solid var(--s-gold2); border-radius: 8px; background: var(--accent-bg); font-size: 13px; line-height: 1.5; }
+.sheetv .mgrsteps li.done { color: var(--s-mut); text-decoration: line-through; text-decoration-color: color-mix(in srgb, currentColor 50%, transparent); }
+.sheetv .mgrsteps li.done .linkish { display: none; }

@@ -42,10 +42,10 @@ const HOW = {
   dis: "Disadvantage: roll two d20s and keep the lower one.",
   normal: "Normal: roll one d20.",
   adv: "Advantage: roll two d20s and keep the higher one.",
-  rests: "Short Rest: about 1 hour of light activity. You can spend Hit Dice to heal, and features that come back on a Short Rest (like Pact Magic slots) return. Long Rest: at least 8 hours, mostly sleeping. You regain all your Hit Points, Hit Dice and spell slots, most features come back, and Exhaustion goes down by 1. You must wait 16 hours after one Long Rest before starting another.",
+  rests: "Short Rest: a 1-hour period of downtime. You can spend Hit Point Dice to regain Hit Points, and features that recharge on a Short Rest (like Pact Magic spell slots) come back. Long Rest: at least 8 hours, sleeping for at least 6 of them with no more than 2 hours of light activity. You regain all lost Hit Points and all spent Hit Point Dice, spell slots and features that recharge on a Long Rest come back, and your Exhaustion level decreases by 1. After you finish a Long Rest, you must wait at least 16 hours before starting another one.",
   heal: "Adds the amount you typed to your current Hit Points, up to your maximum. Healing someone at 0 Hit Points brings them back up and clears their Death Saving Throws.",
   damage: "Takes the amount you typed from your Temporary Hit Points first, then your Hit Points. At 0 Hit Points you fall Unconscious and start making Death Saving Throws; if the damage left over after reaching 0 equals or beats your Hit Point maximum, you die outright.",
-  temp: "Temporary Hit Points: a buffer that takes damage before your real Hit Points and can't be healed. They don't add up: a new batch replaces the old one only if you choose it. A Long Rest clears them.",
+  temp: "Temporary Hit Points act as a buffer against losing real Hit Points: damage takes them first. They can\u2019t be added together: if you have some and receive more, you decide whether to keep the ones you have or gain the new ones. They last until they\u2019re used up or you finish a Long Rest.",
   amount: "Type a number, then press Heal, Damage or + Temp. Enter takes damage.",
   attack: "Roll a d20 plus this attack bonus. If the total equals or beats the target's Armor Class, it hits. A natural 20 is a Critical Hit (roll the damage dice twice); a natural 1 always misses.",
   dmg: "Roll this weapon's damage. Roll it after the attack hits; on a Critical Hit, use the crit damage button on the attack's card in the game log instead.",
@@ -204,7 +204,7 @@ export default function Sheet() {
   /** The slide-out details panel: a spell (with the level to cast it at) or a feature. */
   const [drawer, setDrawer] = useState<{ kind: "spell"; id: string; via?: string; level?: number; back?: number } | { kind: "feature"; title: string; sub: string; md: string; entryId?: string } | { kind: "manage"; k: number }>();
   /** Manage Spells panel: search text, level filter and whether to show only this caster's spells. */
-  const [mgr, setMgr] = useState<{ q: string; lvl: number | "all"; mine: boolean }>({ q: "", lvl: "all", mine: false });
+  const [mgr, setMgr] = useState<{ q: string; lvl: number | "all"; view: "all" | "mine" | "book" }>({ q: "", lvl: "all", view: "all" });
   const [spellQ, setSpellQ] = useState("");
   const [spellLvl, setSpellLvl] = useState<string>("all");
   /** Actions tab filter chip. */
@@ -1902,8 +1902,8 @@ export default function Sheet() {
   };
   /** The slide-out details panel (spells: cast at a level you pick; features: their text and uses). */
   // ------------------------------------------------------------ Manage Spells
-  /** Classes that change their prepared spells after any Long Rest (the rest swap one when they gain a level). */
-  const PREP_ON_REST = ["Cleric", "Druid", "Paladin", "Wizard"];
+  /** The class's own "Changing Your Prepared Spells" rule, word for word from its description. */
+  const prepRule = (e?: Entry) => stripMd(e?.body.match(/\*\*\*Changing Your Prepared Spells\.\*\*\*\s*([^\n]+)/)?.[1] || "");
   const managePanel = (kIndex: number): ReactNode => {
     const k = casters.find((x) => x.info.index === kIndex) || casters[0];
     if (!k || !k.ci) return <p className="note">This character doesn’t cast spells from a class.</p>;
@@ -1932,8 +1932,8 @@ export default function Sheet() {
         let gp = inv.coins.gp - cost, pp = inv.coins.pp;
         while (gp < 0 && pp > 0) { pp -= 1; gp += 10; }
         setInventory(inv.items, { ...inv.coins, gp: Math.max(0, gp), pp });
-        log({ title: `Copied ${name} into the spellbook`, total: `−${cost} GP`, cls: "event", detail: `${lvl * 2} hours of work and ${cost} GP of rare inks.` });
-      } else log({ title: `Added ${name} to the spellbook`, total: "", cls: "event", detail: "One of the spells you add when you gain a Wizard level." });
+        log({ title: `Copied ${name} into the spellbook`, total: `−${cost} GP`, cls: "event", detail: `The transcription takes ${lvl * 2} hours and costs ${cost} GP.` });
+      } else log({ title: `Added ${name} to the spellbook`, total: "", cls: "event", detail: "One of the two Wizard spells you add when you gain a Wizard level." });
       dirty.current = true;
       setC((prev) => (prev ? { ...prev, spellbook: [...(prev.spellbook || []), { name, how }] } : prev));
     };
@@ -1942,20 +1942,22 @@ export default function Sheet() {
     const rows = levels.flatMap((L) => (byLevel.get(L) || []).map((sp) => ({ sp, L })))
       .filter(({ sp, L }) => (mgr.lvl === "all" || mgr.lvl === L)
         && (!q || sp.name.toLowerCase().includes(q) || (sp.tagline || "").toLowerCase().includes(q) || stripMd(sp.fields["casting time"] || "").toLowerCase().includes(q))
-        && (!mgr.mine || (L === 0 ? cantrips.includes(sp.name) || knownElsewhere.has(sp.name) : prepared.includes(sp.name) || always.has(sp.name) || (wizard && bookNames.has(sp.name)))));
+        && (mgr.view !== "book" || !wizard || (L > 0 && bookNames.has(sp.name)))
+        && (mgr.view !== "mine" || (L === 0 ? cantrips.includes(sp.name) || knownElsewhere.has(sp.name) : prepared.includes(sp.name) || always.has(sp.name) || (wizard && bookNames.has(sp.name)))));
     const action = (sp: Entry, L: number): ReactNode => {
       const n = sp.name;
       if (L === 0) {
         if (knownElsewhere.has(n)) return <span className="tag plain">Known · {knownElsewhere.get(n)}</span>;
         const on = cantrips.includes(n);
         return <Btn className={`sbtn sm ${on ? "gold" : ""}`} aria-pressed={on} disabled={!on && cantrips.length >= ci.cantrips && !house} why={`You know ${ci.cantrips} ${k.info.cls.name} cantrips; remove one first.`}
-          onClick={() => write({ cantrips: on ? cantrips.filter((x) => x !== n) : [...cantrips, n] })}>{on ? "✓ Known" : "Learn"}</Btn>;
+          onClick={() => write({ cantrips: on ? cantrips.filter((x) => x !== n) : [...cantrips, n] })}>{on ? "✓ Known" : "Choose"}</Btn>;
       }
       if (always.has(n)) return <span className="tag ok">Always prepared · {always.get(n)}</span>;
       if (wizard && !bookNames.has(n)) {
         return freeLeft > 0
-          ? <button className="sbtn sm ghost" title="Use one of the spells you add to your book when you gain a Wizard level." onClick={() => addToBook(n, L, "level")}>Add to book</button>
-          : <Btn className="sbtn sm ghost" disabled={gold < L * 50 && !house} why={`Copying a level ${L} spell costs ${L * 50} GP; you have ${gold} GP.`} onClick={() => addToBook(n, L, "copied")}>Copy · {L * 50} GP</Btn>;
+          ? <button className="sbtn sm ghost" title="One of the two Wizard spells you add to your spellbook when you gain a Wizard level. It costs nothing." onClick={() => addToBook(n, L, "level")}>Add to spellbook</button>
+          : <Btn className="sbtn sm ghost" disabled={gold < L * 50 && !house} why={`Copying a level ${L} spell costs ${L * 50} GP; you have ${gold} GP.`}
+              onClick={() => { if (confirm(`Copy ${n} into your spellbook?\n\nCopying a Spell into the Book: for each level of the spell, the transcription takes 2 hours and costs 50 GP. For this level ${L} spell that's ${L * 2} hours and ${L * 50} GP, taken from your coins.\n\nYou can copy a Wizard spell you find, such as on a Spell Scroll. Your DM decides which spells you find.`)) addToBook(n, L, "copied"); }}>Copy · {L * 50} GP</Btn>;
       }
       const on = prepared.includes(n);
       return <Btn className={`sbtn sm ${on ? "gold" : ""}`} aria-pressed={on} disabled={!on && prepCount >= ci.prepared && !house} why={`You can prepare ${ci.prepared} spells; unprepare one first.`}
@@ -1972,18 +1974,36 @@ export default function Sheet() {
         <div className="mgrcount">
           {ci.cantrips > 0 && <span><b>{cantrips.length}</b>/{ci.cantrips} cantrips</span>}
           <span><b>{prepCount}</b>/{ci.prepared} prepared</span>
-          {wizard && <span><b>{[...bookNames].length}</b> in spellbook · {Math.max(0, freeLeft)} free to add</span>}
+          {wizard && <span><b>{[...bookNames].length}</b> in spellbook · {Math.max(0, freeLeft)} to add from Wizard levels</span>}
           <span className="mut">up to level {ci.maxSpellLevel}</span>
         </div>
+        {wizard && (
+          <details className="mgrfree">
+            <summary>How many spells can I add from Wizard levels?</summary>
+            <div>Your spellbook starts with six level 1 Wizard spells, and whenever you gain a Wizard level after 1 you add two more: 6 + 2 × {k.info.level - 1} = <b>{freePicks}</b>. Every level 1+ spell in your book that you didn’t copy counts toward them, including the ones you picked in the builder: <b>{freeUsed}</b> added, <b>{Math.max(0, freeLeft)}</b> left. Spells a feature adds for you (like Evocation Savant) don’t count.</div>
+          </details>
+        )}
+        {wizard && editable && (freeLeft > 0 || prepCount < ci.prepared || cantrips.length < ci.cantrips) && (
+          <ol className="mgrsteps">
+            <li className={cantrips.length >= ci.cantrips ? "done" : ""}>Choose your cantrips: <b>{cantrips.length}</b> of {ci.cantrips}. <button className="linkish" onClick={() => setMgr({ q: "", lvl: 0, view: "all" })}>Show cantrips</button></li>
+            <li className={freeLeft <= 0 ? "done" : ""}>Add spells to your spellbook: <b>{Math.max(0, freeLeft)}</b> left from your Wizard levels. Use <i>Add to spellbook</i> on any spell below. <button className="linkish" onClick={() => setMgr({ q: "", lvl: "all", view: "all" })}>Show all spells</button></li>
+            <li className={prepCount >= ci.prepared ? "done" : ""}>Prepare spells from your spellbook: <b>{prepCount}</b> of {ci.prepared}. <button className="linkish" onClick={() => setMgr({ q: "", lvl: "all", view: "book" })}>Show my spellbook</button></li>
+          </ol>
+        )}
+        <div className="mgrhelp">
+          <p><b>Cantrips and prepared spells.</b> You know your cantrips and can cast them at will, without expending a spell slot. A level 1+ spell must be on your list of prepared spells for you to cast it, and casting it expends a spell slot. In play you can cast only your cantrips and prepared spells, including spells you always have prepared (from a subclass or feat); those are the spells on your Spells and Actions tabs. Everything else listed here is a spell you could prepare instead.</p>
+          {wizard && <p><b>Spellbook.</b> Your spellbook holds your Wizard spells, and you prepare spells from it. Whenever you gain a Wizard level after 1, you add two Wizard spells of your choice to it. <b>Copying a Spell into the Book:</b> when you find a level 1+ Wizard spell, such as on a Spell Scroll, you can copy it in if it’s of a level you can prepare; for each level of the spell, the transcription takes 2 hours and costs 50 GP. The cost is a rule; which spells you find is up to your DM.</p>}
+        </div>
         <p className="note" style={{ margin: "4px 0 8px" }}>
-          {PREP_ON_REST.includes(k.info.cls.name) ? `${k.info.cls.name}s can change their prepared spells whenever they finish a Long Rest.` : `${k.info.cls.name}s can swap one prepared spell (and one cantrip) when they gain a level.`}
-          {wizard ? " You prepare from your spellbook; add new spells with your free picks or by copying them in." : ""}
+          {prepRule(casterEntry(k.info)) ? <><b>Changing Your Prepared Spells.</b> {prepRule(casterEntry(k.info))}</> : null}
+
         </p>
         <input className="mgrsearch" value={mgr.q} onChange={(e) => setMgr({ ...mgr, q: e.target.value })} placeholder="Search names, schools or casting times" aria-label="Search spells" />
         <div className="chipsrow" role="group" aria-label="Spell level" style={{ marginTop: 8 }}>
           <button className={mgr.lvl === "all" ? "on" : ""} onClick={() => setMgr({ ...mgr, lvl: "all" })}>All</button>
           {levels.map((L) => <button key={L} className={mgr.lvl === L ? "on" : ""} onClick={() => setMgr({ ...mgr, lvl: L })}>{L ? `${L}${["st", "nd", "rd"][L - 1] || "th"}` : "Cantrips"}</button>)}
-          <button className={mgr.mine ? "on" : ""} aria-pressed={mgr.mine} onClick={() => setMgr({ ...mgr, mine: !mgr.mine })}>Mine only</button>
+          {wizard && <button className={mgr.view === "book" ? "on" : ""} aria-pressed={mgr.view === "book"} onClick={() => setMgr({ ...mgr, view: mgr.view === "book" ? "all" : "book" })}>Spellbook</button>}
+          <button className={mgr.view === "mine" ? "on" : ""} aria-pressed={mgr.view === "mine"} onClick={() => setMgr({ ...mgr, view: mgr.view === "mine" ? "all" : "mine" })}>{wizard ? "Known & prepared" : "Mine only"}</button>
         </div>
         <div className="mgrlist">
           {rows.length === 0 && <p className="note">No spells match.</p>}
@@ -1994,7 +2014,7 @@ export default function Sheet() {
                 <div key={sp.id} className="mgrrow">
                   <div style={{ minWidth: 0 }}>
                     <button className="linkish spname" onClick={() => setDrawer({ kind: "spell", id: sp.id, back: k.info.index })}>{sp.name}</button>
-                    <div className="note" style={{ margin: 0 }}>{[spellInfo(sp)?.school, stripMd(sp.fields["casting time"] || ""), stripMd(sp.fields["range"] || ""), /concentration/i.test(sp.fields["duration"] || "") ? "Concentration" : "", isRitual(sp) ? "Ritual" : ""].filter(Boolean).join(" · ")}</div>
+                    <div className="note" style={{ margin: 0 }}>{wizard && L > 0 && bookNames.has(sp.name) && <span className="tag plain inbook">{prepared.includes(sp.name) ? "In your book · prepared" : "In your book"}</span>}{[spellInfo(sp)?.school, stripMd(sp.fields["casting time"] || ""), stripMd(sp.fields["range"] || ""), /concentration/i.test(sp.fields["duration"] || "") ? "Concentration" : "", isRitual(sp) ? "Ritual" : ""].filter(Boolean).join(" · ")}</div>
                   </div>
                   {editable ? action(sp, L) : null}
                 </div>
@@ -2122,7 +2142,7 @@ export default function Sheet() {
       while (gp < 0 && pp > 0) { pp -= 1; gp += 10; }
       setInventory(inv.items, { ...inv.coins, gp: Math.max(0, gp), pp });
       setBook([...book, { name: pick, how: "copied" }]);
-      log({ title: `Copied ${pick} into the spellbook`, total: `−${copyCost} GP`, cls: "event", detail: `${pickLvl * 2} hours of work and ${copyCost} GP of rare inks.` });
+      log({ title: `Copied ${pick} into the spellbook`, total: `−${copyCost} GP`, cls: "event", detail: `The transcription takes ${pickLvl * 2} hours and costs ${copyCost} GP.` });
       setBookPick("");
     };
     const byLevel = new Map<number, Entry[]>();
@@ -2131,7 +2151,7 @@ export default function Sheet() {
       <div className="spanel" style={{ marginBottom: 12 }}>
         <div className="fphead">
           <h3 style={{ margin: 0 }}>Spellbook</h3>
-          <span className="mut" style={{ fontSize: 12.5 }}>{inBook.length} spells · {prepared.length}/{prepMax} prepared · {Math.max(0, freeLeft)} free pick{freeLeft === 1 ? "" : "s"} left from leveling up</span>
+          <span className="mut" style={{ fontSize: 12.5 }}>{inBook.length} spells · {prepared.length}/{prepMax} prepared · {Math.max(0, freeLeft)} to add from Wizard levels</span>
         </div>
         {memorizer()?.info.index === k.info.index && p.memorize === "ready" && editable && (() => {
           const outs = prepared.filter((n) => names.includes(n));

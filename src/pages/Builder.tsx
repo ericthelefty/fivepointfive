@@ -6,7 +6,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { weaponTable } from "../lib/play.ts";
 import { catalog, inventoryOf } from "../lib/inventory.ts";
 import {
-  MAX_LEVEL, SUBCLASS_LEVEL, addClass, casterInfoOf, casterKindOf, classInfos, spellListClass, extraClasses, patchClass, prerequisiteProblems, removeClass, startingLevel,
+  MAX_LEVEL, SUBCLASS_LEVEL, addClass, casterEntry, casterInfoOf, casterKindOf, classInfos, spellListClass, extraClasses, patchClass, prerequisiteProblems, removeClass, startingLevel,
 } from "../lib/multiclass.ts";
 import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
@@ -845,6 +845,11 @@ function ClassSpells({ c, update, index }: StepProps & { index: number }) {
             Level {info.level} {info.cls.name}: {caster.cantrips ? `${caster.cantrips} cantrips, ` : ""}{caster.prepared} prepared spells of level {caster.maxSpellLevel} or lower.
             {multi ? " Spell slots for all your classes together are shown on the sheet." : ` Slots: ${caster.slots.map((s) => `${s.count}× level ${s.level}`).join(", ")}.`}
           </p>
+          {(casterEntry(info)?.effects || []).some((f) => /spellbook:/.test(f.yaml)) && (
+            <div className="inset" style={{ marginBottom: 10 }}>
+              <strong>Wizards:</strong> the level 1+ spells you pick here go into your spellbook and start out on your list of prepared spells. On the sheet, <em>Spells › Manage Spells</em> lets you add spells to your spellbook (two Wizard spells whenever you gain a Wizard level after 1, or copy ones you find: 2 hours and 50 GP per spell level) and change your prepared spells whenever you finish a Long Rest.
+            </div>
+          )}
           {caster.cantrips > 0 && (
             <SpellGroup title={`Cantrips (${info.cantrips.length}/${caster.cantrips})`} spells={spellsByLevel.get(0) || []} chosen={info.cantrips} known={knownCantrips} onToggle={(n) => update(patchClass(c, index, { cantrips: toggle(info.cantrips, n, caster.cantrips) }))} />
           )}
