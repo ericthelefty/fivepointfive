@@ -2340,7 +2340,7 @@ export default function Sheet() {
     };
     if (!list.length && !editable) return null;
     return (
-      <div className="spanel" style={{ marginBottom: 12 }}>
+      <div className="spanel" style={{ marginTop: 16 }}>
         <h3 style={{ marginTop: 0 }}>Your own features</h3>
         <label className="note" style={{ display: "flex", gap: 6, alignItems: "center", margin: "0 0 8px" }}>
           <input type="checkbox" disabled={!editable} checked={!!c.houseRules} onChange={(e) => { dirty.current = true; const on = e.target.checked; setC((prev) => (prev ? { ...prev, houseRules: on } : prev)); }} />
@@ -3479,7 +3479,6 @@ export default function Sheet() {
                     ))}
                   </div>
                   {featFilter === "all" && restChoicesPanel()}
-                  {featFilter === "all" && customFeaturesPanel()}
                   {(featFilter === "all" || featFilter === "class") && allFeats.map((f, i) => (
                     <details key={`f${i}`} className="feat" open={featFilter === "class" || undefined}>
                       <summary>{f.name} <span className="mut">· {f.src === f.classLevel.replace(/ \d+$/, "") ? f.classLevel : `${f.src} · ${f.classLevel}`}</span>{featureBadges(f.name)}{autoTag(infos.flatMap((i) => [i.cls, i.sub]).find((e) => e?.name === f.src)?.id, f.name)}</summary>
@@ -3513,7 +3512,7 @@ export default function Sheet() {
                       {featureExtras(f.name)}
                     </details>
                   ))}
-
+                  {featFilter === "all" && customFeaturesPanel()}
                 </div>
               )}
 
