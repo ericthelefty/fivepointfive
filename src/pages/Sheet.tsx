@@ -1923,7 +1923,7 @@ export default function Sheet() {
     const granted = fx.bookSpells.map((b) => b.name);
     const bookNames = new Set([...prepared, ...book.map((b) => b.name), ...granted]);
     const freePicks = 6 + 2 * Math.max(0, k.info.level - 1);
-    const freeUsed = [...bookNames].filter((n) => (spellInfo(spells.find((x) => x.name === n) || ({ tagline: "" } as Entry))?.level || 0) > 0 && !book.some((b) => b.name === n && b.how === "copied") && !(granted.includes(n) && !prepared.includes(n) && !book.some((b) => b.name === n))).length;
+    const freeUsed = [...bookNames].filter((n) => (spellInfo(spells.find((x) => x.name === n) || ({ tagline: "" } as Entry))?.level || 0) > 0 && !book.some((b) => b.name === n && b.how === "copied") && !(granted.includes(n) && !book.some((b) => b.name === n))).length;
     const freeLeft = freePicks - freeUsed;
     const gold = inv.coins.gp + inv.coins.pp * 10;
     const addToBook = (name: string, lvl: number, how: "level" | "copied") => {
@@ -2121,7 +2121,7 @@ export default function Sheet() {
     const names = [...new Set([...prepared, ...book.map((b) => b.name), ...granted])];
     const inBook = names.map((n) => spells.find((x) => x.name === n)).filter(Boolean) as Entry[];
     // spells a feature wrote in (Evocation Savant) don't use the level-up picks
-    const freeUsed = names.filter((n) => !book.some((b) => b.name === n && b.how === "copied") && !(granted.includes(n) && !prepared.includes(n) && !book.some((b) => b.name === n))).length;
+    const freeUsed = names.filter((n) => !book.some((b) => b.name === n && b.how === "copied") && !(granted.includes(n) && !book.some((b) => b.name === n))).length;
     const freeLeft = free - freeUsed;
     const maxL = Math.max(0, ...slots.filter((x) => !x.pact).map((x) => x.level));
     const prepMax = k.ci?.prepared ?? 0;
@@ -2208,10 +2208,10 @@ export default function Sheet() {
               <option value="">Add a {listName} spell…</option>
               {candidates.map((x) => <option key={x.id} value={x.name}>{x.name} (level {spellInfo(x)!.level})</option>)}
             </select>
-            <Btn className="sbtn sm" disabled={!pick || (freeLeft <= 0 && !house)} why={!pick ? "Choose a spell first." : `You’ve used all ${free} spells you get from leveling up. Copy a spell you find instead.`}
-              onClick={() => { setBook([...book, { name: pick, how: "level" }]); setBookPick(""); }}>Add (level-up pick)</Btn>
+            <Btn className="sbtn sm" disabled={!pick || (freeLeft <= 0 && !house)} why={!pick ? "Choose a spell first." : `You’ve added all ${free} spells your Wizard levels give you. Copy a spell you find instead.`}
+              onClick={() => { setBook([...book, { name: pick, how: "level" }]); setBookPick(""); }}>Add to spellbook</Btn>
             <Btn className="sbtn sm ghost" disabled={!pick || (gold < copyCost && !house)} why={!pick ? "Choose a spell first." : `Copying it costs ${copyCost} GP; you have ${gold}.`}
-              onClick={copy}>{pick ? `Copy in (${copyCost} GP, ${pickLvl * 2} h)` : "Copy in"}</Btn>
+              onClick={() => { if (confirm(`Copy ${pick} into your spellbook?\n\nCopying a Spell into the Book: for each level of the spell, the transcription takes 2 hours and costs 50 GP. For this level ${pickLvl} spell that's ${pickLvl * 2} hours and ${copyCost} GP, taken from your coins.\n\nYou can copy a Wizard spell you find, such as on a Spell Scroll. Your DM decides which spells you find.`)) copy(); }}>{pick ? `Copy (${copyCost} GP, ${pickLvl * 2} hours)` : "Copy"}</Btn>
           </div>
         )}
       </div>
@@ -2857,9 +2857,14 @@ export default function Sheet() {
   return (
     <TipsOn.Provider value={explain}>
     <div ref={rootRef} className={`sheetv ${narrow && logHidden ? "loghid" : ""} ${critFx ? "critfx" : ""} ${explain ? "explain" : ""}`}
-      onMouseOver={explain ? (e) => { const el = exFind(e.target); if (el && el !== exAt?.el) exShow(el); } : undefined}
-      onMouseLeave={explain ? () => setExAt(undefined) : undefined}
-      onMouseOut={explain ? (e) => { if (!exFind(e.relatedTarget)) setExAt(undefined); } : undefined}>
+      onMouseOver={explain && !narrow ? (e) => { const el = exFind(e.target); if (el && el !== exAt?.el) exShow(el); } : undefined}
+      onMouseLeave={explain && !narrow ? () => setExAt(undefined) : undefined}
+      onMouseOut={explain && !narrow ? (e) => { if (!exFind(e.relatedTarget)) setExAt(undefined); } : undefined}
+      onClickCapture={explain && narrow ? (e) => {
+        // phones and tablets have no hover: a tap explains instead of rolling
+        const el = exFind(e.target);
+        if (el) { e.preventDefault(); e.stopPropagation(); exShow(el); } else setExAt(undefined);
+      } : undefined}>
       {drawerPanel()}
       {diceFx && (
         <div key={diceFx.key} className="dice3d" aria-hidden="true">
@@ -3543,7 +3548,7 @@ export default function Sheet() {
         <button className={`exsw ${explain ? "on" : ""}`} role="switch" aria-checked={explain} onClick={() => { setExplain(!explain); setExAt(undefined); }}>
           <span className="knob" aria-hidden="true" /> Explainer mode
         </button>
-        <p>Enable Explainer mode to hover over items on the sheet and see what they are, how each number is worked out, and how you can change it. Clicking still rolls as usual.</p>
+        <p>{narrow ? "Enable Explainer mode to tap items on the sheet and see what they are, how each number is worked out, and how you can change it. While it’s on, dice rolling is turned off, so tapping only explains." : "Enable Explainer mode to hover over items on the sheet and see what they are, how each number is worked out, and how you can change it. Clicking still rolls as usual."}</p>
       </div>
       {explain && (
         <button className="explainpill" onClick={() => { setExplain(false); setExAt(undefined); }}>Explainer mode is on · <b>Turn off</b></button>

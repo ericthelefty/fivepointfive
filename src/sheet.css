@@ -710,3 +710,11 @@
 .sheetv .mgrsteps { margin: 8px 0 0; padding: 8px 10px 8px 28px; border: 1px solid var(--s-gold2); border-radius: 8px; background: var(--accent-bg); font-size: 13px; line-height: 1.5; }
 .sheetv .mgrsteps li.done { color: var(--s-mut); text-decoration: line-through; text-decoration-color: color-mix(in srgb, currentColor 50%, transparent); }
 .sheetv .mgrsteps li.done .linkish { display: none; }
+
+/* desktop: dice and the modifier beside them at twice the size */
+@media (min-width: 901px) {
+  .sheetv .dice3d { gap: 22px; }
+  .sheetv .die3d { width: 116px; height: 116px; font-size: 44px; }
+  .sheetv .die3d.d4 { padding-top: 28px; }
+  .sheetv .dmod { font-size: 68px; }
+}

@@ -2299,7 +2299,10 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
           options = options.filter((o) => !knownIds.has(o.value) && !knownNames.has(o.label));
         }
         const listOpen = typeof ch.from?.spell?.list === "string" && ch.from.spell.list.startsWith("choice:");
-        const chosen = (a.ctx.c.choices?.[key] || []).filter((x) => !options || options.some((o) => o.value === x)).slice(0, count);
+        // nothing stored yet: the block's default (High Elf starts out knowing Prestidigitation)
+        let stored = a.ctx.c.choices?.[key] || [];
+        if (!stored.length && ch.default) { const dref = resolveRef(String(ch.default), a.ctx); if (dref) stored = [dref.id]; }
+        const chosen = stored.filter((x) => !options || options.some((o) => o.value === x)).slice(0, count);
         r.pending.push({
           key, entry: e, feature: fname,
           label: `${fname}: choose ${count > 1 ? count : "one"} ${ch.from?.spell?.level === 0 ? (count > 1 ? "cantrips" : "cantrip") : `level ${ch.from?.spell?.level ?? ""} spell`.replace("level  ", "")}${listOpen ? " (pick the spell list first)" : ""}`,

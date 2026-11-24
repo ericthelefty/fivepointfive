@@ -32,6 +32,10 @@ If you run your own instance, check the **Database** line of each version: when 
 - Removed the "Reset to starting equipment" link from the Inventory tab.
 - Manage Spells explains known versus prepared spells and which ones you can cast in play; for Wizards, how the spellbook works. "Add to spellbook" uses one of the two spells you add each Wizard level (no cost); copying a found spell asks first and gives the SRD cost (2 hours and 50 GP per spell level).
 - Rules wording follows the SRD: each class's own "Changing Your Prepared Spells" rule is quoted in Manage Spells (Paladins and Rangers replace one spell after a Long Rest; Bards, Sorcerers and Warlocks when they gain a level), and the Short Rest, Long Rest and Temporary Hit Points explanations use the SRD's terms.
+- Fixed: a High Elf now starts out knowing Prestidigitation (the lineage's default cantrip) instead of showing "1 choice left" with no cantrip.
+- Fixed: preparing a spell a feature added to the spellbook (Evocation Savant) no longer uses up one of the spells you add from Wizard levels.
+- Explainer mode on phones and tablets: tapping a number explains it and dice don't roll while it's on; the description says so.
+- 3D dice and the modifier beside them are twice the size on laptops and desktops.
 - Wizards in Manage Spells: a Spellbook filter and an "In your book" label on each spell already in the book; a three-step checklist (choose cantrips, add spells from your Wizard levels, prepare from the spellbook) while any step is unfinished; and an explanation of how many spells you can add. The builder's spell step tells Wizards that their picks go into the spellbook and start out prepared.
 - Spells that make attack rolls (Eldritch Blast, Scorching Ray…) have Attack and Damage buttons in the Actions tab, like weapons. Cantrips just roll; a levelled spell keeps a Cast button that spends the slot first. For several beams or rays, roll once per beam.
 - Weapon Mastery: after a Long Rest the game log card offers "Change Weapon Mastery", and the Actions tab links to the picker (Features & Feats › Change after a rest). The builder still lets you change it anytime.
