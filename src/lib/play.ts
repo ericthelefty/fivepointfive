@@ -222,6 +222,11 @@ export interface Attack {
   dieFloor?: { min: number; twoHands: boolean; source: string };
   /** Damage dice use their maximum. */
   maximize?: string;
+  /** Damage every hit adds by itself ("1d8 radiant", from Radiant Strikes): already in `damage`, shown after the type. */
+  extra?: string;
+  /** `damage` and `versatile` before that extra damage, for showing. */
+  baseDamage?: string;
+  baseVersatile?: string;
 }
 
 /** What Effects change about one attack (from modif weapon rules). */

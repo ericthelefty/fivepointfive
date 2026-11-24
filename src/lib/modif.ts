@@ -537,6 +537,8 @@ export interface ModifTrigger {
   follows?: string;
   /** Extra damage it offers (Sneak Attack 3d6, Brutal Strike 1d10), worked out for your level. */
   damage?: { dice: string; type: string }[];
+  /** For a hit that always adds damage (Radiant Strikes): which attacks it adds to. Left out when it isn't that simple. */
+  onHit?: { melee?: boolean; ranged?: boolean; unarmed?: boolean; itemId?: string };
   /** Effects to pick from when it happens, up to `pick` of them (Cunning Strike, Brutal Strike). */
   options?: { id: string; label: string; diceCost?: number; save?: string; text: string }[];
   pick?: number;
@@ -2506,6 +2508,7 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         when: eventText(ev) + (v.if ? ` (${v.if})` : "") + (v.when ? ` (${whenText(v.when)})` : ""),
         text: offerText(v.offer, env) || shortText(), cost: costOf(v.offer?.cost ?? v.cost, a) ?? perRest(v, a, fname), auto: !!v.auto, reaction: !!v.reaction,
         ...triggerRiders(v, env),
+        onHit: autoHitScope(ev, v, a.item?.id),
       });
       return true;
     }
@@ -2751,6 +2754,19 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
 function firstSentence(md: string): string {
   const p = stripMd(md.split(/\n\s*\n/).find((x) => x.trim() && !x.trim().startsWith("|") && !x.trim().startsWith("#")) || "");
   return p.length > 240 ? p.slice(0, 237).replace(/\s+\S*$/, "") + "…" : p;
+}
+
+/** Which attacks an automatic, free, always-on hit trigger adds damage to (Radiant Strikes: melee weapons and Unarmed Strikes).
+ *  Only the plain cases: no cost, no condition, no choice, no once-per-turn limit; anything else stays a separate row. */
+function autoHitScope(ev: Val, v: Val, itemId?: string): ModifTrigger["onHit"] {
+  if (ev !== "hit" || !v.auto || v.cost || v.offer?.cost || v.if || v.when || v.once || v.per || v.offer?.choose || !v.offer?.damage) return undefined;
+  const sc = JSON.stringify(v.scope ?? {});
+  // only against some targets (Sun Blade vs Undead), or by attack type, it stays a separate row
+  if (sc === "{}" || /"against"|"attack"/.test(sc)) return undefined;
+  if (/"id":"self"/.test(sc)) return itemId ? { itemId } : undefined; // the item's own attacks (Flame Tongue, Frost Brand)
+  if (sc === '{"weapon":{}}') return { melee: true, ranged: true }; // any weapon (Divine Favor)
+  const out = { melee: /"kind":"melee"/.test(sc), ranged: /"kind":"ranged"/.test(sc), unarmed: /"unarmed":true/.test(sc) };
+  return out.melee || out.ranged || out.unarmed ? out : undefined;
 }
 
 /** An action's area as the rules write it: { shape: cone, size: 15 } → "15-ft. Cone"; a line's width is added. */

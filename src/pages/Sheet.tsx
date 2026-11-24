@@ -21,7 +21,7 @@ import {
   timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
   type ActiveEffect, type Companion, type PlayState, type RollContext,
 } from "../lib/play.ts";
-import { baseOf, catalog, inventoryOf, isActive, magicInfo, newItemId, type Coins, type Item } from "../lib/inventory.ts";
+import { baseOf, catalog, inventoryOf, isActive, itemTitle, magicInfo, newItemId, type Coins, type Item } from "../lib/inventory.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
 import { DetailsForm } from "../components/DetailsForm.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
@@ -451,6 +451,22 @@ export default function Sheet() {
   ];
   // Modif attack and damage bonuses: the item's own (+1 weapon), weapon kind (Archery), ability (Rage)
   function withBonuses(a: Attack, ranged: boolean): Attack {
+    const r = withFlatBonuses(a, ranged);
+    // damage that every hit adds by itself (Radiant Strikes, a Flame Tongue's fire): rolled with the attack's damage
+    const unarmed = /^unarmed strike/i.test(a.name);
+    const always = fx.triggers.filter((t) => t.onHit && t.damage?.length && (t.onHit.itemId ? t.onHit.itemId === a.itemId : ranged ? t.onHit.ranged : unarmed ? t.onHit.unarmed : t.onHit.melee));
+    if (!always.length) return r;
+    const dice = always.flatMap((t) => t.damage!).filter((x) => x.dice);
+    const typeOf = (x: { type: string }) => (!x.type || x.type === "weapon" ? r.type.split(",")[0].toLowerCase() : x.type);
+    const more = dice.map((x) => `+${x.dice}`).join("");
+    return {
+      ...r, baseDamage: r.damage, baseVersatile: r.versatile,
+      damage: `${r.damage}${more}`, versatile: r.versatile ? `${r.versatile}${more}` : r.versatile,
+      extra: dice.map((x) => `${x.dice} ${typeOf(x)}`).join(" + "),
+      note: [r.note, ...always.map((t) => t.name)].filter(Boolean).join(" · "),
+    };
+  }
+  function withFlatBonuses(a: Attack, ranged: boolean): Attack {
     const fits = (b: { itemId?: string; ranged?: boolean; melee?: boolean; ability?: string }) =>
       b.itemId ? b.itemId === a.itemId : (!b.ranged || ranged) && (!b.melee || !ranged) && (!b.ability || b.ability === a.ability);
     const hit = fx.attackBonuses.filter(fits);
@@ -511,7 +527,7 @@ export default function Sheet() {
   const attacks: Attack[] = formCr ? formCr.actions.filter((a) => a.toHit !== undefined).map((a) => creatureAttack(formCr, a)) : [
     ...wielded.map(({ it, w }) => {
       const wo = weaponOpts({ id: slug(w.name), name: w.name, category: w.category, properties: w.properties, monk: isMonkWeapon(w), itemId: it.id, tags: it.tags, damage: w.damage });
-      return withBonuses({ ...attackFor({ ...w, name: it.name }, d, weaponProficient(fx, { ...w, tags: it.tags }), { ...wo.opts, mastered: fx.masteries.some((m) => slug(m) === slug(w.name)) }), itemId: it.id, dieFloor: wo.dieFloor, maximize: wo.maximize }, /ranged/i.test(w.category));
+      return withBonuses({ ...attackFor({ ...w, name: itemTitle(it, undefined, content.byId(it.ref || "")?.name) }, d, weaponProficient(fx, { ...w, tags: it.tags }), { ...wo.opts, mastered: fx.masteries.some((m) => slug(m) === slug(w.name)) }), itemId: it.id, dieFloor: wo.dieFloor, maximize: wo.maximize }, /ranged/i.test(w.category));
     }),
     (() => {
       const wo = weaponOpts({ id: "unarmed-strike", name: "Unarmed Strike", category: "Unarmed", properties: "", unarmed: true });
@@ -876,7 +892,7 @@ export default function Sheet() {
           (why.length ? `<div>${esc(why.join(" · "))}</div>` : "") +
           (crit ? `<div class="vd crit">Critical hit!${critNote}</div>` : r.fumble ? `<div class="vd bad">Natural 1: miss</div>` : ""),
       },
-      [{ label: crit ? `Roll crit damage (${dmg})` : `Roll damage (${dmg})`, run: () => rollDamage(a.name, dmg, crit, a.type, false, dmgMods(a, versatile)) }],
+      [{ label: crit ? `Roll crit damage (${dmg})` : `Roll damage (${dmg})`, run: () => rollDamage(a.name, dmg, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, versatile)) }],
     );
   };
 
@@ -3358,11 +3374,11 @@ export default function Sheet() {
                         <tr key={`${a.name}-${i}`}>
                           <td><b>{a.name}</b><div className="note">{a.note}</div>{chargesOf(a.itemId)}</td>
                           <td><span data-ex={`atk:${i}`}>{fmt(a.toHit)}</span></td>
-                          <td>{a.damage} {a.type}{a.versatile ? <div className="note">two hands {a.versatile}</div> : null}</td>
+                          <td>{a.baseDamage ?? a.damage} {a.type}{a.extra ? ` + ${a.extra}` : ""}{a.versatile ? <div className="note">two hands {a.baseVersatile ?? a.versatile}{a.extra ? ` + ${a.extra}` : ""}</div> : null}</td>
                           <td>
                             <div className="rowbtn">
                               <button className="sbtn sm" title={HOW.attack} onClick={() => attack(a)}>Attack</button>
-                              <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(a.name, a.damage, false, a.type, false, dmgMods(a, false))}>Damage</button>
+                              <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(a.name, a.damage, false, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, false))}>Damage</button>
                               {a.versatile && <button className="sbtn sm ghost" onClick={() => attack(a, true)}>Two hands</button>}
                             </div>
                           </td>
@@ -3536,7 +3552,7 @@ export default function Sheet() {
                             return (
                               <tr key={t.key}>
                                 <td><b>{t.name}</b><div className="note">{t.when}</div></td>
-                                <td>{t.text}{t.auto && <div className="note">Happens automatically.</div>}</td>
+                                <td>{t.text}{t.auto && <div className="note">{t.onHit ? "Already added to your attacks' damage." : "Happens automatically."}</div>}</td>
                                 <td>{res ? `${left} / ${res.max}` : ""}</td>
                                 <td>{res && t.cost && (
                                   <Btn className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn>

@@ -6,6 +6,8 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Damage that every hit adds by itself is part of the attack: Radiant Strikes shows and rolls "+ 1d8 radiant" on melee weapons and Unarmed Strikes, a Flame Tongue or Frost Brand adds its dice to its own attacks, and Divine Favor to weapon attacks while it lasts. Bonus damage with a condition (only against some creatures, once per turn, a choice) stays a separate "On a hit" row.
+- "+1, +2, or +3" magic items (Weapon, Armor, Shield, Ammunition) have a Bonus picker in the Inventory, and go by what they're made of: "Longsword, +2" in the Inventory and on the attack, with the bonus applied.
 - Explainer mode explains Heroic Inspiration (the ★ buttons and the label under your name: what it does, whether you have it, how you get it back), and every line under Defenses, Senses, Languages and Tools: where it comes from and what it means, in the SRD's words (Darkvision, Resistance, Immunity…), how a passive score adds up, and for a tool its ability, check bonus, what you use it for and what you can craft with it.
 - Special attacks from your species, class, subclass or feats (Breath Weapon, End Vibrations) are in the Attacks table: save and DC in the new Hit / DC column, the damage, its area (with a picker when you choose the shape, like Breath Weapon's 15-ft. Cone or 30 × 5 ft. Line), uses left, and one Use button that spends a use and rolls the damage.
 - The sheet's ability boxes use the short names (STR, DEX, CON, INT, WIS, CHA), so they fit their borders.

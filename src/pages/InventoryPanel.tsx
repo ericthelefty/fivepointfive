@@ -5,7 +5,7 @@ import type { Entry } from "../lib/parse.ts";
 import type { ArmorRow } from "../lib/rules.ts";
 import type { Weapon } from "../lib/play.ts";
 import {
-  ATTUNEMENT_LIMIT, COIN_KEYS, attunedCount, baseOf, carryingCapacity, isActive, itemFrom, needsAttunement, newItemId, setAttuned,
+  ATTUNEMENT_LIMIT, COIN_KEYS, attunedCount, baseOf, carryingCapacity, isActive, itemFrom, itemTitle, needsAttunement, newItemId, plusChoices, plusOf, setAttuned,
   setEquipped, slotOf, totalWeight, type CatalogItem, type Coins, type Item, type MagicInfo,
 } from "../lib/inventory.ts";
 
@@ -123,11 +123,12 @@ export default function InventoryPanel(p: Props) {
               <tr key={it.id} className={open === it.id ? "open" : ""}>
                 <td>
                   <button className="iname" onClick={() => setOpen(open === it.id ? undefined : it.id)} aria-expanded={open === it.id}>
-                    <b>{it.name}{it.kind === "custom" ? <span className="custstar" title="Custom item">*</span> : null}</b>
+                    <b>{itemTitle(it, info, entry?.name)}{it.kind === "custom" ? <span className="custstar" title="Custom item">*</span> : null}</b>
                     <span className="ichev" aria-hidden="true">▾</span>
                   </button>
                   {active && <span className="tagx on" title="Worn or wielded, and attuned if it needs it">Active</span>}
                   {needsBase && <span className="tagx warn">Choose base item</span>}
+                  {plusChoices(entry?.name).length > 0 && !plusOf(it, entry?.name) && <span className="tagx warn">Choose its bonus</span>}
                   <div className="note">
                     {[it.note, baseOf(it, info) && baseOf(it, info) !== it.name ? baseOf(it, info) : "", info?.category, attunes ? `Requires attunement${info?.attunementNote ? ` ${info.attunementNote}` : ""}` : ""].filter(Boolean).join(" · ")}
                   </div>
@@ -155,10 +156,20 @@ export default function InventoryPanel(p: Props) {
                             )}
                           </>
                         )}
+                        {plusChoices(entry?.name).length > 0 && (
+                          <label className="field">
+                            Bonus
+                            <select value={plusOf(it, entry?.name) || ""} disabled={ro} aria-label={`Bonus of ${it.name}`}
+                              onChange={(e) => patch(it.id, { name: e.target.value ? `${entry!.name.replace(/,?\s*\+1, \+2, or \+3.*$/, "")}, +${e.target.value}` : entry!.name })}>
+                              <option value="">Choose…</option>
+                              {plusChoices(entry?.name).map((n) => <option key={n} value={n}>+{n} ({["", "Uncommon", "Rare", "Very Rare"][n]})</option>)}
+                            </select>
+                          </label>
+                        )}
                         {info?.base && info.base.options.length > 1 && (
                           <label className="field">
                             Base {info.base.kind === "weapon" ? "weapon" : info.base.kind === "shield" ? "shield" : "armor"}
-                            <select value={it.base || ""} disabled={ro} onChange={(e) => patch(it.id, { base: e.target.value || undefined })}>
+                            <select value={it.base || ""} disabled={ro} aria-label={`Base of ${it.name}`} onChange={(e) => patch(it.id, { base: e.target.value || undefined })}>
                               <option value="">Choose…</option>
                               {info.base.options.map((o) => <option key={o}>{o}</option>)}
                             </select>

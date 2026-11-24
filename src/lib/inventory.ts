@@ -247,6 +247,16 @@ export function baseOf(it: Item, info?: MagicInfo): string | undefined {
   return it.base || (info?.base?.options.length === 1 ? info.base.options[0] : undefined);
 }
 
+/** The bonuses a "+1, +2, or +3" magic item can have, read from its name ("Weapon, +1, +2, or +3" → [1, 2, 3]). */
+export const plusChoices = (entryName?: string) => (entryName && /\+1, \+2, or \+3/.test(entryName) ? [1, 2, 3] : []);
+/** The bonus picked for such an item, from its name ("Weapon, +2" → 2); the entry's own name means none picked yet. */
+export const plusOf = (it: Item, entryName?: string) => (plusChoices(entryName).length && it.name !== entryName ? +(it.name.match(/,\s*\+(\d)$/)?.[1] || 0) || undefined : undefined);
+/** How an item reads on the sheet: a generic magic weapon or armor goes by what it's made of ("Longsword, +2"). */
+export function itemTitle(it: Item, info?: MagicInfo, entryName?: string): string {
+  const plus = plusOf(it, entryName), base = baseOf(it, info);
+  return plus && base && /^(Weapon|Armor|Shield|Ammunition)\b/.test(it.name) ? `${base}, +${plus}` : it.name;
+}
+
 /** Carried, attuned if it needs it, and equipped if it's worn or wielded. */
 export function isActive(it: Item, info?: MagicInfo): boolean {
   if (it.qty <= 0) return false;

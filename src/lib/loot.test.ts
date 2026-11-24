@@ -71,3 +71,17 @@ describe("coins and hidden finds", () => {
     expect(note.kind === "item" && note.line.item.kind).toBe("custom");
   });
 });
+
+describe("+1, +2 or +3 items", async () => {
+  const { itemTitle, plusChoices, plusOf } = await import("./inventory.ts");
+  it("take their bonus from the name and go by their base weapon", () => {
+    const entry = "Weapon, +1, +2, or +3";
+    expect(plusChoices(entry)).toEqual([1, 2, 3]);
+    const it0 = { id: "x", name: entry, kind: "magic" as const, qty: 1, base: "Longsword" };
+    expect(plusOf(it0, entry)).toBeUndefined();
+    expect(itemTitle(it0, undefined, entry)).toBe(entry);
+    const it2 = { ...it0, name: "Weapon, +2" };
+    expect(plusOf(it2, entry)).toBe(2);
+    expect(itemTitle(it2, undefined, entry)).toBe("Longsword, +2");
+  });
+});

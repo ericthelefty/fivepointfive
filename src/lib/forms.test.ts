@@ -132,6 +132,14 @@ describe("Pick-and-spend features", () => {
     expect(loh.optionCosts![0]).toMatchObject({ any: true, min: 1 });
     expect(loh.optionHeals![0]).toBe("cost.amount");
   });
+  it("Radiant Strikes adds 1d8 radiant to melee weapon and Unarmed Strike hits, by itself", () => {
+    const { fx } = run(base("paladin", "srd:subclass/oath-of-devotion", 11));
+    const rs = fx.triggers.find((t) => t.name === "Radiant Strikes")!;
+    expect(rs.onHit).toMatchObject({ melee: true, unarmed: true, ranged: false });
+    expect(rs.damage).toEqual([{ dice: "1d8", type: "radiant" }]);
+    // a hit bonus with a condition stays a separate choice (Hunter's Colossus Slayer)
+    expect(fx.triggers.filter((t) => t.onHit && t.name !== "Radiant Strikes")).toEqual([]);
+  });
 });
 
 describe("spell rows like D&D Beyond", () => {
