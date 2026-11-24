@@ -1,6 +1,6 @@
 # fivepointfive
 
-An open-source character builder and play sheet for fifth edition (2024 rules) tabletop roleplaying games, built on the System Reference Document 5.2.1. All of its rules come from plain Markdown files, so players and groups can add their own content and have the sheet apply it.
+An open-source, **5.5E compatible** character builder and play sheet for tabletop roleplaying games using the 2024 rules, built on the System Reference Document 5.2.1. It works with older 5E content too. All of its rules come from plain Markdown files, so players and groups can add their own content and have the sheet apply it.
 
 > **Status:** v0.4.0. Builder (with multiclassing), a play sheet that applies the rules automatically, inventory, `.md` and `.zip` content packs, and shared instances where a group plays the same characters live, with encounters for the DM. See the [changelog](CHANGELOG.md).
 

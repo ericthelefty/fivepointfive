@@ -2,7 +2,7 @@
   "name": "fivepointfive",
   "private": true,
   "license": "MIT",
-  "description": "Open-source character builder and play sheet for fifth edition (2024 rules), built on the SRD 5.2.1",
+  "description": "Open-source 5.5E (2024 rules) compatible character builder and play sheet, built on the SRD 5.2.1; works with 5E content too",
   "repository": "github:ericthelefty/fivepointfive",
   "version": "0.4.0",
   "type": "module",

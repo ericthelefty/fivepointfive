@@ -1,6 +1,6 @@
 # Modif
 
-*An open format for describing 5E-compatible rules as data.*
+*An open format for describing 5.5E (and 5E) compatible rules as data.*
 
 **Version:** 0.7 (draft) · **Published:** 2026-11-23 · **License:** CC-BY-4.0 (the same as the SRD content it describes) · **Pronounced:** MOD-if, short for *modifier*
 
