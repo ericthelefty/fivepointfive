@@ -369,7 +369,7 @@ export interface Derived {
   hp: number;
   ac: number;
   acNote: string;
-  /** How the AC adds up, part by part (Explainer mode). */
+  /** How the AC adds up, part by part (Explainer Mode). */
   acParts: { label: string; value: number }[];
   initiative: number;
   speed: number;

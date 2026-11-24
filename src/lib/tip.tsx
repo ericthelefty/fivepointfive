@@ -94,7 +94,7 @@ function useTip() {
 }
 
 /**
- * Whether tooltips show at all. The play sheet turns them off unless Explainer mode is on, so the sheet stays
+ * Whether tooltips show at all. The play sheet turns them off unless Explainer Mode is on, so the sheet stays
  * uncluttered; everywhere else they're on.
  */
 export const TipsOn = createContext(true);

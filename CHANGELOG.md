@@ -6,6 +6,7 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Explainer Mode is written with a capital M everywhere on the sheet.
 - Admins have a Sheet backgrounds section in Settings. It lists every image on the instance (built in, the shared library, and each character's upload) with the characters using each one. Admins can add images to the library (shrunk to WebP like other uploads), which then show in every member's Sheet background picker; rename or delete library images; delete any character's upload, including ones left over after a character replaced its image or was deleted; and hide the built-in images from the picker. A sheet whose image is deleted or hidden goes back to no background.
 - **Database:** `supabase/migrations/0010_background_library.sql`.
 - Each character can have one sheet background of its own: Upload in the Sheet background menu (Replace your image and Remove it once there is one). The browser shrinks the image and saves it as a small WebP file before it's uploaded; on a shared instance it's kept in private storage that only your group can see, and deleting the character deletes it.
@@ -16,7 +17,7 @@ If you run your own instance, check the **Database** line of each version: when 
 - Curses on an enemy (Hex, Bane, Faerie Fire, Enthrall, Shining Smite) no longer show "I'm a target" under Active now: they only ever hurt their target, so there's nothing to apply to your own sheet. Helpful spells like Bless and Haste still ask.
 - Damage that every hit adds by itself is part of the attack: Radiant Strikes shows and rolls "+ 1d8 radiant" on melee weapons and Unarmed Strikes, a Flame Tongue or Frost Brand adds its dice to its own attacks, and Divine Favor to weapon attacks while it lasts. Bonus damage with a condition (only against some creatures, once per turn, a choice) stays a separate "On a hit" row.
 - "+1, +2, or +3" magic items (Weapon, Armor, Shield, Ammunition) have a Bonus picker in the Inventory, and go by what they're made of: "Longsword, +2" in the Inventory and on the attack, with the bonus applied.
-- Explainer mode explains Heroic Inspiration (the ★ buttons and the label under your name: what it does, whether you have it, how you get it back), and every line under Defenses, Senses, Languages and Tools: where it comes from and what it means, in the SRD's words (Darkvision, Resistance, Immunity…), how a passive score adds up, and for a tool its ability, check bonus, what you use it for and what you can craft with it.
+- Explainer Mode explains Heroic Inspiration (the ★ buttons and the label under your name: what it does, whether you have it, how you get it back), and every line under Defenses, Senses, Languages and Tools: where it comes from and what it means, in the SRD's words (Darkvision, Resistance, Immunity…), how a passive score adds up, and for a tool its ability, check bonus, what you use it for and what you can craft with it.
 - Special attacks from your species, class, subclass or feats (Breath Weapon, End Vibrations) are in the Attacks table: save and DC in the new Hit / DC column, the damage, its area (with a picker when you choose the shape, like Breath Weapon's 15-ft. Cone or 30 × 5 ft. Line), uses left, and one Use button that spends a use and rolls the damage.
 - The sheet's ability boxes use the short names (STR, DEX, CON, INT, WIS, CHA), so they fit their borders.
 - Names built from an effect's id keep small words lower case ("Pact of the Chain", not "Pact Of The Chain").
@@ -59,7 +60,7 @@ If you run your own instance, check the **Database** line of each version: when 
 - New look for the play sheet ("Forged"): each kind of number has its own frame. Armor Class sits in a shield, initiative, speed, proficiency and passive Perception in notched plates, the spell save DC in a gem, and each ability's modifier in a cut-corner tile with the score in a round rivet below it. Hit points get a gold frame with Heal, the amount and Damage stacked on the left. Skill and save proficiency marks are diamonds: filled for proficient, ringed for expertise, half-filled for half proficiency.
 - On laptops and desktops the six ability scores sit in one row under AC and the other stats, and the tiles are shorter, so the stats, abilities and hit points fit on one screen.
 - Denser sheet on laptops and desktops: the name, Edit and class line share one line with the rest buttons; the six abilities and the AC / initiative / speed / proficiency / passive Perception / spell DC boxes share one band; below it, skills with defenses, senses and languages under them in one left column, and the tabs beside them, with tighter rows and tabs on one line, so attacks show without scrolling. The side column is narrower.
-- The AC / initiative / speed / proficiency / passive Perception / spell DC row is shorter: less empty space above and below each number (the "click to roll" hint under Initiative is gone; Explainer mode covers it).
+- The AC / initiative / speed / proficiency / passive Perception / spell DC row is shorter: less empty space above and below each number (the "click to roll" hint under Initiative is gone; Explainer Mode covers it).
 - Hit points moved to the top of the right-hand column, above the roll bar, in a smaller box. On phones and tablets they still follow the stats.
 - Edit in builder (and the "choices left" tag) sits right next to the character's name.
 - Short rest and Long rest moved to the top of the sheet, on the line with the character's name.
@@ -75,15 +76,15 @@ If you run your own instance, check the **Database** line of each version: when 
 - The game log's dice buttons (d4 to d100) and typed rolls like 2d6+3 roll the 3D dice too, with the modifier beside them.
 - 3D dice and the modifier beside them are twice the size on laptops and desktops.
 
-### Explainer mode
+### Explainer Mode
 
-- Explainer mode: a switch centred at the bottom of the sheet. With it on, hovering over a number shows how it's worked out, part by part with a total: abilities, saves, skills (proficiency and where it came from, expertise, Jack of All Trades), passive Perception, AC, initiative, speed, Proficiency Bonus, spell save DC and spell attack, Hit Point maximum and attack bonuses, plus any advantage or disadvantage that applies. The breakdown appears in the same light bubble as the sheet's other tips. Clicking still rolls. The old hover tips on AC, speed, Proficiency, passive Perception and attack bonuses are replaced by it.
-- Explainer mode says where each limited use and spell slot comes from ("From your Paladin class: the Paladin's Smite feature", "From being a Dragonborn").
-- Explainer mode explains rules and controls too: advantage and disadvantage, Short and Long Rests, Heal, Damage and Temporary Hit Points, attack and damage rolls, the dice roller and the header buttons. Every number's breakdown ends with how you can change it, and AC now shows its parts (armor, Dexterity, shield, features).
-- With Explainer mode off, nothing on the sheet pops up on hover: no tips, no browser tooltips, and no dotted underlines. Turn it on and every tip, every button's explanation (including why a greyed-out button can't be used) and every number's breakdown appears on hover in the same bubble.
-- Explainer mode on phones and tablets: tapping a number explains it and dice don't roll while it's on; the description says so.
-- Explainer mode on phones: every dice roll is off, including buttons that have no explanation of their own. Tapping one says that rolling is off until you turn Explainer mode off.
-- Explainer mode: explanation bubbles always fit inside the window; one that would run off an edge moves back in.
+- Explainer Mode: a switch centred at the bottom of the sheet. With it on, hovering over a number shows how it's worked out, part by part with a total: abilities, saves, skills (proficiency and where it came from, expertise, Jack of All Trades), passive Perception, AC, initiative, speed, Proficiency Bonus, spell save DC and spell attack, Hit Point maximum and attack bonuses, plus any advantage or disadvantage that applies. The breakdown appears in the same light bubble as the sheet's other tips. Clicking still rolls. The old hover tips on AC, speed, Proficiency, passive Perception and attack bonuses are replaced by it.
+- Explainer Mode says where each limited use and spell slot comes from ("From your Paladin class: the Paladin's Smite feature", "From being a Dragonborn").
+- Explainer Mode explains rules and controls too: advantage and disadvantage, Short and Long Rests, Heal, Damage and Temporary Hit Points, attack and damage rolls, the dice roller and the header buttons. Every number's breakdown ends with how you can change it, and AC now shows its parts (armor, Dexterity, shield, features).
+- With Explainer Mode off, nothing on the sheet pops up on hover: no tips, no browser tooltips, and no dotted underlines. Turn it on and every tip, every button's explanation (including why a greyed-out button can't be used) and every number's breakdown appears on hover in the same bubble.
+- Explainer Mode on phones and tablets: tapping a number explains it and dice don't roll while it's on; the description says so.
+- Explainer Mode on phones: every dice roll is off, including buttons that have no explanation of their own. Tapping one says that rolling is off until you turn Explainer Mode off.
+- Explainer Mode: explanation bubbles always fit inside the window; one that would run off an edge moves back in.
 
 ### Spells
 
@@ -102,7 +103,7 @@ If you run your own instance, check the **Database** line of each version: when 
 - Weapon Mastery: after a Long Rest the game log card offers "Change Weapon Mastery", and the Actions tab links to the picker (Features & Feats › Change after a rest). The builder still lets you change it anytime.
 - "Change after a rest" choices with many options (Weapon Mastery) put the options under the feature's name instead of squeezing it.
 - Features like Pact Magic, Lay On Hands and Bardic Inspiration no longer show the class's whole 20-level table (the SRD prints it inside them). The sheet and builder show one line with your row instead, e.g. "At Bard level 6: Bardic Die D8 · Cantrips 3 · Prepared Spells 10 · Spell Slots L1 ×4, L2 ×3, L3 ×3".
-- The Spend Hit Die button only shows when you can use it (you've taken damage and have Hit Dice left); Explainer mode says what Hit Dice do.
+- The Spend Hit Die button only shows when you can use it (you've taken damage and have Hit Dice left); Explainer Mode says what Hit Dice do.
 - Removed the "Reset to starting equipment" link from the Inventory tab.
 
 ### Modif and the docs

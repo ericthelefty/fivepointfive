@@ -43,7 +43,7 @@ const SCROLL_ICON = <svg viewBox="0 0 24 24" width="28" height="28" fill="none" 
 const CAMP_ICON = <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M12 3c2 3 4 4.5 4 8a4 4 0 01-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-2-1-4 0-7z" /><path d="M4 20l16-3M20 20L4 17" /></svg>;
 type CardAction = { label: string; run: () => void };
 
-/** Rules and controls explained in Explainer mode (shown on hover; see the sheet's data-title handling). */
+/** Rules and controls explained in Explainer Mode (shown on hover; see the sheet's data-title handling). */
 const HOW = {
   modeTail: "If something gives you both Advantage and Disadvantage, they cancel out and you roll one d20. Your pick here applies to every d20 roll until you set it back to Normal; the sheet also adds advantage or disadvantage from your conditions and features on its own.",
   dis: "Disadvantage: roll two d20s and keep the lower one.",
@@ -59,7 +59,7 @@ const HOW = {
   die: "Roll this die on its own, with no modifier, for anything the sheet doesn't roll for you.",
   custom: "Type any dice, like 2d6+1d4+3, and press Roll.",
 };
-/** Explainer mode: how a number on the sheet can be changed, by what it is. */
+/** Explainer Mode: how a number on the sheet can be changed, by what it is. */
 const CHANGE: Record<string, string> = {
   ab: "Set your scores in the builder (Ability scores step), and your background raises two or three of them. Ability Score Improvement (levels 4, 8, 12, 16 and 19), other feats and some magic items raise them later.",
   sv: "Your first class decides which saves you're proficient in, and that can't be swapped. A feat like Resilient adds one; the rest rises with the ability score.",
@@ -114,7 +114,7 @@ function loadLayout(): string[] {
   return L;
 }
 
-/** Thrown instead of rolling while Explainer mode is on on a phone or tablet, where a tap only explains. */
+/** Thrown instead of rolling while Explainer Mode is on on a phone or tablet, where a tap only explains. */
 class RollBlocked extends Error {}
 
 export default function Sheet() {
@@ -126,11 +126,11 @@ export default function Sheet() {
   const [c, setC] = useState<Character | undefined>(row?.c);
   const dirty = useRef(false);
   const editable = chars.canEdit(id);
-  // Explainer mode on a phone or tablet turns every dice roll off, whichever button asked for it
+  // Explainer Mode on a phone or tablet turns every dice roll off, whichever button asked for it
   const noRolls = useRef(false);
   const lastTap = useRef<HTMLElement | null>(null);
-  const roll: typeof rollDice = (...a) => { if (noRolls.current) throw new RollBlocked("Dice rolling is off while Explainer mode is on."); return rollDice(...a); };
-  const d20: typeof d20Dice = (...a) => { if (noRolls.current) throw new RollBlocked("Dice rolling is off while Explainer mode is on."); return d20Dice(...a); };
+  const roll: typeof rollDice = (...a) => { if (noRolls.current) throw new RollBlocked("Dice rolling is off while Explainer Mode is on."); return rollDice(...a); };
+  const d20: typeof d20Dice = (...a) => { if (noRolls.current) throw new RollBlocked("Dice rolling is off while Explainer Mode is on."); return d20Dice(...a); };
   useEffect(() => {
     const quiet = (e: ErrorEvent | PromiseRejectionEvent) => {
       const err = "reason" in e ? e.reason : e.error;
@@ -138,7 +138,7 @@ export default function Sheet() {
       e.preventDefault();
       // say why nothing rolled, in the same bubble, beside what was tapped
       const el = lastTap.current;
-      if (el?.isConnected) setExAt({ key: "t:Dice rolling is off while Explainer mode is on, so a tap only explains. Turn Explainer mode off to roll.", rect: el.getBoundingClientRect(), el });
+      if (el?.isConnected) setExAt({ key: "t:Dice rolling is off while Explainer Mode is on, so a tap only explains. Turn Explainer Mode off to roll.", rect: el.getBoundingClientRect(), el });
     };
     window.addEventListener("error", quiet);
     window.addEventListener("unhandledrejection", quiet);
@@ -170,11 +170,11 @@ export default function Sheet() {
   useEffect(() => { if (tabFirst.current) { tabFirst.current = false; return; } setMsec("tab"); }, [tab]);
   useEffect(() => { try { localStorage.setItem("fpf.msec", msec === "tab" ? tab : msec); } catch { /* private browsing */ } }, [msec, tab]);
   const [hpAmt, setHpAmt] = useState("");
-  /** Explainer mode: hovering over a number shows how it's worked out. */
+  /** Explainer Mode: hovering over a number shows how it's worked out. */
   const [explain, setExplain] = useState(false);
   const [exAt, setExAt] = useState<{ key: string; rect: DOMRect; el: HTMLElement }>();
   const rootRef = useRef<HTMLDivElement>(null);
-  // no browser tooltips on the sheet: each title moves to data-title, which Explainer mode shows in its own bubble
+  // no browser tooltips on the sheet: each title moves to data-title, which Explainer Mode shows in its own bubble
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -480,7 +480,7 @@ export default function Sheet() {
   const spellAtk = casters[0]?.atk ?? 0;
   const slots: Slot[] = spellSlots(infos, content.entries);
   const slotKey = (s: Slot) => (s.pact ? `p${s.level}` : String(s.level));
-  // which classes the slots come from (Explainer mode)
+  // which classes the slots come from (Explainer Mode)
   const pactClass = casters.find((k) => casterKindOf(k.info) === "pact")?.info.cls.name;
   const slotClasses = casters.filter((k) => casterKindOf(k.info) !== "pact").map((k) => k.info.cls.name).join(" and ");
   // limited uses all come from Effects (class features, feats, species, items)
@@ -1125,7 +1125,7 @@ export default function Sheet() {
     );
   };
   /** When a use comes back, in words. */
-  /** Explainer mode: where a limited use comes from, in a new player's words ("from your Paladin class: Paladin's Smite"). */
+  /** Explainer Mode: where a limited use comes from, in a new player's words ("from your Paladin class: Paladin's Smite"). */
   const sourceText = (r: { name: string; entryId: string; itemId?: string }) => {
     if (r.entryId === "custom") return "One of your own features (added under Features & Feats).";
     if (r.itemId) { const it = inv.items.find((x) => x.id === r.itemId); return `From an item you carry: ${it?.name || content.byId(r.entryId)?.name || "a magic item"}.`; }
@@ -3988,12 +3988,12 @@ export default function Sheet() {
       {phoneBits}
       <div className="explainbar">
         <button className={`exsw ${explain ? "on" : ""}`} role="switch" aria-checked={explain} onClick={() => { setExplain(!explain); setExAt(undefined); }}>
-          <span className="knob" aria-hidden="true" /> Explainer mode
+          <span className="knob" aria-hidden="true" /> Explainer Mode
         </button>
-        <p>{narrow ? "Enable Explainer mode to tap items on the sheet and see what they are, how each number is worked out, and how you can change it. While it’s on, dice rolling is turned off, so tapping only explains." : "Enable Explainer mode to hover over items on the sheet and see what they are, how each number is worked out, and how you can change it. Clicking still rolls as usual."}</p>
+        <p>{narrow ? "Enable Explainer Mode to tap items on the sheet and see what they are, how each number is worked out, and how you can change it. While it’s on, dice rolling is turned off, so tapping only explains." : "Enable Explainer Mode to hover over items on the sheet and see what they are, how each number is worked out, and how you can change it. Clicking still rolls as usual."}</p>
       </div>
       {explain && (
-        <button className="explainpill" onClick={() => { setExplain(false); setExAt(undefined); }}>Explainer mode is on · <b>Turn off</b></button>
+        <button className="explainpill" onClick={() => { setExplain(false); setExAt(undefined); }}>Explainer Mode is on · <b>Turn off</b></button>
       )}
       {exInfo && exAt && (() => {
         // the same bubble as the sheet's other tooltips: above the number, lined up with its nearer edge

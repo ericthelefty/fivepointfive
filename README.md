@@ -10,7 +10,7 @@ An open-source, **5.5E compatible** character builder and play sheet for tableto
 
 - **Builder:** species, class (and multiclass), background, ability scores, skills, spells, feats and starting equipment from the SRD 5.2.1 or any content pack, with every choice a feature asks for.
 - **Play sheet:** click any ability, save, skill or attack to roll, with Advantage and Disadvantage, 3D dice and a game log. Hit Points, rests, Hit Dice, spell slots, limited uses, conditions and effects are tracked, and class features, feats, spells and magic items are applied automatically (a +3 staff shows up at the right attack bonus, Rage adds its damage, a Long Rest brings back what it should).
-- **Explainer mode:** switch it on and hover over (or tap) any number to see how it's worked out, where it comes from and how to change it.
+- **Explainer Mode:** switch it on and hover over (or tap) any number to see how it's worked out, where it comes from and how to change it.
 - **Phones:** a layout made for one hand, with a header that stays on screen, one section at a time, and dice and the game log a thumb away.
 - **Groups:** on a shared instance, one admin invites the group. Everyone sees the same characters, and a change on one screen shows up on every other within a second or two. The GM builds and runs encounters from the SRD's monsters and the party, and can give a character to a player.
 - **Your own content:** write a class, subclass, species, feat, spell or item as a Markdown file and import it. The app checks it and offers fixes.
