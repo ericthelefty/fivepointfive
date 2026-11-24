@@ -1,12 +1,13 @@
-import { StrictMode, useState } from "react";
+import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, NavLink, Link, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, NavLink, Link, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "./styles.css";
 import { ContentProvider, useContent } from "./lib/store.tsx";
 import { SessionProvider, useSession } from "./lib/session.tsx";
-import { CharactersProvider } from "./lib/characters.tsx";
+import { CharactersProvider, useCharacters } from "./lib/characters.tsx";
 import { EncountersProvider, useEncounters } from "./lib/encounters.tsx";
-import { cloud, configError } from "./lib/backend.ts";
+import { cloud, configError, demo, DEMO_KEY } from "./lib/backend.ts";
+import { SAMPLES, makeSample } from "./lib/samples.ts";
 import { Join, ResetPassword, RESET_PATH, SignIn } from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
 import Home from "./pages/Home.tsx";
@@ -19,6 +20,32 @@ import { EncounterList, EncounterView } from "./pages/Encounters.tsx";
 
 export const ATTRIBUTION =
   "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.";
+
+/** /demo: open the sample character's sheet, adding it the first time (in this browser only). */
+function DemoStart() {
+  const chars = useCharacters();
+  const nav = useNavigate();
+  const started = useRef(false);
+  useEffect(() => {
+    if (!demo) { nav("/", { replace: true }); return; }
+    if (started.current || !chars.ready) return;
+    started.current = true;
+    const have = chars.rows[0]?.c;
+    if (have) { nav(`/sheet/${have.id}`, { replace: true }); return; }
+    const c = makeSample(SAMPLES.find((x) => x.label.startsWith("Vessa")) || SAMPLES[0]);
+    chars.create(c).then(() => nav(`/sheet/${c.id}`, { replace: true }));
+  }, [chars, nav]);
+  return <div className="muted">Opening the demo character…</div>;
+}
+
+function DemoBanner() {
+  return (
+    <div className="demobar" role="status">
+      <span><b>Demo:</b> no sign-in needed. Anything you make is saved only in this browser.</span>
+      <button className="btn small" onClick={() => { try { sessionStorage.removeItem(DEMO_KEY); } catch { /* private mode */ } location.href = "/"; }}>Exit demo</button>
+    </div>
+  );
+}
 
 function Gate({ children }: { children: React.ReactNode }) {
   const session = useSession();
@@ -74,6 +101,7 @@ function Shell() {
           {cloud && session.user && <button className="btn small" style={{ alignSelf: "center" }} onClick={session.signOut}>Sign out</button>}
         </nav>
       </header>
+      {demo && <DemoBanner />}
       <main className="page">
         {error ? (
           <div className="panel">Couldn’t load game content: {error}</div>
@@ -83,6 +111,7 @@ function Shell() {
           <Gate>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/demo" element={<DemoStart />} />
             <Route path="/build/:id" element={<Builder />} />
             <Route path="/sheet/:id" element={<Sheet />} />
             <Route path="/encounters" element={<EncounterList />} />

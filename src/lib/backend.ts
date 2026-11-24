@@ -26,8 +26,23 @@ const trimmedUrl = url?.trim().replace(/\/+$/, "");
 const trimmedKey = key?.trim();
 export const configError = checkConfig(trimmedUrl, trimmedKey);
 
+/**
+ * Demo mode: opening /demo runs this tab without the shared instance, so anyone can try the builder and sheet without
+ * signing in. Everything they make is kept in their own browser; nothing reaches the instance. It lasts until the tab
+ * closes or they choose Exit demo.
+ */
+export const DEMO_KEY = "fpf.demo";
+export const demo = (() => {
+  try {
+    if (location.pathname === "/demo") sessionStorage.setItem(DEMO_KEY, "1");
+    return sessionStorage.getItem(DEMO_KEY) === "1";
+  } catch {
+    return false;
+  }
+})();
+
 function connect() {
-  if (!trimmedUrl || !trimmedKey || configError) return null;
+  if (demo || !trimmedUrl || !trimmedKey || configError) return null;
   try {
     return createClient(trimmedUrl, trimmedKey, { db: { schema: SCHEMA } });
   } catch {

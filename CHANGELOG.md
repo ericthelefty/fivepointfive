@@ -6,6 +6,7 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Demo link: open `/demo` on any instance to try the builder and sheet without signing in. It opens a ready-made sample character (Vessa Quill, Elf Wizard 3), and visitors can build their own too. Everything they make stays in their own browser and never reaches the instance; Exit demo goes back to normal.
 - New phone layout for the play sheet: a compact header stays at the top (name, rests, Heroic Inspiration, AC, Initiative, Speed, Hit Points with Heal and Damage, conditions, spell DC), and one section fills the screen at a time. Tap the grid button to switch between Abilities & Saves, Skills, Actions, Spells, Inventory, Features & Feats, Effects, Conditions, Defenses, Senses, Languages & Tools, Background, Notes and the Game Log. The round d20 button in the bottom left opens roll mode, the next-roll bonus and the free dice; the scroll button in the bottom right opens the Game Log over the whole screen and counts rolls you haven't seen. Tapping Hit Points opens Heal, Damage, Temp HP and Hit Dice. Print only shows on desktop.
 - Phones: attacks, bonus actions and other action lists are cards instead of squeezed tables: the name on the left, to-hit and damage on the right, and big Attack, Damage and Cast buttons underneath.
 - Phones: the dice tumble flat and land properly (the 3D flip drew them skewed), and the modifier has a dark outline so it's easy to read.
