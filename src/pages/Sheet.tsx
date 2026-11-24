@@ -34,6 +34,12 @@ import {
 import { casterEntry, casterInfoOf, casterKindOf, classFeatures, classInfos, classLabel, hitDicePools, patchClass, spellListClass, spellSlots, type ClassInfo, type Slot } from "../lib/multiclass.ts";
 
 type Tab = "actions" | "effects" | "spells" | "features" | "conditions" | "inventory" | "background" | "notes";
+const TAB_KEYS: Tab[] = ["actions", "effects", "spells", "features", "conditions", "inventory", "background", "notes"];
+const readMsec = () => { try { return localStorage.getItem("fpf.msec") || ""; } catch { return ""; } };
+const GRID_ICON = <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">{[0, 1, 2].flatMap((r) => [0, 1, 2].map((q) => <rect key={`${r}${q}`} x={3 + q * 7} y={3 + r * 7} width="4.6" height="4.6" rx="1" />))}</svg>;
+const D20_ICON = <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M12 2.5l8.5 4.9v9.2L12 21.5l-8.5-4.9V7.4z" /><path d="M12 2.5v6.8M3.5 7.4l8.5 1.9 8.5-1.9M12 9.3l-5 8.6M12 9.3l5 8.6M7 17.9h10" /></svg>;
+const SCROLL_ICON = <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true"><path d="M7 4h11a2 2 0 012 2v1h-3" /><path d="M17 6v12a2 2 0 01-2 2H6" /><path d="M7 4a2 2 0 00-2 2v11" /><path d="M3 17h10v1a2 2 0 002 2" /><path d="M9 9h5M9 12.5h5" /></svg>;
+const CAMP_ICON = <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M12 3c2 3 4 4.5 4 8a4 4 0 01-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-2-1-4 0-7z" /><path d="M4 20l16-3M20 20L4 17" /></svg>;
 type CardAction = { label: string; run: () => void };
 
 /** Rules and controls explained in Explainer mode (shown on hover; see the sheet's data-title handling). */
@@ -126,7 +132,15 @@ export default function Sheet() {
   const [tableLog, setTableLog] = useState<(LogEntry & { who: string })[]>([]);
   const [mode, setMode] = useState<Mode>("normal");
   const [nextBonus, setNextBonus] = useState("");
-  const [tab, setTab] = useState<Tab>("actions");
+  const [tab, setTab] = useState<Tab>(() => (TAB_KEYS.includes(readMsec() as Tab) ? readMsec() : "actions") as Tab);
+  /** Phone layout: which section fills the screen ("tab" means the current sheet tab), and which bottom sheet is open. */
+  const [msec, setMsec] = useState<string>(() => { const v = readMsec(); return TAB_KEYS.includes(v as Tab) ? "tab" : ["abil", "skills", "profs"].includes(v) ? v : "abil"; });
+  const [msheet, setMsheet] = useState<"" | "menu" | "dice" | "hp" | "rest">("");
+  /** The newest Game Log entry the player has seen, for the unread badge on the phone's log button. */
+  const logSeen = useRef<string | undefined>(undefined);
+  const tabFirst = useRef(true);
+  useEffect(() => { if (tabFirst.current) { tabFirst.current = false; return; } setMsec("tab"); }, [tab]);
+  useEffect(() => { try { localStorage.setItem("fpf.msec", msec === "tab" ? tab : msec); } catch { /* private browsing */ } }, [msec, tab]);
   const [hpAmt, setHpAmt] = useState("");
   /** Explainer mode: hovering over a number shows how it's worked out. */
   const [explain, setExplain] = useState(false);
@@ -2854,9 +2868,151 @@ export default function Sheet() {
   const exKey = (el: HTMLElement) => el.dataset.ex ?? `t:${el.dataset.title}`;
   const exShow = (el: HTMLElement | null) => { if (el) setExAt({ key: exKey(el), rect: el.getBoundingClientRect(), el }); };
 
+  const toggleInsp = () => { setPlay({ inspiration: !p.inspiration }); log({ title: p.inspiration ? "Used Heroic Inspiration" : "Gained Heroic Inspiration", total: "", cls: "event", detail: p.inspiration ? "Reroll any die immediately after rolling it." : "" }); };
+  const trayEl = (
+    <div className="tray">
+      <div className="dbtns">
+        {[4, 6, 8, 10, 12, 20, 100].map((f) => (
+          <button key={f} className="dbtn" title={HOW.die} onClick={() => {
+            const r = roll(`1d${f}`)!;
+            log({ title: `d${f}`, total: String(r.total), cls: f === 20 && r.total === 20 ? "crit" : "roll", detail: esc(describeRolled(r)) });
+          }}>d{f}</button>
+        ))}
+      </div>
+      <form className="custom" onSubmit={(e) => {
+        e.preventDefault();
+        const r = roll(custom);
+        if (!r) { log({ title: "Couldn’t read that roll", total: "", cls: "event", detail: `Try something like 2d6+1d4+3.` }); return; }
+        log({ title: custom.replace(/\s+/g, ""), total: String(r.total), cls: "roll", detail: `${eqOf(r)}${esc(describeRolled(r))}` });
+      }}>
+        <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. 2d6+1d4+3" aria-label="Custom roll" title={HOW.custom} />
+        <button className="sbtn sm">Roll</button>
+      </form>
+    </div>
+  );
+  const chipsEl = (
+    <div className="chips">
+      {p.conditions.map((k) => (
+        <button key={k} className="schip bad" title="Click to remove" onClick={() => setPlay({ conditions: p.conditions.filter((x) => x !== k) })}>{k} ✕</button>
+      ))}
+      {p.exhaustion > 0 && <span className="schip bad">Exhaustion {p.exhaustion}</span>}
+      {p.concentration && (
+        <button className="schip conc" title="Drop concentration" onClick={() => { setPlay({ concentration: undefined, active: activeList.filter((x) => !x.concentration) }); log({ title: "Concentration ended", total: "", cls: "event", detail: esc(p.concentration!) }); }}>
+          ◎ Concentrating: {p.concentration} ✕
+        </button>
+      )}
+      {activeList.filter((x) => !x.concentration).map((x) => (
+        <button key={x.key} className="schip" title="Open the Effects tab" onClick={() => setTab("effects")}>● {x.name}</button>
+      ))}
+      {p.inspiration && <span className="schip gold">★ Heroic Inspiration</span>}
+    </div>
+  );
+  // ---------- phone layout: one section at a time under a header that stays on screen ----------
+  const MSECS: [string, string, number?][] = [
+    ["abil", "Abilities & Saves"], ["skills", "Skills"], ["tab:actions", "Actions"],
+    ...(anyCaster || fx.grantedSpells.length > 0 ? [["tab:spells", "Spells"] as [string, string]] : []),
+    ["tab:inventory", "Inventory"], ["tab:features", "Features & Feats"],
+    ["tab:effects", "Effects", activeList.length], ["tab:conditions", "Conditions", p.conditions.length + (p.exhaustion ? 1 : 0)],
+    ["profs", "Defenses, Senses, Languages & Tools"], ["tab:background", "Background"], ["tab:notes", "Notes"], ["log", "Game Log"],
+  ];
+  const msecKey = msec === "tab" ? `tab:${tab}` : msec;
+  const msecLabel = MSECS.find((m) => m[0] === msecKey)?.[1] || "Sections";
+  const goSec = (k: string) => {
+    setMsheet("");
+    if (k === "log") { openLog(); return; }
+    if (k.startsWith("tab:")) { setTab(k.slice(4) as Tab); setMsec("tab"); } else setMsec(k);
+    window.scrollTo(0, 0);
+  };
+  if (logSeen.current === undefined) logSeen.current = p.log[0]?.id ?? "";
+  const unread = (() => { const i = p.log.findIndex((e) => e.id === logSeen.current); return i === -1 ? p.log.length : i; })();
+  const openLog = () => { logSeen.current = p.log[0]?.id ?? ""; setLogHidden(false); setLogOpen(true); setToast(undefined); setMsheet(""); };
+  const closeLog = () => { logSeen.current = p.log[0]?.id ?? ""; setLogHidden(true); setLogOpen(false); };
+  const phoneTop = narrow && (
+    <div className="mtop">
+      <div className="mhd">
+        <div className="mname">
+          <div className="mrow1">
+            <h1 className="disp">{c.name || "Unnamed character"}</h1>
+            {editable && <Link className="medit" title="Change your species, class, ability scores, feats and other choices in the character builder." to={`/build/${c.id}`}>Edit</Link>}
+          </div>
+          <div className="msub">{sp?.name} · {infos.length > 1 ? classLabel(infos) : `${cls?.name} ${c.level}`}</div>
+        </div>
+        <button className="mib" aria-label="Short or Long Rest" title={HOW.rests} onClick={() => setMsheet("rest")}>{CAMP_ICON}</button>
+        <button className={`mib ${p.inspiration ? "on" : ""}`} aria-pressed={!!p.inspiration} aria-label="Heroic Inspiration" title={p.inspiration ? "Heroic Inspiration: you have it. Tap to use it." : "Heroic Inspiration: tap when you gain it."} onClick={toggleInsp}>★</button>
+      </div>
+      <div className="mstat">
+        <span className="stat frm shield" data-ex="ac"><div className="sl">AC</div><div className="sv2">{d.ac}</div></span>
+        <button className="stat frm notch" data-ex="init" onClick={() => test("Initiative", d.initiative, { kind: "init", ability: "Dexterity" })}><div className="sl">Init</div><div className="sv2">{fmt(d.initiative)}</div></button>
+        <span className="stat frm notch" data-ex="speed"><div className="sl">Speed</div><div className="sv2">{speed}</div></span>
+        <div className="mhp" data-ex="hp" onClick={() => setMsheet("hp")}>
+          <div className="mhpn">
+            <div><span className="sl">HP</span> <b className={hpCur === 0 ? "bad" : ""}>{hpCur}</b><span className="mut">/{hpMax}</span>{p.hpTemp > 0 && <span className="temp"> +{p.hpTemp}</span>}</div>
+            <div className="hbar"><div style={{ width: `${pct}%` }} className={pct < 25 ? "low" : pct < 50 ? "mid" : ""} /></div>
+          </div>
+          <div className="mhpb">
+            <button className="sbtn grn" onClick={(e) => { e.stopPropagation(); setMsheet("hp"); }}>Heal</button>
+            <button className="sbtn red" onClick={(e) => { e.stopPropagation(); setMsheet("hp"); }}>Damage</button>
+          </div>
+        </div>
+      </div>
+      <div className="mcond">
+        {p.conditions.length + activeList.length + (p.exhaustion ? 1 : 0) + (p.concentration ? 1 : 0) + (p.inspiration ? 1 : 0) === 0
+          ? <button className="schip" onClick={() => goSec("tab:conditions")}>Conditions: none · add</button>
+          : chipsEl}
+        {castAb && <span className="mdc" data-ex="dc">DC {casters.length > 1 && new Set(casters.map((k) => k.dc)).size > 1 ? casters.map((k) => k.dc).join("/") : spellDC} · atk {fmt(casters[0]?.atk ?? spellAtk)}</span>}
+      </div>
+      {!editable && <div className="schip conc">Viewing {session.nameOf(row?.owner)}’s character. Rolls work but changes aren’t saved.</div>}
+      {cloud && row?.hidden && <div className="schip">Hidden from the group</div>}
+      <button className="msecbar" aria-haspopup="dialog" onClick={() => setMsheet("menu")}>
+        <span className="mgrid">{GRID_ICON}</span><span className="msl">{msecLabel}</span><span aria-hidden="true" className="mchev">▾</span>
+      </button>
+    </div>
+  );
+  const phoneBits = narrow && (
+    <>
+      {msheet && <div className="mback" onClick={() => setMsheet("")} />}
+      {msheet === "menu" && (
+        <div className="msheet mmenu" role="dialog" aria-label="Sections">
+          <div className="mshh"><span className="mgrid">{GRID_ICON}</span><span className="disp">Sections</span><button className="mx" aria-label="Close" onClick={() => setMsheet("")}>✕</button></div>
+          {MSECS.map(([k, l, n]) => (
+            <button key={k} className={`mitem ${k === msecKey ? "on" : ""}`} onClick={() => goSec(k)}>
+              <span className={`dot ${k === msecKey ? "p1" : ""}`} />{l}{!!n && <span className="badge">{n}</span>}
+            </button>
+          ))}
+          {cloud && editable && (
+            <div className="mfoot">
+              <button className="sbtn sm ghost" onClick={() => chars.setHidden(c.id, !row?.hidden)}>{row?.hidden ? "Hidden · show to group" : "Hide from group"}</button>
+            </div>
+          )}
+        </div>
+      )}
+      {msheet === "rest" && (
+        <div className="msheet" role="dialog" aria-label="Rest">
+          <div className="mshh"><span className="disp">Rest</span><button className="mx" aria-label="Close" onClick={() => setMsheet("")}>✕</button></div>
+          <button className="sbtn" onClick={() => { setMsheet(""); shortRest(); }}>Short Rest</button>
+          <button className="sbtn" onClick={() => { setMsheet(""); longRest(); }}>Long Rest</button>
+          <p className="note">{HOW.rests}</p>
+        </div>
+      )}
+      {!msheet && (logHidden || !logOpen) && (
+        <>
+          <button className="mfab dice" aria-label="Dice and roll options" onClick={() => setMsheet("dice")}>{D20_ICON}</button>
+          <button className="mfab logb" aria-label="Open the Game Log" onClick={openLog}>{SCROLL_ICON}{unread > 0 && <span className="mbadge">{unread > 9 ? "9+" : unread}</span>}</button>
+        </>
+      )}
+    </>
+  );
+  const phoneStats = narrow && (
+    <section className="spanel mstats">
+      <span className="mst" data-ex="pb"><span className="sl">Proficiency Bonus</span><b>{fmt(d.pb)}</b></span>
+      <span className="mst" data-ex="pp"><span className="sl">Passive Perception</span><b>{d.passivePerception}</b></span>
+      {castAb && <button className="mst" data-ex="dc" onClick={() => attack({ name: "Spell", toHit: spellAtk, damage: "0", type: "", note: "" })}><span className="sl">Spell Save DC</span><b>{spellDC}</b></button>}
+    </section>
+  );
+
   return (
     <TipsOn.Provider value={explain}>
-    <div ref={rootRef} className={`sheetv ${narrow && logHidden ? "loghid" : ""} ${critFx ? "critfx" : ""} ${explain ? "explain" : ""}`}
+    <div ref={rootRef} data-msec={msec} data-tab={tab} className={`sheetv ${narrow ? `phone ms-${msheet || "none"}` : ""} ${narrow && logHidden ? "loghid" : ""} ${critFx ? "critfx" : ""} ${explain ? "explain" : ""}`}
       onMouseOver={explain && !narrow ? (e) => { const el = exFind(e.target); if (el && el !== exAt?.el) exShow(el); } : undefined}
       onMouseLeave={explain && !narrow ? () => setExAt(undefined) : undefined}
       onMouseOut={explain && !narrow ? (e) => { if (!exFind(e.relatedTarget)) setExAt(undefined); } : undefined}
@@ -2882,6 +3038,7 @@ export default function Sheet() {
         </div>
       )}
       <div className="smain">
+        {phoneTop}
         <section className="ident" {...bo("ident")}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
             <div>
@@ -2913,7 +3070,7 @@ export default function Sheet() {
                   {row?.hidden ? "Hidden · show to group" : "Hide from group"}
                 </button>
               )}
-              <button className="sbtn ghost sm mobonly" title="Change the order of the boxes on the sheet (phone layout)" onClick={() => setLayoutOpen(true)}>Layout</button>
+              <button className="sbtn ghost sm mobonly" title="Change the order of the boxes on the sheet (phone layout)" onClick={() => setLayoutOpen(true)}>Change layout</button>
               <button className="sbtn ghost sm" title="Print the sheet, or save it as a PDF from the print window." onClick={() => window.print()}>Print</button>
             </div>
           </div>
@@ -2927,21 +3084,7 @@ export default function Sheet() {
               Viewing {session.nameOf(row?.owner)}’s character. Rolls work but changes aren’t saved.
             </div>
           )}
-          <div className="chips">
-            {p.conditions.map((k) => (
-              <button key={k} className="schip bad" title="Click to remove" onClick={() => setPlay({ conditions: p.conditions.filter((x) => x !== k) })}>{k} ✕</button>
-            ))}
-            {p.exhaustion > 0 && <span className="schip bad">Exhaustion {p.exhaustion}</span>}
-            {p.concentration && (
-              <button className="schip conc" title="Drop concentration" onClick={() => { setPlay({ concentration: undefined, active: activeList.filter((x) => !x.concentration) }); log({ title: "Concentration ended", total: "", cls: "event", detail: esc(p.concentration!) }); }}>
-                ◎ Concentrating: {p.concentration} ✕
-              </button>
-            )}
-            {activeList.filter((x) => !x.concentration).map((x) => (
-              <button key={x.key} className="schip" title="Open the Effects tab" onClick={() => setTab("effects")}>● {x.name}</button>
-            ))}
-            {p.inspiration && <span className="schip gold">★ Heroic Inspiration</span>}
-          </div>
+          {chipsEl}
         </section>
 
         <section className="stats" {...bo("stats")}>
@@ -2972,6 +3115,8 @@ export default function Sheet() {
             </div>
           ))}
         </section>
+
+        {phoneStats}
 
         <div className="cols">
           <div className="left">
@@ -3387,6 +3532,7 @@ export default function Sheet() {
 
       <div className="side">
         <section className="spanel hp frm cut" {...bo("hp")}>
+          {narrow && <button className="mx mhpx" aria-label="Close" onClick={() => setMsheet("")}>✕</button>}
           <div className="hpc">
             <button className="sbtn grn" title={HOW.heal} onClick={heal}>Heal</button>
             <input type="number" min={0} placeholder="0" aria-label="Amount" title={HOW.amount} value={hpAmt} onChange={(e) => setHpAmt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && takeDamage()} />
@@ -3419,6 +3565,7 @@ export default function Sheet() {
           </div>
         </section>
         <div className="rollbar" {...bo("rollbar")}>
+          {narrow && <div className="mshh"><span className="disp">Dice</span><button className="mx" aria-label="Close" onClick={() => setMsheet("")}>✕</button></div>}
           <div className="seg" role="group" aria-label="Roll mode">
             <button className={mode === "dis" ? "on dis" : ""} title={`${HOW.dis} ${HOW.modeTail}`} onClick={() => setMode("dis")}>Disadvantage</button>
             <button className={mode === "normal" ? "on" : ""} title={`${HOW.normal} ${HOW.modeTail}`} onClick={() => setMode("normal")}>Normal</button>
@@ -3430,7 +3577,7 @@ export default function Sheet() {
               <input value={nextBonus} onChange={(e) => setNextBonus(e.target.value)} placeholder="Next roll: +2 or 1d4" />
             </label>
             <button className="ibtn insp" aria-pressed={!!p.inspiration} aria-label="Heroic Inspiration" title={p.inspiration ? "Heroic Inspiration: you have it. Click to use it." : "Heroic Inspiration: click when you gain it."}
-              onClick={() => { setPlay({ inspiration: !p.inspiration }); log({ title: p.inspiration ? "Used Heroic Inspiration" : "Gained Heroic Inspiration", total: "", cls: "event", detail: p.inspiration ? "Reroll any die immediately after rolling it." : "" }); }}>
+              onClick={toggleInsp}>
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z" fill={p.inspiration ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
             </button>
             <button className="ibtn" aria-pressed={dice3d} aria-label="3D dice" title={dice3d ? "3D dice: on" : "3D dice: off"} onClick={() => { setDice3d(!dice3d); setDice3dState(!dice3d); }}>
@@ -3440,19 +3587,18 @@ export default function Sheet() {
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />{sound ? <path d="M15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11" /> : <path d="M16 9.5l5 5M21 9.5l-5 5" />}</svg>
             </button>
           </div>
+          {narrow && trayEl}
         </div>
 
-        {narrow && logHidden && (
-          <button className="sbtn sm logshow" title="Show the Game Log" onClick={() => { setLogHidden(false); setToast(undefined); }}>📜 Log</button>
-        )}
         {toast && narrow && logHidden && (
-          <button key={toast.id} className={`rolltoast ${toast.cls}`} onClick={() => { setLogHidden(false); setToast(undefined); }} aria-live="polite" title="Show the Game Log">
+          <button key={toast.id} className={`rolltoast ${toast.cls}`} onClick={openLog} aria-live="polite" title="Show the Game Log">
             {toast.total !== "" && <span className="big">{toast.total}</span>}
             <span className="rtt">{toast.title}</span>
           </button>
         )}
         <aside className={`log ${logOpen ? "open" : ""} ${narrow && logHidden ? "hid" : ""}`}>
           <div className="logh">
+            {narrow && <span className="mgrid">{SCROLL_ICON}</span>}
             <span className="disp">{logView === "table" ? "Table Log" : "Game Log"}</span>
             {sharedLog && (
               <span className="seg" role="group" aria-label="Log view">
@@ -3460,30 +3606,11 @@ export default function Sheet() {
                 <button className={logView === "table" ? "on" : ""} onClick={() => setLogView("table")}>Table</button>
               </span>
             )}
-            <button className="sbtn sm ghost mobonly" onClick={() => setLogOpen(!logOpen)}>{logOpen ? "Collapse" : "Expand"}</button>
-            <button className="sbtn sm ghost mobonly" title="Hide the Game Log" onClick={() => { setLogHidden(true); setLogOpen(false); }}>Hide</button>
             {logView === "mine" && <button className="sbtn sm ghost" title="Copy this character’s game log as text." onClick={copyLog}>Copy</button>}
             {logView === "mine" && <button className="sbtn sm ghost" title="Delete everything in this character’s game log." onClick={() => { if (confirm("Clear this character’s game log?")) setPlay({ log: [] }); }}>Clear</button>}
+            {narrow && <button className="mx" aria-label="Close the Game Log" onClick={closeLog}>✕</button>}
           </div>
-          <div className="tray">
-            <div className="dbtns">
-              {[4, 6, 8, 10, 12, 20, 100].map((f) => (
-                <button key={f} className="dbtn" title={HOW.die} onClick={() => {
-                  const r = roll(`1d${f}`)!;
-                  log({ title: `d${f}`, total: String(r.total), cls: f === 20 && r.total === 20 ? "crit" : "roll", detail: esc(describeRolled(r)) });
-                }}>d{f}</button>
-              ))}
-            </div>
-            <form className="custom" onSubmit={(e) => {
-              e.preventDefault();
-              const r = roll(custom);
-              if (!r) { log({ title: "Couldn’t read that roll", total: "", cls: "event", detail: `Try something like 2d6+1d4+3.` }); return; }
-              log({ title: custom.replace(/\s+/g, ""), total: String(r.total), cls: "roll", detail: `${eqOf(r)}${esc(describeRolled(r))}` });
-            }}>
-              <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. 2d6+1d4+3" aria-label="Custom roll" title={HOW.custom} />
-              <button className="sbtn sm">Roll</button>
-            </form>
-          </div>
+          {!narrow && trayEl}
           <div className="cards" aria-live="polite">
             {logView === "table" ? (
               tableLog.length === 0 ? <div className="empty">Rolls from everyone in the group show up here live.</div> : tableLog.map((e, i) => (
@@ -3544,6 +3671,7 @@ export default function Sheet() {
           </div>
         </div>
       )}
+      {phoneBits}
       <div className="explainbar">
         <button className={`exsw ${explain ? "on" : ""}`} role="switch" aria-checked={explain} onClick={() => { setExplain(!explain); setExAt(undefined); }}>
           <span className="knob" aria-hidden="true" /> Explainer mode

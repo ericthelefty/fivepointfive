@@ -27,6 +27,8 @@ interface CharState {
   canEdit: (id?: string) => boolean;
   /** Hide a character from the rest of the instance, or show it again. */
   setHidden: (id: string, hidden: boolean) => Promise<void>;
+  /** Admins: give a character to another member, who then owns it as if they had made it. */
+  assign: (id: string, owner: string) => Promise<boolean>;
   reload: () => Promise<void>;
   saving: boolean;
   error?: string;
@@ -231,8 +233,21 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const assign = async (id: string, owner: string) => {
+    if (!supabase) return false;
+    const before = rows.find((r) => r.c.id === id)?.owner;
+    setRows((prev) => prev.map((r) => (r.c.id === id ? { ...r, owner } : r)));
+    const { data, error: e } = await supabase.from("characters").update({ owner }).eq("id", id).select("id");
+    if (e || !data?.length) {
+      setError(`Couldn’t assign the character: ${e?.message || "only admins can give a character to another player"}`);
+      setRows((prev) => prev.map((r) => (r.c.id === id ? { ...r, owner: before } : r)));
+      return false;
+    }
+    return true;
+  };
+
   return (
-    <Ctx.Provider value={{ ready, rows, get: (id) => rows.find((r) => r.c.id === id), save, create, remove, canEdit, setHidden, reload, saving, error }}>
+    <Ctx.Provider value={{ ready, rows, get: (id) => rows.find((r) => r.c.id === id), save, create, remove, canEdit, setHidden, assign, reload, saving, error }}>
       {children}
     </Ctx.Provider>
   );

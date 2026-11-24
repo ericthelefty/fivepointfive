@@ -6,7 +6,12 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
-- **Database:** `supabase/migrations/0003_encounters.sql`, then `0004_live_characters.sql`.
+- New phone layout for the play sheet: a compact header stays at the top (name, rests, Heroic Inspiration, AC, Initiative, Speed, Hit Points with Heal and Damage, conditions, spell DC), and one section fills the screen at a time. Tap the grid button to switch between Abilities & Saves, Skills, Actions, Spells, Inventory, Features & Feats, Effects, Conditions, Defenses, Senses, Languages & Tools, Background, Notes and the Game Log. The round d20 button in the bottom left opens roll mode, the next-roll bonus and the free dice; the scroll button in the bottom right opens the Game Log over the whole screen and counts rolls you haven't seen. Tapping Hit Points opens Heal, Damage, Temp HP and Hit Dice. Print only shows on desktop.
+- Phones: the dice tumble flat and land properly (the 3D flip drew them skewed), and the modifier has a dark outline so it's easy to read.
+- Admins can give a character to another player from its card on the Characters page (the Player menu). The player then owns it as if they had made it, for example a sheet you imported for them.
+- Inventory: armor, shields and weapons stay near the top after you unequip them, under what you have equipped, instead of dropping into the rest of your gear.
+- The phone Layout button is now called Change layout.
+- **Database:** `supabase/migrations/0003_encounters.sql`, then `0004_live_characters.sql`, then `0005_assign_characters.sql`.
 - Encounters, for the DM (the admin on an instance): build a fight from the Library's monsters and your characters, with its difficulty under the 2024 XP budget, then run it. The tracker keeps initiative order, the round and whose turn it is, HP and conditions for everyone in one place, and clickable stat blocks with a roll log. Characters' HP and conditions stay linked to their sheets.
 - Live characters: a change made anywhere (the DM's tracker, the same character open on another device or tab) shows up on every open sheet within a second or two. When two people change a character at once, both changes are kept: HP changes add up, conditions and game log entries combine. Before, an open sheet only picked up changes after a reload, and saving from it could undo them.
 - Adding or removing a condition from the encounter tracker puts a line in the character's game log.

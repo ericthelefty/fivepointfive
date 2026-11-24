@@ -718,3 +718,129 @@
   .sheetv .die3d.d4 { padding-top: 28px; }
   .sheetv .dmod { font-size: 68px; }
 }
+
+/* ---------- phone and tablet layout: a header that stays on screen, one section at a time,
+   the dice button bottom left and the Game Log button bottom right ---------- */
+.sheetv .mtop, .sheetv .mstats, .sheetv .mfab, .sheetv .msheet, .sheetv .mback { display: none; }
+@media (max-width: 900px) {
+  .sheetv.phone { padding-bottom: 96px; }
+  .sheetv.phone [data-box], .sheetv.phone .explainbar { order: 0; }
+  .sheetv.phone .ident, .sheetv.phone .stats, .sheetv.phone .tabsw, .sheetv.phone .stabs { display: none; }
+  .sheetv.phone .abil, .sheetv.phone .skills, .sheetv.phone .profs, .sheetv.phone .slotbar, .sheetv.phone [data-box="tabs"] { display: none; }
+  .sheetv.phone[data-msec="abil"] .abil { display: grid; }
+  .sheetv.phone[data-msec="abil"] .mstats { display: grid; }
+  .sheetv.phone[data-msec="skills"] .skills { display: block; }
+  .sheetv.phone[data-msec="profs"] .profs { display: block; }
+  .sheetv.phone[data-msec="tab"] [data-box="tabs"] { display: block; }
+  .sheetv.phone[data-msec="tab"][data-tab="spells"] .slotbar { display: flex; }
+  .sheetv.phone .skills { columns: 1; }
+
+  /* the header */
+  .sheetv.phone .mtop { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; z-index: 40; margin: -4px -2px 12px; padding: 8px 2px 10px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .sheetv .mhd { display: flex; align-items: center; gap: 8px; }
+  .sheetv .mname { flex: 1; min-width: 0; }
+  .sheetv .mrow1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .sheetv .mrow1 h1 { font-size: 21px; margin: 0; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheetv .medit { font-size: 12px; color: var(--s-gold); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; text-decoration: none; flex: none; }
+  .sheetv .msub { font-size: 12px; color: var(--s-mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheetv .mib { width: 42px; height: 42px; flex: none; border-radius: 9px; border: 1px solid var(--line); background: var(--s-panel); color: var(--s-mut); display: grid; place-items: center; font-size: 18px; }
+  .sheetv .mib.on { background: var(--s-gold2); border-color: var(--s-gold); color: #1d1408; }
+  .sheetv .mstat { display: flex; gap: 6px; align-items: stretch; }
+  .sheetv .mstat .stat { flex: none; width: 52px; min-height: 52px; padding: 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .sheetv .mstat .stat.shield { width: 46px; }
+  .sheetv .mstat .sl { font-size: 9px; }
+  .sheetv .mstat .sv2 { font-size: 19px; }
+  .sheetv .mhp { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; border: 1.5px solid var(--s-gold2); border-radius: 9px; padding: 4px 5px 4px 8px; background: var(--s-panel); cursor: pointer; }
+  .sheetv .mhpn { flex: 1; min-width: 0; white-space: nowrap; }
+  .sheetv .mhpn .sl { color: var(--s-gold); }
+  .sheetv .mhpn b { font-family: Cinzel, Georgia, serif; font-size: 20px; }
+  .sheetv .mhpn b.bad { color: var(--s-red); }
+  .sheetv .mhpn .mut { font-size: 12px; font-weight: 600; margin-left: 1px; }
+  .sheetv .mhpn .temp { font-size: 11px; color: var(--s-blu); }
+  .sheetv .mhpn .hbar { height: 5px; margin-top: 3px; }
+  .sheetv .mhpb { display: flex; flex-direction: column; gap: 3px; width: 58px; flex: none; }
+  .sheetv .mhpb .sbtn { min-height: 21px; font-size: 10.5px; padding: 0; }
+  .sheetv .mcond { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .sheetv .mcond .chips { display: contents; }
+  .sheetv .mcond .schip { font-size: 11px; }
+  .sheetv .mdc { margin-left: auto; font-size: 11.5px; color: var(--s-mut); }
+  .sheetv .msecbar { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 12px 0 7px; border: 1px solid var(--line); border-radius: 9px; background: var(--s-panel); color: var(--ink); font-weight: 700; font-size: 15px; text-align: left; }
+  .sheetv .mgrid { width: 32px; height: 32px; flex: none; border-radius: 7px; background: var(--s-gold2); color: #1d1408; display: grid; place-items: center; }
+  .sheetv .mgrid svg { width: 20px; height: 20px; }
+  .sheetv .msl { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheetv .mchev { color: var(--s-mut); }
+
+  /* Abilities & Saves: proficiency, passive perception and spell DC under the ability tiles */
+  .sheetv .mstats { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .sheetv .mst { display: flex; flex-direction: column; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 4px; background: var(--s-well2); color: var(--ink); text-align: center; }
+  .sheetv .mst b { font-family: Cinzel, Georgia, serif; font-size: 20px; }
+  .sheetv .mst .sl { font-size: 9.5px; }
+
+  /* bottom sheets: sections, rest, dice, hit points */
+  .sheetv.phone .mback { display: block; position: fixed; inset: 0; z-index: 61; background: rgba(8, 6, 9, .6); }
+  .sheetv .mshh { display: flex; align-items: center; gap: 10px; }
+  .sheetv .mshh .disp { flex: 1; font-size: 17px; color: var(--s-gold); }
+  .sheetv .mx { width: 38px; height: 38px; flex: none; border-radius: 9px; border: 1px solid var(--line); background: var(--s-panel); color: var(--ink); font-size: 15px; }
+  .sheetv.phone .msheet, .sheetv.phone.ms-dice .rollbar, .sheetv.phone.ms-hp .side .hp {
+    display: flex; flex-direction: column; gap: 8px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 62; margin: 0;
+    max-height: 88vh; max-height: 88dvh; overflow: auto; padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+    background: var(--s-panel); border-top: 2px solid var(--s-gold2); border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, .55); animation: msheet .18s ease-out; }
+  .sheetv.phone .rollbar, .sheetv.phone .side .hp { display: none; }
+  .sheetv.phone .rollbar .mshh, .sheetv.phone .hp .mx { display: flex; }
+  .sheetv.phone.ms-hp .side .hp { display: grid; padding-top: 52px; }
+  .sheetv.phone.ms-hp .side .hp::before, .sheetv.phone.ms-hp .side .hp::after { display: none; }
+  .sheetv .mhpx { position: absolute; top: 10px; right: 12px; align-items: center; justify-content: center; }
+  .sheetv.phone .rollbar .tray { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; background: none; }
+  .sheetv.phone .rollbar .dbtns { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+  .sheetv.phone .rollbar .dbtn { min-height: 44px; padding: 0; }
+  .sheetv.phone .rollbar .custom input { min-height: 44px; }
+  .sheetv .mmenu { gap: 6px; }
+  .sheetv .mitem { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--s-well2); color: var(--ink); font-weight: 600; font-size: 15px; text-align: left; }
+  .sheetv .mitem.on { border-color: var(--s-gold); background: var(--accent-bg); }
+  .sheetv .mitem .badge { margin-left: auto; }
+  .sheetv .mfoot { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
+  .sheetv.phone .msheet > .sbtn { min-height: 46px; }
+
+  /* the two round buttons */
+  .sheetv.phone .mfab { display: grid; place-items: center; position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 52; width: 58px; height: 58px; border-radius: 50%;
+    background: var(--s-gold2); border: 2px solid var(--s-gold); color: #1d1408; box-shadow: 0 8px 20px rgba(0, 0, 0, .5); }
+  .sheetv .mfab.dice { left: 16px; }
+  .sheetv .mfab.logb { right: 16px; }
+  .sheetv .mbadge { position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; border-radius: 10px; padding: 0 5px; box-sizing: border-box;
+    background: #1d1408; color: var(--s-gold); border: 1.5px solid var(--s-gold); font: 700 11px/17px Inter, system-ui, sans-serif; }
+
+  /* the Game Log opens over the whole screen */
+  .sheetv.phone .log { inset: 0; max-height: none; height: 100vh; height: 100dvh; border-radius: 0; z-index: 60; }
+  .sheetv.phone .log .cards { flex: 1; min-height: 0; overflow: auto; padding-bottom: 90px; }
+  .sheetv.phone .log .lc.old, .sheetv.phone .log .empty { display: block; }
+  .sheetv.phone .log .logh { padding: 12px 14px; gap: 8px; flex-wrap: wrap; }
+  .sheetv.phone .log .logh .disp { flex: 1; font-size: 19px; }
+  .sheetv.phone .log .logh .mgrid svg { width: 22px; height: 22px; }
+  .sheetv.phone .explainpill { bottom: calc(26px + env(safe-area-inset-bottom)); }
+  .sheetv.phone.loghid .explainpill { bottom: calc(26px + env(safe-area-inset-bottom)); }
+}
+@keyframes msheet { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sheetv.phone .msheet, .sheetv.phone.ms-dice .rollbar, .sheetv.phone.ms-hp .side .hp { animation: none; } }
+@media print { .sheetv .mtop, .sheetv .mfab, .sheetv .msheet, .sheetv .mback, .sheetv .mstats { display: none !important; } }
+
+/* phones: tumble the dice flat (spin, squash and bounce) instead of the 3D flip, which mobile
+   browsers draw skewed on clipped shapes; and give the modifier a dark outline so it reads on any background */
+@media (max-width: 900px) {
+  .sheetv .dice3d { perspective: none; bottom: 24%; }
+  .sheetv .die3d { width: 64px; height: 64px; font-size: 25px; transform-style: flat; animation-name: dieroll2; animation-duration: .8s; }
+  .sheetv .dmod { font-size: 42px; color: #f5c66f; -webkit-text-stroke: 5px #120f13; paint-order: stroke fill;
+    text-shadow: 0 0 6px #120f13, 0 0 14px #120f13, 0 3px 18px rgba(0, 0, 0, .9); }
+}
+@keyframes dieroll2 {
+  0% { transform: translate(-60px, -160px) rotate(calc(var(--spin) * -1)) scale(.6); opacity: 0; }
+  20% { opacity: 1; }
+  35% { transform: translate(-30px, -60px) rotate(calc(var(--spin) * -.55)) scale(1.05, .8); }
+  55% { transform: translate(-8px, 6px) rotate(calc(var(--spin) * -.18)) scale(.88, 1.1); }
+  72% { transform: translate(0, -10px) rotate(-12deg) scale(1.04, .94); }
+  86% { transform: translate(0, 2px) rotate(4deg) scale(.98, 1.02); }
+  100% { transform: none; opacity: 1; }
+}
+:root[data-theme="light"] .sheetv .dmod { -webkit-text-stroke-color: #fbf6ea; }
+@media (max-width: 900px) {
+  :root[data-theme="light"] .sheetv .dmod { color: #8a5a12; text-shadow: 0 0 6px #fbf6ea, 0 0 14px #fbf6ea; }
+}

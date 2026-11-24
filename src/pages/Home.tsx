@@ -137,7 +137,16 @@ export default function Home() {
                 <div className="muted" style={{ fontSize: 13 }}>
                   {[sp?.name, cls ? classLabel(classInfos(c, byId)) : null].filter(Boolean).join(" · ") || "Not started"}
                 </div>
-                {cloud && <div className="faint">Player: {owner === session.user?.id ? "you" : session.nameOf(owner)}</div>}
+                {cloud && (session.isAdmin && session.members.length > 1 ? (
+                  <label className="faint assignrow" title="Give this character to another player. They’ll own it as if they had made it: only they and admins can edit it.">
+                    Player:{" "}
+                    <select value={owner || ""} aria-label={`Player for ${c.name || "this character"}`}
+                      onChange={(e) => { const to = e.target.value; if (to !== owner && confirm(`Give ${c.name || "this character"} to ${to === session.user?.id ? "you" : session.nameOf(to)}? They’ll own it and can edit it.`)) chars.assign(c.id, to); }}>
+                      {owner && !session.members.some((m) => m.user_id === owner) && <option value={owner}>{session.nameOf(owner)}</option>}
+                      {session.members.map((m) => <option key={m.user_id} value={m.user_id}>{m.user_id === session.user?.id ? "you" : session.nameOf(m.user_id)}</option>)}
+                    </select>
+                  </label>
+                ) : <div className="faint">Player: {owner === session.user?.id ? "you" : session.nameOf(owner)}</div>)}
                 <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
                   <Link className="btn small primary" to={`/sheet/${c.id}`}>Sheet</Link>
                   {mine && <Link className="btn small" to={`/build/${c.id}`}>Edit</Link>}

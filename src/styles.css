@@ -136,7 +136,7 @@ label.radio input { margin-top: 3px; }
 @media (max-width: 900px) {
   /* 16px stops iOS from zooming the page when a field gets focus */
   input:not([type=checkbox]):not([type=radio]), select, textarea { font-size: 16px !important; }
-  html, body { overflow-x: hidden; }
+  html, body { overflow-x: hidden; overflow-x: clip; }
   .topbar { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; }
   .topbar .brand { min-width: 0; }
   .topbar .brand b { font-size: 17px; white-space: nowrap; }
@@ -235,3 +235,4 @@ label.radio input { margin-top: 3px; }
 .sccard table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .sccard td { padding: 3px 0; border-top: 1px solid var(--line-2); }
 .sccard td:last-child { text-align: right; white-space: nowrap; padding-left: 8px; }
+.assignrow select { font-size: 13px; padding: 2px 6px; min-height: 30px; max-width: 70%; }

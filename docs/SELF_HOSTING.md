@@ -14,6 +14,7 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
    - [`0002_hidden_characters.sql`](../supabase/migrations/0002_hidden_characters.sql): characters that only their owner and the admin can see.
    - [`0003_encounters.sql`](../supabase/migrations/0003_encounters.sql): the DM's encounter builder and combat tracker (admins only).
    - [`0004_live_characters.sql`](../supabase/migrations/0004_live_characters.sql): changes to a character show up on every open sheet and in the encounter tracker within a second or two.
+   - [`0005_assign_characters.sql`](../supabase/migrations/0005_assign_characters.sql): admins can give a character to another player, who then owns it.
 3. Go to **Project Settings → Data API** (or **API**) and add `fivepointfive` to **Exposed schemas**. Save.
 
 ## 2. Set up sign-in

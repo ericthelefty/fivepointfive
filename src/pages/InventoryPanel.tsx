@@ -73,7 +73,10 @@ export default function InventoryPanel(p: Props) {
     setOpen(it.id);
   };
 
-  const sorted = [...p.items].sort((a, b) => Number(!!b.equipped) - Number(!!a.equipped));
+  // worn and wielded gear first, then the armor, shields and weapons you could equip (so unequipping one leaves it
+  // up top), then everything else in the order you added it
+  const rank = (it: Item) => (it.equipped ? 0 : slotOf(it, p.infoOf(it)) ? 1 : 2);
+  const sorted = [...p.items].sort((a, b) => rank(a) - rank(b));
 
   return (
     <div className="spanel inv">
