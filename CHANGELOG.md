@@ -6,6 +6,7 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Flurry of Blows rolls its Unarmed Strikes one after another, so each gets its own dice animation, sound and Game Log entry instead of the animation playing once.
 - Arrows, Bolts, Firearm Bullets, Sling Bullets and Needles are items. The SRD lists them as rows of one Ammunition table; each row is now its own item, counted one by one with the weight and price of a single piece (20 Arrows weigh 1 lb.), and its details open the SRD's Ammunition rules. Starting equipment with "20 Arrows" brings real Arrows instead of a custom item.
 - Starting equipment matches "Traveler’s Clothes" to the SRD's "Clothes, Traveler’s" (and other names the SRD writes back to front), and a Wizard's Spellbook is an item instead of a custom one. The SRD gives the Spellbook no price or weight.
 - Custom items in a saved inventory that are named like an item in the list (Arrows, Bolts, Spellbook…) become that item, keeping their quantity and note.

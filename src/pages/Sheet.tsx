@@ -234,6 +234,10 @@ export default function Sheet() {
   useEffect(() => { if (narrow && !wasNarrow.current) { setLogHidden(true); setLogOpen(false); } wasNarrow.current = narrow; }, [narrow]);
   const [layout, setLayout] = useState<string[]>(loadLayout);
   const [layoutOpen, setLayoutOpen] = useState(false);
+  // follow-up rolls waiting their turn (Flurry of Blows' second strike), dropped if the sheet closes
+  const later = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => later.current.forEach(clearTimeout), []);
+
   // the rest menu (desktop): the campfire button opens Short Rest and Long Rest
   const [restOpen, setRestOpen] = useState(false);
   const restRef = useRef<HTMLDivElement>(null);
@@ -886,7 +890,10 @@ export default function Sheet() {
           detail: `${n > 1 ? `${n} Unarmed Strikes` : "An Unarmed Strike"}: ${fmt(ua.toHit)} to hit, ${ua.damage} ${ua.type}.${uses}${a.text ? ` ${a.text}` : ""}`,
           buttons: [{ label: n > 1 ? `Attack ×${n}` : "Attack", disabled: !ok, why: whyNot(a.cost, a.name), run: () => {
             if (a.cost) setPlay((cur) => pay(a.cost, cur));
-            for (let i = 0; i < n; i++) attack(ua);
+            // one strike at a time, so each gets its own dice animation and log entry
+            attack(ua);
+            const gap = dice3dOn() && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 1800 : 450;
+            for (let i = 1; i < n; i++) later.current.push(setTimeout(() => attack(ua), gap * i));
           } }],
         });
         continue;
