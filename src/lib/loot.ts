@@ -3,7 +3,7 @@
  * says "can be given away or retrieved"), priced from the SRD's Equipment tables and Magic Item values, for the GM
  * to review and send to the players.
  */
-import { findCatalog, itemFrom, newItemId, type CatalogItem, type Item } from "./inventory.ts";
+import { addCoins, findCatalog, itemFrom, newItemId, NO_COINS, type CatalogItem, type Coins, type Item } from "./inventory.ts";
 import type { ArmorRow } from "./rules.ts";
 import type { Weapon } from "./play.ts";
 
@@ -134,4 +134,65 @@ export function linesOf(groups: (LootGroup & { removed?: boolean })[]): LootLine
     }
   }
   return out;
+}
+
+// ------------------------------------------------------------------ coins and hidden finds
+
+/** What one kind of monster carries in this encounter (each copy carries the same), set by the GM on the Build tab. */
+export interface MonsterInv {
+  /** Replaces the stat block's Gear when set. */
+  gear?: string[];
+  coins?: Partial<Coins>;
+  /** Found only by searching the body: each tier's finds go to a roll that meets its DC (tiers stack). */
+  hidden?: { dc: number; finds: string[] }[];
+  /** The check a search uses. */
+  check?: "investigation" | "perception";
+}
+
+/** A hidden find as sent to the database: coins, or an item line like the ones on the loot list. */
+export type HiddenFind = { kind: "coins"; coins: Coins } | { kind: "item"; line: LootLine };
+
+const COIN_CP: Record<keyof Coins, number> = { cp: 1, sp: 10, ep: 50, gp: 100, pp: 1000 };
+const COIN_ORDER = ["pp", "gp", "ep", "sp", "cp"] as const;
+
+/** "10 GP", "10 GP 5 SP", "3gp, 2 sp" → coins; anything else → undefined. */
+export function parseCoins(text: string): Coins | undefined {
+  const s = text.trim().replace(/,/g, " ");
+  if (!/^(\s*\d+\s*(pp|gp|ep|sp|cp)\b\s*(and\s*)?)+$/i.test(s)) return undefined;
+  const out: Coins = { ...NO_COINS };
+  for (const m of s.matchAll(/(\d+)\s*(pp|gp|ep|sp|cp)/gi)) out[m[2].toLowerCase() as keyof Coins] += +m[1];
+  return out;
+}
+
+export const coinsCp = (c?: Partial<Coins>) => COIN_ORDER.reduce((n, k) => n + (c?.[k] || 0) * COIN_CP[k], 0);
+export const hasCoins = (c?: Partial<Coins>) => coinsCp(c) > 0;
+
+/** Coins as written: "8 GP 6 SP" (largest first; empty denominations left out). */
+export function coinsText(c?: Partial<Coins>): string {
+  const parts = COIN_ORDER.filter((k) => (c?.[k] || 0) > 0).map((k) => `${(c![k] || 0).toLocaleString()} ${k.toUpperCase()}`);
+  return parts.join(" ") || "0 GP";
+}
+
+export function sumCoins(list: (Partial<Coins> | undefined)[]): Coins {
+  return list.reduce<Coins>((a, b) => addCoins(a, { ...NO_COINS, ...(b || {}) }), { ...NO_COINS });
+}
+
+/** An even split of copper pieces, as a player's share would read: gold, silver and copper. */
+export function shareOf(totalCp: number, ways: number): { each: Coins; leftCp: number } {
+  if (ways <= 0) return { each: { ...NO_COINS }, leftCp: totalCp };
+  const n = Math.floor(totalCp / ways);
+  return { each: { ...NO_COINS, gp: Math.floor(n / 100), sp: Math.floor((n % 100) / 10), cp: n % 10 }, leftCp: totalCp - n * ways };
+}
+
+/** A hidden find from what the GM typed: coins ("10 GP") or an item (from the catalog when it's there). */
+export function hiddenFindOf(text: string, source: string, tables: { catalog: CatalogItem[]; weapons: Weapon[]; armor: ArmorRow[] }, magicRarity: (ref?: string) => string | undefined = () => undefined): HiddenFind {
+  const coins = parseCoins(text);
+  if (coins) return { kind: "coins", coins };
+  const g = makeGroup(findCatalog(text.trim(), tables.catalog), text.trim(), tables, magicRarity);
+  return { kind: "item", line: { name: g.name, detail: g.detail, valueCp: g.valueCp, weight: g.weight, source, item: { ...g.item, id: newItemId(), qty: 1 } } };
+}
+
+/** How a find reads in a list: "10 GP", "Ring of Protection". */
+export function findLabel(f: HiddenFind): string {
+  return f.kind === "coins" ? coinsText(f.coins) : f.line.name;
 }

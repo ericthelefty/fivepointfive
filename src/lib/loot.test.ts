@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parseFile, type Entry } from "./parse.ts";
 import { parseCreature } from "./creature.ts";
 import { combatTables } from "./encounter.ts";
-import { applyDraft, cpText, linesOf, lootFromMonsters, parseGear } from "./loot.ts";
+import { applyDraft, coinsText, cpText, hiddenFindOf, linesOf, lootFromMonsters, parseCoins, parseGear, shareOf, sumCoins, coinsCp } from "./loot.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
 const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : f.endsWith(".md") ? [join(d, f)] : []));
@@ -46,5 +46,28 @@ describe("loot from defeated monsters", () => {
     const lines = linesOf(reviewed);
     expect(lines.map((l) => l.name)).toEqual(["Light Crossbow", "Scimitar", "Scimitar"]);
     expect(new Set(lines.map((l) => l.item.id)).size).toBe(3);
+  });
+});
+
+describe("coins and hidden finds", () => {
+  it("reads coins the GM types", () => {
+    expect(parseCoins("10 GP")).toMatchObject({ gp: 10 });
+    expect(parseCoins("10 gp 5 sp")).toMatchObject({ gp: 10, sp: 5 });
+    expect(parseCoins("Ring of Protection")).toBeUndefined();
+    expect(parseCoins("10")).toBeUndefined();
+  });
+  it("adds, writes and splits coins", () => {
+    const pot = sumCoins([{ gp: 6, sp: 14 }, { sp: 4 }, { sp: 4 }, { sp: 4 }, { gp: 10 }]);
+    expect(coinsText(pot)).toBe("16 GP 26 SP");
+    expect(coinsCp(pot)).toBe(1860);
+    expect(shareOf(1860, 3)).toEqual({ each: { cp: 0, sp: 2, ep: 0, gp: 6, pp: 0 }, leftCp: 0 });
+    expect(shareOf(1862, 3).leftCp).toBe(2);
+  });
+  it("turns a hidden find into coins or a priced item", () => {
+    expect(hiddenFindOf("10 GP", "Bandit Captain", tables)).toEqual({ kind: "coins", coins: { cp: 0, sp: 0, ep: 0, gp: 10, pp: 0 } });
+    const ring = hiddenFindOf("Ring of Protection", "Bandit Captain", tables, () => "rare");
+    expect(ring.kind === "item" && ring.line.valueCp).toBe(400000);
+    const note = hiddenFindOf("A coded letter", "Bandit Captain", tables);
+    expect(note.kind === "item" && note.line.item.kind).toBe("custom");
   });
 });

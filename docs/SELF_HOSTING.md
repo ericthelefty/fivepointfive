@@ -17,6 +17,7 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
    - [`0005_assign_characters.sql`](../supabase/migrations/0005_assign_characters.sql): admins can give a character to another player, who then owns it.
    - [`0006_small_live_updates.sql`](../supabase/migrations/0006_small_live_updates.sql): game logs get their own table and characters a version number, so live updates send only what changed.
    - [`0007_loot.sql`](../supabase/migrations/0007_loot.sql): loot after an encounter: the GM sends the fallen monsters' gear, players claim it, and contested items are rolled for.
+   - [`0008_loot_coins_and_searches.sql`](../supabase/migrations/0008_loot_coins_and_searches.sql): coins and hidden finds: the coin pot split evenly when the loot closes, hidden tiers only the GM can read, searching bodies, and keeping or sharing what you find.
 3. Go to **Project Settings → Data API** (or **API**) and add `fivepointfive` to **Exposed schemas**. Save.
 
 ## 2. Set up sign-in

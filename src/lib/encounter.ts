@@ -3,7 +3,7 @@
  * their initiative, whose turn it is, and a roll log. Monsters keep their own HP here; characters' HP stays on their
  * sheets (see pcCombat and pcHp).
  */
-import type { LootDraft } from "./loot.ts";
+import type { LootDraft, MonsterInv } from "./loot.ts";
 import { parseTables, type Entry } from "./parse.ts";
 import { type Character, derive, wornGear, armorTable, type Derived } from "./rules.ts";
 import { classInfos, casterEntry, casterKindOf } from "./multiclass.ts";
@@ -48,6 +48,8 @@ export interface Encounter {
   log: LogEntry[];
   /** The GM's edits to the loot before sending it (the gear itself is worked out from the defeated monsters). */
   lootDraft?: LootDraft;
+  /** What each kind of monster carries, by its Creature entry id: gear, coins and hidden finds (each copy the same). */
+  inv?: Record<string, MonsterInv>;
   /** The loot sent to the players, once it has been. */
   lootId?: string;
   updated: number;

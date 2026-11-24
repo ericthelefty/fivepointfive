@@ -13,7 +13,8 @@ import { cloud } from "../lib/backend.ts";
 import { parseCreature, crValue, type CreatureStats } from "../lib/creature.ts";
 import { d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
 import { esc, playOf, timeNow, type LogEntry } from "../lib/play.ts";
-import { applyDraft, cpText, linesOf, lootFromMonsters, lootGroupOf } from "../lib/loot.ts";
+import { applyDraft, coinsText, cpText, hasCoins, hiddenFindOf, linesOf, lootFromMonsters, lootGroupOf, sumCoins, type MonsterInv } from "../lib/loot.ts";
+import { invSummary, MonsterInvEditor } from "./MonsterInv.tsx";
 import { sendLoot, useLoot } from "../lib/lootStore.tsx";
 import { classInfos, classLabel } from "../lib/multiclass.ts";
 import {
@@ -37,7 +38,7 @@ function NotAllowed() {
 /** Monsters from every loaded pack, parsed once per content set. */
 function useCreatures() {
   const content = useContent();
-  useEffect(() => { content.ensure("creatures", "rules"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { content.ensure("creatures", "rules", "items"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return useMemo(() => {
     const map = new Map<string, CreatureStats>();
     for (const e of content.byType("Creature")) {
@@ -122,6 +123,7 @@ export function EncounterView() {
     history.replaceState(history.state, "", `${location.pathname}${t !== "build" ? `?tab=${t}` : ""}`);
   };
   const [lootQ, setLootQ] = useState("");
+  const [invOpen, setInvOpen] = useState<string>();
   const [sending, setSending] = useState(false);
   const [q, setQ] = useState("");
   const [crMax, setCrMax] = useState("");
@@ -323,7 +325,7 @@ export function EncounterView() {
     if (!confirm("End the fight? Initiative and the round counter are cleared; HP stays as it is.")) return;
     put((x) => ({ round: 0, turn: undefined, combatants: x.combatants.map((c) => ({ ...c, init: undefined })) }));
     log({ title: "The fight ends", total: "", cls: "event", detail: "" });
-    if (lootGroups.some((g) => !g.removed) && !e.lootId) setTab("loot");
+    if ((lootGroups.some((g) => !g.removed) || fallen.length > 0) && !e.lootId) setTab("loot");
   };
 
   const applyHp = (cb: Combatant, kind: "damage" | "heal") => {
@@ -405,11 +407,14 @@ export function EncounterView() {
           {e.combatants.length === 0 && <p className="note" style={{ margin: 0 }}>Nothing yet. Add monsters from the list, and pick the characters below.</p>}
           {[...groups].map(([ref, list]) => {
             const st = creatures.get(ref);
+            const editing = invOpen === ref;
             return (
-              <div key={ref} className="crow">
+              <div key={ref} className={`crowwrap ${editing ? "on" : ""}`}>
+              <div className="crow">
                 <div className="ctext">
                   <button className="linkish" onClick={() => setPreview(ref)}><b>{st?.name || list[0].name}</b></button>{" "}
                   <span className="note">CR {st?.crText ?? "?"} · {((st?.xp ?? 0) * list.length).toLocaleString()} XP · HP {list.map((c) => monsterMax(c, st)).join(", ")}</span>
+                  <div><button className="linkish note invtog" aria-expanded={editing} onClick={() => setInvOpen(editing ? undefined : ref)}>{editing ? "Done with inventory ▴" : `Inventory: ${invSummary(e.inv?.[ref], st?.gear || [])} ▾`}</button></div>
                 </div>
                 <div className="rowbtn">
                   {st?.hpText.includes("(") && <button className="sbtn sm ghost" title="Roll each one’s Hit Points instead of using the average" onClick={() => list.forEach(rollHp)}>Roll HP</button>}
@@ -417,6 +422,9 @@ export function EncounterView() {
                   <b style={{ minWidth: 18, textAlign: "center", alignSelf: "center" }}>{list.length}</b>
                   {st && <button className="sbtn sm ghost" aria-label={`One more ${st.name}`} onClick={() => addMonster(st)}>+</button>}
                 </div>
+              </div>
+              {editing && <MonsterInvEditor name={st?.name || list[0].name} statGear={st?.gear || []} inv={e.inv?.[ref]} count={list.length} catalog={tables.catalog}
+                onChange={(inv) => put((x) => ({ inv: { ...(x.inv || {}), [ref]: inv } }))} />}
               </div>
             );
           })}
@@ -522,20 +530,30 @@ export function EncounterView() {
   /** Only the fallen give up their gear: monsters at 0 Hit Points, and any that surrendered. */
   const fallen = e.combatants.filter((c) => c.kind === "monster" && (c.surrendered || hpOf(c)?.cur === 0));
   const rarityOf = (ref?: string) => content.byId(ref)?.tagline?.match(/\b(very rare|uncommon|common|rare|legendary|artifact)\b/i)?.[1];
-  const found = lootFromMonsters(fallen.map((c) => ({ name: stOf(c)?.name || c.name, gear: stOf(c)?.gear || [] })), tables, rarityOf);
+  const invOf = (c: Combatant): MonsterInv => e.inv?.[c.ref || c.name] || {};
+  const found = lootFromMonsters(fallen.map((c) => ({ name: stOf(c)?.name || c.name, gear: invOf(c).gear ?? stOf(c)?.gear ?? [] })), tables, rarityOf);
+  const lootCoins = sumCoins(fallen.map((c) => invOf(c).coins));
+  const hiddenTiers = fallen.reduce((n, c) => n + (invOf(c).hidden?.filter((t) => t.finds.length).length || 0), 0);
   const lootGroups = applyDraft(found, e.lootDraft);
   const draft = e.lootDraft || {};
   const setDraft = (d: Partial<NonNullable<typeof e.lootDraft>>) => put((x) => ({ lootDraft: { ...(x.lootDraft || {}), ...d } }));
   const lootPlayers = [...new Set(e.combatants.filter((c) => c.kind === "pc" && c.ref).map((c) => c.ref!))];
   const lootLines = linesOf(lootGroups);
+  const canSend = (lootLines.length > 0 || hasCoins(lootCoins) || fallen.length > 0) && lootPlayers.length > 0;
   const send = async () => {
-    if (!lootLines.length || !lootPlayers.length) return;
-    if (!confirm(`Send ${lootLines.length} item${lootLines.length > 1 ? "s" : ""} to ${lootPlayers.map((r) => chars.get(r)?.c.name || "a character").join(", ")}? Each of them gets a pop-up to claim their loot.`)) return;
+    if (!canSend) return;
+    const what = [lootLines.length ? `${lootLines.length} item${lootLines.length > 1 ? "s" : ""}` : "", hasCoins(lootCoins) ? coinsText(lootCoins) : ""].filter(Boolean).join(" and ") || "the bodies to search";
+    if (!confirm(`Send ${what} to ${lootPlayers.map((r) => chars.get(r)?.c.name || "a character").join(", ")}? Each of them gets a pop-up to claim their loot.`)) return;
     setSending(true);
     try {
-      const lid = await sendLoot({ encounterId: e.id, name: e.name, players: lootPlayers, lines: lootLines });
+      const bodies = fallen.map((c) => ({ id: c.uid, name: c.name, status: c.surrendered ? "Surrendered" : "At 0 HP", check: invOf(c).check || "investigation" as const }));
+      const hidden = fallen.map((c) => ({
+        bodyId: c.uid,
+        tiers: (invOf(c).hidden || []).filter((t) => t.finds.length).map((t) => ({ dc: t.dc, finds: t.finds.map((f) => hiddenFindOf(f, c.name, tables, rarityOf)) })),
+      })).filter((h) => h.tiers.length);
+      const lid = await sendLoot({ encounterId: e.id, name: e.name, players: lootPlayers, lines: lootLines, coins: lootCoins, bodies, hidden });
       put({ lootId: lid });
-      log({ title: "Loot sent to the players", total: "", cls: "event", detail: `${lootLines.length} item${lootLines.length > 1 ? "s" : ""}` }, lootPlayers);
+      log({ title: "Loot sent to the players", total: "", cls: "event", detail: what }, lootPlayers);
     } catch (err) {
       alert(`Couldn’t send the loot: ${(err as Error).message}`);
     }
@@ -570,13 +588,30 @@ export function EncounterView() {
           })}
         </tbody>
       </table>
+      {sent.loot && (hasCoins(sent.loot.coins) || hasCoins(sent.loot.shared_coins)) && (
+        <p className="note"><b>Coins</b> {coinsText(sumCoins([sent.loot.coins, sent.loot.shared_coins]))}{hasCoins(sent.loot.shared_coins) ? ` (${coinsText(sent.loot.shared_coins)} shared from searches)` : ""} · {sent.payouts.length ? `paid out: ${sent.payouts.map((p) => `${chars.get(p.character_id)?.c.name || "?"} ${coinsText(p.coins)}`).join(", ")}` : "split evenly when the loot closes"}</p>
+      )}
+      {sent.searches.length > 0 && (
+        <div className="note">
+          <b>Searches</b>
+          {sent.searches.map((x) => (
+            <div key={x.id}>{chars.get(x.character_id)?.c.name || "?"} searched {sent.loot?.bodies.find((b) => b.id === x.body_id)?.name || "a body"} ({x.total}): {x.finds.length ? x.finds.map((f) => `${f.kind === "coins" ? coinsText(f.coins) : f.line.name}${f.choice ? ` (${f.choice === "keep" ? "kept" : "shared"})` : ""}`).join(", ") : "nothing"}</div>
+          ))}
+        </div>
+      )}
       <p className="note" style={{ marginBottom: 0 }}>Restart the encounter to clear this and loot again.</p>
     </div>
   ) : (
     <div className="spanel lootgm">
       <div className="lootgmh"><span className="disp">Review loot</span><span className="note">Gear from monsters at 0 HP or that surrendered, most valuable first. Players see this list only after you send it.</span></div>
+      {(hasCoins(lootCoins) || hiddenTiers > 0) && (
+        <div className="lootcoins">
+          {hasCoins(lootCoins) && <span><b>Coins</b> {coinsText(lootCoins)} <span className="note">from {fallen.filter((c) => hasCoins(invOf(c).coins)).map((c) => c.name).join(", ")} · split evenly between the characters when the loot closes</span></span>}
+          {hiddenTiers > 0 && <span><b className="hidl">Hidden</b> <span className="note">{hiddenTiers} tier{hiddenTiers > 1 ? "s" : ""} on {fallen.filter((c) => invOf(c).hidden?.some((t) => t.finds.length)).map((c) => c.name).join(", ")}: players find {hiddenTiers > 1 ? "them" : "it"} by searching the bodies. Edit coins and hidden finds on the Build tab.</span></span>}
+        </div>
+      )}
       {lootGroups.length === 0 ? (
-        <p className="note">Nothing to loot yet. A monster gives up the gear on its stat block when it drops to 0 Hit Points or surrenders (tick Surrendered on the Run tab).</p>
+        <p className="note">{fallen.length ? "No gear to hand out." : "Nothing to loot yet."} A monster gives up the gear on its stat block when it drops to 0 Hit Points or surrenders (tick Surrendered on the Run tab).</p>
       ) : (
         <table className="lt">
           <thead><tr><th>Item</th><th>From</th><th>Qty</th><th style={{ textAlign: "right" }}>Value</th><th style={{ textAlign: "right" }}>Weight</th><th></th></tr></thead>
@@ -614,9 +649,9 @@ export function EncounterView() {
       </div>
       {lootMatches.length > 0 && <div className="rowbtn" style={{ flexWrap: "wrap" }}>{lootMatches.map((c) => <button key={c.name} className="sbtn sm ghost" onClick={() => addLoot(c.name)}>{c.name}</button>)}</div>}
       <div className="lootgmf">
-        <span className="note">{lootLines.length} item{lootLines.length === 1 ? "" : "s"} · {cpText(lootLines.reduce((n, l) => n + (l.valueCp || 0), 0))} in all · going to <b>{lootPlayers.map((r) => chars.get(r)?.c.name || "?").join(", ") || "no one (add characters on the Build tab)"}</b></span>
+        <span className="note">{lootLines.length} item{lootLines.length === 1 ? "" : "s"} · {cpText(lootLines.reduce((n, l) => n + (l.valueCp || 0), 0))} in all{hasCoins(lootCoins) ? ` · ${coinsText(lootCoins)} in coins, split evenly` : ""}{hiddenTiers ? ` · ${hiddenTiers} hidden tier${hiddenTiers > 1 ? "s" : ""} to search for` : ""} · going to <b>{lootPlayers.map((r) => chars.get(r)?.c.name || "?").join(", ") || "no one (add characters on the Build tab)"}</b></span>
         {!cloud && <span className="note">Players claim loot from their own devices, so sending it needs a shared instance.</span>}
-        <button className="sbtn gold" disabled={!cloud || sending || !lootLines.length || !lootPlayers.length} onClick={send}>Send to players</button>
+        <button className="sbtn gold" disabled={!cloud || sending || !canSend} onClick={send}>Send to players</button>
       </div>
     </div>
   );

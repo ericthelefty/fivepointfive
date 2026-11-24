@@ -290,3 +290,27 @@ label.radio input { margin-top: 3px; }
   .lootact .lbtn { flex: 1; height: 40px; }
 }
 :root[data-theme="light"] .lbtn.want.claimed { background: #f6ebcf; color: #8a5a12; }
+/* loot: tabs, the coin pot, bodies to search, what a search found */
+.loottabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 4px 0 8px; }
+.loottabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 14px; font-weight: 600; font-size: 13px; color: var(--muted); cursor: pointer; }
+.loottabs button.on { color: #e3b25e; border-color: #e3b25e; }
+.lootpot { border: 1px solid #6b5a7a; border-radius: 10px; background: color-mix(in srgb, #6b5a7a 14%, transparent); padding: 10px 12px; margin-bottom: 8px; font-size: 13px; display: grid; gap: 4px; }
+.lootpoth { display: flex; justify-content: space-between; gap: 10px; }
+.lootbody { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 2px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.lbtn.inv { border: 1.5px solid #8a73b0; background: color-mix(in srgb, #8a73b0 18%, transparent); color: #b9a2e0; }
+.lbtn.inv:disabled { opacity: .6; cursor: default; }
+.lbtn.keep { border: 1.5px solid #a97c33; background: #a97c33; color: #1d1408; }
+.tagf { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid #6b5a7a; color: #b9a2e0; white-space: nowrap; }
+.lootfound { border: 1.5px solid #8a73b0; border-radius: 12px; padding: 12px 14px; background: linear-gradient(180deg, color-mix(in srgb, #8a73b0 20%, var(--panel, #1d191f)), var(--panel, #1d191f)); display: grid; gap: 10px; }
+.lootfound .lab { color: #b9a2e0; }
+.lootfoundroll { display: flex; gap: 12px; align-items: center; font-size: 12.5px; }
+.lootfoundroll .dd { display: inline-grid; place-items: center; width: 44px; height: 44px; flex: none; font: 700 20px Cinzel, Georgia, serif; color: #1d1408;
+  background: linear-gradient(145deg, #f3d9a0, #c4923f); clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
+.lootfind { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 6px; }
+.lootfindb { display: flex; gap: 6px; }
+.lootfindb .lbtn { flex: 1; padding: 0 8px; }
+@media (max-width: 760px) {
+  .lootbody { grid-template-columns: 1fr; gap: 4px; }
+  .lootbody .lbtn { width: 100%; height: 40px; }
+  .lootfindb .lbtn { height: 42px; }
+}
