@@ -1637,7 +1637,14 @@ export default function Sheet() {
           <td><button className="linkish spname" onClick={() => setDrawer({ kind: "spell", id: r.sp.id, via: r.g ? r.g.source : r.k ? `k:${r.k.info.index}` : undefined })}>{r.sp.name}</button><div className="note">{r.lvl ? `Level ${r.lvl} spell` : "Cantrip"}{r.source ? ` · ${r.source}` : ""}{stripMd(r.sp.fields["range"] || "") ? ` · ${stripMd(r.sp.fields["range"])}` : ""}</div></td>
           <td>{fmt(n.atk)}</td>
           <td>{dmg} {type}{pl.attack.count > 1 ? <div className="note">×{pl.attack.count} beams or attacks</div> : null}</td>
-          <td><div className="rowbtn"><Btn className="sbtn sm" disabled={!st.ok} why={st.why} onClick={() => castRow(r)}>{st.label === "Free" ? "Cast free" : "Cast"}</Btn></div></td>
+          <td>
+            {/* a cantrip just rolls; a levelled spell is cast first (spends the slot), then each attack is rolled */}
+            <div className="rowbtn">
+              {r.lvl > 0 && !r.g?.atWill && <Btn className="sbtn sm ghost" disabled={!st.ok} why={st.why} title={`Spend ${st.label === "Free" ? "the free use" : "a spell slot"} to cast it, then roll each attack.`} onClick={() => castRow(r)}>{st.label === "Free" ? "Cast free" : "Cast"}</Btn>}
+              <button className="sbtn sm" title={`${HOW.attack}${pl.attack.count > 1 ? ` Roll once for each of the ${pl.attack.count} beams or attacks.` : ""}`} onClick={() => attack({ name: r.sp.name, toHit: n.atk, damage: dmg, type, note: "" })}>Attack</button>
+              <button className="sbtn sm ghost" title={`${HOW.dmg}${pl.attack.count > 1 ? " This is one beam's or attack's damage." : ""}`} onClick={() => rollDamage(r.sp.name, dmg, false, type)}>Damage</button>
+            </div>
+          </td>
         </tr>
       );
     });
