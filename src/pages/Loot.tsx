@@ -4,7 +4,7 @@
  * has answered an item, or the GM closes the loot, it goes to its only taker or the takers roll a d20 for it.
  */
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { cloud } from "../lib/backend.ts";
 import { useSession } from "../lib/session.tsx";
 import { useCharacters } from "../lib/characters.tsx";
@@ -15,14 +15,17 @@ import { ignoreLoot, markSeen, useLoot, useLootWatch, type LootItemRow } from ".
 export function LootPopup() {
   const watch = useLootWatch();
   const nav = useNavigate();
-  const p = watch.popups[0];
+  const here = useLocation().pathname;
+  // no pop-up for the loot you're already looking at: its page has a character picker
+  const shown = watch.popups.filter((x) => here !== `/loot/${x.loot.id}`);
+  const p = shown[0];
   if (!p) return null;
   return (
     <div className="lootpop" role="dialog" aria-modal="true" aria-label="The battle is over">
       <div className="lootpop-box">
         <div className="lootpop-icon" aria-hidden="true">⚔</div>
         <div className="lootpop-title">The battle is over</div>
-        <div className="lootpop-sub">{p.loot.name}{watch.popups.length > 1 || p.loot.players.length > 1 ? ` · for ${p.characterName}` : ""}</div>
+        <div className="lootpop-sub">{p.loot.name}{shown.length > 1 || p.loot.players.length > 1 ? ` · for ${p.characterName}` : ""}</div>
         <button className="lootpop-claim" onClick={() => { markSeen(p.loot.id, p.characterId); watch.dismiss(p.loot.id, p.characterId); nav(`/loot/${p.loot.id}?c=${p.characterId}`); }}>Claim your loot</button>
         <button className="lootpop-ignore" onClick={async () => { watch.dismiss(p.loot.id, p.characterId); await ignoreLoot(p.loot.id, p.characterId); }}>Ignore</button>
         <div className="lootpop-note">Ignore leaves the loot to the rest of the party.</div>
@@ -38,9 +41,13 @@ export default function LootPage() {
   const chars = useCharacters();
   const L = useLoot(id);
   const me = session.user?.id;
-  const mine = (L.loot?.players || []).filter((cid) => chars.get(cid)?.owner === me);
+  const isGm = session.isAdmin;
+  const players0 = L.loot?.players || [];
+  const mine = players0.filter((cid) => chars.get(cid)?.owner === me);
+  // the GM can choose for any player in the loot (theirs first), e.g. for someone who isn't at the table
+  const choosable = isGm ? [...mine, ...players0.filter((x) => !mine.includes(x))] : mine;
   const asked = params.get("c");
-  const cid = asked && mine.includes(asked) ? asked : mine[0];
+  const cid = asked && choosable.includes(asked) ? asked : asked === "" ? undefined : mine[0];
   const nameOf = (c?: string | null) => (c ? chars.get(c)?.c.name || "Someone" : "Someone");
   const [now, setNow] = useState(0);
   useEffect(() => { if (cid && L.loot) markSeen(L.loot.id, cid); }, [cid, L.loot]);
@@ -63,20 +70,21 @@ export default function LootPage() {
     const entries = Object.entries(last).sort((a, b) => b[1] - a[1]);
     return `d20 ${entries.map(([k, v]) => `${v} ${k === cid ? "(you)" : `(${nameOf(k)})`}`).join(" vs ")}`;
   };
-  const isGm = session.isAdmin;
 
   return (
     <div className="lootv">
       <div className="lootmain panel">
         <div className="loothead">
           <h1>Loot · {L.loot.name}</h1>
-          {cid ? (
-            mine.length > 1 ? (
-              <label className="faint">Choosing for{" "}
-                <select value={cid} onChange={(e) => setParams({ c: e.target.value })}>{mine.map((m) => <option key={m} value={m}>{nameOf(m)}</option>)}</select>
-              </label>
-            ) : <span className="faint">Choosing for <b>{nameOf(cid)}</b></span>
-          ) : <span className="faint">{isGm ? "GM view: watching the players choose" : "None of your characters were in this fight."}</span>}
+          {isGm || choosable.length > 1 ? (
+            <label className="faint">{cid ? "Choosing for" : "GM view"}{" "}
+              <select value={cid || ""} onChange={(e) => setParams({ c: e.target.value })}>
+                {isGm && <option value="">Just watching</option>}
+                {choosable.map((m) => <option key={m} value={m}>{nameOf(m)}{isGm && !mine.includes(m) ? " (player)" : ""}</option>)}
+              </select>
+            </label>
+          ) : cid ? <span className="faint">Choosing for <b>{nameOf(cid)}</b></span>
+            : <span className="faint">None of your characters were in this fight.</span>}
           {L.loot.status === "closed" && <span className="tag">Closed</span>}
         </div>
         {cid && L.loot.status === "open" && (
