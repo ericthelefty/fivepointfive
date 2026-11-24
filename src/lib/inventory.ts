@@ -107,6 +107,12 @@ export function magicInfo(e: Entry, weapons: Weapon[], armor: ArmorRow[]): Magic
       if (opts.length) base = { kind: "armor", options: opts.map((a) => a.name) };
     }
   }
+  // staffs and the like that "can be wielded as a magic Quarterstaff" fight as that weapon
+  if (!base) {
+    const as = e.body.match(/wielded as an? magic ([A-Z][\w’' -]*?)(?=[ ,.]| that)/)?.[1];
+    const w = as && weapons.find((x) => x.name.toLowerCase() === as.toLowerCase());
+    if (w) base = { kind: "weapon", options: [w.name] };
+  }
   const equippable =
     ["Weapon", "Armor", "Ring", "Rod", "Staff", "Wand"].includes(category) ||
     (category === "Wondrous Item" && WEARABLE.test(e.name));
@@ -234,6 +240,11 @@ export function slotOf(it: Item, info?: MagicInfo): "armor" | "shield" | "weapon
 }
 
 export const needsAttunement = (it: Item, info?: MagicInfo) => it.kind === "magic" && !!info?.requiresAttunement;
+
+/** The weapon or armor an item is made from: the one picked, or the only one it can be (a Staff of Striking is a Quarterstaff). */
+export function baseOf(it: Item, info?: MagicInfo): string | undefined {
+  return it.base || (info?.base?.options.length === 1 ? info.base.options[0] : undefined);
+}
 
 /** Carried, attuned if it needs it, and equipped if it's worn or wielded. */
 export function isActive(it: Item, info?: MagicInfo): boolean {

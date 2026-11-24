@@ -5,7 +5,7 @@ import type { Entry } from "../lib/parse.ts";
 import type { ArmorRow } from "../lib/rules.ts";
 import type { Weapon } from "../lib/play.ts";
 import {
-  ATTUNEMENT_LIMIT, COIN_KEYS, attunedCount, carryingCapacity, isActive, itemFrom, needsAttunement, newItemId, setAttuned,
+  ATTUNEMENT_LIMIT, COIN_KEYS, attunedCount, baseOf, carryingCapacity, isActive, itemFrom, needsAttunement, newItemId, setAttuned,
   setEquipped, slotOf, totalWeight, type CatalogItem, type Coins, type Item, type MagicInfo,
 } from "../lib/inventory.ts";
 
@@ -60,9 +60,9 @@ export default function InventoryPanel(p: Props) {
     const it = itemFrom(c);
     // new things go in the pack; the player equips them
     it.equipped = undefined;
+    // added closed: the ▾ beside its name opens the full description
     set([...p.items, it]);
     setQ("");
-    setOpen(it.id);
   };
   const addCustom = () => {
     const name = q.trim();
@@ -118,17 +118,18 @@ export default function InventoryPanel(p: Props) {
             const attunes = needsAttunement(it, info);
             const active = isActive(it, info) && (!!slot || attunes);
             const entry = p.byId(it.ref);
-            const needsBase = !!info?.base && !it.base;
+            const needsBase = !!info?.base && !baseOf(it, info);
             return (
               <tr key={it.id} className={open === it.id ? "open" : ""}>
                 <td>
                   <button className="iname" onClick={() => setOpen(open === it.id ? undefined : it.id)} aria-expanded={open === it.id}>
                     <b>{it.name}</b>
+                    <span className="ichev" aria-hidden="true">▾</span>
                   </button>
                   {active && <span className="tagx on" title="Worn or wielded, and attuned if it needs it">Active</span>}
                   {needsBase && <span className="tagx warn">Choose base item</span>}
                   <div className="note">
-                    {[it.note, it.base && it.base !== it.name ? it.base : "", info?.category, attunes ? `Requires attunement${info?.attunementNote ? ` ${info.attunementNote}` : ""}` : ""].filter(Boolean).join(" · ")}
+                    {[it.note, baseOf(it, info) && baseOf(it, info) !== it.name ? baseOf(it, info) : "", info?.category, attunes ? `Requires attunement${info?.attunementNote ? ` ${info.attunementNote}` : ""}` : ""].filter(Boolean).join(" · ")}
                   </div>
                   {open === it.id && (
                     <div className="idet">
@@ -154,7 +155,7 @@ export default function InventoryPanel(p: Props) {
                             )}
                           </>
                         )}
-                        {info?.base && (
+                        {info?.base && info.base.options.length > 1 && (
                           <label className="field">
                             Base {info.base.kind === "weapon" ? "weapon" : info.base.kind === "shield" ? "shield" : "armor"}
                             <select value={it.base || ""} disabled={ro} onChange={(e) => patch(it.id, { base: e.target.value || undefined })}>
@@ -164,7 +165,7 @@ export default function InventoryPanel(p: Props) {
                           </label>
                         )}
                       </div>
-                      <ItemText it={it} entry={entry} weapons={p.weapons} armor={p.armor} />
+                      <ItemText it={it} entry={entry} weapons={p.weapons} armor={p.armor} base={baseOf(it, info)} />
                     </div>
                   )}
                 </td>
@@ -237,9 +238,10 @@ export default function InventoryPanel(p: Props) {
   );
 }
 
-function ItemText({ it, entry, weapons, armor }: { it: Item; entry?: Entry; weapons: Weapon[]; armor: ArmorRow[] }) {
-  const w = it.base ? weapons.find((x) => x.name === it.base) : undefined;
-  const a = it.base ? armor.find((x) => x.name === it.base) : undefined;
+function ItemText({ it, entry, weapons, armor, base }: { it: Item; entry?: Entry; weapons: Weapon[]; armor: ArmorRow[]; base?: string }) {
+  const b = base || it.base;
+  const w = b ? weapons.find((x) => x.name === b) : undefined;
+  const a = b ? armor.find((x) => x.name === b) : undefined;
   return (
     <div className="itext">
       {w && <div className="note"><b>{w.name}:</b> {w.damage} · {w.properties || "—"}{w.mastery ? ` · Mastery: ${w.mastery}` : ""}</div>}

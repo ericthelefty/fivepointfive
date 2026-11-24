@@ -6,6 +6,10 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Items you add to your Inventory start closed, with a ▾ beside the name to open the full description.
+- Magic staffs that can be wielded as a weapon (Staff of Striking, Staff of Power and others) now attack as that weapon once equipped: their attack and damage bonuses are added to the attack row (Staff of Striking: +3 to hit and damage), and you're no longer asked to choose a base weapon when there's only one.
+- An item's charges show on its attack row with buttons to spend or restore one. Under "On a hit", the Staff of Striking lets you pick 1 to 3 charges, rolls that many d6 of Force damage and spends the charges.
+- On phones, the Game Log closes back to its button when the window narrows into the phone layout.
 - Demo link: open `/demo` on any instance to try the builder and sheet without signing in. It opens a ready-made sample character (Vessa Quill, Elf Wizard 3), and visitors can build their own too. Everything they make stays in their own browser and never reaches the instance; Exit demo goes back to normal.
 - New phone layout for the play sheet: a compact header stays at the top (name, rests, Heroic Inspiration, AC, Initiative, Speed, Hit Points with Heal and Damage, conditions, spell DC), and one section fills the screen at a time. Tap the grid button to switch between Abilities & Saves, Skills, Actions, Spells, Inventory, Features & Feats, Effects, Conditions, Defenses, Senses, Languages & Tools, Background, Notes and the Game Log. The round d20 button in the bottom left opens roll mode, the next-roll bonus and the free dice; the scroll button in the bottom right opens the Game Log over the whole screen and counts rolls you haven't seen. Tapping Hit Points opens Heal, Damage, Temp HP and Hit Dice. Print only shows on desktop.
 - Phones: attacks, bonus actions and other action lists are cards instead of squeezed tables: the name on the left, to-hit and damage on the right, and big Attack, Damage and Cast buttons underneath.

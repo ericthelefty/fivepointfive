@@ -865,3 +865,11 @@
   .sheetv.phone table.atkmain.atks:not(.invt):not(.sptable) td:nth-child(4) { grid-column: 1 / -1; grid-row: 3; }
   .sheetv.phone table.atks b, .sheetv.phone table.atks .spname { font-size: 14.5px; }
 }
+/* an item's charges on its attack row */
+.sheetv .chg { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 12.5px; }
+.sheetv .chg .sl { font-size: 10px; }
+.sheetv .chg b { color: var(--s-gold); }
+.sheetv .chg .sbtn { min-height: 22px; padding: 0 7px; }
+.sheetv .iname { display: inline-flex; align-items: center; gap: 6px; }
+.sheetv .ichev { color: var(--s-mut); font-size: 12px; transition: transform .15s; }
+.sheetv .iname[aria-expanded="true"] .ichev { transform: rotate(180deg); color: var(--s-gold); }

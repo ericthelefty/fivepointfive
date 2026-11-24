@@ -21,7 +21,7 @@ import {
   timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
   type ActiveEffect, type Companion, type PlayState, type RollContext,
 } from "../lib/play.ts";
-import { catalog, inventoryOf, isActive, magicInfo, newItemId, type Coins, type Item } from "../lib/inventory.ts";
+import { baseOf, catalog, inventoryOf, isActive, magicInfo, newItemId, type Coins, type Item } from "../lib/inventory.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
 import { DetailsForm } from "../components/DetailsForm.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
@@ -168,6 +168,9 @@ export default function Sheet() {
   // phones and tablets open with the Game Log hidden (desktop always shows it)
   const narrow = useMedia(NARROW);
   const [logHidden, setLogHidden] = useState(() => typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches);
+  // turning a tablet or resizing the window into the phone layout starts with the Game Log put away
+  const wasNarrow = useRef(narrow);
+  useEffect(() => { if (narrow && !wasNarrow.current) { setLogHidden(true); setLogOpen(false); } wasNarrow.current = narrow; }, [narrow]);
   const [layout, setLayout] = useState<string[]>(loadLayout);
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [toast, setToast] = useState<LogEntry>();
@@ -445,7 +448,8 @@ export default function Sheet() {
   const hdLeft = pools.reduce((n, pl) => n + pl.count - hdUsedOf(pl.die), 0);
   // attacks: weapons that are equipped (magic weapons use their base weapon)
   const wielded = inv.items.flatMap((it) => {
-    const w = it.equipped && it.qty > 0 && it.base ? weapons.find((x) => x.name === it.base) : undefined;
+    const bn = baseOf(it, infoOf(it));
+    const w = it.equipped && it.qty > 0 && bn ? weapons.find((x) => x.name === bn) : undefined;
     return w ? [{ it, w }] : [];
   });
   const isMonkWeapon = (w: Weapon) => /simple melee/i.test(w.category) || (/martial melee/i.test(w.category) && /\blight\b/i.test(w.properties));
@@ -485,6 +489,20 @@ export default function Sheet() {
       return withBonuses({ ...unarmedStrike(d, wo.opts), maximize: wo.maximize }, false);
     })(),
   ];
+  /** An item's charges, right on its attack row (Staff of Striking): how many are left, with buttons to spend or restore one. */
+  const chargesOf = (itemId?: string) => {
+    const r = itemId ? resources.find((x) => x.itemId === itemId && x.key === `item:${itemId}`) : undefined;
+    if (!r) return null;
+    const used = p.resUsed[r.key] || 0;
+    const step = (n: number) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: Math.min(r.max, Math.max(0, (cur.resUsed[r.key] || 0) + n)) } }));
+    return (
+      <div className="chg" title={`${refreshText(r)}`.trim()}>
+        <span className="sl">Charges</span> <b>{r.max - used}</b>/{r.max}
+        <button className="sbtn sm ghost" aria-label="Spend a charge" disabled={used >= r.max} onClick={() => step(1)}>−</button>
+        <button className="sbtn sm ghost" aria-label="Restore a charge" disabled={!used} onClick={() => step(-1)}>+</button>
+      </div>
+    );
+  };
   const setInventory = (items: Item[], coins: Coins) => {
     dirty.current = true;
     setC((prev) => (prev ? { ...prev, inventory: items, coins } : prev));
@@ -1426,6 +1444,7 @@ export default function Sheet() {
    * Extra damage you add on a hit (Sneak Attack, Brutal Strike, Divine Strike…), with the effects you can trade dice
    * for or pick (Cunning Strike, Brutal Strike's blows) and their save DC.
    */
+  const main0 = (t: (typeof fx.triggers)[number]) => t.damage![0];
   const ridersSection = () => {
     if (formCr) return null;
     const riders = fx.triggers.filter((t) => t.damage?.length && !t.reaction);
@@ -1443,7 +1462,13 @@ export default function Sheet() {
               const groups = [...own, ...followers];
               const picked = riderPick[t.key] || [];
               const opts = groups.flatMap((g) => (g.options || []).map((o) => ({ ...o, group: g })));
-              const main = t.damage![0];
+              // dice paid for with a resource the player picks how much of (Staff of Striking: 1d6 Force per charge, up to 3)
+              const perUnit = main0(t).dice.replace(/\s+/g, "").match(/^dice\(cost\.\w+,d(\d+)\)$/);
+              const payRes = perUnit && t.cost ? resources.find((r) => r.key === t.cost!.key) : undefined;
+              const payLeft = payRes ? payRes.max - (p.resUsed[payRes.key] || 0) : 0;
+              const payMax = payRes ? Math.min(t.cost!.max ?? t.cost!.amount, payLeft) : 0;
+              const payN = payRes ? Math.max(Math.min(actAmt[t.key] || t.cost!.min || 1, payMax), payMax ? 1 : 0) : 0;
+              const main = perUnit ? { ...main0(t), dice: payN ? `${payN}d${perUnit[1]}` : "" } : main0(t);
               const dm = main.dice.match(/^(\d+)d(\d+)$/);
               const spent = opts.filter((o) => picked.includes(`${o.group.key}:${o.id}`)).reduce((n, o) => n + (o.diceCost || 0), 0);
               const left = dm ? Math.max(0, +dm[1] - spent) : 0;
@@ -1461,6 +1486,7 @@ export default function Sheet() {
                 const lines = chosen.map((o) => `<div><b>${esc(o.group.name)}: ${esc(o.label)}</b>${o.save && o.group.dc ? ` · DC <b>${o.group.dc}</b> ${esc(o.save)} save` : ""}${o.text ? ` · ${esc(o.text)}` : ""}</div>`).join("");
                 const extra = t.damage!.slice(1).map((x) => x.dice).join("+");
                 const expr = [dice, extra].filter(Boolean).join("+");
+                if (perUnit && payRes && payN) setPlay((cur) => ({ resUsed: { ...cur.resUsed, [payRes.key]: Math.min(payRes.max, (cur.resUsed[payRes.key] || 0) + payN) } }));
                 if (expr) {
                   const r = roll(expr);
                   if (r) log({ title: `${t.name} damage`, total: String(r.total), cls: "dmg", detail: `${eqOf(r)}${esc(describeRolled(r))}${main.type && main.type !== "weapon" ? ` · ${esc(main.type)}` : " · the weapon’s damage type"}${spent ? `<div>Traded ${spent}d${dm?.[2]} for the effects below.</div>` : ""}${lines}` });
@@ -1472,6 +1498,16 @@ export default function Sheet() {
                   <td><b>{t.name}</b><div className="note">{t.source !== t.name ? t.source : ""}</div></td>
                   <td className="note">
                     {t.when}.
+                    {perUnit && payRes && (
+                      <div className="rowbtn" style={{ flexWrap: "wrap", marginTop: 4, alignItems: "center" }}>
+                        <span className="mut">{payRes.name.replace(/^.*? charges$/, "Charges")} to spend:</span>
+                        {Array.from({ length: Math.max(1, (t.cost!.max ?? 1) - (t.cost!.min ?? 1) + 1) }, (_, i) => (t.cost!.min ?? 1) + i).map((n) => (
+                          <Btn key={n} className={`sbtn sm ${payN === n ? "" : "ghost"}`} aria-pressed={payN === n} disabled={n > payLeft}
+                            why={n > payLeft ? `Only ${payLeft} left.` : undefined} onClick={() => setActAmt((m) => ({ ...m, [t.key]: n }))}>{n}</Btn>
+                        ))}
+                        <span className="mut">{payLeft} of {payRes.max} left</span>
+                      </div>
+                    )}
                     {groups.map((g) => (
                       <div key={g.key} className="rowbtn" style={{ flexWrap: "wrap", marginTop: 4 }}>
                         <span className="mut">{g.name}{g.dc ? ` (DC ${g.dc})` : ""}{pickMax(g) > 1 ? `, up to ${pickMax(g)}` : ""}:</span>
@@ -1490,7 +1526,7 @@ export default function Sheet() {
                       </div>
                     ))}
                   </td>
-                  <td><div className="rowbtn"><button className="sbtn sm" onClick={roll1}>{dice ? `Roll ${dice}${t.damage!.length > 1 ? " +" : ""}` : "Use"}</button></div></td>
+                  <td><div className="rowbtn"><Btn className="sbtn sm" disabled={!!perUnit && !payN} why={perUnit && !payN ? "No charges left." : undefined} onClick={roll1}>{dice ? `Roll ${dice} ${main.type && main.type !== "weapon" ? main.type : ""}`.trim() + (t.damage!.length > 1 ? " +" : "") : "Use"}</Btn></div></td>
                 </tr>
               );
             })}
@@ -3224,7 +3260,7 @@ export default function Sheet() {
                     <tbody>
                       {attacks.map((a, i) => (
                         <tr key={`${a.name}-${i}`}>
-                          <td><b>{a.name}</b><div className="note">{a.note}</div></td>
+                          <td><b>{a.name}</b><div className="note">{a.note}</div>{chargesOf(a.itemId)}</td>
                           <td><span data-ex={`atk:${i}`}>{fmt(a.toHit)}</span></td>
                           <td>{a.damage} {a.type}{a.versatile ? <div className="note">two hands {a.versatile}</div> : null}</td>
                           <td>
