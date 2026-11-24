@@ -6,6 +6,7 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- On a wide screen, the Short rest and Long rest buttons are replaced by the campfire button phones use: it opens a small menu with Short Rest and Long Rest. In Explainer Mode the campfire button, Short Rest and Long Rest each explain themselves, on a phone too: the SRD rule, and what each rest does on this sheet (what comes back, what ends, Hit Point Dice left).
 - Admins can name the instance under Settings → Instance name. The name shows next to fivepointfive at the top of every page (in place of the "5.5E compatible" badge on a phone) and in the browser tab.
 - Invite links can come with a character. When creating an invite in Settings, pick "Give them…" a character: when the person joins with that link, the character becomes theirs and its sheet opens as soon as their account is set up. The Invites list shows which character each link gives. Only characters an admin still owns can be given, so a link never takes a character away from a player who already has it.
 - **Database:** `supabase/migrations/0011_invite_characters.sql`.

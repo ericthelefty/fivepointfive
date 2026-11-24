@@ -234,6 +234,17 @@ export default function Sheet() {
   useEffect(() => { if (narrow && !wasNarrow.current) { setLogHidden(true); setLogOpen(false); } wasNarrow.current = narrow; }, [narrow]);
   const [layout, setLayout] = useState<string[]>(loadLayout);
   const [layoutOpen, setLayoutOpen] = useState(false);
+  // the rest menu (desktop): the campfire button opens Short Rest and Long Rest
+  const [restOpen, setRestOpen] = useState(false);
+  const restRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!restOpen) return;
+    const away = (e: Event) => { if (restRef.current && !restRef.current.contains(e.target as Node)) setRestOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setRestOpen(false); };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc); };
+  }, [restOpen]);
   // the backdrop picker in the sheet's toolbar
   const [bgOpen, setBgOpen] = useState(false);
   const bgRef = useRef<HTMLDivElement>(null);
@@ -3031,6 +3042,33 @@ export default function Sheet() {
       return { title: `${a.name}: to hit`, rows, total: fmt(a.toHit), notes: [...(prof ? [] : a.ability ? ["Not proficient with this weapon, so no Proficiency Bonus."] : []), `Damage: ${a.damage} ${a.type}.`, ...rollNotes({ kind: "attack" })] };
     }
     const rest = key.slice(kind.length + 1);
+    if (kind === "rest") {
+      const pact = slots.some((x) => x.pact);
+      const shortBits = [
+        "features that recharge on a Short Rest come back",
+        ...(pact ? ["your Pact Magic spell slots come back"] : []),
+        "effects that last 1 hour or less end",
+        `the Game Log offers Spend a Hit Die (you have ${hdLeft} left)`,
+      ];
+      const longBits = [
+        `your Hit Points go back to ${hpMax} and Temporary Hit Points go away`,
+        "all Hit Point Dice and spell slots come back",
+        "features that recharge on a Long Rest come back",
+        ...(p.exhaustion ? [`your Exhaustion level goes down to ${p.exhaustion - 1}`] : []),
+        "active effects and Concentration end",
+      ];
+      const tidy = (xs: string[]) => `On this sheet, ${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}.`;
+      if (arg === "short") return { title: "Short Rest", rows: [], total: "", notes: [ruleText("Short Rest"), tidy(shortBits)].filter(Boolean) };
+      if (arg === "long") return { title: "Long Rest", rows: [], total: "", notes: [ruleText("Long Rest"), tidy(longBits), "After you finish a Long Rest, you must wait at least 16 hours before starting another one."].filter(Boolean) };
+      return {
+        title: "Rest", rows: [], total: "",
+        notes: [
+          `Opens Short Rest and Long Rest.${narrow ? " Turn Explainer Mode off to use it." : ""}`,
+          `Short Rest: ${ruleText("Short Rest") || "a 1-hour period of downtime."}`,
+          `Long Rest: ${ruleText("Long Rest") || "at least 8 hours of extended downtime."}`,
+        ],
+      };
+    }
     if (kind === "insp") {
       const auto = fx.onLongRest.filter((x) => x.regain === "heroic-inspiration").map((x) => x.source);
       return {
@@ -3237,7 +3275,7 @@ export default function Sheet() {
           </div>
           <div className="msub">{sp?.name} · {infos.length > 1 ? classLabel(infos) : `${cls?.name} ${c.level}`}</div>
         </div>
-        <button className="mib" aria-label="Short or Long Rest" title={HOW.rests} onClick={() => setMsheet("rest")}>{CAMP_ICON}</button>
+        <button className="mib" data-ex="rest" aria-label="Short or Long Rest" onClick={() => setMsheet("rest")}>{CAMP_ICON}</button>
         <button className={`mib ${p.inspiration ? "on" : ""}`} data-ex="insp" aria-pressed={!!p.inspiration} aria-label="Heroic Inspiration" title={p.inspiration ? "Heroic Inspiration: you have it. Tap to use it." : "Heroic Inspiration: tap when you gain it."} onClick={toggleInsp}>★</button>
       </div>
       <div className="mstat">
@@ -3284,8 +3322,8 @@ export default function Sheet() {
       {msheet === "rest" && (
         <div className="msheet" role="dialog" aria-label="Rest">
           <div className="mshh"><span className="disp">Rest</span><button className="mx" aria-label="Close" onClick={() => setMsheet("")}>✕</button></div>
-          <button className="sbtn" onClick={() => { setMsheet(""); shortRest(); }}>Short Rest</button>
-          <button className="sbtn" onClick={() => { setMsheet(""); longRest(); }}>Long Rest</button>
+          <button className="sbtn" data-ex="rest:short" onClick={() => { setMsheet(""); shortRest(); }}>Short Rest</button>
+          <button className="sbtn" data-ex="rest:long" onClick={() => { setMsheet(""); longRest(); }}>Long Rest</button>
           <p className="note">{HOW.rests}</p>
         </div>
       )}
@@ -3360,8 +3398,15 @@ export default function Sheet() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <button className="sbtn sm" title={HOW.rests} onClick={shortRest}>Short rest</button>
-              <button className="sbtn sm" title={HOW.rests} onClick={longRest}>Long rest</button>
+              <div className="restpick" ref={restRef}>
+                <button className={`restbtn ${restOpen ? "on" : ""}`} data-ex="rest" aria-label="Short or Long Rest" aria-haspopup="true" aria-expanded={restOpen} onClick={() => setRestOpen((o) => !o)}>{CAMP_ICON}</button>
+                {restOpen && (
+                  <div className="restmenu" role="menu" aria-label="Rest">
+                    <button role="menuitem" className="sbtn" data-ex="rest:short" onClick={() => { setRestOpen(false); shortRest(); }}>Short Rest</button>
+                    <button role="menuitem" className="sbtn" data-ex="rest:long" onClick={() => { setRestOpen(false); longRest(); }}>Long Rest</button>
+                  </div>
+                )}
+              </div>
               <span className="hsep mobonly" aria-hidden="true" />
               <button className="sbtn ghost sm mobonly" title="Change the order of the boxes on the sheet (phone layout)" onClick={() => setLayoutOpen(true)}>Change layout</button>
             </div>

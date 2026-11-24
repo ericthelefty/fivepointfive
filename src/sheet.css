@@ -960,6 +960,13 @@
 .sheetv .bgopt.on { border-color: var(--s-gold2); color: var(--s-gold); }
 .sheetv .bgthumb { width: 84px; height: 56px; border-radius: 6px; background: var(--s-well) center / cover no-repeat; display: grid; place-items: center; color: var(--s-mut); border: 1px solid var(--line); }
 @media print { .sheetbg, .sheetv .bgpick, .sheetv .bgbar { display: none !important; } }
+/* the campfire button: Short Rest and Long Rest in a small menu */
+.sheetv .restpick { position: relative; }
+.sheetv .restbtn { width: 38px; height: 38px; border-radius: 9px; border: 1px solid var(--line); background: var(--s-panel); color: var(--s-mut); display: grid; place-items: center; cursor: pointer; }
+.sheetv .restbtn:hover, .sheetv .restbtn.on { color: var(--s-gold); border-color: var(--s-gold2); }
+.sheetv .restmenu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; display: grid; gap: 6px; padding: 8px; min-width: 150px;
+  background: var(--s-panel); border: 1px solid var(--s-edge); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+@media print { .sheetv .restpick { display: none !important; } }
 /* the Background Image button sits at the bottom of the page, under Explainer Mode; its menu opens upward */
 .sheetv .bgbar { grid-column: 1 / -1; display: flex; justify-content: center; margin: 4px auto 16px; order: 1000; }
 .sheetv .bgbar .bgmenu { top: auto; bottom: calc(100% + 6px); right: auto; left: 50%; transform: translateX(-50%); }
