@@ -333,7 +333,7 @@
 .sheetv .crithide, .sheetv.crit-out .rolltoast { opacity: 0 !important; transition: opacity .35s ease !important; }
 .sheetv .critback, .sheetv.crit-back .rolltoast { transition: opacity .7s ease !important; }
 .sheetv .dice3d.critd { animation: none; }
-.sheetv.crit-back .dice3d { opacity: 0; transform: translateX(-50%) translateY(-8px); transition: opacity .7s ease, transform .7s ease; }
+.sheetv.crit-back .dice3d { opacity: 0; transform: translate(-50%, calc(-50% - 8px)); transition: opacity .7s ease, transform .7s ease; }
 .sheetv .dice3d::before { content: ""; position: absolute; left: 50%; top: 50%; width: 440px; height: 440px; margin: -220px 0 0 -220px; border-radius: 50%; z-index: -1;
   background: radial-gradient(circle, rgba(227, 178, 94, .35), rgba(227, 178, 94, .08) 45%, transparent 70%); opacity: 0; transform: scale(.6); transition: opacity .5s, transform .8s; pointer-events: none; }
 .sheetv .dice3d.critd::before { opacity: 1; transform: none; }
@@ -369,7 +369,7 @@
 :root[data-theme="light"] .sheetv .invstat b { color: var(--ink); }
 
 /* 3D dice: they tumble in, land on their numbers, then fade */
-.sheetv .dice3d { position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%); z-index: 900; display: flex; gap: 14px; pointer-events: none; perspective: 600px;
+.sheetv .dice3d { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 900; display: flex; gap: 14px; pointer-events: none; perspective: 600px;
   animation: dicefade 1.7s ease forwards; }
 .sheetv .die3d { width: 58px; height: 58px; display: grid; place-items: center; font: 700 22px/1 var(--serif, Georgia, serif); color: #1d1408;
   background: linear-gradient(145deg, #f3d9a0, #c4923f); box-shadow: 0 8px 18px rgba(0, 0, 0, .45), inset 0 2px 0 rgba(255, 255, 255, .5);
@@ -852,7 +852,7 @@
 /* phones: tumble the dice flat (spin and bounce) instead of the 3D flip, which mobile
    browsers draw skewed on clipped shapes; and give the modifier a dark outline so it reads on any background */
 @media (max-width: 900px) {
-  .sheetv .dice3d { perspective: none; bottom: 24%; }
+  .sheetv .dice3d { perspective: none; }
   .sheetv .die3d { width: 64px; height: 64px; font-size: 25px; transform-style: flat; animation-name: dieroll2; animation-duration: .8s; }
   .sheetv .die3d span { animation-name: dienum2; animation-duration: .8s; }
   .sheetv .diewrap { perspective: none; animation-name: dieblur2; animation-duration: .8s; }
