@@ -327,6 +327,23 @@
 @keyframes critshake { 0%, 100% { transform: none; } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
 .sheetv.critfx { animation: critflash .7s ease-out, critshake .35s ease-in-out; }
 @media (prefers-reduced-motion: reduce) { .sheetv.critfx { animation: critflash .7s ease-out; } }
+/* with the dice showing: every box steps aside so only the dice remain (the background image and its fade stay),
+   a gold glow and "Critical Hit" come up around them, then the sheet fades back in, slower than it left */
+/* the boxes are found when it starts (layout wrappers that are display: contents are looked through) */
+.sheetv .crithide, .sheetv.crit-out .rolltoast { opacity: 0 !important; transition: opacity .35s ease !important; }
+.sheetv .critback, .sheetv.crit-back .rolltoast { transition: opacity .7s ease !important; }
+.sheetv .dice3d.critd { animation: none; }
+.sheetv.crit-back .dice3d { opacity: 0; transform: translateX(-50%) translateY(-8px); transition: opacity .7s ease, transform .7s ease; }
+.sheetv .dice3d::before { content: ""; position: absolute; left: 50%; top: 50%; width: 440px; height: 440px; margin: -220px 0 0 -220px; border-radius: 50%; z-index: -1;
+  background: radial-gradient(circle, rgba(227, 178, 94, .35), rgba(227, 178, 94, .08) 45%, transparent 70%); opacity: 0; transform: scale(.6); transition: opacity .5s, transform .8s; pointer-events: none; }
+.sheetv .dice3d.critd::before { opacity: 1; transform: none; }
+.sheetv .critlab { position: absolute; left: 50%; bottom: calc(100% + 18px); transform: translate(-50%, 6px); white-space: nowrap; opacity: 0;
+  font: 700 24px var(--serif, Georgia, serif); letter-spacing: .14em; text-transform: uppercase; color: var(--s-gold); text-shadow: 0 2px 12px rgba(0, 0, 0, .6);
+  transition: opacity .4s .15s, transform .4s .15s; }
+.sheetv .dice3d.critd .critlab { opacity: 1; transform: translate(-50%, 0); }
+/* the natural 20 grows a little (on its wrapper: the die's own roll animation holds its transform) */
+.sheetv .dice3d .diewrap { transition: transform .5s cubic-bezier(.3, 1.6, .5, 1); }
+.sheetv .dice3d.critd .diewrap:has(.die3d.crit) { transform: scale(1.3); }
 .sheetv .cfform { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
 .sheetv .bookrow { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 6px 0; border-top: 1px solid var(--line-2); }
 .sheetv .bk { display: inline-flex; gap: 4px; align-items: center; padding: 2px 4px 2px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }

@@ -44,6 +44,10 @@ const CAMP_ICON = <svg viewBox="0 0 24 24" width="20" height="20" fill="none" st
 type CardAction = { label: string; run: () => void };
 
 /** Rules and controls explained in Explainer Mode (shown on hover; see the sheet's data-title handling). */
+/** How long the dice stay alone on a Critical Hit, and how long the sheet takes to fade back in (ms). */
+const CRIT_HOLD = 1400;
+const CRIT_BACK = 700;
+
 const HOW = {
   modeTail: "If something gives you both Advantage and Disadvantage, they cancel out and you roll one d20. Your pick here applies to every d20 roll until you set it back to Normal; the sheet also adds advantage or disadvantage from your conditions and features on its own.",
   dis: "Disadvantage: roll two d20s and keep the lower one.",
@@ -303,7 +307,33 @@ export default function Sheet() {
   const [riderPick, setRiderPick] = useState<Record<string, string[]>>({});
   const [sound, setSoundState] = useState(soundOn);
   /** A Critical Hit flashes the sheet for a moment. */
-  const [critFx, setCritFx] = useState(false);
+  // a Critical Hit: "flash" (no dice shown), or the sheet steps aside so only the dice show ("out"), then comes back ("back")
+  const [critFx, setCritFx] = useState<false | "flash" | "out" | "back">(false);
+  const critTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => critTimers.current.forEach(clearTimeout), []);
+  // the boxes that step aside on a Critical Hit: the sheet's top-level pieces, looking through display: contents wrappers
+  const critBoxes = useRef<HTMLElement[]>([]);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (critFx === "out" && root) {
+      const found: HTMLElement[] = [];
+      const walk = (el: Element) => {
+        for (const ch of Array.from(el.children)) {
+          if (!(ch instanceof HTMLElement) || ch.matches(".dice3d, .sheetbg, input[type=file]")) continue;
+          if (getComputedStyle(ch).display === "contents") walk(ch);
+          else found.push(ch);
+        }
+      };
+      walk(root);
+      critBoxes.current = found;
+      found.forEach((el) => { el.classList.remove("critback"); el.classList.add("crithide"); });
+    } else if (critFx === "back") {
+      critBoxes.current.forEach((el) => { el.classList.add("critback"); el.classList.remove("crithide"); });
+    } else if (!critFx) {
+      critBoxes.current.forEach((el) => el.classList.remove("crithide", "critback"));
+      critBoxes.current = [];
+    }
+  }, [critFx]);
   /** Dice tumbling onto the sheet after a roll (the "3D dice" toggle). */
   const [dice3d, setDice3dState] = useState(dice3dOn);
   const [diceFx, setDiceFx] = useState<{ key: string; dice: { sides: number; value: number; kept: boolean }[]; crit: boolean; mod: number; tilt: number }>();
@@ -663,6 +693,7 @@ export default function Sheet() {
     setPlay((cur) => ({ log: [entry, ...cur.log].slice(0, 150) }));
     setFlash(entry.id);
     let hold = 0;
+    let shown = false;
     if (["test", "atk", "crit", "fumble", "dmg", "heal", "roll"].includes(entry.cls)) {
       playDice((entry.detail.match(/\[/g) || []).length || 1);
       if (dice3dOn()) {
@@ -684,6 +715,7 @@ export default function Sheet() {
           diceTimer.current = setTimeout(() => setDiceFx(undefined), 1700);
           // keep the total out of the log until the modifier appears beside the dice (the same moment)
           if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+            shown = true;
             hold = dice.length * 60 + 450;
             setRolling(entry.id);
             clearTimeout(holdTimer.current);
@@ -692,7 +724,19 @@ export default function Sheet() {
         }
       }
     }
-    if (entry.cls === "crit") setTimeout(() => { setCritFx(true); setTimeout(() => setCritFx(false), 700); }, hold);
+    // a new roll brings the sheet straight back from a Critical Hit
+    critTimers.current.forEach(clearTimeout);
+    critTimers.current = [];
+    if (entry.cls !== "crit") setCritFx(false);
+    else if (shown) {
+      // once the dice land, every box fades away and only the dice stay, then the sheet fades back in
+      const at = (ms: number, f: () => void) => critTimers.current.push(setTimeout(f, ms));
+      at(hold, () => setCritFx("out"));
+      at(hold + CRIT_HOLD, () => setCritFx("back"));
+      at(hold + CRIT_HOLD + CRIT_BACK, () => setCritFx(false));
+      clearTimeout(diceTimer.current);
+      diceTimer.current = setTimeout(() => setDiceFx(undefined), hold + CRIT_HOLD + CRIT_BACK);
+    } else critTimers.current.push(setTimeout(() => { setCritFx("flash"); critTimers.current.push(setTimeout(() => setCritFx(false), 700)); }, hold));
     // with the log hidden on a phone, show the result briefly so the roll isn't lost
     if (logGone.current) setTimeout(() => setToast(entry), hold);
     if (sharedLog && supabase && editable) {
@@ -3485,7 +3529,7 @@ export default function Sheet() {
 
   return (
     <TipsOn.Provider value={explain}>
-    <div ref={rootRef} data-msec={msec} data-tab={tab} className={`sheetv ${narrow ? `phone ms-${msheet || "none"}` : ""} ${narrow && logHidden ? "loghid" : ""} ${critFx ? "critfx" : ""} ${explain ? "explain" : ""}`}
+    <div ref={rootRef} data-msec={msec} data-tab={tab} className={`sheetv ${narrow ? `phone ms-${msheet || "none"}` : ""} ${narrow && logHidden ? "loghid" : ""} ${critFx === "flash" ? "critfx" : critFx ? `crit-${critFx}` : ""} ${explain ? "explain" : ""}`}
       onMouseOver={explain && !narrow ? (e) => { const el = exFind(e.target); if (el && el !== exAt?.el) exShow(el); } : undefined}
       onMouseLeave={explain && !narrow ? () => setExAt(undefined) : undefined}
       onMouseOut={explain && !narrow ? (e) => { if (!exFind(e.relatedTarget)) setExAt(undefined); } : undefined}
@@ -3500,7 +3544,8 @@ export default function Sheet() {
       {backdropUrl && <div className="sheetbg" aria-hidden="true" style={{ backgroundImage: `url("${backdropUrl}")` }} />}
       {drawerPanel()}
       {diceFx && (
-        <div key={diceFx.key} className="dice3d" aria-hidden="true">
+        <div key={diceFx.key} className={`dice3d ${critFx === "out" || critFx === "back" ? "critd" : ""}`} aria-hidden="true">
+          {diceFx.crit && <div className="critlab">Critical Hit</div>}
           {diceFx.dice.map((x, i) => (
             <div key={i} className="diewrap" style={{ animationDelay: `${i * 60}ms` }}>
             <div className={`die3d d${[4, 6, 8, 10, 12, 20].includes(x.sides) ? x.sides : "x"} ${x.kept ? "" : "dropped"} ${diceFx.crit && x.sides === 20 && x.kept ? "crit" : ""}`}
