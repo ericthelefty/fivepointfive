@@ -331,7 +331,7 @@ export default function Sheet() {
     return (
       <div className="note spchips">
         <b>{label}:</b> {rows.map((r, j) => (
-          <span key={r.sp.id}>{j ? ", " : ""}<button className="linkish" onClick={() => setDrawer({ kind: "spell", id: r.sp.id, via: r.g ? r.g.source : r.k ? `k:${r.k.info.index}` : undefined })}>{r.sp.name}</button> <span className="mut">({ord(r.lvl)})</span></span>
+          <span key={r.sp.id}>{j ? ", " : ""}<button className="linkish" title={`Opens ${r.sp.name}’s full description, with how to cast it.`} onClick={() => setDrawer({ kind: "spell", id: r.sp.id, via: r.g ? r.g.source : r.k ? `k:${r.k.info.index}` : undefined })}>{r.sp.name}</button> <span className="mut">({ord(r.lvl)})</span></span>
         ))}
       </div>
     );
@@ -825,7 +825,7 @@ export default function Sheet() {
   // ---------------------------------------------------- bonus actions
   type BonusRow = {
     key: string; name: string; source: string; detail: string;
-    buttons: { label: string; run: () => void; disabled?: boolean; ghost?: boolean; why?: string }[];
+    buttons: { label: string; run: () => void; disabled?: boolean; ghost?: boolean; why?: string; ex?: string }[];
     pick?: { label: string; options: string[]; value: number; set: (i: number) => void };
     amount?: ReactNode;
   };
@@ -871,8 +871,8 @@ export default function Sheet() {
           key: `light:${it.id}`, name: `${a.name}: extra attack`, source: "Light property",
           detail: `${fmt(a.toHit)} to hit, ${dmg} ${a.type}. After you attack with a different Light weapon using the Attack action.${fx.offhandMod ? ` Adds your modifier to damage (${fx.offhandMod}).` : " No ability modifier to damage unless it’s negative."}${nick ? " Nick: you can make it as part of the Attack action instead, once per turn." : ""}`,
           buttons: [
-            { label: "Attack", run: () => attack({ ...a, name: `${a.name} (extra attack)`, damage: dmg }) },
-            { label: "Damage", ghost: true, run: () => rollDamage(`${a.name} (extra attack)`, dmg, false, a.type, false, dmgMods(a, false)) },
+            { label: "Attack", ex: `t:The extra attack from fighting with two Light weapons: after you attack with one Light weapon, you can take a Bonus Action to attack with a different Light weapon in your other hand. ${HOW.attack}`, run: () => attack({ ...a, name: `${a.name} (extra attack)`, damage: dmg }) },
+            { label: "Damage", ghost: true, ex: `t:Rolls the extra attack’s damage, ${dmg} ${a.type}. You don’t add your ability modifier to it unless it’s negative (or you have a feature like Two-Weapon Fighting).`, run: () => rollDamage(`${a.name} (extra attack)`, dmg, false, a.type, false, dmgMods(a, false)) },
           ],
         });
       }
@@ -888,7 +888,7 @@ export default function Sheet() {
         rows.push({
           key: `act:${a.id}`, name: a.name, source: a.source,
           detail: `${n > 1 ? `${n} Unarmed Strikes` : "An Unarmed Strike"}: ${fmt(ua.toHit)} to hit, ${ua.damage} ${ua.type}.${uses}${a.text ? ` ${a.text}` : ""}`,
-          buttons: [{ label: n > 1 ? `Attack ×${n}` : "Attack", disabled: !ok, why: whyNot(a.cost, a.name), run: () => {
+          buttons: [{ label: n > 1 ? `Attack ×${n}` : "Attack", ex: `do:a:${a.id}`, disabled: !ok, why: whyNot(a.cost, a.name), run: () => {
             if (a.cost) setPlay((cur) => pay(a.cost, cur));
             // one strike at a time, so each gets its own dice animation and log entry
             attack(ua);
@@ -907,8 +907,8 @@ export default function Sheet() {
         pick: labels ? { label: `${a.name}: which option`, options: labels, value: op!.i, set: (i) => setActPick((m) => ({ ...m, [a.id]: i })) } : undefined,
         amount: amountPicker(a.id, op && a.optionCosts ? a.optionCosts[op.i] ?? a.cost : a.cost),
         buttons: [
-          { label: a.cast ? "Cast" : a.creates ? (held ? "Replace" : "Use") : "Use", disabled: (op ? !op.ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable), why: actWhy(a, op), run: () => runFeature(a, op?.i) },
-          ...(held ? [{ label: "End bond", ghost: true, run: () => releaseItem(a) }] : []),
+          { label: a.cast ? "Cast" : a.creates ? (held ? "Replace" : "Use") : "Use", ex: `do:a:${a.id}`, disabled: (op ? !op.ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable), why: actWhy(a, op), run: () => runFeature(a, op?.i) },
+          ...(held ? [{ label: "End bond", ghost: true, ex: `t:Ends the bond with ${held.name}: it stops being your ${a.name} item. You can conjure or bond another later.`, run: () => releaseItem(a) }] : []),
         ],
       });
     }
@@ -920,8 +920,8 @@ export default function Sheet() {
         key: `tog:${t.key}`, name: t.name, source: t.source,
         detail: [t.lines.join("; "), t.duration ? `Lasts ${t.duration}.` : "", res ? `${left} / ${res.max} ${res.name}.` : ""].filter(Boolean).join(" "),
         buttons: t.form
-          ? [{ label: on ? "Change form" : "Choose form", disabled: !on && !ok, why: whyNot(t.cost, t.name), run: () => openForms() }]
-          : [{ label: on ? "Active" : "Use", disabled: on || !ok, why: on ? `${t.name} is already active. End it under Effects to use it again.` : whyNot(t.cost, t.name), run: () => switchOn(t) }],
+          ? [{ label: on ? "Change form" : "Choose form", ex: `do:t:${t.key}`, disabled: !on && !ok, why: whyNot(t.cost, t.name), run: () => openForms() }]
+          : [{ label: on ? "Active" : "Use", ex: `do:t:${t.key}`, disabled: on || !ok, why: on ? `${t.name} is already active. End it under Effects to use it again.` : whyNot(t.cost, t.name), run: () => switchOn(t) }],
       });
     }
     // spells with a Bonus Action casting time
@@ -934,7 +934,7 @@ export default function Sheet() {
         rows.push({
           key: `sp:${k.info.index}:${sp.id}`, name: sp.name, source: `${lvl ? `Level ${lvl}` : "Cantrip"} · ${k.info.cls.name} spell`,
           detail: stripMd(sp.fields["range"] || "") + (sp.fields["duration"] ? ` · ${stripMd(sp.fields["duration"])}` : "") + (lvl && L === undefined ? " · no slots left" : ""),
-          buttons: [{ label: lvl && L && L > lvl ? `Cast (level ${L} slot)` : "Cast", disabled: L === undefined, why: L === undefined ? slotWhy(lvl) : undefined, run: () => castSpell(sp, L || 0, k) }],
+          buttons: [{ label: lvl && L && L > lvl ? `Cast (level ${L} slot)` : "Cast", ex: `do:sp:${lvl && L ? L : "cast"}:${sp.id}`, disabled: L === undefined, why: L === undefined ? slotWhy(lvl) : undefined, run: () => castSpell(sp, L || 0, k) }],
         });
       }
     }
@@ -947,9 +947,9 @@ export default function Sheet() {
       const opt = { mod: ab ? d.mods[ab] : 0, dc: g.dc, free: true, via: g.source };
       const L = lvl ? lowestSlot(lvl) : 0;
       const buttons: BonusRow["buttons"] = [];
-      if (g.atWill || lvl === 0) buttons.push({ label: "Cast", run: () => castSpell(g.spell, lvl, null, opt) });
-      if (free) buttons.push({ label: "Cast free", disabled: freeLeft <= 0, why: freeWhy(free, freeLeft), run: () => castSpell(g.spell, lvl, null, { ...opt, pay: { key: free.key, amount: 1 } }) });
-      if (lvl > 0 && !g.atWill && slots.length) buttons.push({ label: "Use a slot", ghost: true, disabled: L === undefined, why: L === undefined ? slotWhy(lvl) : undefined, run: () => L && castSpell(g.spell, L, null, { mod: opt.mod, dc: g.dc, via: g.source }) });
+      if (g.atWill || lvl === 0) buttons.push({ label: "Cast", ex: `do:sp:${lvl ? "atwill" : "cast"}:${g.spell.id}`, run: () => castSpell(g.spell, lvl, null, opt) });
+      if (free) buttons.push({ label: "Cast free", ex: `do:sp:free:${g.spell.id}`, disabled: freeLeft <= 0, why: freeWhy(free, freeLeft), run: () => castSpell(g.spell, lvl, null, { ...opt, pay: { key: free.key, amount: 1 } }) });
+      if (lvl > 0 && !g.atWill && slots.length) buttons.push({ label: "Use a slot", ghost: true, ex: `do:sp:${L ?? "slot"}:${g.spell.id}`, disabled: L === undefined, why: L === undefined ? slotWhy(lvl) : undefined, run: () => L && castSpell(g.spell, L, null, { mod: opt.mod, dc: g.dc, via: g.source }) });
       rows.push({
         key: `gs:${i}:${g.spell.id}`, name: g.spell.name, source: `${lvl ? `Level ${lvl}` : "Cantrip"} · ${g.source}`,
         detail: [stripMd(g.spell.fields["range"] || ""), free ? `${freeLeft} / ${free.max} free` : ""].filter(Boolean).join(" · "),
@@ -1545,7 +1545,7 @@ export default function Sheet() {
       <div className="rowbtn">
         {a.toHit !== undefined && <button className="sbtn sm" onClick={() => (companion ? companionAttack : attack)(creatureAttack(cr, a))}>{fmt(a.toHit)} to hit</button>}
         {a.save && <span className="tag plain">DC {a.save.dc} {a.save.ability.slice(0, 3)}</span>}
-        {a.damage.length > 0 && <button className="sbtn sm ghost" onClick={() => rollDamage(`${a.name} (${cr.name})`, a.damage.map((x) => x.expr).join("+"), false, a.damage.map((x) => x.type).join(" + "))}>{a.damage.map((x) => x.expr).join(" + ")}</button>}
+        {a.damage.length > 0 && <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(`${a.name} (${cr.name})`, a.damage.map((x) => x.expr).join("+"), false, a.damage.map((x) => x.type).join(" + "))}>{a.damage.map((x) => x.expr).join(" + ")}</button>}
       </div>
     </div>
   );
@@ -1667,7 +1667,7 @@ export default function Sheet() {
                           const full = !on && inGroup >= pickMax(g);
                           const broke = !on && !!o.diceCost && dm !== null && o.diceCost > left;
                           return (
-                            <Btn key={k} className={`sbtn sm ${on ? "" : "ghost"}`} aria-pressed={on} disabled={full || broke}
+                            <Btn key={k} data-ex={`do:go:${t.key}:${o.id}`} className={`sbtn sm ${on ? "" : "ghost"}`} aria-pressed={on} disabled={full || broke}
                               why={full ? `You can add ${pickMax(g)} effect${pickMax(g) > 1 ? "s" : ""} per ${t.name}.` : broke ? `Costs ${o.diceCost}d${dm?.[2]}; only ${left} left.` : undefined}
                               onClick={() => toggle({ ...o, group: g })}>{o.label}{o.diceCost ? ` (−${o.diceCost}d${dm?.[2] || 6})` : ""}</Btn>
                           );
@@ -1675,7 +1675,7 @@ export default function Sheet() {
                       </div>
                     ))}
                   </td>
-                  <td><div className="rowbtn"><Btn className="sbtn sm" disabled={!!perUnit && !payN} why={perUnit && !payN ? "No charges left." : undefined} onClick={roll1}>{dice ? `Roll ${dice} ${main.type && main.type !== "weapon" ? main.type : ""}`.trim() + (t.damage!.length > 1 ? " +" : "") : "Use"}</Btn></div></td>
+                  <td><div className="rowbtn"><Btn data-ex={`do:g:${t.key}`} className="sbtn sm" disabled={!!perUnit && !payN} why={perUnit && !payN ? "No charges left." : undefined} onClick={roll1}>{dice ? `Roll ${dice} ${main.type && main.type !== "weapon" ? main.type : ""}`.trim() + (t.damage!.length > 1 ? " +" : "") : "Use"}</Btn></div></td>
                 </tr>
               );
             })}
@@ -1685,7 +1685,7 @@ export default function Sheet() {
                 <tr key={`hit-${t.key}`}>
                   <td><b>{t.name}</b><div className="note">{t.source}</div></td>
                   <td className="note">{t.text}{res ? ` ${left} / ${res.max} ${res.name}.` : ""}</td>
-                  <td><div className="rowbtn"><Btn className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn></div></td>
+                  <td><div className="rowbtn"><Btn data-ex={`do:g:${t.key}`} className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn></div></td>
                 </tr>
               );
             })}
@@ -1752,7 +1752,7 @@ export default function Sheet() {
     return (
       <>
         <h3 style={{ marginTop: 16 }}>Weapon Mastery</h3>
-        <p className="note" style={{ marginTop: 0 }}>You can use the mastery property of: {fx.masteries.join(", ")}. Whenever you finish a Long Rest you can <button className="linkish" onClick={openRestChoices}>pick different weapons</button>; you can also change them anytime in the <Link to={`/build/${c.id}`}>builder</Link>.</p>
+        <p className="note" style={{ marginTop: 0 }}>You can use the mastery property of: {fx.masteries.join(", ")}. Whenever you finish a Long Rest you can <button className="linkish" title="Opens the choices you can change after a Long Rest, including which weapons you have mastery with." onClick={openRestChoices}>pick different weapons</button>; you can also change them anytime in the <Link to={`/build/${c.id}`}>builder</Link>.</p>
         {rows.length === 0 ? <p className="note">None of the weapons you’re holding are ones you’ve mastered.</p> : (
           <table className="atks bonusacts">
             <tbody>
@@ -1797,23 +1797,23 @@ export default function Sheet() {
           return (
             <span key={r.key} className="fuse">
               <span className="mut">{r.name}{r.die ? ` (${r.die})` : ""}:</span>
-              {r.max <= 10 ? <Pips n={r.max} used={used} onToggle={(i) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: i < (cur.resUsed[r.key] || 0) ? i : i + 1 } }))} /> : <b>{r.max - used}/{r.max}</b>}
+              {r.max <= 10 ? <Pips what={`${r.name}. ${refreshText(r)}`} n={r.max} used={used} onToggle={(i) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: i < (cur.resUsed[r.key] || 0) ? i : i + 1 } }))} /> : <b>{r.max - used}/{r.max}</b>}
               <span className="mut">/ {r.recover === "short" ? "Short Rest" : r.recover === "shortOne" ? "Long Rest (1 back on a Short Rest)" : r.recover === "dawn" ? "Dawn" : r.recover === "never" ? "doesn’t recharge" : "Long Rest"}</span>
             </span>
           );
         })}
         {b.acts.map((a) => (
-          <Btn key={`a-${a.id}`} className="sbtn sm" disabled={optionLabels(a) ? !optionOf(a).ok : !costInfo(a.cost).ok} why={actWhy(a, optionLabels(a) ? optionOf(a) : undefined)} onClick={() => runFeature(a, optionLabels(a) ? optionOf(a).i : undefined)}>
+          <Btn data-ex={`do:a:${a.id}`} key={`a-${a.id}`} className="sbtn sm" disabled={optionLabels(a) ? !optionOf(a).ok : !costInfo(a.cost).ok} why={actWhy(a, optionLabels(a) ? optionOf(a) : undefined)} onClick={() => runFeature(a, optionLabels(a) ? optionOf(a).i : undefined)}>
             {a.name === name ? "Use" : a.name}{a.activation ? ` · ${a.activation}` : ""}
           </Btn>
         ))}
         {b.togs.map((t) => (
-          <Btn key={`t-${t.key}`} className="sbtn sm" disabled={(!t.form && isOn(t.key)) || !costInfo(t.cost).ok} why={isOn(t.key) ? `${t.name} is already active.` : whyNot(t.cost, t.name)} onClick={() => (t.form ? openForms() : switchOn(t))}>
+          <Btn data-ex={`do:t:${t.key}`} key={`t-${t.key}`} className="sbtn sm" disabled={(!t.form && isOn(t.key)) || !costInfo(t.cost).ok} why={isOn(t.key) ? `${t.name} is already active.` : whyNot(t.cost, t.name)} onClick={() => (t.form ? openForms() : switchOn(t))}>
             {t.form ? "Choose form" : isOn(t.key) ? "Active" : "Use"}{t.activation ? ` · ${t.activation}` : ""}
           </Btn>
         ))}
         {b.spells.map((g) => (
-          <button key={`s-${g.spell.id}`} className="sbtn sm ghost" onClick={() => setDrawer({ kind: "spell", id: g.spell.id, via: g.source })}>{g.spell.name} ({spellInfo(g.spell)?.level ? `level ${spellInfo(g.spell)!.level}` : "cantrip"})</button>
+          <button key={`s-${g.spell.id}`} className="sbtn sm ghost" title={`Opens ${g.spell.name}, a spell ${g.source} gives you, with how to cast it.`} onClick={() => setDrawer({ kind: "spell", id: g.spell.id, via: g.source })}>{g.spell.name} ({spellInfo(g.spell)?.level ? `level ${spellInfo(g.spell)!.level}` : "cantrip"})</button>
         ))}
       </div>
     );
@@ -1833,13 +1833,13 @@ export default function Sheet() {
       const st = rowCastState(r);
       return (
         <tr key={`sa-${r.sp.id}-${r.source}`}>
-          <td><button className="linkish spname" onClick={() => setDrawer({ kind: "spell", id: r.sp.id, via: r.g ? r.g.source : r.k ? `k:${r.k.info.index}` : undefined })}>{r.sp.name}</button><div className="note">{r.lvl ? `Level ${r.lvl} spell` : "Cantrip"}{r.source ? ` · ${r.source}` : ""}{stripMd(r.sp.fields["range"] || "") ? ` · ${stripMd(r.sp.fields["range"])}` : ""}</div></td>
+          <td><button className="linkish spname" title={`Opens ${r.sp.name}’s full description, with how to cast it.`} onClick={() => setDrawer({ kind: "spell", id: r.sp.id, via: r.g ? r.g.source : r.k ? `k:${r.k.info.index}` : undefined })}>{r.sp.name}</button><div className="note">{r.lvl ? `Level ${r.lvl} spell` : "Cantrip"}{r.source ? ` · ${r.source}` : ""}{stripMd(r.sp.fields["range"] || "") ? ` · ${stripMd(r.sp.fields["range"])}` : ""}</div></td>
           <td>{fmt(n.atk)}</td>
           <td>{dmg} {type}{pl.attack.count > 1 ? <div className="note">×{pl.attack.count} beams or attacks</div> : null}</td>
           <td>
             {/* a cantrip just rolls; a levelled spell is cast first (spends the slot), then each attack is rolled */}
             <div className="rowbtn">
-              {r.lvl > 0 && !r.g?.atWill && <Btn className="sbtn sm ghost" disabled={!st.ok} why={st.why} title={`Spend ${st.label === "Free" ? "the free use" : "a spell slot"} to cast it, then roll each attack.`} onClick={() => castRow(r)}>{st.label === "Free" ? "Cast free" : "Cast"}</Btn>}
+              {r.lvl > 0 && !r.g?.atWill && <Btn data-ex={`do:sp:${st.label === "Free" ? "free" : st.label === "At will" ? "atwill" : "cast"}:${r.sp.id}`} className="sbtn sm ghost" disabled={!st.ok} why={st.why} title={`Spend ${st.label === "Free" ? "the free use" : "a spell slot"} to cast it, then roll each attack.`} onClick={() => castRow(r)}>{st.label === "Free" ? "Cast free" : "Cast"}</Btn>}
               <button className="sbtn sm" title={`${HOW.attack}${pl.attack.count > 1 ? ` Roll once for each of the ${pl.attack.count} beams or attacks.` : ""}`} onClick={() => attack({ name: r.sp.name, toHit: n.atk, damage: dmg, type, note: "" })}>Attack</button>
               <button className={`sbtn sm ${critFor?.name === r.sp.name ? "critbtn" : "ghost"}`} title={critFor?.name === r.sp.name ? "Your last roll with this spell was a Critical Hit: this rolls its damage dice twice." : `${HOW.dmg}${pl.attack.count > 1 ? " This is one beam's or attack's damage." : ""}`} onClick={() => rollDamage(r.sp.name, dmg, critFor?.name === r.sp.name, type)}>{critFor?.name === r.sp.name ? "Crit damage" : "Damage"}</button>
             </div>
@@ -1859,18 +1859,18 @@ export default function Sheet() {
       seen.add(res.key);
     };
     for (const a of fx.actions) add(`a:${a.id}`, a.name, `${a.activation || "Use"} · ${a.source}`, a.optionCosts ? a.optionCosts.find(Boolean) ?? a.cost : a.cost, (
-      <Btn className="sbtn sm" disabled={optionLabels(a) ? !optionOf(a).ok : !costInfo(a.cost).ok} why={actWhy(a, optionLabels(a) ? optionOf(a) : undefined)} onClick={() => runFeature(a, optionLabels(a) ? optionOf(a).i : undefined)}>{a.cast ? "Cast" : "Use"}</Btn>
+      <Btn data-ex={`do:a:${a.id}`} className="sbtn sm" disabled={optionLabels(a) ? !optionOf(a).ok : !costInfo(a.cost).ok} why={actWhy(a, optionLabels(a) ? optionOf(a) : undefined)} onClick={() => runFeature(a, optionLabels(a) ? optionOf(a).i : undefined)}>{a.cast ? "Cast" : "Use"}</Btn>
     ));
     for (const t of fx.toggles) add(`t:${t.key}`, t.name, `${t.activation || "Use"} · ${t.source}`, t.cost, (
-      <Btn className="sbtn sm" disabled={!costInfo(t.cost).ok || (!t.form && isOn(t.key))} why={isOn(t.key) ? `${t.name} is already active.` : whyNot(t.cost, t.name)} onClick={() => (t.form ? openForms() : switchOn(t))}>{t.form ? "Choose form" : "Use"}</Btn>
+      <Btn data-ex={`do:t:${t.key}`} className="sbtn sm" disabled={!costInfo(t.cost).ok || (!t.form && isOn(t.key))} why={isOn(t.key) ? `${t.name} is already active.` : whyNot(t.cost, t.name)} onClick={() => (t.form ? openForms() : switchOn(t))}>{t.form ? "Choose form" : "Use"}</Btn>
     ));
-    for (const t of fx.triggers) add(`g:${t.key}`, t.name, t.when, t.cost, <Btn className="sbtn sm" disabled={!costInfo(t.cost).ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn>);
+    for (const t of fx.triggers) add(`g:${t.key}`, t.name, t.when, t.cost, <Btn data-ex={`do:g:${t.key}`} className="sbtn sm" disabled={!costInfo(t.cost).ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn>);
     for (const g of fx.grantedSpells) {
       const free = g.free ? resources.find((r) => r.key === g.free) : undefined;
       if (!free) continue;
       const r: SpellRowData = { sp: g.spell, lvl: spellInfo(g.spell)?.level || 0, g, source: g.source };
       const st = rowCastState(r);
-      rows.push({ key: `s:${g.spell.id}:${g.source}`, name: g.spell.name, source: `Free cast · ${g.source}`, res: free, act: <Btn className="sbtn sm" disabled={st.label !== "Free"} why={freeWhy(free, free.max - (p.resUsed[free.key] || 0))} onClick={() => castRow(r)}>Cast free</Btn> });
+      rows.push({ key: `s:${g.spell.id}:${g.source}`, name: g.spell.name, source: `Free cast · ${g.source}`, res: free, act: <Btn data-ex={`do:sp:free:${g.spell.id}`} className="sbtn sm" disabled={st.label !== "Free"} why={freeWhy(free, free.max - (p.resUsed[free.key] || 0))} onClick={() => castRow(r)}>Cast free</Btn> });
       seen.add(free.key);
     }
     // pools with no button of their own (Lay on Hands HP, item charges), so nothing is missed
@@ -1886,7 +1886,7 @@ export default function Sheet() {
                 <td><b>{x.name}</b><div className="note">{x.source}</div></td>
                 <td>
                   {x.res.max <= 10
-                    ? <Pips n={x.res.max} used={used} onToggle={(i) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [x.res.key]: i < (cur.resUsed[x.res.key] || 0) ? i : i + 1 } }))} />
+                    ? <Pips what={`${x.res.name}. ${refreshText(x.res)}`} n={x.res.max} used={used} onToggle={(i) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [x.res.key]: i < (cur.resUsed[x.res.key] || 0) ? i : i + 1 } }))} />
                     : <span><b>{x.res.max - used}</b> / {x.res.max}</span>}
                   <div className="note">{refreshText(x.res).replace(/^It /, "").replace(/^comes/, "Comes")}</div>
                 </td>
@@ -1964,7 +1964,7 @@ export default function Sheet() {
   /** The Cast button, plus a ▾ menu to pick the slot level or cast it as a Ritual. */
   const castControl = (r: SpellRowData, key: string) => {
     const st = rowCastState(r);
-    if (r.book) return <Btn className="sbtn sm" why="" onClick={() => castRitual(r)}>Ritual</Btn>;
+    if (r.book) return <Btn data-ex={`do:sp:${r.book ? "book" : "ritual"}:${r.sp.id}`} className="sbtn sm" why="" onClick={() => castRitual(r)}>Ritual</Btn>;
     const levels = castLevels(r);
     const ritual = isRitual(r.sp) && r.lvl > 0 && !r.g?.atWill;
     const free = r.g?.free ? resources.find((x) => x.key === r.g!.free) : undefined;
@@ -1972,22 +1972,22 @@ export default function Sheet() {
     const menu = levels.length > 1 || ritual || (free && levels.length > 0);
     return (
       <span className="castwrap">
-        <Btn className={`sbtn sm${menu ? " split" : ""}`} disabled={!st.ok} why={st.why} onClick={() => castRow(r)}>{st.label}</Btn>
-        {menu && <button className="sbtn sm split2" aria-label={`Choose how to cast ${r.sp.name}`} aria-expanded={castMenu?.key === key} onClick={(e) => {
+        <Btn data-ex={`do:sp:${st.label === "Free" ? "free" : st.label === "At will" ? "atwill" : "cast"}:${r.sp.id}`} className={`sbtn sm${menu ? " split" : ""}`} disabled={!st.ok} why={st.why} onClick={() => castRow(r)}>{st.label}</Btn>
+        {menu && <button className="sbtn sm split2" aria-label={`Choose how to cast ${r.sp.name}`} title={`Opens the ways to cast ${r.sp.name}: with a higher level slot, a free use${isRitual(r.sp) ? " or as a Ritual" : ""}.`} aria-expanded={castMenu?.key === key} onClick={(e) => {
           const rc = (e.currentTarget.parentElement || e.currentTarget).getBoundingClientRect();
           setCastMenu(castMenu?.key === key ? undefined : { key, x: Math.max(8, Math.min(rc.left, window.innerWidth - 248)), y: rc.bottom + 4 });
         }}>▾</button>}
         {menu && castMenu?.key === key && (
           <span className="castmenu" role="menu" style={{ left: castMenu.x, top: Math.max(8, Math.min(castMenu.y, window.innerHeight - 40 - 46 * (levels.length + 2))) }}>
-            {free && <button role="menuitem" disabled={freeLeft <= 0} onClick={() => { castRow(r); setCastMenu(undefined); }}><b>Free</b><span>{freeLeft} use{freeLeft === 1 ? "" : "s"} left · {free.name}</span></button>}
+            {free && <button data-ex={`do:sp:free:${r.sp.id}`} role="menuitem" disabled={freeLeft <= 0} onClick={() => { castRow(r); setCastMenu(undefined); }}><b>Free</b><span>{freeLeft} use{freeLeft === 1 ? "" : "s"} left · {free.name}</span></button>}
             {levels.map((x) => (
               <Tip key={x.L} tip={x.left > 0 ? "" : slotWhy(x.L)}>
-                <button role="menuitem" disabled={x.left <= 0} onClick={() => { castRow(r, x.L); setCastMenu(undefined); }}>
+                <button data-ex={`do:sp:${x.L}:${r.sp.id}`} role="menuitem" disabled={x.left <= 0} onClick={() => { castRow(r, x.L); setCastMenu(undefined); }}>
                   <b>Level {x.L}</b><span>{x.what ? `${x.what} · ` : ""}{x.left} slot{x.left === 1 ? "" : "s"} left</span>
                 </button>
               </Tip>
             ))}
-            {ritual && <button role="menuitem" onClick={() => { castRitual(r); setCastMenu(undefined); }}><b>As a Ritual</b><span>No slot · takes 10 minutes longer</span></button>}
+            {ritual && <button data-ex={`do:sp:ritual:${r.sp.id}`} role="menuitem" onClick={() => { castRitual(r); setCastMenu(undefined); }}><b>As a Ritual</b><span>No slot · takes 10 minutes longer</span></button>}
           </span>
         )}
       </span>
@@ -2041,9 +2041,9 @@ export default function Sheet() {
         </div>
         <input type="search" className="spsearch" placeholder="Search spell names, casting times, damage types, conditions…" value={spellQ} onChange={(e) => setSpellQ(e.target.value)} aria-label="Search spells" />
         <div className="chipsrow" role="group" aria-label="Spell level">
-          <button className={spellLvl === "all" ? "on" : ""} onClick={() => setSpellLvl("all")}>All</button>
-          {levels.map((L) => <button key={L} className={spellLvl === String(L) ? "on" : ""} onClick={() => setSpellLvl(String(L))}>{L === 0 ? "Cantrips" : `${L}${["st", "nd", "rd"][L - 1] || "th"}`}</button>)}
-          {rows.some((r) => /ritual/i.test(r.sp.fields["casting time"] || "")) && <button className={spellLvl === "ritual" ? "on" : ""} onClick={() => setSpellLvl("ritual")}>Ritual</button>}
+          <button data-exnav className={spellLvl === "all" ? "on" : ""} title="Shows all your spells." onClick={() => setSpellLvl("all")}>All</button>
+          {levels.map((L) => <button key={L} data-exnav className={spellLvl === String(L) ? "on" : ""} title={`Shows only your ${L ? `level ${L}` : "cantrip"} spells.`} onClick={() => setSpellLvl(String(L))}>{L === 0 ? "Cantrips" : `${L}${["st", "nd", "rd"][L - 1] || "th"}`}</button>)}
+          {rows.some((r) => /ritual/i.test(r.sp.fields["casting time"] || "")) && <button data-exnav className={spellLvl === "ritual" ? "on" : ""} title="Shows only spells you can cast as a Ritual: no spell slot, but it takes 10 minutes longer." onClick={() => setSpellLvl("ritual")}>Ritual</button>}
         </div>
         {shown.length === 0 && <p className="note">{rows.length ? "No spells match." : "No spells yet."}</p>}
         {groups.map((L) => {
@@ -2057,7 +2057,7 @@ export default function Sheet() {
                   return (
                     <span key={key} className="spslots">
                       {sl.pact && <span className="mut">Pact</span>}
-                      <Pips n={sl.max + Math.max(0, -(p.slotsUsed[key] || 0))} used={Math.max(0, p.slotsUsed[key] || 0)} onToggle={(i) => setPlay((cur) => {
+                      <Pips what={`${sl.pact ? "Pact Magic" : `Level ${sl.level}`} spell slots (casting a spell with the sheet’s Cast buttons marks them for you)`} n={sl.max + Math.max(0, -(p.slotsUsed[key] || 0))} used={Math.max(0, p.slotsUsed[key] || 0)} onToggle={(i) => setPlay((cur) => {
                         const u = cur.slotsUsed[key] || 0, extra = Math.max(0, -u), shownU = Math.max(0, u);
                         return { slotsUsed: { ...cur.slotsUsed, [key]: (i < shownU ? i : i + 1) - extra } };
                       })} />
@@ -2079,14 +2079,14 @@ export default function Sheet() {
                       <tr key={`${r.sp.id}-${i}`}>
                         <td>{castControl(r, `${r.sp.id}-${r.source}-${i}`)}</td>
                         <td>
-                          <button className="linkish spname" onClick={() => setDrawer({ kind: "spell", id: r.sp.id, via: r.g ? r.g.source : r.k ? `k:${r.k.info.index}` : undefined })}>{r.sp.name}</button>
+                          <button className="linkish spname" title={`Opens ${r.sp.name}’s full description, with how to cast it.`} onClick={() => setDrawer({ kind: "spell", id: r.sp.id, via: r.g ? r.g.source : r.k ? `k:${r.k.info.index}` : undefined })}>{r.sp.name}</button>
                           {conc && <span className="tagm plain" title="Concentration">C</span>}{ritual && <span className="tagm plain" title="Ritual">R</span>}
                           {r.source && <div className="note">{r.source}</div>}
                         </td>
                         <td>{shortTime(r.sp.fields["casting time"] || "")}</td>
                         <td>{stripMd(r.sp.fields["range"] || "").replace(/ feet/, " ft.")}</td>
                         <td>{pl?.attack ? fmt(n.atk) : pl?.save ? `${pl.save.ability.slice(0, 3).toUpperCase()} ${n.dc}` : "—"}</td>
-                        <td>{dmg ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, dmg, isSmite(r.sp) && takeCrit(`spell:${r.sp.id}`), pl!.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{dmg}{pl?.attack && pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</button> : pl?.heal ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>{pl.heal} heal</button> : pl?.tempHp ? <span className="effkind">{pl.tempHp} temp HP</span> : pl?.conditions.length ? <Tip tip={`Targets can end up ${pl.conditions.join(" or ")}.`}><span className="effkind cond">{pl.conditions.join(", ")}</span></Tip> : <span className="effkind">{pl?.kind || "—"}</span>}</td>
+                        <td>{dmg ? <button className="sbtn sm ghost" title={`Rolls ${r.sp.name}’s ${dmg} and adds it to the Game Log. It doesn’t spend a slot: use Cast for that.`} onClick={() => rollDamage(r.sp.name, dmg, isSmite(r.sp) && takeCrit(`spell:${r.sp.id}`), pl!.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{dmg}{pl?.attack && pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</button> : pl?.heal ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>{pl.heal} heal</button> : pl?.tempHp ? <span className="effkind">{pl.tempHp} temp HP</span> : pl?.conditions.length ? <Tip tip={`Targets can end up ${pl.conditions.join(" or ")}.`}><span className="effkind cond">{pl.conditions.join(", ")}</span></Tip> : <span className="effkind">{pl?.kind || "—"}</span>}</td>
                         <td className="note">{spellNotes(r.sp, pl)}</td>
                       </tr>
                     );
@@ -2155,11 +2155,11 @@ export default function Sheet() {
       if (wizard && !bookNames.has(n)) {
         return freeLeft > 0
           ? <button className="sbtn sm ghost" title="One of the two Wizard spells you add to your spellbook when you gain a Wizard level. It costs nothing." onClick={() => addToBook(n, L, "level")}>Add to spellbook</button>
-          : <Btn className="sbtn sm ghost" disabled={gold < L * 50 && !house} why={`Copying a level ${L} spell costs ${L * 50} GP; you have ${gold} GP.`}
+          : <Btn title={`Copies ${n} into your spellbook from a scroll or book you found: ${L * 2} hours and ${L * 50} GP (the sheet takes the gold).`} className="sbtn sm ghost" disabled={gold < L * 50 && !house} why={`Copying a level ${L} spell costs ${L * 50} GP; you have ${gold} GP.`}
               onClick={() => { if (confirm(`Copy ${n} into your spellbook?\n\nCopying a Spell into the Book: for each level of the spell, the transcription takes 2 hours and costs 50 GP. For this level ${L} spell that's ${L * 2} hours and ${L * 50} GP, taken from your coins.\n\nYou can copy a Wizard spell you find, such as on a Spell Scroll. Your GM decides which spells you find.`)) addToBook(n, L, "copied"); }}>Copy · {L * 50} GP</Btn>;
       }
       const on = prepared.includes(n);
-      return <Btn className={`sbtn sm ${on ? "gold" : ""}`} aria-pressed={on} disabled={!on && prepCount >= ci.prepared && !house} why={`You can prepare ${ci.prepared} spells; unprepare one first.`}
+      return <Btn title={on ? `${n} is prepared, so you can cast it. Press it to unprepare it and free up a place (${prepCount} of ${ci.prepared} prepared).` : `Prepares ${n} so you can cast it (${prepCount} of ${ci.prepared} prepared). You change prepared spells when you finish a Long Rest.`} className={`sbtn sm ${on ? "gold" : ""}`} aria-pressed={on} disabled={!on && prepCount >= ci.prepared && !house} why={`You can prepare ${ci.prepared} spells; unprepare one first.`}
         onClick={() => write({ spells: on ? prepared.filter((x) => x !== n) : [...prepared, n] })}>{on ? "✓ Prepared" : "Prepare"}</Btn>;
     };
     return (
@@ -2199,8 +2199,8 @@ export default function Sheet() {
         </p>
         <input className="mgrsearch" value={mgr.q} onChange={(e) => setMgr({ ...mgr, q: e.target.value })} placeholder="Search names, schools or casting times" aria-label="Search spells" />
         <div className="chipsrow" role="group" aria-label="Spell level" style={{ marginTop: 8 }}>
-          <button className={mgr.lvl === "all" ? "on" : ""} onClick={() => setMgr({ ...mgr, lvl: "all" })}>All</button>
-          {levels.map((L) => <button key={L} className={mgr.lvl === L ? "on" : ""} onClick={() => setMgr({ ...mgr, lvl: L })}>{L ? `${L}${["st", "nd", "rd"][L - 1] || "th"}` : "Cantrips"}</button>)}
+          <button data-exnav className={mgr.lvl === "all" ? "on" : ""} title="Shows spells of every level to pick from." onClick={() => setMgr({ ...mgr, lvl: "all" })}>All</button>
+          {levels.map((L) => <button key={L} data-exnav className={mgr.lvl === L ? "on" : ""} title={`Shows ${L ? `level ${L}` : "cantrip"} spells to pick from.`} onClick={() => setMgr({ ...mgr, lvl: L })}>{L ? `${L}${["st", "nd", "rd"][L - 1] || "th"}` : "Cantrips"}</button>)}
           {wizard && <button className={mgr.view === "book" ? "on" : ""} aria-pressed={mgr.view === "book"} onClick={() => setMgr({ ...mgr, view: mgr.view === "book" ? "all" : "book" })}>Spellbook</button>}
           <button className={mgr.view === "mine" ? "on" : ""} aria-pressed={mgr.view === "mine"} onClick={() => setMgr({ ...mgr, view: mgr.view === "mine" ? "all" : "mine" })}>{wizard ? "Known & prepared" : "Mine only"}</button>
         </div>
@@ -2212,7 +2212,7 @@ export default function Sheet() {
               {rows.filter((r) => r.L === L).map(({ sp }) => (
                 <div key={sp.id} className="mgrrow">
                   <div style={{ minWidth: 0 }}>
-                    <button className="linkish spname" onClick={() => setDrawer({ kind: "spell", id: sp.id, back: k.info.index })}>{sp.name}</button>
+                    <button className="linkish spname" title={`Opens ${sp.name}’s full description.`} onClick={() => setDrawer({ kind: "spell", id: sp.id, back: k.info.index })}>{sp.name}</button>
                     <div className="note" style={{ margin: 0 }}>{wizard && L > 0 && bookNames.has(sp.name) && <span className="tag plain inbook">{prepared.includes(sp.name) ? "In your book · prepared" : "In your book"}</span>}{[spellInfo(sp)?.school, stripMd(sp.fields["casting time"] || ""), stripMd(sp.fields["range"] || ""), /concentration/i.test(sp.fields["duration"] || "") ? "Concentration" : "", isRitual(sp) ? "Ritual" : ""].filter(Boolean).join(" · ")}</div>
                   </div>
                   {editable ? action(sp, L) : null}
@@ -2248,7 +2248,7 @@ export default function Sheet() {
           <div className="drcast">
             {r.book ? (
               <>
-                <button className="sbtn" onClick={() => castRitual(r)}>Cast as a Ritual</button>
+                <button data-ex={`do:sp:${r.book ? "book" : "ritual"}:${r.sp.id}`} className="sbtn" onClick={() => castRitual(r)}>Cast as a Ritual</button>
                 <span className="note">It’s in your spellbook but not prepared. Ritual Adept lets you cast it as a Ritual by reading from the book: no slot, 10 minutes longer.</span>
               </>
             ) : <>
@@ -2261,19 +2261,19 @@ export default function Sheet() {
             )}
             {lvl > 0 && !r.g?.atWill ? (
               <>
-                <Btn className="sbtn" disabled={slotLeft(L) <= 0} why={slotWhy(L)} onClick={() => castRow(r, L)}>Cast with a level {L} slot</Btn>
-                {free && <Btn className="sbtn ghost" disabled={!st.ok || st.label !== "Free"} why={freeWhy(free, free.max - (p.resUsed[free.key] || 0))} onClick={() => castRow(r)}>Cast free ({free.max - (p.resUsed[free.key] || 0)} left)</Btn>}
+                <Btn data-ex={`do:sp:${L}:${r.sp.id}`} className="sbtn" disabled={slotLeft(L) <= 0} why={slotWhy(L)} onClick={() => castRow(r, L)}>Cast with a level {L} slot</Btn>
+                {free && <Btn data-ex={`do:sp:free:${r.sp.id}`} className="sbtn ghost" disabled={!st.ok || st.label !== "Free"} why={freeWhy(free, free.max - (p.resUsed[free.key] || 0))} onClick={() => castRow(r)}>Cast free ({free.max - (p.resUsed[free.key] || 0)} left)</Btn>}
               </>
-            ) : <button className="sbtn" onClick={() => castRow(r)}>Cast</button>}
-            {lvl > 0 && !r.g?.atWill && isRitual(sp) && <Tip tip="No slot used; casting takes 10 minutes longer."><button className="sbtn ghost" onClick={() => castRitual(r)}>Cast as a Ritual</button></Tip>}
+            ) : <button data-ex={`do:sp:${st.label === "Free" ? "free" : st.label === "At will" ? "atwill" : "cast"}:${r.sp.id}`} className="sbtn" onClick={() => castRow(r)}>Cast</button>}
+            {lvl > 0 && !r.g?.atWill && isRitual(sp) && <Tip tip="No slot used; casting takes 10 minutes longer."><button data-ex={`do:sp:${r.book ? "book" : "ritual"}:${r.sp.id}`} className="sbtn ghost" onClick={() => castRitual(r)}>Cast as a Ritual</button></Tip>}
             </>}
           </div>
           {pl && (
             <div className="drsum">
               {pl.attack && <span>Spell attack <b>{fmt(n.atk)}</b>{pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</span>}
               {pl.save && <span>{pl.save.ability} save DC <b>{n.dc}</b>{pl.save.success === "half" ? " (half on a success)" : ""}</span>}
-              {pl.damage.length > 0 && <button className="sbtn sm ghost" onClick={() => rollDamage(sp.name, pl.damage.map((x) => x.dice).join("+"), isSmite(sp) && takeCrit(`spell:${sp.id}`), pl.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{pl.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}</button>}
-              {pl.heal && <button className="sbtn sm ghost" onClick={() => rollDamage(sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>Heal {pl.heal}</button>}
+              {pl.damage.length > 0 && <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(sp.name, pl.damage.map((x) => x.dice).join("+"), isSmite(sp) && takeCrit(`spell:${sp.id}`), pl.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{pl.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}</button>}
+              {pl.heal && <button className="sbtn sm ghost" title={`Rolls the healing (${pl.heal}) and adds it to the Game Log, to give to whoever you healed.`} onClick={() => rollDamage(sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>Heal {pl.heal}</button>}
             </div>
           )}
           <dl className="drprops">
@@ -2389,13 +2389,13 @@ export default function Sheet() {
                 <span key={x.id} className={`bk ${prep ? "on" : ""}`}>
                   {x.name}{mine?.how === "copied" ? <span className="mut"> · copied</span> : null}
                   {editable && (
-                    <Btn className="sbtn sm ghost" disabled={!prep && !house && prepared.length >= prepMax} why={`You can prepare ${prepMax} spells; unprepare one first. You change prepared spells when you finish a Long Rest.`}
+                    <Btn title={prep ? `Unprepares ${x.name}; it stays in your spellbook.` : `Prepares ${x.name} from your spellbook so you can cast it (${prepared.length} of ${prepMax} prepared).`} className="sbtn sm ghost" disabled={!prep && !house && prepared.length >= prepMax} why={`You can prepare ${prepMax} spells; unprepare one first. You change prepared spells when you finish a Long Rest.`}
                       onClick={() => {
                         setPrepared(prep ? k.info.spells.filter((n) => n !== x.name) : [...k.info.spells, x.name]);
                         if (prep && !mine) setBook([...book, { name: x.name, how: "level" }]); // it stays in the book
                       }}>{prep ? "Unprepare" : "Prepare"}</Btn>
                   )}
-                  {editable && mine && !prep && <button className="sbtn sm ghost" aria-label={`Remove ${x.name} from the spellbook`} onClick={() => setBook(book.filter((b) => b.name !== x.name))}>✕</button>}
+                  {editable && mine && !prep && <button className="sbtn sm ghost" aria-label={`Remove ${x.name} from the spellbook`} title={`Removes ${x.name} from your spellbook (for a spell added by mistake).`} onClick={() => setBook(book.filter((b) => b.name !== x.name))}>✕</button>}
                 </span>
               );
             })}
@@ -2407,9 +2407,9 @@ export default function Sheet() {
               <option value="">Add a {listName} spell…</option>
               {candidates.map((x) => <option key={x.id} value={x.name}>{x.name} (level {spellInfo(x)!.level})</option>)}
             </select>
-            <Btn className="sbtn sm" disabled={!pick || (freeLeft <= 0 && !house)} why={!pick ? "Choose a spell first." : `You’ve added all ${free} spells your Wizard levels give you. Copy a spell you find instead.`}
+            <Btn title="Adds the spell picked beside it to your spellbook as one of the two free Wizard spells you get each Wizard level." className="sbtn sm" disabled={!pick || (freeLeft <= 0 && !house)} why={!pick ? "Choose a spell first." : `You’ve added all ${free} spells your Wizard levels give you. Copy a spell you find instead.`}
               onClick={() => { setBook([...book, { name: pick, how: "level" }]); setBookPick(""); }}>Add to spellbook</Btn>
-            <Btn className="sbtn sm ghost" disabled={!pick || (gold < copyCost && !house)} why={!pick ? "Choose a spell first." : `Copying it costs ${copyCost} GP; you have ${gold}.`}
+            <Btn title={`Copies the spell picked beside it into your spellbook from a scroll or book you found: 2 hours and 50 GP per spell level (the sheet takes the gold).`} className="sbtn sm ghost" disabled={!pick || (gold < copyCost && !house)} why={!pick ? "Choose a spell first." : `Copying it costs ${copyCost} GP; you have ${gold}.`}
               onClick={() => { if (confirm(`Copy ${pick} into your spellbook?\n\nCopying a Spell into the Book: for each level of the spell, the transcription takes 2 hours and costs 50 GP. For this level ${pickLvl} spell that's ${pickLvl * 2} hours and ${copyCost} GP, taken from your coins.\n\nYou can copy a Wizard spell you find, such as on a Spell Scroll. Your GM decides which spells you find.`)) copy(); }}>{pick ? `Copy (${copyCost} GP, ${pickLvl * 2} hours)` : "Copy"}</Btn>
           </div>
         )}
@@ -2445,7 +2445,7 @@ export default function Sheet() {
               <div className="rowbtn" style={{ flexWrap: "wrap" }}>
                 {pc.options!.map((o) => {
                   const on = pc.chosen.includes(o.value);
-                  return <Btn key={o.value} className={`sbtn sm ${on ? "" : "ghost"}`} aria-pressed={on} disabled={!editable || (!on && pc.chosen.length >= pc.count)} why={!on && pc.chosen.length >= pc.count ? `You can have ${pc.count}; unpick one first.` : undefined}
+                  return <Btn key={o.value} title={`${on ? `${o.label} is picked for ${pc.feature}. Press to unpick it.` : `Picks ${o.label} for ${pc.feature}`} (${pc.chosen.length} of ${pc.count} picked). You can change this when you finish a Long Rest.`} className={`sbtn sm ${on ? "" : "ghost"}`} aria-pressed={on} disabled={!editable || (!on && pc.chosen.length >= pc.count)} why={!on && pc.chosen.length >= pc.count ? `You can have ${pc.count}; unpick one first.` : undefined}
                     onClick={() => setChoice(pc.key, on ? pc.chosen.filter((x) => x !== o.value) : [...pc.chosen, o.value])}>{o.label}</Btn>;
                 })}
               </div>
@@ -2489,7 +2489,7 @@ export default function Sheet() {
               <option value="short">Short or Long Rest</option>
             </select>
             <input placeholder="What it does (optional)" value={customDraft.text} onChange={(e) => setCustomDraft((d0) => ({ ...d0, text: e.target.value }))} aria-label="What it does" style={{ flex: 1, minWidth: 160 }} />
-            <button className="sbtn sm" disabled={!cfName.trim()} onClick={add}>Add feature</button>
+            <button className="sbtn sm" title="Adds a feature of your own (from your GM or a book the app doesn’t have) with the name and text you typed. You can give it uses that the sheet tracks." disabled={!cfName.trim()} onClick={add}>Add feature</button>
           </div>
         )}
       </div>
@@ -2527,7 +2527,7 @@ export default function Sheet() {
             <tr>
               <td><b>Opportunity Attack</b><div className="note">Everyone</div></td>
               <td className="note">When a creature you can see leaves your reach, make one melee attack against it{oa ? ` (${oa.name}: ${fmt(oa.toHit)} to hit, ${oa.damage} ${oa.type})` : ""}.</td>
-              <td>{oa && <div className="rowbtn"><button className="sbtn sm" onClick={() => attack({ ...oa, name: `${oa.name} (opportunity attack)` })}>Attack</button></div>}</td>
+              <td>{oa && <div className="rowbtn"><button className="sbtn sm" title={`An Opportunity Attack with ${oa.name}: when a creature you can see leaves your reach, you can take your Reaction to make one melee attack against it. ${HOW.attack}`} onClick={() => attack({ ...oa, name: `${oa.name} (opportunity attack)` })}>Attack</button></div>}</td>
             </tr>
             {acts.map((a) => {
               const op = optionLabels(a) ? optionOf(a) : undefined;
@@ -2535,7 +2535,7 @@ export default function Sheet() {
                 <tr key={`ra-${a.id}`}>
                   <td><b>{a.name}</b><div className="note">{a.source}</div></td>
                   <td className="note">{[a.text, a.save ? `${a.save.dc ? `DC ${a.save.dc} ` : ""}${a.save.ability} save` : "", costInfo(a.cost).res ? `${costInfo(a.cost).left} / ${costInfo(a.cost).res!.max} ${costInfo(a.cost).res!.name}.` : ""].filter(Boolean).join(" ")}</td>
-                  <td><div className="rowbtn"><Btn className="sbtn sm" disabled={op ? !op.ok : !costInfo(a.cost).ok} why={actWhy(a, op)} onClick={() => runFeature(a, op?.i)}>{a.cast ? "Cast" : "Use"}</Btn></div></td>
+                  <td><div className="rowbtn"><Btn data-ex={`do:a:${a.id}`} className="sbtn sm" disabled={op ? !op.ok : !costInfo(a.cost).ok} why={actWhy(a, op)} onClick={() => runFeature(a, op?.i)}>{a.cast ? "Cast" : "Use"}</Btn></div></td>
                 </tr>
               );
             })}
@@ -2545,7 +2545,7 @@ export default function Sheet() {
                 <tr key={`rt-${t.key}`}>
                   <td><b>{t.name}</b><div className="note">{t.source}</div></td>
                   <td className="note">{t.when}: {t.text}{res ? ` ${left} / ${res.max} ${res.name}.` : ""}</td>
-                  <td><div className="rowbtn"><Btn className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn></div></td>
+                  <td><div className="rowbtn"><Btn data-ex={`do:g:${t.key}`} className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn></div></td>
                 </tr>
               );
             })}
@@ -2679,7 +2679,7 @@ export default function Sheet() {
                 )}
                 {cp.pickAny && (
                   <>
-                    {cp.rollDice && <button className="sbtn sm" onClick={() => rollDamage(`${cp.source}: table roll`, cp.rollDice!, false, "")}>Roll {cp.rollDice}</button>}
+                    {cp.rollDice && <button className="sbtn sm" title={`Rolls ${cp.rollDice} on its table and adds the result to the Game Log.`} onClick={() => rollDamage(`${cp.source}: table roll`, cp.rollDice!, false, "")}>Roll {cp.rollDice}</button>}
                     <input list={`cl-${cp.uid}`} className="optpick" placeholder="Type a creature’s name" defaultValue={cp.ref ? creatureFor(cp.ref)?.name : ""} aria-label="Which creature"
                       onChange={(e) => { const hit = allCreatures().find((x) => x.name.toLowerCase() === e.target.value.trim().toLowerCase()); if (hit) setCompanion(cp.uid, { ref: hit.id, hp: undefined }); }} style={{ minWidth: 200 }} />
                     <datalist id={`cl-${cp.uid}`}>{allCreatures().map((x) => <option key={x.id} value={x.name} />)}</datalist>
@@ -2915,10 +2915,11 @@ export default function Sheet() {
     );
   };
 
-  const Pips = ({ n, used, onToggle, f }: { n: number; used: number; onToggle: (i: number) => void; f?: boolean }) => (
+  const Pips = ({ n, used, onToggle, f, what }: { n: number; used: number; onToggle: (i: number) => void; f?: boolean; what?: string }) => (
     <span className="pips">
       {Array.from({ length: n }, (_, i) => (
-        <button key={i} className={`pip ${f ? "f" : ""} ${i < used ? "used" : ""}`} aria-label={`${i < used ? "Restore" : "Use"} ${i + 1}`} onClick={() => onToggle(i)} />
+        <button key={i} className={`pip ${f ? "f" : ""} ${i < used ? "used" : ""}`} aria-label={`${i < used ? "Restore" : "Use"} ${i + 1}`} onClick={() => onToggle(i)}
+          title={what ? `${what}: ${n - used} of ${n} left. ${i < used ? "This one is used: press it to get it back (and any used after it)." : "Press it to mark it used (and any before it), for when you spend one outside the sheet’s buttons."}` : undefined} />
       ))}
     </span>
   );
@@ -2972,8 +2973,121 @@ export default function Sheet() {
     const how = { standard: "standard array", pointbuy: "point buy", "point-buy": "point buy", roll: "rolled", manual: "entered" }[c.method as string] || c.method;
     return `Score ${d.scores[a]} = ${base} (${how})${bg ? ` + ${bg} background` : ""}${rest ? ` ${rest > 0 ? "+" : "−"} ${Math.abs(rest)} from feats and features` : ""}. Modifier = (score − 10) ÷ 2, rounded down.`;
   };
+  /** Explainer Mode for buttons that do something (Use, Cast, Use a slot…): what it is, then what pressing it does. */
+  const explainDo = (key: string): Ex | undefined => {
+    const rest = key.slice(3);
+    const what = rest.slice(0, rest.indexOf(":") < 0 ? rest.length : rest.indexOf(":"));
+    const id = rest.slice(what.length + 1);
+    const firstLines = (t?: string, n = 2) => {
+      // the first paragraph only, so a list of options doesn't end up as the summary
+      const para = (t || "").split(/\n\s*\n/).map((x) => x.trim()).find((x) => x && !/^(#|\||[-*] |```)/.test(x)) || "";
+      const txt = plain(stripMd(para)).replace(/\s+/g, " ").trim();
+      const sents = txt.match(/[^.!?]+[.!?]+(\s|$)/g) || (txt ? [txt] : []);
+      return sents.slice(0, n).join("").trim();
+    };
+    const costLine = (cost?: ModifCost) => {
+      const { res, left } = costInfo(cost);
+      if (!cost || !res) return "";
+      return `Spends ${cost.min !== undefined || cost.any ? "the amount you choose of your" : `${cost.amount}`} ${res.name} (you have ${left} of ${res.max}). ${refreshText(res)}`;
+    };
+    const takes = (act?: string) => (act && !/^(none|special|free)$/i.test(act) ? `Takes your ${act.replace(/^(an?|your) /i, "")}.` : "");
+    const out = (title: string, about: string[], does: string[]): Ex => ({
+      title, rows: [], total: "",
+      notes: [...about.filter(Boolean), ...(does.filter(Boolean).length ? [`Pressing it: ${does.filter(Boolean).join(" ")}`] : []), "What happens goes in the Game Log."],
+    });
+    if (what === "a") {
+      const a = fx.actions.find((x) => x.id === id);
+      if (!a) return undefined;
+      const sp = a.cast ? content.byId(a.cast.spellId) : undefined;
+      const labels = optionLabels(a);
+      const dmg = (a.damage || []).filter((x) => x.dice).map((x) => `${x.dice} ${x.type}`.trim()).join(" + ");
+      return out(a.name, [`From ${a.source}.`, firstLines(a.text) || (sp ? firstLines(sp.body) : "")], [
+        takes(a.activation),
+        labels ? `It uses the option picked in the menu beside it (${labels.slice(0, 4).join(", ")}${labels.length > 4 ? "…" : ""}).` : "",
+        costLine(a.optionCosts && labels ? a.optionCosts[optionOf(a).i] ?? a.cost : a.cost),
+        sp ? `Casts ${sp.name}${a.cast?.level ? ` at level ${a.cast.level}` : ""}${a.cast?.dc ? ` (save DC ${a.cast.dc})` : ""}${a.cast?.scroll ? " from the scroll" : ""}.` : "",
+        a.attack ? `Makes ${a.attack.count > 1 ? `${a.attack.count} attacks` : "an attack"}${a.attack.weapon === "unarmed" ? " with Unarmed Strikes" : ""}, rolling each one.` : "",
+        a.heal || a.healExpr ? `Rolls ${a.heal || "the healing"} and adds it to your Hit Points.` : "",
+        a.tempHp ? `Gives you ${a.tempHp} Temporary Hit Points.` : "",
+        dmg ? `Rolls ${dmg} damage.` : "",
+        a.save ? `Targets make ${/^[aeiou]/i.test(a.save.ability) ? "an" : "a"} ${a.save.ability} saving throw${a.save.dc ? ` against DC ${a.save.dc}` : ""}${a.save.success ? `; ${a.save.success.toLowerCase()} on a success` : ""}.` : "",
+        a.areas?.length ? `Covers a ${a.areas.join(" or ")}.` : "",
+        a.consume ? `Uses up one ${a.consume} from your Inventory.` : "",
+        a.creates ? "Conjures or bonds the item you pick, which shows in your Inventory." : "",
+        a.summon ? "Summons the creature, which shows under Companions." : "",
+        a.rollTable ? `Rolls ${a.rollTable.dice} on the ${a.rollTable.table} table${a.rollTable.keep === "either" ? " twice, and you keep either result" : ""}.` : "",
+      ]);
+    }
+    if (what === "t") {
+      const t = fx.toggles.find((x) => x.key === id);
+      if (!t) return undefined;
+      const on = isOn(t.key);
+      return out(t.name, [`From ${t.source}.`, t.lines.length ? `While it’s on: ${t.lines.join("; ")}.` : ""], t.form ? [
+        takes(t.activation), costLine(t.cost), "Opens the list of forms to choose from, then turns you into the one you pick: the sheet switches to its statistics until it ends.",
+      ] : on ? [`It’s already on. End it under Effects (or Active now) to use it again.`] : [
+        takes(t.activation), costLine(t.cost),
+        `Turns it on: it shows under Active now and its effects apply to your sheet${t.duration ? ` ${/^(until|for|while)\b/i.test(t.duration) ? "" : "for "}${t.duration}` : ""}.`,
+        t.ends ? `It ends ${t.ends.replace(/^ends? /i, "")}.` : Number.isFinite(t.minutes) ? "Rests end it when its time is up." : "",
+      ]);
+    }
+    if (what === "g" || what === "go") {
+      const [tk, optId] = what === "go" ? [id.slice(0, id.lastIndexOf(":")), id.slice(id.lastIndexOf(":") + 1)] : [id, ""];
+      const t = fx.triggers.find((x) => x.key === tk);
+      if (!t) return undefined;
+      if (what === "go") {
+        const o = t.options?.find((x) => x.id === optId);
+        if (!o) return undefined;
+        return out(`${t.name}: ${o.label}`, [firstLines(o.text, 3)], [
+          `Adds this effect to your next ${t.name}${o.diceCost ? `, trading ${o.diceCost} of its damage dice for it` : ""}${o.save ? `; the target makes ${/^[aeiou]/i.test(o.save) ? "an" : "a"} ${o.save} saving throw${t.dc ? ` against DC ${t.dc}` : ""}` : ""}.`,
+          `You can pick up to ${t.pick || 1} per use. Press it again to take it off.`,
+        ]);
+      }
+      const dmg = (t.damage || []).filter((x) => x.dice).map((x) => `${x.dice} ${x.type}`.trim()).join(" + ");
+      return out(t.name, [`From ${t.source}.`, t.when ? `When: ${t.when.replace(/\.$/, "")}.` : "", firstLines(t.text)], [
+        t.reaction ? "Takes your Reaction." : "", costLine(t.cost),
+        dmg ? `Rolls ${dmg} extra damage.` : "Notes that you used it.",
+        t.options?.length ? `Any effects you picked beside it (up to ${t.pick || 1}) go with it.` : "",
+      ]);
+    }
+    if (what === "cv") {
+      const cv = fx.converts.find((x) => x.id === id);
+      if (!cv) return undefined;
+      return out(cv.name, [`From ${cv.source}.`], [takes(cv.activation),
+        `Trades one thing for another: ${cv.options.map((o) => `${sideText(o.spend)} for ${sideText(o.gain)}`).slice(0, 4).join("; ")}.`,
+        cv.perLong ? "Once per Long Rest." : "", cv.expires ? "Slots made this way vanish when you finish a Long Rest." : ""]);
+    }
+    if (what === "sp") {
+      const how = id.slice(0, id.indexOf(":"));
+      const sp = content.byId(id.slice(how.length + 1));
+      if (!sp) return undefined;
+      const lvl = spellInfo(sp)?.level || 0;
+      const g = fx.grantedSpells.find((x) => x.spell.id === sp.id);
+      const free = g?.free ? resources.find((r) => r.key === g.free) : undefined;
+      const freeLeft = free ? free.max - (p.resUsed[free.key] || 0) : 0;
+      const dur = stripMd(sp.fields["duration"] || "");
+      const conc = /concentration/i.test(dur);
+      const lowest = [...new Set(slots.map((x) => x.level))].sort((x, y) => x - y).find((L) => L >= lvl && slotLeft(L) > 0);
+      const slotText = (L: number) => `Uses one of your level ${L} spell slots (you have ${slotLeft(L)} left)${L > lvl ? `, casting it at a higher level than its own (${lvl})` : ""}.`;
+      const uses = how === "ritual" ? "Casts it as a Ritual: it takes 10 minutes longer and uses no spell slot."
+        : how === "book" ? "Casts it as a Ritual straight from your spellbook: it takes 10 minutes longer and uses no spell slot."
+        : how === "atwill" ? "You can cast it at will: no spell slot or use is spent."
+        : how === "free" ? `Uses the free casting from ${g?.source || "your feature"} (${freeLeft} left), not a spell slot. ${free ? refreshText(free) : ""}`
+        : /^\d+$/.test(how) ? slotText(+how)
+        : lvl === 0 ? "It’s a cantrip, so it uses no spell slot."
+        : lowest !== undefined ? slotText(lowest) : slotWhy(lvl);
+      return out(sp.name, [
+        `${sp.tagline || (lvl ? `Level ${lvl} spell` : "Cantrip")}. Casting time ${stripMd(sp.fields["casting time"] || "—")}, range ${stripMd(sp.fields["range"] || "—")}, duration ${dur || "—"}.`,
+        firstLines(sp.body),
+      ], [uses,
+        "The sheet rolls what the spell calls for (attack rolls, damage, healing or the saving throw targets make) and adds anything it does to you under Active now.",
+        conc ? "Starts Concentration, which ends any other spell you’re concentrating on." : "",
+      ]);
+    }
+    return undefined;
+  };
   const explainOf = (key: string): Ex | undefined => {
     if (key.startsWith("t:")) return { title: "", rows: [], total: "", notes: [key.slice(2)] };
+    if (key.startsWith("do:")) return explainDo(key);
     const [kind, arg] = key.split(":");
     if (kind === "ab") {
       const a = arg;
@@ -3135,11 +3249,30 @@ export default function Sheet() {
   const exInfo = (() => {
     const ex = explain && exAt ? explainOf(exAt.key) : undefined;
     const how = exAt && CHANGE[exAt.key.split(":")[0]];
-    return ex && how ? { ...ex, notes: [...ex.notes, `How to change it: ${how}`] } : ex;
+    const why = exAt?.el?.dataset.why;
+    const ex2 = ex && why ? { ...ex, notes: [...ex.notes, `Right now you can’t: ${why}`] } : ex;
+    return ex2 && how ? { ...ex2, notes: [...ex2.notes, `How to change it: ${how}`] } : ex2;
   })();
-  const exFind = (t: EventTarget | null) => (t instanceof Element ? (t.closest("[data-ex], [data-title]") as HTMLElement | null) : null);
-  const exKey = (el: HTMLElement) => el.dataset.ex ?? `t:${el.dataset.title}`;
-  const exShow = (el: HTMLElement | null) => { if (el) setExAt({ key: exKey(el), rect: el.getBoundingClientRect(), el }); };
+  // a control with no explanation of its own (or only its section's) still says what pressing it does
+  const exFind = (t: EventTarget | null) => {
+    if (!(t instanceof Element)) return null;
+    const tagged = t.closest("[data-ex], [data-title]") as HTMLElement | null;
+    const ctl = t.closest("button, summary, a[href], [role=button], [role=switch]") as HTMLElement | null;
+    if (!ctl || !ctl.closest(".sheetv")) return tagged;
+    const own = tagged && (tagged === ctl || ctl.contains(tagged) || (tagged.contains(ctl) && tagged.querySelectorAll("button, summary, a[href]").length <= 1));
+    return own ? tagged : ctl;
+  };
+  const autoEx = (el: HTMLElement) => {
+    const label = (el.getAttribute("aria-label") || el.textContent || "").replace(/\s+/g, " ").replace(/[▾✕]/g, "").trim();
+    if (!label) return "";
+    if (el.tagName === "SUMMARY") return `Shows or hides the full text of ${label.replace(/(Automated|Partly automated|Not automated)$/i, "").trim()}.`;
+    if (el.tagName === "A") return `Opens ${label}.`;
+    if (el.getAttribute("aria-pressed") !== null) return `${label}: press it to turn it ${el.getAttribute("aria-pressed") === "true" ? "off" : "on"}.`;
+    if (el.getAttribute("aria-expanded") !== null) return `${label}: opens or closes it.`;
+    return `Press “${label}” to use it.`;
+  };
+  const exKey = (el: HTMLElement) => el.dataset.ex ?? (el.dataset.title ? `t:${el.dataset.title}` : `t:${autoEx(el)}`);
+  const exShow = (el: HTMLElement | null) => { if (el && exKey(el) !== "t:") setExAt({ key: exKey(el), rect: el.getBoundingClientRect(), el }); };
 
   const toggleInsp = () => { setPlay({ inspiration: !p.inspiration }); log({ title: p.inspiration ? "Used Heroic Inspiration" : "Gained Heroic Inspiration", total: "", cls: "event", detail: p.inspiration ? "Reroll any die immediately after rolling it." : "" }); };
   const trayEl = (
@@ -3159,7 +3292,7 @@ export default function Sheet() {
         log({ title: custom.replace(/\s+/g, ""), total: String(r.total), cls: "roll", detail: `${eqOf(r)}${esc(describeRolled(r))}` });
       }}>
         <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="e.g. 2d6+1d4+3" aria-label="Custom roll" title={HOW.custom} />
-        <button className="sbtn sm">Roll</button>
+        <button className="sbtn sm" title={HOW.custom}>Roll</button>
       </form>
     </div>
   );
@@ -3295,20 +3428,20 @@ export default function Sheet() {
             <div className="hbar"><div style={{ width: `${pct}%` }} className={pct < 25 ? "low" : pct < 50 ? "mid" : ""} /></div>
           </div>
           <div className="mhpb">
-            <button className="sbtn grn" onClick={(e) => { e.stopPropagation(); setMsheet("hp"); }}>Heal</button>
-            <button className="sbtn red" onClick={(e) => { e.stopPropagation(); setMsheet("hp"); }}>Damage</button>
+            <button className="sbtn grn" title={`Opens the Hit Points panel to heal. ${HOW.heal}`} onClick={(e) => { e.stopPropagation(); setMsheet("hp"); }}>Heal</button>
+            <button className="sbtn red" title={`Opens the Hit Points panel to take damage. ${HOW.damage}`} onClick={(e) => { e.stopPropagation(); setMsheet("hp"); }}>Damage</button>
           </div>
         </div>
       </div>
       <div className="mcond">
         {p.conditions.length + activeList.length + (p.exhaustion ? 1 : 0) + (p.concentration ? 1 : 0) + (p.inspiration ? 1 : 0) === 0
-          ? <button className="schip" onClick={() => goSec("tab:conditions")}>Conditions: none · add</button>
+          ? <button className="schip" title="You have no conditions or effects on you. Press it to open Conditions and add one (Poisoned, Prone, Exhaustion…)." onClick={() => goSec("tab:conditions")}>Conditions: none · add</button>
           : chipsEl}
         {castAb && <span className="mdc" data-ex="dc">DC {casters.length > 1 && new Set(casters.map((k) => k.dc)).size > 1 ? casters.map((k) => k.dc).join("/") : spellDC} · atk {fmt(casters[0]?.atk ?? spellAtk)}</span>}
       </div>
       {!editable && <div className="schip conc">Viewing {session.nameOf(row?.owner)}’s character. Rolls work but changes aren’t saved.</div>}
       {cloud && row?.hidden && <div className="schip">Hidden from the group</div>}
-      <button className="msecbar" aria-haspopup="dialog" onClick={() => setMsheet("menu")}>
+      <button className="msecbar" data-exnav aria-haspopup="dialog" title="Opens the list of sections (Skills, Actions, Spells, Inventory…) to jump to another part of the sheet." onClick={() => setMsheet("menu")}>
         <span className="mgrid">{GRID_ICON}</span><span className="msl">{msecLabel}</span><span aria-hidden="true" className="mchev">▾</span>
       </button>
     </div>
@@ -3358,9 +3491,10 @@ export default function Sheet() {
       onMouseOut={explain && !narrow ? (e) => { if (!exFind(e.relatedTarget)) setExAt(undefined); } : undefined}
       onClickCapture={explain && narrow ? (e) => {
         // phones and tablets have no hover: a tap explains instead of rolling
+        // getting around (tabs, filters, the section menu, the Explainer Mode switch) and controls with no explanation of their own still work
         const el = exFind(e.target);
         lastTap.current = e.target instanceof Element ? (e.target.closest("button, a, [role=button]") as HTMLElement | null) : null;
-        if (el) { e.preventDefault(); e.stopPropagation(); exShow(el); } else setExAt(undefined);
+        if (el && (el.dataset.ex || el.dataset.title) && !el.closest("[data-exnav]")) { e.preventDefault(); e.stopPropagation(); exShow(el); } else setExAt(undefined);
       } : undefined}>
       {editable && bgInput}
       {backdropUrl && <div className="sheetbg" aria-hidden="true" style={{ backgroundImage: `url("${backdropUrl}")` }} />}
@@ -3494,7 +3628,7 @@ export default function Sheet() {
                           <div key={key} className="slot">
                             <Tip tip={s.pact ? `Pact Magic, from your ${pactClass || "Warlock"} class (gained at level 1): these slots come back on a Short or Long Rest.` : `Level ${s.level} spell slots, from your ${slotClasses || "class's"} spellcasting: they come back on a Long Rest.`}><span className="sl">{s.pact && slots.some((x) => !x.pact) ? "Pact " : ""}L{s.level}</span></Tip>
                             {/* a negative count is extra slots (created with Font of Magic; gone after a Long Rest) */}
-                            <Pips n={s.max + Math.max(0, -(p.slotsUsed[key] || 0))} used={Math.max(0, p.slotsUsed[key] || 0)} onToggle={(i) => setPlay((cur) => {
+                            <Pips what={`${s.pact ? "Pact Magic" : `Level ${s.level}`} spell slots (casting a spell with the sheet’s Cast buttons marks them for you)`} n={s.max + Math.max(0, -(p.slotsUsed[key] || 0))} used={Math.max(0, p.slotsUsed[key] || 0)} onToggle={(i) => setPlay((cur) => {
                               const u = cur.slotsUsed[key] || 0, extra = Math.max(0, -u), shown = Math.max(0, u);
                               return { slotsUsed: { ...cur.slotsUsed, [key]: (i < shown ? i : i + 1) - extra } };
                             })} />
@@ -3508,7 +3642,7 @@ export default function Sheet() {
                   <div key={r.key} className="slot">
                     <Tip tip={`${sourceText(r)} ${r.die ? `Each is a ${r.die}. ` : ""}${refreshText(r)}`.trim()}><span className="sl">{r.name}{r.die ? ` (${r.die})` : ""}</span></Tip>
                     {r.max <= 10 ? (
-                      <Pips n={r.max} used={p.resUsed[r.key] || 0} onToggle={(i) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: i < (cur.resUsed[r.key] || 0) ? i : i + 1 } }))} />
+                      <Pips what={`${r.name}. ${refreshText(r)}`} n={r.max} used={p.resUsed[r.key] || 0} onToggle={(i) => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: i < (cur.resUsed[r.key] || 0) ? i : i + 1 } }))} />
                     ) : (
                       <span className="counter" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                         <button className="sbtn sm ghost" aria-label={`Use one ${r.name}`} disabled={(p.resUsed[r.key] || 0) >= r.max} onClick={() => setPlay((cur) => ({ resUsed: { ...cur.resUsed, [r.key]: Math.min(r.max, (cur.resUsed[r.key] || 0) + 1) } }))}>−</button>
@@ -3545,7 +3679,7 @@ export default function Sheet() {
                 {([["actions", "Actions"], ["effects", "Effects"], ["spells", "Spells"], ["features", "Features & Feats"], ["conditions", "Conditions"], ["inventory", "Inventory"], ["background", "Background"], ["notes", "Notes"]] as [Tab, string][])
                   .filter(([k]) => k !== "spells" || anyCaster || fx.grantedSpells.length > 0)
                   .map(([k, l]) => (
-                    <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
+                    <button key={k} data-exnav className={tab === k ? "on" : ""} title={`Shows the ${l} tab.`} onClick={() => setTab(k)}>
                       {l}{k === "conditions" && p.conditions.length + (p.exhaustion ? 1 : 0) > 0 && <span className="badge">{p.conditions.length + (p.exhaustion ? 1 : 0)}</span>}
                       {k === "effects" && activeList.length > 0 && <span className="badge">{activeList.length}</span>}
                     </button>
@@ -3559,7 +3693,7 @@ export default function Sheet() {
                 <div className="spanel" style={{ overflowX: "auto" }}>
                   <div className="chipsrow" role="group" aria-label="Show">
                     {([["all", "All"], ["attack", "Attack"], ["action", "Action"], ["bonus", "Bonus Action"], ["reaction", "Reaction"], ["other", "Other"], ["limited", "Limited Use"]] as const).map(([k2, l]) => (
-                      <button key={k2} className={actFilter === k2 ? "on" : ""} aria-pressed={actFilter === k2} onClick={() => setActFilter(k2)}>{l}</button>
+                      <button key={k2} data-exnav className={actFilter === k2 ? "on" : ""} aria-pressed={actFilter === k2} title={k2 === "all" ? "Shows everything you can do." : k2 === "limited" ? "Shows the features you can only use a few times, with the uses you have left." : `Shows only what takes ${k2 === "attack" ? "an attack" : k2 === "other" ? "no action, or something other than an Action, Bonus Action or Reaction" : `${k2 === "action" ? "an" : "a"} ${l}`}.`} onClick={() => setActFilter(k2)}>{l}</button>
                     ))}
                   </div>
                   {actFilter === "limited" && limitedSection()}
@@ -3584,7 +3718,7 @@ export default function Sheet() {
                                     onClick={() => rollDamage(a.name, dmg, !!c, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, !!c?.versatile))}>{c ? "Crit damage" : "Damage"}</button>
                                 );
                               })()}
-                              {a.versatile && <button className="sbtn sm ghost" onClick={() => attack(a, true)}>Two hands</button>}
+                              {a.versatile && <button className="sbtn sm ghost" title={`Attacks with ${a.name} held in two hands (Versatile), which deals ${a.versatile} damage instead of ${a.damage}. ${HOW.attack}`} onClick={() => attack(a, true)}>Two hands</button>}
                             </div>
                           </td>
                         </tr>
@@ -3605,14 +3739,14 @@ export default function Sheet() {
                               ) : a.areas?.[0] ? <div className="note">{a.areas[0]}</div> : null}
                               {a.save?.success === "half" && <div className="note">Half damage on a successful save</div>}
                             </td>
-                            <td><div className="rowbtn"><Btn className="sbtn sm" disabled={!ok} why={actWhy(a)} onClick={() => runFeature(a, undefined, { roll: true, area: a.areas?.[ai] })}>Use</Btn></div></td>
+                            <td><div className="rowbtn"><Btn data-ex={`do:a:${a.id}`} className="sbtn sm" disabled={!ok} why={actWhy(a)} onClick={() => runFeature(a, undefined, { roll: true, area: a.areas?.[ai] })}>Use</Btn></div></td>
                           </tr>
                         );
                       })}
                       {spellAttackRows()}
                     </tbody>
                   </table>
-                  <p className="note" style={{ marginTop: 10 }}>{formCr ? <>In {formCr.name} form you attack with its natural weapons. </> : null}Attacks come from the weapons equipped in your <button className="linkish" onClick={() => setTab("inventory")}>Inventory</button>{formCr ? "" : " and your spells that make attack rolls"}.{d.critRange < 20 ? ` Your weapon attacks score a Critical Hit on a ${d.critRange}–20.` : ""}</p>
+                  <p className="note" style={{ marginTop: 10 }}>{formCr ? <>In {formCr.name} form you attack with its natural weapons. </> : null}Attacks come from the weapons equipped in your <button className="linkish" title="Shows the Inventory tab, where you equip weapons and armor." onClick={() => setTab("inventory")}>Inventory</button>{formCr ? "" : " and your spells that make attack rolls"}.{d.critRange < 20 ? ` Your weapon attacks score a Critical Hit on a ${d.critRange}–20.` : ""}</p>
                   </>}
                   {(actFilter === "all" || actFilter === "bonus") && (() => {
                     const rows = bonusRows();
@@ -3635,7 +3769,7 @@ export default function Sheet() {
                                     )}
                                     {b.amount}
                                   </td>
-                                  <td><div className="rowbtn">{b.buttons.map((x) => <Btn key={x.label} className={`sbtn sm ${x.ghost ? "ghost" : ""}`} disabled={x.disabled} why={x.why} onClick={x.run}>{x.label}</Btn>)}</div></td>
+                                  <td><div className="rowbtn">{b.buttons.map((x) => <Btn key={x.label} data-ex={x.ex} className={`sbtn sm ${x.ghost ? "ghost" : ""}`} disabled={x.disabled} why={x.why} onClick={x.run}>{x.label}</Btn>)}</div></td>
                                 </tr>
                               ))}
                             </tbody>
@@ -3677,7 +3811,7 @@ export default function Sheet() {
                                 )}
                                 {amountPicker(a.id, optionLabels(a) && a.optionCosts ? a.optionCosts[optionOf(a).i] ?? a.cost : a.cost)}
                               </td>
-                              <td><div className="rowbtn"><Btn className="sbtn sm" onClick={() => runFeature(a, optionLabels(a) ? optionOf(a).i : undefined)} disabled={(optionLabels(a) ? !optionOf(a).ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable)} why={actWhy(a, optionLabels(a) ? optionOf(a) : undefined)}>{a.cast ? "Cast" : "Use"}</Btn></div></td>
+                              <td><div className="rowbtn"><Btn data-ex={`do:a:${a.id}`} className="sbtn sm" onClick={() => runFeature(a, optionLabels(a) ? optionOf(a).i : undefined)} disabled={(optionLabels(a) ? !optionOf(a).ok : !ok) || (!!a.cast?.scroll && !scrollUse(a.cast.scroll).readable)} why={actWhy(a, optionLabels(a) ? optionOf(a) : undefined)}>{a.cast ? "Cast" : "Use"}</Btn></div></td>
                             </tr>
                           );
                         })}
@@ -3694,7 +3828,7 @@ export default function Sheet() {
                   {(actFilter === "all" || actFilter === "action") && (
                     <div className="note" style={{ marginTop: 12 }}>
                       <b>Actions in Combat:</b> {COMBAT_ACTIONS.map((x, j) => (
-                        <span key={x.name}>{j ? ", " : ""}<button className="linkish" onClick={() => setDrawer({ kind: "feature", title: x.name, sub: "Action everyone can take", md: x.text })}>{x.name}</button></span>
+                        <span key={x.name}>{j ? ", " : ""}<button className="linkish" title={`${x.name}: ${x.text} Press it for more.`} onClick={() => setDrawer({ kind: "feature", title: x.name, sub: "Action everyone can take", md: x.text })}>{x.name}</button></span>
                       ))}
                     </div>
                   )}
@@ -3739,7 +3873,7 @@ export default function Sheet() {
                           <div key={t.key} className="feat" style={{ padding: "8px 10px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
                               <span><b>{t.name}</b> <span className="mut">· {[t.activation, t.source !== t.name ? t.source : "", res ? `${left}/${res.max} ${res.name}` : "", t.duration ? `lasts ${t.duration}` : ""].filter(Boolean).join(" · ")}</span></span>
-                              <Btn className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => (t.form ? openForms() : switchOn(t))}>{t.form ? "Choose form" : "Use"}</Btn>
+                              <Btn data-ex={`do:t:${t.key}`} className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => (t.form ? openForms() : switchOn(t))}>{t.form ? "Choose form" : "Use"}</Btn>
                             </div>
                             {t.lines.length > 0 && <div className="note">{t.lines.join(" · ")}</div>}
                           </div>
@@ -3760,7 +3894,7 @@ export default function Sheet() {
                                 <td>{t.text}{t.auto && <div className="note">{t.onHit ? "Already added to your attacks' damage." : "Happens automatically."}</div>}</td>
                                 <td>{res ? `${left} / ${res.max}` : ""}</td>
                                 <td>{res && t.cost && (
-                                  <Btn className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn>
+                                  <Btn data-ex={`do:g:${t.key}`} className="sbtn sm" disabled={!ok} why={whyNot(t.cost, t.name)} onClick={() => useTrigger(t)}>Use</Btn>
                                 )}</td>
                               </tr>
                             );
@@ -3789,20 +3923,20 @@ export default function Sheet() {
                 <div>
                   <div className="chipsrow" role="group" aria-label="Show">
                     {([["all", "All"], ["class", "Class Features"], ["species", "Species Traits"], ["feats", "Feats"]] as const).map(([k2, l]) => (
-                      <button key={k2} className={featFilter === k2 ? "on" : ""} aria-pressed={featFilter === k2} onClick={() => setFeatFilter(k2)}>{l}</button>
+                      <button key={k2} data-exnav className={featFilter === k2 ? "on" : ""} aria-pressed={featFilter === k2} title={k2 === "all" ? "Shows all your features, traits and feats." : `Shows only your ${l.toLowerCase()}.`} onClick={() => setFeatFilter(k2)}>{l}</button>
                     ))}
                   </div>
                   {featFilter === "all" && restChoicesPanel()}
                   {(featFilter === "all" || featFilter === "class") && allFeats.map((f, i) => (
                     <details key={`f${i}`} className="feat" open={featFilter === "class" || undefined}>
-                      <summary>{f.name} <span className="mut">· {f.src === f.classLevel.replace(/ \d+$/, "") ? f.classLevel : `${f.src} · ${f.classLevel}`}</span>{featureBadges(f.name)}{autoTag(infos.flatMap((i) => [i.cls, i.sub]).find((e) => e?.name === f.src)?.id, f.name)}</summary>
+                      <summary data-exnav title="Shows or hides this feature’s full text and anything you can use from it. The tag says whether the sheet applies it for you (Automated) or you track it yourself.">{f.name} <span className="mut">· {f.src === f.classLevel.replace(/ \d+$/, "") ? f.classLevel : `${f.src} · ${f.classLevel}`}</span>{featureBadges(f.name)}{autoTag(infos.flatMap((i) => [i.cls, i.sub]).find((e) => e?.name === f.src)?.id, f.name)}</summary>
                       <Md md={(() => { const k = infos.find((x) => x.cls.name === f.src || x.sub?.name === f.src); return k ? trimClassTable(f.md, k.cls.name, k.level) : f.md; })()} />
                       {featureExtras(f.name)}
                     </details>
                   ))}
                   {(featFilter === "all" || featFilter === "species") && traits(sp).map((t, i) => (
                     <details key={`t${i}`} className="feat" open={featFilter === "species" || undefined}>
-                      <summary>{t.name} <span className="mut">· {sp!.name}</span>{featureBadges(t.name)}{autoTag(sp?.id, t.name)}</summary>
+                      <summary data-exnav title="Shows or hides this feature’s full text and anything you can use from it. The tag says whether the sheet applies it for you (Automated) or you track it yourself.">{t.name} <span className="mut">· {sp!.name}</span>{featureBadges(t.name)}{autoTag(sp?.id, t.name)}</summary>
                       <Md md={t.md} />
                       {featureExtras(t.name)}
                     </details>
@@ -3814,14 +3948,14 @@ export default function Sheet() {
                   )}
                   {(featFilter === "all" || featFilter === "feats") && feat && (
                     <details className="feat" open={featFilter === "feats" || undefined}>
-                      <summary>{feat.name} <span className="mut">· {bg!.name} feat</span>{featureBadges(feat.name)}{autoTag(feat.id, feat.name)}</summary>
+                      <summary data-exnav title="Shows or hides this feature’s full text and anything you can use from it. The tag says whether the sheet applies it for you (Automated) or you track it yourself.">{feat.name} <span className="mut">· {bg!.name} feat</span>{featureBadges(feat.name)}{autoTag(feat.id, feat.name)}</summary>
                       <Md md={feat.body} />
                       {featureExtras(feat.name)}
                     </details>
                   )}
                   {(featFilter === "all" || featFilter === "feats") && fx.featPicks.filter((fp) => fp.feat.id !== feat?.id).map(({ feat: f, slot, level, className }) => (
                     <details key={slot || f.id} className="feat" open={featFilter === "feats" || undefined}>
-                      <summary>{f.name} <span className="mut">· {level ? `${className || ""} ${level} feat`.trim() : "feat"}</span>{featureBadges(f.name)}{autoTag(f.id, f.name)}</summary>
+                      <summary data-exnav title="Shows or hides this feature’s full text and anything you can use from it. The tag says whether the sheet applies it for you (Automated) or you track it yourself.">{f.name} <span className="mut">· {level ? `${className || ""} ${level} feat`.trim() : "feat"}</span>{featureBadges(f.name)}{autoTag(f.id, f.name)}</summary>
                       <Md md={f.body} />
                       {featureExtras(f.name)}
                     </details>
@@ -3836,7 +3970,7 @@ export default function Sheet() {
                     {conditionEntries.filter((e) => e.name !== "Exhaustion").map((e) => {
                       const on = p.conditions.includes(e.name);
                       return (
-                        <button key={e.id} className="condbtn" aria-pressed={on} onClick={() => {
+                        <button key={e.id} className="condbtn" aria-pressed={on} title={`${on ? "You’re" : "Press to mark yourself"} ${e.name}. ${CONDITION_EFFECTS[e.name]?.note || ruleText(e.name) || ""}${on ? " Press again to remove it." : ""} The sheet applies its effects to your rolls.`} onClick={() => {
                           setPlay({ conditions: on ? p.conditions.filter((x) => x !== e.name) : [...p.conditions, e.name] });
                           log({ title: `${on ? "Removed" : "Gained"} ${e.name}`, total: "", cls: "event", detail: on ? "" : esc(CONDITION_EFFECTS[e.name]?.note || "") });
                         }}>{e.name}</button>
@@ -3845,9 +3979,9 @@ export default function Sheet() {
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
                     <b>Exhaustion</b>
-                    <button className="sbtn sm" aria-label="Reduce exhaustion" disabled={!p.exhaustion} onClick={() => setPlay({ exhaustion: p.exhaustion - 1 })}>−</button>
+                    <button className="sbtn sm" aria-label="Reduce exhaustion" title="Lowers your Exhaustion level by 1 (finishing a Long Rest does this too)." disabled={!p.exhaustion} onClick={() => setPlay({ exhaustion: p.exhaustion - 1 })}>−</button>
                     <span>{p.exhaustion} / 6</span>
-                    <button className="sbtn sm" aria-label="Increase exhaustion" disabled={p.exhaustion >= 6} onClick={() => setPlay({ exhaustion: p.exhaustion + 1 })}>+</button>
+                    <button className="sbtn sm" aria-label="Increase exhaustion" title="Raises your Exhaustion level by 1. Each level gives −2 to your d20 Tests and −5 feet of Speed; at level 6 you die." disabled={p.exhaustion >= 6} onClick={() => setPlay({ exhaustion: p.exhaustion + 1 })}>+</button>
                     <span className="note">Each level: −2 to d20 tests and −5 ft Speed. At 6 you die.</span>
                   </div>
                   {p.conditions.length > 0 && (
@@ -4011,7 +4145,7 @@ export default function Sheet() {
                   {rolling !== e.id && actions.current[e.id] && (
                     <div className="cact">
                       {actions.current[e.id].map((a, j) => (
-                        <button key={j} className="sbtn sm" onClick={a.run}>{a.label}</button>
+                        <button key={j} className="sbtn sm" title={`${a.label}: rolls it and adds the result to the Game Log.`} onClick={a.run}>{a.label}</button>
                       ))}
                     </div>
                   )}
@@ -4045,7 +4179,7 @@ export default function Sheet() {
       )}
       {phoneBits}
       <div className="explainbar">
-        <button className={`exsw ${explain ? "on" : ""}`} role="switch" aria-checked={explain} onClick={() => { setExplain(!explain); setExAt(undefined); }}>
+        <button className={`exsw ${explain ? "on" : ""}`} data-exnav role="switch" aria-checked={explain} title="Explainer Mode: point at (or tap) anything on the sheet to see what it means and how it's worked out. Rolling is off while it's on. Press this to turn it off." onClick={() => { setExplain(!explain); setExAt(undefined); }}>
           <span className="knob" aria-hidden="true" /> Explainer Mode
         </button>
         <p>{narrow ? "Enable Explainer Mode to tap items on the sheet and see what they are, how each number is worked out, and how you can change it. While it’s on, dice rolling is turned off, so tapping only explains." : "Enable Explainer Mode to hover over items on the sheet and see what they are, how each number is worked out, and how you can change it. Clicking still rolls as usual."}</p>

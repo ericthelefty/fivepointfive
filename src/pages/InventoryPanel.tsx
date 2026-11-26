@@ -122,7 +122,7 @@ export default function InventoryPanel(p: Props) {
             return (
               <tr key={it.id} className={open === it.id ? "open" : ""}>
                 <td>
-                  <button className="iname" onClick={() => setOpen(open === it.id ? undefined : it.id)} aria-expanded={open === it.id}>
+                  <button className="iname" data-exnav title={`${open === it.id ? "Hides" : "Shows"} ${it.name}’s details: what it does, its note, and buttons to equip, use or remove it.`} onClick={() => setOpen(open === it.id ? undefined : it.id)} aria-expanded={open === it.id}>
                     <b>{itemTitle(it, info, entry?.name)}{it.kind === "custom" ? <span className="custstar" title="Custom item">*</span> : null}</b>
                     <span className="ichev" aria-hidden="true">▾</span>
                   </button>
@@ -182,9 +182,9 @@ export default function InventoryPanel(p: Props) {
                 </td>
                 <td>
                   <div className="qty">
-                    <button className="sbtn sm ghost" disabled={ro || it.qty <= 0} onClick={() => patch(it.id, { qty: Math.max(0, it.qty - 1) })} aria-label={`One fewer ${it.name}`}>−</button>
+                    <button className="sbtn sm ghost" disabled={ro || it.qty <= 0} onClick={() => patch(it.id, { qty: Math.max(0, it.qty - 1) })} aria-label={`One fewer ${it.name}`} title={`Takes away one ${it.name} (when you use one up, sell or lose it).`}>−</button>
                     <span>{it.qty}</span>
-                    <button className="sbtn sm ghost" disabled={ro} onClick={() => patch(it.id, { qty: it.qty + 1 })} aria-label={`One more ${it.name}`}>+</button>
+                    <button className="sbtn sm ghost" disabled={ro} onClick={() => patch(it.id, { qty: it.qty + 1 })} aria-label={`One more ${it.name}`} title={`Adds one more ${it.name}.`}>+</button>
                   </div>
                 </td>
                 <td>

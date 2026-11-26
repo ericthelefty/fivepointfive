@@ -120,8 +120,18 @@ export function Btn({ why, disabled, ...rest }: ButtonHTMLAttributes<HTMLButtonE
   const on = useContext(TipsOn);
   const { trigger, bubble } = useTip();
   if (!disabled || !why || !on) return <button {...rest} disabled={disabled} />;
+  // a disabled button gets no pointer events, so its Explainer Mode explanation goes on the wrapper the pointer reaches,
+  // with why it's greyed out added to it (one bubble, not two)
+  const ex = (rest as Record<string, unknown>)["data-ex"] as string | undefined;
+  if (ex || rest.title) {
+    return (
+      <span className="why" data-ex={ex} data-title={ex ? undefined : rest.title} data-why={why}>
+        <button {...rest} title={undefined} disabled tabIndex={-1} />
+      </span>
+    );
+  }
   return (
-    <span {...trigger} className="why">
+    <span {...trigger} className="why" data-ex={ex}>
       <button {...rest} disabled tabIndex={-1} />
       {bubble(why)}
     </span>
