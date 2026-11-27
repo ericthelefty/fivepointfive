@@ -24,6 +24,8 @@ import {
   type Combatant, type Encounter, type PcCombat,
 } from "../lib/encounter.ts";
 import { StatBlock, type Roller } from "../components/StatBlock.tsx";
+import { EncounterMapTab, useEncounterMap } from "./EncounterMap.tsx";
+import { sizeSquares } from "../lib/maps.ts";
 
 const fmt = (n: number) => (n >= 0 ? `+${n}` : `−${-n}`);
 
@@ -150,15 +152,17 @@ export function EncounterList() {
 }
 
 // ===================================================================== one encounter
+type Tab = "build" | "run" | "loot" | "map";
+
 export function EncounterView() {
   const { id } = useParams();
   const enc = useEncounters();
   const content = useContent();
   const chars = useCharacters();
   const creatures = useCreatures();
-  const [tab, setTabState] = useState<"build" | "run" | "loot">(() => { const t = new URLSearchParams(location.search).get("tab"); return t === "run" || t === "loot" ? t : "build"; });
+  const [tab, setTabState] = useState<Tab>(() => { const t = new URLSearchParams(location.search).get("tab"); return t === "run" || t === "loot" || t === "map" ? t : "build"; });
   // keep the open tab in the address, so a reload (or a link) comes back to it
-  const setTab = (t: "build" | "run" | "loot") => {
+  const setTab = (t: Tab) => {
     // Build tab edits are held until saved: leaving the tab saves them or stays put
     if (tab === "build" && t !== "build" && id && enc.dirty.has(id)) {
       if (!confirm("Save your changes to this encounter first? (Cancel stays on the Build tab.)")) return;
@@ -194,6 +198,15 @@ export function EncounterView() {
   }, [tab, chars.saving]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const e = enc.get(id);
+  // the encounter's battle map, kept in step with the fight even while another tab is open
+  const mapState = useEncounterMap(cloud ? e : undefined, (cb) => {
+    const st = cb.kind === "monster" && cb.ref ? creatures.get(cb.ref) : undefined;
+    return {
+      name: cb.kind === "pc" ? chars.get(cb.ref)?.c.name || cb.name || "Unnamed" : cb.name,
+      size: sizeSquares(st?.size),
+      out: cb.kind === "monster" ? cb.hp != null && cb.hp <= 0 : cb.kind === "other" && cb.maxHp != null && (cb.hp ?? 1) <= 0,
+    };
+  });
   // the characters of the encounter's campaign (an encounter in no campaign, admins only: every character)
   const campRows = chars.rows.filter((r) => !cloud || !e?.campaignId || r.campaignId === e.campaignId);
   const sent = useLoot(e?.lootId);
@@ -878,11 +891,12 @@ export function EncounterView() {
         <div className="rowbtn" role="tablist" aria-label="Encounter view">
           <button role="tab" className={`sbtn ${tab === "build" ? "gold" : "ghost"}`} aria-selected={tab === "build"} onClick={() => setTab("build")}>Build</button>
           <button role="tab" className={`sbtn ${tab === "run" ? "gold" : "ghost"}`} aria-selected={tab === "run"} onClick={() => setTab("run")}>Run{e.round ? ` · round ${e.round}` : ""}</button>
+          {cloud && <button role="tab" className={`sbtn ${tab === "map" ? "gold" : "ghost"}`} aria-selected={tab === "map"} onClick={() => setTab("map")}>Map{mapState.em?.shown ? " · live" : ""}</button>}
           <button role="tab" className={`sbtn ${tab === "loot" ? "gold" : "ghost"}`} aria-selected={tab === "loot"} onClick={() => setTab("loot")}>Loot{!e.lootId && lootGroups.some((g) => !g.removed) ? ` · ${lootLines.length}` : ""}</button>
         </div>
       </div>
       {enc.error && <div className="spanel warnline">{enc.error}</div>}
-      {tab === "build" ? buildTab : tab === "loot" ? lootTab : runTab}
+      {tab === "build" ? buildTab : tab === "loot" ? lootTab : tab === "map" ? <EncounterMapTab e={e} st={mapState} /> : runTab}
     </div>
   );
 }

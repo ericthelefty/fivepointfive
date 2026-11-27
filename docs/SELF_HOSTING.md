@@ -23,6 +23,7 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
    - [`0011_invite_characters.sql`](../supabase/migrations/0011_invite_characters.sql): an invite link can come with a character, which becomes the new member’s when they join.
    - [`0012_campaigns.sql`](../supabase/migrations/0012_campaigns.sql): campaigns. Members see only the players, characters, shared rolls, encounters and loot of their own campaigns; a campaign’s GM runs its encounters and loot. Everything already there goes into a first campaign named after the instance.
    - [`0013_campaign_notes.sql`](../supabase/migrations/0013_campaign_notes.sql): a campaign’s description and GM notes. Everyone in the campaign reads the description and the public notes; only its GM reads the private notes.
+   - [`0014_maps.sql`](../supabase/migrations/0014_maps.sql): battle maps. A campaign's GM uploads maps (into a private Storage bucket) and sets their grids; an encounter's map keeps its tokens and fog. Players see it only while the GM shows it, without hidden tokens or monsters under the fog, and can move only their own character's token.
 3. Go to **Project Settings → Data API** (or **API**) and add `fivepointfive` to **Exposed schemas**. Save.
 
 ## 2. Set up sign-in

@@ -8,6 +8,7 @@ import { newId, useCharacters } from "../lib/characters.tsx";
 import { useSession } from "../lib/session.tsx";
 import { cloud } from "../lib/backend.ts";
 import { CampaignSelect, useCampaignChoices } from "../components/CampaignSelect.tsx";
+import { LiveMapLinks } from "./Maps.tsx";
 import { newCharacter, type Character } from "../lib/rules.ts";
 
 export default function Home() {
@@ -68,6 +69,7 @@ export default function Home() {
 
   return (
     <div className="stack" style={{ gap: 20 }}>
+      {cloud && <LiveMapLinks campaignId={session.campaignId} />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1>{cloud ? "Characters" : "Your characters"}</h1>
