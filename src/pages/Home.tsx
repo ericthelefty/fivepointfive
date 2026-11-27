@@ -204,7 +204,7 @@ function CampaignRow({ id, name, owner, campaignId, canMove }: { id: string; nam
         onChange={(e) => chars.setCampaign(id, e.target.value || null)}>
         {campaignId && !choices.some((x) => x.id === campaignId) && <option value={campaignId}>{label}</option>}
         {choices.map((x) => <option key={x.id} value={x.id}>{x.name || "Unnamed campaign"}</option>)}
-        <option value="">No campaign (only you see it)</option>
+        <option value="">{isOwner ? "No campaign (only you see it)" : "No campaign (only its player sees it)"}</option>
       </select>
     </label>
   );
