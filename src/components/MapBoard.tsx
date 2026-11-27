@@ -188,8 +188,9 @@ export default function MapBoard(p: Props) {
       if (n && p.onAreaAdd) {
         const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
         if (n.kind === "emanation") {
-          if (!tok || tok.x == null) { p.onAreaHint?.("An Emanation comes from a creature: click a token on the map."); return; }
-          const a: Area = { ...n, id, x: 0, y: 0, token: tok.uid };
+          const under = tok || p.tokens.find((t) => t.x != null && t.y != null && at.x >= t.x && at.x < t.x + t.size && at.y >= t.y && at.y < t.y + t.size);
+          if (!under || under.x == null) { p.onAreaHint?.("An Emanation comes from a creature: click a token on the map."); return; }
+          const a: Area = { ...n, id, x: 0, y: 0, token: under.uid };
           p.onAreaAdd(a); p.onAreaSelect?.(id);
           return;
         }
@@ -395,36 +396,6 @@ export default function MapBoard(p: Props) {
               {paint.cells.map((k) => { const [x, y] = k.split(",").map(Number); const c = cellRect(g, x, y); return <rect key={k} x={c.left} y={c.top} width={c.w} height={c.h} fill={paint.reveal ? "rgba(242,205,133,.28)" : "rgba(8,6,12,.5)"} />; })}
             </g>
           )}
-          {(() => {
-            const list = [...(p.areas || []).map((x) => (areaDraft && x.a.id === areaDraft.id ? { ...x, a: areaDraft } : x))];
-            if (areaDraft && !list.some((x) => x.a.id === areaDraft.id)) list.push({ a: areaDraft, mine: true, shown: false });
-            const X = (x: number) => g.ox + x * g.size, Y = (y: number) => g.oy + y * gh;
-            const actx = { feet: g.feet, tokens: p.tokens, bounds };
-            return list.map(({ a, mine, shown }) => {
-              const o = areaOutline(a, actx);
-              if (!o) return null;
-              const sel = p.selArea === a.id || areaDraft?.id === a.id;
-              const sqs = areaSquares(a, actx);
-              const dash = shown ? undefined : `${u * 0.16} ${u * 0.1}`;
-              const stroke = { stroke: a.color, strokeWidth: lineW * (sel ? 3 : 2), strokeDasharray: dash, fill: a.color, fillOpacity: 0.12 };
-              const shape = o.kind === "circle" ? <ellipse cx={X(o.cx)} cy={Y(o.cy)} rx={o.r * g.size} ry={o.r * gh} {...stroke} />
-                : o.kind === "ring" ? <path fillRule="evenodd" d={`M ${X(o.cx) - o.r2 * g.size} ${Y(o.cy)} a ${o.r2 * g.size} ${o.r2 * gh} 0 1 0 ${2 * o.r2 * g.size} 0 a ${o.r2 * g.size} ${o.r2 * gh} 0 1 0 ${-2 * o.r2 * g.size} 0 Z M ${X(o.cx) - o.r1 * g.size} ${Y(o.cy)} a ${o.r1 * g.size} ${o.r1 * gh} 0 1 0 ${2 * o.r1 * g.size} 0 a ${o.r1 * g.size} ${o.r1 * gh} 0 1 0 ${-2 * o.r1 * g.size} 0 Z`} {...stroke} />
-                : o.kind === "rrect" ? <rect x={X(o.x)} y={Y(o.y)} width={o.w * g.size} height={o.h * gh} rx={o.r * g.size} ry={o.r * gh} {...stroke} />
-                : <polygon points={o.pts.map((q) => `${X(q.x)},${Y(q.y)}`).join(" ")} {...stroke} />;
-              const aimAt = mine && sel ? aimPoint(a, actx) : null;
-              return (
-                <g key={a.id} className={`marea ${mine ? "mine" : ""} ${p.tool === "aoe" && mine ? "can" : ""}`} data-area={a.id} pointerEvents={p.tool === "aoe" ? undefined : "none"}>
-                  <g clipPath={`url(#mapclip${id})`} pointerEvents="none">
-                    {sqs.map((k) => { const [x, y] = k.split(",").map(Number); return <rect key={k} x={X(x)} y={Y(y)} width={g.size} height={gh} fill={a.color} fillOpacity={shown ? 0.28 : 0.18} />; })}
-                  </g>
-                  {shape}
-                  {a.kind !== "emanation" && <circle cx={X(a.x)} cy={Y(a.y)} r={u * 0.09} fill={a.color} stroke="#141114" strokeWidth={lineW} pointerEvents="none" />}
-                  {(a.label || sel) && <text x={X(a.x)} y={Y(a.y) - u * 0.22} textAnchor="middle" className="mlabel" fontSize={u * 0.3} strokeWidth={u * 0.06} pointerEvents="none">{a.label || ""}{!shown && mine ? " (only you)" : ""}</text>}
-                  {aimAt && <circle data-aim={a.id} className="maim" cx={X(aimAt.x)} cy={Y(aimAt.y)} r={u * 0.2} fill="#fff8ea" stroke={a.color} strokeWidth={u * 0.06} />}
-                </g>
-              );
-            });
-          })()}
           {p.tool === "fog" && p.blocks?.map((b0) => {
             const b = blockDraft?.id === b0.id ? blockDraft : b0;
             const a = cellRect(g, b.x, b.y), sel = p.selBlock === b.id, hs = u * 0.3;
@@ -462,6 +433,37 @@ export default function MapBoard(p: Props) {
               </g>
             );
           })}
+          {/* areas of effect, and their names, on top of everything */}
+          {(() => {
+            const list = [...(p.areas || []).map((x) => (areaDraft && x.a.id === areaDraft.id ? { ...x, a: areaDraft } : x))];
+            if (areaDraft && !list.some((x) => x.a.id === areaDraft.id)) list.push({ a: areaDraft, mine: true, shown: false });
+            const X = (x: number) => g.ox + x * g.size, Y = (y: number) => g.oy + y * gh;
+            const actx = { feet: g.feet, tokens: p.tokens, bounds };
+            return list.map(({ a, mine, shown }) => {
+              const o = areaOutline(a, actx);
+              if (!o) return null;
+              const sel = p.selArea === a.id || areaDraft?.id === a.id;
+              const sqs = areaSquares(a, actx);
+              const dash = shown ? undefined : `${u * 0.16} ${u * 0.1}`;
+              const stroke = { stroke: a.color, strokeWidth: lineW * (sel ? 3 : 2), strokeDasharray: dash, fill: a.color, fillOpacity: 0.12 };
+              const shape = o.kind === "circle" ? <ellipse cx={X(o.cx)} cy={Y(o.cy)} rx={o.r * g.size} ry={o.r * gh} {...stroke} />
+                : o.kind === "ring" ? <path fillRule="evenodd" d={`M ${X(o.cx) - o.r2 * g.size} ${Y(o.cy)} a ${o.r2 * g.size} ${o.r2 * gh} 0 1 0 ${2 * o.r2 * g.size} 0 a ${o.r2 * g.size} ${o.r2 * gh} 0 1 0 ${-2 * o.r2 * g.size} 0 Z M ${X(o.cx) - o.r1 * g.size} ${Y(o.cy)} a ${o.r1 * g.size} ${o.r1 * gh} 0 1 0 ${2 * o.r1 * g.size} 0 a ${o.r1 * g.size} ${o.r1 * gh} 0 1 0 ${-2 * o.r1 * g.size} 0 Z`} {...stroke} />
+                : o.kind === "rrect" ? <rect x={X(o.x)} y={Y(o.y)} width={o.w * g.size} height={o.h * gh} rx={o.r * g.size} ry={o.r * gh} {...stroke} />
+                : <polygon points={o.pts.map((q) => `${X(q.x)},${Y(q.y)}`).join(" ")} {...stroke} />;
+              const aimAt = mine && sel ? aimPoint(a, actx) : null;
+              return (
+                <g key={a.id} className={`marea ${mine ? "mine" : ""} ${p.tool === "aoe" && mine ? "can" : ""}`} data-area={a.id} pointerEvents={p.tool === "aoe" ? undefined : "none"}>
+                  <g clipPath={`url(#mapclip${id})`} pointerEvents="none">
+                    {sqs.map((k) => { const [x, y] = k.split(",").map(Number); return <rect key={k} x={X(x)} y={Y(y)} width={g.size} height={gh} fill={a.color} fillOpacity={shown ? 0.28 : 0.18} />; })}
+                  </g>
+                  {shape}
+                  {a.kind !== "emanation" && <circle cx={X(a.x)} cy={Y(a.y)} r={u * 0.09} fill={a.color} stroke="#141114" strokeWidth={lineW} pointerEvents="none" />}
+                  {(a.label || sel) && <text x={X(a.x)} y={Y(a.y) - u * 0.22} textAnchor="middle" className="mlabel" fontSize={u * 0.3} strokeWidth={u * 0.06} pointerEvents="none">{a.label || ""}{!shown && mine ? " (only you)" : ""}</text>}
+                  {aimAt && <circle data-aim={a.id} className="maim" cx={X(aimAt.x)} cy={Y(aimAt.y)} r={u * 0.2} fill="#fff8ea" stroke={a.color} strokeWidth={u * 0.06} />}
+                </g>
+              );
+            });
+          })()}
           {dragFeet != null && drag && <text x={drag.px + (dragged!.size * g.size) / 2} y={drag.py - u * 0.18} textAnchor="middle" className="mlabel" fontSize={u * 0.34} strokeWidth={u * 0.07}>{dragFeet} ft</text>}
           {measure && (() => {
             const a0 = cellRect(g, measure.a.x, measure.a.y), b0 = cellRect(g, measure.b.x, measure.b.y);
