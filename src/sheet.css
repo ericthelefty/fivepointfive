@@ -706,7 +706,7 @@
   .sheetv .pip { width: 13px; height: 13px; }
   .sheetv table.atks td, .sheetv table.atks th { padding-top: 5px; padding-bottom: 5px; }
   /* name and Edit on one line, the class line small just below */
-  .sheetv .ident > div:first-child > div:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .sheetv .ident .identname > div { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
   .sheetv .ident > div:first-child { flex-wrap: nowrap !important; align-items: center !important; }
   .sheetv .ident > div:first-child > div:first-child { flex: 1 1 auto; }
   .sheetv .ident .sub { margin-top: 0; font-size: 12.5px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
