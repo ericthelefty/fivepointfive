@@ -47,7 +47,8 @@ const Ctx = createContext<EncState | null>(null);
 
 export function EncountersProvider({ children }: { children: ReactNode }) {
   const session = useSession();
-  const allowed = !cloud || (session.status === "ready" && session.isAdmin);
+  // the admin, and the GM of any campaign (who sees that campaign's encounters only)
+  const allowed = !cloud || (session.status === "ready" && session.gmAny);
   const [list, setList] = useState<Encounter[]>(() => (cloud ? [] : loadLocal()));
   const [ready, setReady] = useState(!cloud);
   const [error, setError] = useState<string>();
@@ -63,18 +64,18 @@ export function EncountersProvider({ children }: { children: ReactNode }) {
       setReady(session.status === "ready");
       return;
     }
-    supabase.from("encounters").select("id, data, updated_at").order("updated_at", { ascending: false }).then(({ data, error: e }) => {
-      if (e) setError(e.message.includes("encounters") ? "Encounters need a database update: run supabase/migrations/0003_encounters.sql (see docs/SELF_HOSTING.md)." : e.message);
-      else setList((data || []).map((r) => ({ ...(r.data as Encounter), id: r.id })));
+    supabase.from("encounters").select("id, data, campaign_id, updated_at").order("updated_at", { ascending: false }).then(({ data, error: e }) => {
+      if (e) setError(e.message.includes("campaign_id") ? "Encounters need a database update: run supabase/migrations/0012_campaigns.sql (see docs/SELF_HOSTING.md)." : e.message.includes("encounters") ? "Encounters need a database update: run supabase/migrations/0003_encounters.sql (see docs/SELF_HOSTING.md)." : e.message);
+      else setList((data || []).map((r) => ({ ...(r.data as Encounter), id: r.id, campaignId: r.campaign_id as string | null })));
       setReady(true);
     });
-  }, [allowed, session.status]);
+  }, [allowed, session.status, session.campaigns]);
 
   const flush = useCallback(async (id: string) => {
     const e = pending.current[id];
     if (!e || !supabase) return;
     delete pending.current[id];
-    const { error: err } = await supabase.from("encounters").update({ data: e, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error: err } = await supabase.from("encounters").update({ data: { ...e, campaignId: undefined }, updated_at: new Date().toISOString() }).eq("id", id);
     if (err) setError(`Couldn’t save the encounter: ${err.message}`);
   }, []);
 
@@ -139,8 +140,8 @@ export function EncountersProvider({ children }: { children: ReactNode }) {
     let saved: Encounter | undefined;
     if (!cloud) saved = loadLocal().find((x) => x.id === id);
     else if (supabase) {
-      const { data } = await supabase.from("encounters").select("id, data").eq("id", id).maybeSingle();
-      if (data) saved = { ...(data.data as Encounter), id: data.id };
+      const { data } = await supabase.from("encounters").select("id, data, campaign_id").eq("id", id).maybeSingle();
+      if (data) saved = { ...(data.data as Encounter), id: data.id, campaignId: data.campaign_id as string | null };
     }
     if (!saved) return;
     markDirty(id, false);
@@ -149,7 +150,10 @@ export function EncountersProvider({ children }: { children: ReactNode }) {
 
   const create = async (e: Encounter) => {
     if (cloud) {
-      const { error: err } = await supabase!.from("encounters").insert({ id: e.id, data: e });
+      // a new encounter is for the campaign chosen at the top of the page
+      e = { ...e, campaignId: e.campaignId ?? (session.campaignId || null) };
+      const { campaignId, ...data } = e;
+      const { error: err } = await supabase!.from("encounters").insert({ id: e.id, data, campaign_id: campaignId });
       if (err) {
         setError(`Couldn’t create the encounter: ${err.message}`);
         throw err;

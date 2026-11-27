@@ -9,6 +9,8 @@ import "../sheet.css";
 import { useContent } from "../lib/store.tsx";
 import { useCharacters } from "../lib/characters.tsx";
 import { useEncounters } from "../lib/encounters.tsx";
+import { useSession } from "../lib/session.tsx";
+import { CampaignSelect } from "../components/CampaignSelect.tsx";
 import { cloud } from "../lib/backend.ts";
 import { parseCreature, crValue, type CreatureStats } from "../lib/creature.ts";
 import { d20, describeRolled, roll, type Mode } from "../lib/dice.ts";
@@ -62,6 +64,7 @@ function summary(e: Encounter, name: (c: Combatant) => string): string {
 // ===================================================================== the list
 export function EncounterList() {
   const enc = useEncounters();
+  const session = useSession();
   const nav = useNavigate();
   const creatures = useCreatures();
   if (!enc.allowed) return <NotAllowed />;
@@ -75,26 +78,32 @@ export function EncounterList() {
     await enc.create(e);
   };
   const monsterName = (c: Combatant) => (c.ref && creatures.get(c.ref)?.name) || c.name.replace(/\s\d+$/, "");
+  // the chosen campaign's encounters (admins can also see every campaign's)
+  const shown = enc.list.filter((e) => !cloud || !session.campaignId || e.campaignId === session.campaignId);
+  const canMake = !cloud || session.isAdmin || session.isGm(session.campaignId);
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <h1>Encounters</h1>
-        <button className="btn primary" onClick={make}>New encounter</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {cloud && <CampaignSelect />}
+          <button className="btn primary" disabled={!canMake} title={canMake ? "" : "You’re not the GM of this campaign."} onClick={make}>New encounter</button>
+        </div>
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
         Build a fight from the Library’s monsters and your characters, then run it: initiative, turns, HP and stat blocks in one place.
-        {cloud ? " Only you (the admin) can see encounters." : ""}
+        {cloud ? " Only the campaign’s GM (and admins) can see its encounters." : ""}
       </p>
       {enc.error && <div className="panel warnline">{enc.error}</div>}
-      {!enc.ready ? <p className="muted">Loading…</p> : enc.list.length === 0 ? (
+      {!enc.ready ? <p className="muted">Loading…</p> : shown.length === 0 ? (
         <div className="panel">No encounters yet. Choose <b>New encounter</b> to build one.</div>
       ) : (
         <div className="stack" style={{ gap: 10 }}>
-          {[...enc.list].sort((a, b) => b.updated - a.updated).map((e) => (
+          {[...shown].sort((a, b) => b.updated - a.updated).map((e) => (
             <div key={e.id} className="panel" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", margin: 0 }}>
               <div>
                 <Link to={`/encounters/${e.id}`}><b style={{ fontSize: 17 }}>{e.name || "Untitled encounter"}</b></Link>
-                <div className="faint">{summary(e, monsterName)}{e.round > 0 ? ` · running, round ${e.round}` : ""}</div>
+                <div className="faint">{summary(e, monsterName)}{e.round > 0 ? ` · running, round ${e.round}` : ""}{cloud && !session.campaignId && e.campaignId ? ` · ${session.campaignName(e.campaignId)}` : ""}</div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <Link className="btn small" to={`/encounters/${e.id}?tab=run`}>Run</Link>
@@ -154,6 +163,8 @@ export function EncounterView() {
   }, [tab, chars.saving]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const e = enc.get(id);
+  // the characters of the encounter's campaign (an encounter in no campaign, admins only: every character)
+  const campRows = chars.rows.filter((r) => !cloud || !e?.campaignId || r.campaignId === e.campaignId);
   const sent = useLoot(e?.lootId);
   const isDirty = !!id && enc.dirty.has(id);
   // a reload or closing the tab with unsaved Build changes asks first (reloading throws them away)
@@ -455,9 +466,9 @@ export function EncounterView() {
 
         <div className="spanel">
           <h3>Characters</h3>
-          {chars.rows.length === 0 ? <p className="note" style={{ margin: 0 }}>No characters yet.</p> : (
+          {campRows.length === 0 ? <p className="note" style={{ margin: 0 }}>No characters in this campaign yet.</p> : (
             <div className="stack" style={{ gap: 4 }}>
-              {[...chars.rows].sort((a, b) => (a.c.name || "").localeCompare(b.c.name || "")).map((r) => {
+              {[...campRows].sort((a, b) => (a.c.name || "").localeCompare(b.c.name || "")).map((r) => {
                 const on = pcs.some((c) => c.ref === r.c.id);
                 const cls = content.byId(r.c.classId);
                 return (
@@ -573,7 +584,7 @@ export function EncounterView() {
         bodyId: c.uid,
         tiers: (invOf(c).hidden || []).filter((t) => t.finds.length).map((t) => ({ dc: t.dc, finds: t.finds.map((f) => hiddenFindOf(f, c.name, lootTables, rarityOf)) })),
       })).filter((h) => h.tiers.length);
-      const lid = await sendLoot({ encounterId: e.id, name: e.name, players: lootPlayers, lines: lootLines, coins: lootCoins, bodies, hidden });
+      const lid = await sendLoot({ encounterId: e.id, campaignId: e.campaignId ?? null, name: e.name, players: lootPlayers, lines: lootLines, coins: lootCoins, bodies, hidden });
       put({ lootId: lid });
       log({ title: "Loot sent to the players", total: "", cls: "event", detail: what }, lootPlayers);
     } catch (err) {

@@ -476,16 +476,19 @@ export default function Sheet() {
     content.ensure("rules", "items", "spells", "creatures");
   }, [anyCaster]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // shared rolls: this character's campaign only (a character in no campaign shares with nobody)
+  const sheetCampaign = row?.campaignId ?? null;
   useEffect(() => {
     if (!sharedLog || !supabase) return;
+    if (!sheetCampaign) { setTableLog([]); return; }
     let alive = true;
     const toCard = (r: { id: number; entry: LogEntry & { who?: string } }) => ({ ...r.entry, id: `t${r.id}`, who: r.entry.who || "" });
-    supabase.from("log").select("id, entry").order("id", { ascending: false }).limit(100).then(({ data }) => {
+    supabase.from("log").select("id, entry").eq("campaign_id", sheetCampaign).order("id", { ascending: false }).limit(100).then(({ data }) => {
       if (alive) setTableLog((data || []).map(toCard));
     });
     const ch = supabase
-      .channel("table-log")
-      .on("postgres_changes", { event: "INSERT", schema: "fivepointfive", table: "log" }, (payload) => {
+      .channel(`table-log-${sheetCampaign}`)
+      .on("postgres_changes", { event: "INSERT", schema: "fivepointfive", table: "log", filter: `campaign_id=eq.${sheetCampaign}` }, (payload) => {
         setTableLog((prev) => [toCard(payload.new as { id: number; entry: LogEntry }), ...prev].slice(0, 150));
       })
       .subscribe();
@@ -493,7 +496,7 @@ export default function Sheet() {
       alive = false;
       supabase!.removeChannel(ch);
     };
-  }, [sharedLog]);
+  }, [sharedLog, sheetCampaign]);
 
   const armor = useMemo(() => armorTable(content.entries), [content.entries]);
   const weapons = useMemo(() => weaponTable(content.entries), [content.entries]);
@@ -770,7 +773,8 @@ export default function Sheet() {
     // with the log hidden on a phone, show the result briefly so the roll isn't lost
     if (logGone.current) setTimeout(() => setToast(entry), hold);
     if (sharedLog && supabase && editable) {
-      supabase.from("log").insert({ character_id: c.id, entry: { ...entry, who: c.name || "Unnamed" } }).then(() => undefined);
+      // its campaign is set from the character's own (in no campaign, nobody else sees it)
+      if (row?.campaignId) supabase.from("log").insert({ character_id: c.id, entry: { ...entry, who: c.name || "Unnamed" } }).then(() => undefined);
     }
   };
 

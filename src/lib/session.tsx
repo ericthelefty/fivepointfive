@@ -13,6 +13,18 @@ export interface Member {
   created_at?: string;
 }
 
+/** A campaign: a way to divide the players of an instance, and the characters they can see. */
+export interface Campaign {
+  id: string;
+  name: string;
+  created_at?: string;
+}
+export interface CampaignMember {
+  campaign_id: string;
+  user_id: string;
+  role: "player" | "gm";
+}
+
 export interface Settings {
   shared_log: boolean;
   instance_name: string;
@@ -29,6 +41,18 @@ interface SessionState {
   members: Member[];
   settings: Settings;
   isAdmin: boolean;
+  /** The campaigns this member can see (admins: all of them), by name. */
+  campaigns: Campaign[];
+  /** Who is in which campaign, and who runs it. */
+  campaignMembers: CampaignMember[];
+  /** The campaign the Characters list, Encounters and new characters are for ("" = every campaign, admins only). */
+  campaignId: string;
+  setCampaignId: (id: string) => void;
+  /** Is the signed-in member this campaign's GM (admins are GM of every campaign; local mode: always). */
+  isGm: (campaignId?: string | null) => boolean;
+  /** GM of at least one campaign, or an admin. */
+  gmAny: boolean;
+  campaignName: (id?: string | null) => string;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
   setSetting: <K extends keyof Settings>(k: K, v: Settings[K]) => Promise<void>;
@@ -37,6 +61,7 @@ interface SessionState {
 
 const Ctx = createContext<SessionState | null>(null);
 const DEFAULT_SETTINGS: Settings = { shared_log: false, instance_name: "", hidden_backgrounds: [] };
+const CAMPAIGN_KEY = "fpf.campaign";
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>(cloud ? "loading" : "local");
@@ -44,6 +69,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Member | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignMembers, setCampaignMembers] = useState<CampaignMember[]>([]);
+  const [campaignId, setCampaignIdState] = useState<string>(() => { try { return localStorage.getItem(CAMPAIGN_KEY) || ""; } catch { return ""; } });
+  const setCampaignId = (id: string) => {
+    setCampaignIdState(id);
+    try { localStorage.setItem(CAMPAIGN_KEY, id); } catch { /* private mode */ }
+  };
 
   const refresh = useCallback(async () => {
     if (!supabase) return;
@@ -64,6 +96,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setStatus(st === "empty" ? "empty" : "needsInvite");
       return;
     }
+    const [{ data: cs }, { data: cms }] = await Promise.all([
+      supabase.from("campaigns").select("id, name, created_at").order("name"),
+      supabase.from("campaign_members").select("campaign_id, user_id, role"),
+    ]);
+    const clist = (cs || []) as Campaign[];
+    setCampaigns(clist);
+    setCampaignMembers((cms || []) as CampaignMember[]);
+    // keep the chosen campaign if it's still one of theirs; otherwise the first of theirs (admins may choose "every campaign")
+    setCampaignIdState((cur) => {
+      const ok = clist.some((c) => c.id === cur) || (cur === "" && mine.role === "admin");
+      const next = ok ? cur : clist.find((c) => (cms || []).some((m) => m.campaign_id === c.id && m.user_id === u.id))?.id || clist[0]?.id || "";
+      try { localStorage.setItem(CAMPAIGN_KEY, next); } catch { /* private mode */ }
+      return next;
+    });
     const { data: rows } = await supabase.from("settings").select("key,value");
     const next = { ...DEFAULT_SETTINGS };
     for (const r of rows || []) (next as Record<string, unknown>)[r.key] = r.value;
@@ -99,6 +145,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     members,
     settings,
     isAdmin: !cloud || me?.role === "admin",
+    campaigns,
+    campaignMembers,
+    campaignId: cloud ? campaignId : "",
+    setCampaignId,
+    isGm: (cid) => !cloud || me?.role === "admin" || (!!cid && campaignMembers.some((m) => m.campaign_id === cid && m.user_id === user?.id && m.role === "gm")),
+    gmAny: !cloud || me?.role === "admin" || campaignMembers.some((m) => m.user_id === user?.id && m.role === "gm"),
+    campaignName: (id) => (id ? campaigns.find((c) => c.id === id)?.name || "Another campaign" : ""),
     refresh,
     signOut,
     setSetting,

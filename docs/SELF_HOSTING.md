@@ -21,6 +21,7 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
    - [`0009_sheet_backgrounds.sql`](../supabase/migrations/0009_sheet_backgrounds.sql): a private Storage bucket for each character’s uploaded sheet background, visible to whoever can see the character and changed only by its owner or an admin.
    - [`0010_background_library.sql`](../supabase/migrations/0010_background_library.sql): a shared library of sheet backgrounds that admins add to and every member can pick, and lets admins see, hide or delete any sheet background, including other members’ uploads.
    - [`0011_invite_characters.sql`](../supabase/migrations/0011_invite_characters.sql): an invite link can come with a character, which becomes the new member’s when they join.
+   - [`0012_campaigns.sql`](../supabase/migrations/0012_campaigns.sql): campaigns. Members see only the players, characters, shared rolls, encounters and loot of their own campaigns; a campaign’s GM runs its encounters and loot. Everything already there goes into a first campaign named after the instance.
 3. Go to **Project Settings → Data API** (or **API**) and add `fivepointfive` to **Exposed schemas**. Save.
 
 ## 2. Set up sign-in

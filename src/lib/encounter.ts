@@ -39,6 +39,8 @@ export interface Combatant {
 export interface Encounter {
   id: string;
   name: string;
+  /** The campaign it's for (its GM runs it, its characters fight in it); kept in its own column, not in the data. */
+  campaignId?: string | null;
   notes?: string;
   combatants: Combatant[];
   /** 0 before the fight starts. */

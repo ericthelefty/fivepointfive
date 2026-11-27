@@ -7,6 +7,7 @@ import { useContent } from "../lib/store.tsx";
 import { newId, useCharacters } from "../lib/characters.tsx";
 import { useSession } from "../lib/session.tsx";
 import { cloud } from "../lib/backend.ts";
+import { CampaignSelect, useCampaignChoices } from "../components/CampaignSelect.tsx";
 import { newCharacter, type Character } from "../lib/rules.ts";
 
 export default function Home() {
@@ -17,7 +18,10 @@ export default function Home() {
   const [filter, setFilter] = useState<"all" | "mine">("all");
   const [msg, setMsg] = useState("");
 
+  // the chosen campaign's characters, and your own that aren't in any campaign yet
+  const inView = (r: (typeof chars.rows)[number]) => !cloud || !session.campaignId || r.campaignId === session.campaignId || (!r.campaignId && r.owner === session.user?.id);
   const rows = [...chars.rows]
+    .filter(inView)
     .filter((r) => filter === "all" || !cloud || r.owner === session.user?.id)
     .sort((a, b) => b.c.updated - a.c.updated);
 
@@ -68,10 +72,11 @@ export default function Home() {
         <div>
           <h1>{cloud ? "Characters" : "Your characters"}</h1>
           <p className="muted" style={{ margin: "6px 0 0" }}>
-            {cloud ? "Everyone in this group can see these, except characters their players have hidden. You can edit your own; anyone can make their own copy." : "Saved in this browser. Export a character to move it or send it to a friend."}
+            {cloud ? "Everyone in the campaign can see these, except characters their players have hidden. You can edit your own; anyone can make their own copy." : "Saved in this browser. Export a character to move it or send it to a friend."}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {cloud && <CampaignSelect />}
           {cloud && (
             <div role="group" aria-label="Show" style={{ display: "flex", gap: 6 }}>
               <button className="pill" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>Everyone</button>
@@ -106,7 +111,7 @@ export default function Home() {
         </div>
       ) : (
         <div className="grid3">
-          {rows.map(({ c, owner, hidden }) => {
+          {rows.map(({ c, owner, hidden, campaignId }) => {
             const cls = byId(c.classId);
             const sp = byId(c.speciesId);
             const mine = chars.canEdit(c.id);
@@ -115,7 +120,7 @@ export default function Home() {
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
                   <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600 }}>{c.name || "Unnamed character"}</div>
                   {cloud && hidden && (
-                    <Tip tip={owner === session.user?.id ? "Only you and the group’s admins can see this character." : "Hidden by its player: only they and admins can see it."}>
+                    <Tip tip={owner === session.user?.id ? "Only you, the campaign’s GM and admins can see this character." : "Hidden by its player: only they, the campaign’s GM and admins can see it."}>
                       <span className="tag warn">Hidden</span>
                     </Tip>
                   )}
@@ -133,6 +138,7 @@ export default function Home() {
                     </select>
                   </label>
                 ) : <div className="faint">Player: {owner === session.user?.id ? "you" : session.nameOf(owner)}</div>)}
+                {cloud && <CampaignRow id={c.id} name={c.name} owner={owner} campaignId={campaignId} canMove={mine} />}
                 <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
                   <Link className="btn small primary" to={`/sheet/${c.id}`}>Sheet</Link>
                   {mine && <Link className="btn small" to={`/build/${c.id}`}>Edit</Link>}
@@ -171,3 +177,36 @@ export default function Home() {
     </div>
   );
 }
+
+/** Which campaign a character is in; its owner (or the GM, or an admin) can move it into another of the owner's campaigns. */
+function CampaignRow({ id, name, owner, campaignId, canMove }: { id: string; name: string; owner?: string; campaignId?: string | null; canMove: boolean }) {
+  const session = useSession();
+  const chars = useCharacters();
+  const choices = useCampaignChoices(owner);
+  if (!session.campaigns.length && !campaignId) return null;
+  const label = campaignId ? session.campaignName(campaignId) : "No campaign";
+  const isOwner = owner === session.user?.id;
+  // the campaign's GM (not its player, not an admin) can take it out of the campaign; it stays with its player
+  if (!session.isAdmin && !isOwner && campaignId && session.isGm(campaignId)) {
+    return (
+      <div className="faint assignrow">
+        Campaign: {label}{" "}
+        <button className="btn small" title="Take this character out of the campaign. It stays with its player, in no campaign, and the campaign’s players stop seeing it."
+          onClick={() => confirm(`Take ${name || "this character"} out of ${label}? It stays with its player.`) && chars.removeFromCampaign(id)}>Take out</button>
+      </div>
+    );
+  }
+  if (!canMove || !choices.length) return <div className="faint">Campaign: {label}</div>;
+  return (
+    <label className="faint assignrow" title="Move this character into another campaign: only that campaign’s players see it.">
+      Campaign:{" "}
+      <select value={campaignId || ""} aria-label={`Campaign for ${name || "this character"}`}
+        onChange={(e) => chars.setCampaign(id, e.target.value || null)}>
+        {campaignId && !choices.some((x) => x.id === campaignId) && <option value={campaignId}>{label}</option>}
+        {choices.map((x) => <option key={x.id} value={x.id}>{x.name || "Unnamed campaign"}</option>)}
+        <option value="">No campaign (only you see it)</option>
+      </select>
+    </label>
+  );
+}
+

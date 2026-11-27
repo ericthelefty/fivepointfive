@@ -7,6 +7,7 @@ import { NewPasswordForm } from "./Auth.tsx";
 
 interface Invite {
   id: string;
+  campaign_id?: string | null;
   token: string;
   note: string;
   created_at: string;
@@ -24,6 +25,7 @@ export default function Admin() {
   const chars = useCharacters();
   const [note, setNote] = useState("");
   const [inviteChar, setInviteChar] = useState("");
+  const [inviteCampaign, setInviteCampaign] = useState("");
   const [copied, setCopied] = useState<string>();
   const [msg, setMsg] = useState("");
   const [myName, setMyName] = useState(session.me?.display_name || "");
@@ -50,10 +52,11 @@ export default function Admin() {
 
   const create = async () => {
     if (!supabase || !session.user) return;
-    const { error } = await supabase.from("invites").insert({ note, created_by: session.user.id, character_id: inviteChar || null });
+    const { error } = await supabase.from("invites").insert({ note, created_by: session.user.id, character_id: inviteChar || null, campaign_id: inviteCampaign || null });
     if (error) return setMsg(error.message);
     setNote("");
     setInviteChar("");
+    setInviteCampaign("");
     load();
   };
   const revoke = async (id: string) => {
@@ -119,7 +122,7 @@ export default function Admin() {
 
           <section className="panel stack">
             <h2>Shared game log</h2>
-            <p className="muted" style={{ margin: 0 }}>When on, every member’s rolls also appear in a live table log that everyone can watch from any character sheet.</p>
+            <p className="muted" style={{ margin: 0 }}>When on, every member’s rolls also appear in a live table log that the rest of their campaign can watch from any character sheet in it.</p>
             <label style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }}>
               <input type="checkbox" checked={session.settings.shared_log} onChange={(e) => session.setSetting("shared_log", e.target.checked)} style={{ width: 20, height: 20, accentColor: "var(--accent)" }} />
               Shared game log is {session.settings.shared_log ? "on" : "off"}
@@ -135,13 +138,19 @@ export default function Admin() {
                 <option value="">No character</option>
                 {giveable.map((r) => <option key={r.c.id} value={r.c.id}>Give them {r.c.name || "Unnamed"}</option>)}
               </select>
+              {session.campaigns.length > 0 && (
+                <select value={inviteCampaign} onChange={(e) => setInviteCampaign(e.target.value)} aria-label="Campaign the invite joins">
+                  <option value="">No campaign</option>
+                  {session.campaigns.map((c) => <option key={c.id} value={c.id}>Join {c.name || "Unnamed campaign"}</option>)}
+                </select>
+              )}
               <button className="btn primary small" onClick={create}>Create invite link</button>
             </div>
-            <p className="faint" style={{ margin: 0 }}>Pick a character to hand it over when they join: it becomes theirs and its sheet opens once their account is set up. Only characters an admin still owns can be given.</p>
+            <p className="faint" style={{ margin: 0 }}>Pick a character to hand it over when they join: it becomes theirs and its sheet opens once their account is set up. Only characters an admin still owns can be given. Pick a campaign to put them in it when they join (a character given with the invite moves into it too); with no campaign, they see only themselves until you add them to one on the Campaigns page.</p>
             {invites.length > 0 && (
               <div style={{ overflowX: "auto" }}>
                 <table className="data">
-                  <thead><tr><th>For</th><th>Character</th><th>Status</th><th>Link</th><th></th></tr></thead>
+                  <thead><tr><th>For</th><th>Character</th><th>Campaign</th><th>Status</th><th>Link</th><th></th></tr></thead>
                   <tbody>
                     {invites.map((i) => {
                       const open = status(i) === "Open";
@@ -149,6 +158,7 @@ export default function Admin() {
                         <tr key={i.id}>
                           <td>{i.note || "—"}</td>
                           <td>{i.character_id ? charName(i.character_id) : "—"}</td>
+                          <td>{i.campaign_id ? session.campaignName(i.campaign_id) : "—"}</td>
                           <td>{status(i)}</td>
                           <td>{open ? <code style={{ wordBreak: "break-all" }}>{link(i.token)}</code> : "—"}</td>
                           <td style={{ whiteSpace: "nowrap" }}>
@@ -169,12 +179,13 @@ export default function Admin() {
           <section className="panel stack">
             <h2>Members</h2>
             <table className="data">
-              <thead><tr><th>Name</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+              <thead><tr><th>Name</th><th>Role</th><th>Campaigns</th><th>Joined</th><th></th></tr></thead>
               <tbody>
                 {session.members.map((m) => (
                   <tr key={m.user_id}>
                     <td>{m.display_name || "—"}{m.user_id === session.user?.id ? " (you)" : ""}</td>
                     <td>{m.role === "admin" ? "Admin" : "Member"}</td>
+                    <td>{session.campaignMembers.filter((x) => x.user_id === m.user_id).map((x) => `${session.campaignName(x.campaign_id)}${x.role === "gm" ? " (GM)" : ""}`).join(", ") || "—"}</td>
                     <td>{m.created_at ? new Date(m.created_at).toLocaleDateString() : ""}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       {m.user_id !== session.user?.id && (

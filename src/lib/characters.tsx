@@ -1,7 +1,8 @@
 /**
  * Characters, from browser storage (local mode) or the instance database.
- * Members see every character in the instance except hidden ones (the owner and admins still see those);
- * the owner or an admin can edit, and hide or show it.
+ * Members see the characters of their own campaigns, except hidden ones (the owner, the campaign's GM and admins still
+ * see those); the owner, the campaign's GM or an admin can edit, and hide or show it. A character in no campaign is
+ * seen only by its owner and admins.
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { cloud, supabase } from "./backend.ts";
@@ -19,6 +20,8 @@ export interface CharRow {
   owner?: string;
   /** Hidden from the rest of the instance (only the owner and admins see it). */
   hidden?: boolean;
+  /** The campaign it belongs to (none: only its owner and admins see it). */
+  campaignId?: string | null;
 }
 
 interface CharState {
@@ -31,6 +34,10 @@ interface CharState {
   canEdit: (id?: string) => boolean;
   /** Hide a character from the rest of the instance, or show it again. */
   setHidden: (id: string, hidden: boolean) => Promise<void>;
+  /** Move a character into a campaign (one the owner is in), or out of every campaign (null). */
+  setCampaign: (id: string, campaignId: string | null) => Promise<void>;
+  /** A campaign's GM: take a character out of the campaign (it stays with its player, in no campaign). */
+  removeFromCampaign: (id: string) => Promise<void>;
   /** Admins: give a character to another member, who then owns it as if they had made it. */
   assign: (id: string, owner: string) => Promise<boolean>;
   reload: () => Promise<void>;
@@ -54,11 +61,14 @@ const addEntries = (log: LogEntry[], extra: LogEntry[]): LogEntry[] => {
   const add = extra.filter((e) => !have.has(e.id));
   return add.length ? [...add, ...log].slice(0, 150) : log;
 };
-const TOPIC = "fivepointfive:characters";
+/** Live changes go out on one channel per campaign, and one per owner for characters in no campaign. */
+const campaignTopic = (id: string) => `fivepointfive:c:${id}`;
+const ownerTopic = (id: string) => `fivepointfive:u:${id}`;
 /** How often an open app checks it hasn't missed a change (it also checks on focus, when a phone wakes and on reconnect). */
 const CHECK_MS = 60_000;
 
-type DbRow = { id: string; owner: string; hidden: boolean; data: Character; version: number };
+type DbRow = { id: string; owner: string; hidden: boolean; campaign_id: string | null; data: Character; version: number };
+const COLS = "id, owner, hidden, campaign_id, data, version";
 type LogRow = { character_id: string; id: string; seq: number; entry: LogEntry };
 /** A small live update: what changed in one character, and the version it turns into which. */
 type Patch = { id: string; base?: number; v: number; ops?: Op[] };
@@ -78,8 +88,9 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
   const logHead = useRef<Record<string, number>>({});
   /** Entries that arrived from elsewhere since this browser last saved that character (kept if a save races them). */
   const fresh = useRef<Record<string, LogEntry[]>>({});
-  const live = useRef<RealtimeChannel | null>(null);
+  const live = useRef<Record<string, RealtimeChannel>>({});
   const hiddenOf = useRef<Record<string, boolean>>({});
+  const whereOf = useRef<Record<string, { owner?: string; campaignId?: string | null }>>({});
 
   /** Turn database rows (and their logs) into characters, keeping this browser's unsaved edits. */
   const absorb = useCallback((list: DbRow[], logs: LogRow[], keepLogs = false): CharRow[] => {
@@ -98,14 +109,15 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
       if (mine) pending.current[r.id] = c;
       server.current[r.id] = { data: remote, v: r.version };
       hiddenOf.current[r.id] = !!r.hidden;
-      return { c, owner: r.owner, hidden: !!r.hidden };
+      whereOf.current[r.id] = { owner: r.owner, campaignId: r.campaign_id };
+      return { c, owner: r.owner, hidden: !!r.hidden, campaignId: r.campaign_id };
     });
   }, []);
 
   const reload = useCallback(async () => {
     if (!supabase || session.status !== "ready") return;
     const [{ data, error: e }, { data: logs, error: le }] = await Promise.all([
-      supabase.from("characters").select("id, owner, hidden, data, version").order("updated_at", { ascending: false }),
+      supabase.from("characters").select(COLS).order("updated_at", { ascending: false }),
       supabase.rpc("recent_log", { per_character: 150 }),
     ]);
     if (e || le) {
@@ -120,7 +132,7 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
   const refetch = useCallback(async (ids: string[], withLogs = true) => {
     if (!supabase || !ids.length) return;
     const [{ data }, logs] = await Promise.all([
-      supabase.from("characters").select("id, owner, hidden, data, version").in("id", ids),
+      supabase.from("characters").select(COLS).in("id", ids),
       withLogs ? supabase.rpc("recent_log", { per_character: 150, ids }) : Promise.resolve({ data: [] }),
     ]);
     if (!data) return;
@@ -206,24 +218,25 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
         // back after a dropped connection: catch up on anything missed
         if (status === "SUBSCRIBED") { if (joined) check(); joined = true; }
       });
-    const patches = supabase
-      .channel(TOPIC, { config: { private: true, broadcast: { self: false } } })
-      .on("broadcast", { event: "patch" }, ({ payload }) => {
-        const pt = payload as Patch;
-        const known = server.current[pt.id];
-        if (!known) { refetch([pt.id]); return; }
-        if (pt.v <= known.v) return; // already have it
-        if (pt.ops && pt.base === known.v) integrate(pt.id, withLog(applyOps(stripLog(known.data), pt.ops), logOf(known.data)), pt.v);
-        else refetch([pt.id], false); // missed one in between (or a change that isn't sent as a patch): fetch a fresh copy
-      })
-      .subscribe();
-    live.current = patches;
-    return () => {
-      live.current = null;
-      supabase!.removeChannel(rows$);
-      supabase!.removeChannel(patches);
+    const onPatch = ({ payload }: { payload: unknown }) => {
+      const pt = payload as Patch;
+      const known = server.current[pt.id];
+      if (!known) { refetch([pt.id]); return; }
+      if (pt.v <= known.v) return; // already have it
+      if (pt.ops && pt.base === known.v) integrate(pt.id, withLog(applyOps(stripLog(known.data), pt.ops), logOf(known.data)), pt.v);
+      else refetch([pt.id], false); // missed one in between (or a change that isn't sent as a patch): fetch a fresh copy
     };
-  }, [session.status, refetch, integrate, editLog, check]);
+    // one channel for each campaign this member is in (admins: every campaign), and their own for characters in none
+    const topics = [...session.campaigns.map((c) => campaignTopic(c.id)), ...(session.user ? [ownerTopic(session.user.id)] : [])];
+    const chans: Record<string, RealtimeChannel> = {};
+    for (const t of topics) chans[t] = supabase.channel(t, { config: { private: true, broadcast: { self: false } } }).on("broadcast", { event: "patch" }, onPatch).subscribe();
+    live.current = chans;
+    return () => {
+      live.current = {};
+      supabase!.removeChannel(rows$);
+      for (const ch of Object.values(chans)) supabase!.removeChannel(ch);
+    };
+  }, [session.status, session.campaigns, session.user, refetch, integrate, editLog, check]);
 
   // local mode: a sheet or tracker open in another tab of this browser changed a character
   useEffect(() => {
@@ -259,9 +272,16 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
     };
   }, [check]);
 
-  /** Tell other open sheets what changed. A hidden character's contents aren't sent: they fetch it if they're allowed to see it. */
+  /**
+   * Tell other open sheets what changed, on the character's campaign channel (or its owner's, in no campaign). A hidden
+   * character's contents aren't sent: they fetch it if they're allowed to see it.
+   */
   const announce = (pt: Patch) => {
-    const ch = live.current;
+    const w = whereOf.current[pt.id] || {};
+    const topic = w.campaignId ? campaignTopic(w.campaignId) : w.owner ? ownerTopic(w.owner) : "";
+    let ch = live.current[topic];
+    // an admin or GM saving a character in a channel this browser doesn't listen on: send on it once
+    if (!ch && topic && supabase) ch = live.current[topic] = supabase.channel(topic, { config: { private: true, broadcast: { self: false } } });
     if (!ch) return;
     const body = hiddenOf.current[pt.id] ? { id: pt.id, v: pt.v } : pt;
     ch.send({ type: "broadcast", event: "patch", payload: body }).catch(() => { /* others catch up on their next check */ });
@@ -350,7 +370,7 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
   const canEdit = (id?: string) => {
     if (!cloud) return true;
     const r = rows.find((x) => x.c.id === id);
-    return !!r && (r.owner === session.user?.id || session.isAdmin);
+    return !!r && (r.owner === session.user?.id || session.isAdmin || (!!r.campaignId && session.isGm(r.campaignId)));
   };
 
   const save = (c: Character) => {
@@ -377,7 +397,9 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
       setRows((prev) => [{ c }, ...prev]);
       return;
     }
-    const { error: e } = await supabase!.from("characters").insert({ id: c.id, data: stripLog(c) });
+    // a new character joins the campaign chosen at the top of the page (if any)
+    const campaign_id = session.campaignId || null;
+    const { error: e } = await supabase!.from("characters").insert({ id: c.id, data: stripLog(c), campaign_id });
     if (e) {
       setError(`Couldn’t create character: ${e.message}`);
       throw e;
@@ -386,7 +408,8 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
     logIds.current[c.id] = new Set();
     // an imported character brings its game log with it
     if (logOf(c).length) await syncLog(c.id, c);
-    setRows((prev) => [{ c, owner: session.user?.id }, ...prev]);
+    whereOf.current[c.id] = { owner: session.user?.id, campaignId: campaign_id };
+    setRows((prev) => [{ c, owner: session.user?.id, campaignId: campaign_id }, ...prev]);
   };
 
   const remove = async (id: string) => {
@@ -413,6 +436,28 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setCampaign = async (id: string, campaignId: string | null) => {
+    if (!supabase) return;
+    const before = rows.find((r) => r.c.id === id)?.campaignId ?? null;
+    setRows((prev) => prev.map((r) => (r.c.id === id ? { ...r, campaignId } : r)));
+    const { data, error: e } = await supabase.from("characters").update({ campaign_id: campaignId }).eq("id", id).select("id");
+    if (e || !data?.length) {
+      setError(`Couldn’t move the character: ${e?.message || "it can only go into a campaign you're in"}`);
+      setRows((prev) => prev.map((r) => (r.c.id === id ? { ...r, campaignId: before } : r)));
+      return;
+    }
+    whereOf.current[id] = { ...whereOf.current[id], campaignId };
+  };
+
+  const removeFromCampaign = async (id: string) => {
+    if (!supabase) return;
+    const { data, error: e } = await supabase.rpc("remove_from_campaign", { cid: id });
+    if (e || !data) { setError(`Couldn’t take the character out: ${e?.message || "only the campaign’s GM can"}`); return; }
+    // its player keeps it; the GM no longer sees it
+    delete server.current[id];
+    setRows((prev) => prev.filter((r) => r.c.id !== id));
+  };
+
   const assign = async (id: string, owner: string) => {
     if (!supabase) return false;
     const before = rows.find((r) => r.c.id === id)?.owner;
@@ -427,7 +472,7 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ ready, rows, get: (id) => rows.find((r) => r.c.id === id), save, create, remove, canEdit, setHidden, assign, reload, saving, error }}>
+    <Ctx.Provider value={{ ready, rows, get: (id) => rows.find((r) => r.c.id === id), save, create, remove, canEdit, setHidden, setCampaign, removeFromCampaign, assign, reload, saving, error }}>
       {children}
     </Ctx.Provider>
   );

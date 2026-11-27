@@ -324,3 +324,9 @@ label.radio input { margin-top: 3px; }
 .admbg tr.admbg-group th { padding-top: 18px; color: var(--ink); font-size: 12px; }
 .admbg-used { display: inline-flex; gap: 8px; align-items: baseline; }
 .admbg-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; transform: translateY(-1px); }
+
+/* campaigns: the picker at the top of Characters and Encounters, and each campaign's members */
+.campsel { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; }
+.campsel select { max-width: 240px; }
+.camptbl { width: 100%; border-collapse: collapse; }
+.camptbl td { padding: 6px 4px; border-top: 1px solid var(--line, #3a333d); vertical-align: middle; }

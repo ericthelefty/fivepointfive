@@ -49,7 +49,8 @@ export default function LootPage() {
   const chars = useCharacters();
   const L = useLoot(id);
   const me = session.user?.id;
-  const isGm = session.isAdmin;
+  // the GM of the loot's campaign (or an admin)
+  const isGm = session.isAdmin || session.isGm(L.loot?.campaign_id);
   const players0 = L.loot?.players || [];
   const mine = players0.filter((cid) => chars.get(cid)?.owner === me);
   // the GM can choose for any player in the loot (theirs first), e.g. for someone who isn't at the table

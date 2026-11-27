@@ -15,7 +15,7 @@ import { combatTables } from "./encounter.ts";
 import type { Character } from "./rules.ts";
 
 export interface LootBody { id: string; name: string; status: string; check: "investigation" | "perception" }
-export interface LootRow { id: string; encounter_id?: string; name: string; status: "open" | "closed"; players: string[]; created_at: string; bodies: LootBody[]; coins: Partial<Coins>; shared_coins: Partial<Coins> }
+export interface LootRow { id: string; encounter_id?: string; campaign_id?: string | null; name: string; status: "open" | "closed"; players: string[]; created_at: string; bodies: LootBody[]; coins: Partial<Coins>; shared_coins: Partial<Coins> }
 export interface LootItemRow { id: string; loot_id: string; seq: number; item: LootLine; status: "open" | "won" | "left"; winner?: string | null; rolls?: Record<string, number>[] | null; delivered: boolean; found_by?: string | null }
 export type FoundThing = HiddenFind & { key: string; choice: "keep" | "share" | null; taken?: boolean };
 export interface LootSearchRow { id: string; loot_id: string; body_id: string; character_id: string; total: number; detail?: string; finds: FoundThing[]; created_at: string }
@@ -26,12 +26,12 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Math.random().toStri
 
 /** The GM sends the reviewed loot: one line per copy, most valuable first, to the characters in the fight. */
 export async function sendLoot(o: {
-  encounterId: string; name: string; players: string[]; lines: LootLine[];
+  encounterId: string; campaignId?: string | null; name: string; players: string[]; lines: LootLine[];
   coins?: Coins; bodies?: LootBody[]; hidden?: { bodyId: string; tiers: { dc: number; finds: HiddenFind[] }[] }[];
 }): Promise<string> {
   if (!supabase) throw new Error("Loot needs a shared instance.");
   const id = uid();
-  const { error: e1 } = await supabase.from("loot").insert({ id, encounter_id: o.encounterId, name: o.name, players: o.players, coins: o.coins || {}, bodies: o.bodies || [] });
+  const { error: e1 } = await supabase.from("loot").insert({ id, encounter_id: o.encounterId, campaign_id: o.campaignId ?? null, name: o.name, players: o.players, coins: o.coins || {}, bodies: o.bodies || [] });
   if (e1) throw e1;
   if (o.hidden?.length) {
     const { error: e3 } = await supabase.from("loot_hidden").insert(o.hidden.map((h) => ({ loot_id: id, body_id: h.bodyId, tiers: h.tiers })));

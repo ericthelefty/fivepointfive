@@ -10,6 +10,7 @@ import { cloud, configError, demo, DEMO_KEY } from "./lib/backend.ts";
 import { SAMPLES, makeSample } from "./lib/samples.ts";
 import { Join, ResetPassword, RESET_PATH, SignIn } from "./pages/Auth.tsx";
 import Admin from "./pages/Admin.tsx";
+import Campaigns from "./pages/Campaigns.tsx";
 import Home from "./pages/Home.tsx";
 import Builder from "./pages/Builder.tsx";
 import Sheet from "./pages/Sheet.tsx";
@@ -100,6 +101,7 @@ function Shell() {
         </button>
         <nav className="topnav" id="topnav" aria-label="Main" onClick={(e) => { if ((e.target as HTMLElement).closest("a,button")) setMenu(false); }}>
           <NavLink to="/" end>Characters</NavLink>
+          {cloud && session.status === "ready" && <NavLink to="/campaigns">Campaigns</NavLink>}
           {encounters.allowed && <NavLink to="/encounters">Encounters</NavLink>}
           <NavLink to="/library">Library</NavLink>
           <NavLink to="/content">Content packs</NavLink>
@@ -123,6 +125,7 @@ function Shell() {
             <Route path="/build/:id" element={<Builder />} />
             <Route path="/sheet/:id" element={<Sheet />} />
             <Route path="/loot/:id" element={<LootPage />} />
+            <Route path="/campaigns" element={cloud ? <Campaigns /> : <div className="panel">Campaigns divide the players of a shared instance. This copy runs in local-only mode, so there’s just you.</div>} />
             <Route path="/encounters" element={<EncounterList />} />
             <Route path="/encounters/:id" element={<EncounterView />} />
             <Route path="/library" element={<Library />} />
