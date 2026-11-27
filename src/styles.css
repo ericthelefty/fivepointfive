@@ -394,7 +394,7 @@ label.radio input { margin-top: 3px; }
 .mapbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .maprow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .maprow.nudge .btn { min-width: 44px; }
-.maprow input[type="number"] { width: 90px; }
+.maprow input[type="number"], .mfield .maprow input[type="number"] { width: 90px; flex: 0 0 auto; }
 .mfield { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 .mfield input:not([type="range"]):not([type="color"]) { width: 100%; }
 .mfield input[type="color"] { width: 48px; height: 34px; padding: 2px; }

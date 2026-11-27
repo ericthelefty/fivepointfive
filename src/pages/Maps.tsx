@@ -143,7 +143,7 @@ export function MapEditor() {
           {tool === "align" && <div className="maphint">Drag a box from one corner of a printed square to the opposite corner.</div>}
         </div>
         <aside className="panel stack mapside">
-          <label className="mfield"><span>Name</span><input value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} placeholder="Unnamed map" /></label>
+          <label className="mfield"><span>Name</span><input type="text" value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} placeholder="Unnamed map" /></label>
           <label className="mchk"><input type="checkbox" checked={grid.show} onChange={(e) => set({ show: e.target.checked })} /> Draw the grid</label>
           <p className="faint" style={{ margin: 0, fontSize: 13 }}>{grid.show ? "Lines are drawn over the map." : "No lines are drawn: use this when the map has its own grid printed on it, and line these squares up with it."}</p>
 

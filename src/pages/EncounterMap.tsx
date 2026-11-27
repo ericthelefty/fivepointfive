@@ -9,7 +9,7 @@ import { useSession } from "../lib/session.tsx";
 import type { Combatant, Encounter } from "../lib/encounter.ts";
 import {
   allCells, announceMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
-  useMapImage, viewEncounterMap, type CampaignMap, type EncounterMap, type MapFog, type MapToken, type MapView,
+  tokenSeen, useMapImage, viewEncounterMap, type CampaignMap, type EncounterMap, type MapFog, type MapToken, type MapView,
 } from "../lib/maps.ts";
 
 type Info = (c: Combatant) => { name: string; size: number; out: boolean };
@@ -281,6 +281,8 @@ export function PlayerMap() {
 
   const map = v.map;
   const mine = new Set(v.mine);
+  // the GM gets everything from the database; here they see what the players see
+  const tokens = v.gm ? v.tokens.filter((t) => tokenSeen(t, v.fog)) : v.tokens;
   const canDrag = (t: MapToken) => v.gm || (t.kind === "pc" && !!t.char && mine.has(t.char) && !t.out);
   const turnName = v.tokens.find((t) => t.uid === v.turn)?.name;
 
@@ -290,11 +292,12 @@ export function PlayerMap() {
         <h1 style={{ margin: 0, fontSize: 22 }}>{v.title || "Map"}</h1>
         <span className="faint">{v.round ? `Round ${v.round}` : ""}{turnName ? ` · ${turnName}’s turn` : ""}</span>
         <span style={{ flex: 1 }} />
+        {v.gm && <span className="faint">This is what your players see.</span>}
         {v.gm && <Link className="btn small" to={`/encounters/${v.encounterId}?tab=map`}>Open in Encounters</Link>}
       </div>
       {err && <p className="faint">{err}</p>}
       <div className="mapstage full">
-        <MapBoard url={url} width={map.width} height={map.height} grid={map.grid} tokens={v.tokens} fog={v.fog} gm={false} tool={tool} turn={v.turn} color={me} pings={pings}
+        <MapBoard url={url} width={map.width} height={map.height} grid={map.grid} tokens={tokens} fog={v.fog} gm={false} tool={tool} turn={v.turn} color={me} pings={pings}
           canDrag={canDrag}
           onMove={async (uid, x, y) => {
             const before = v.tokens;

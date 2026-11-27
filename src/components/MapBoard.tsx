@@ -60,7 +60,7 @@ export default function MapBoard(p: Props) {
   const fitted = useRef(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<null | { kind: "pan"; sx: number; sy: number; tx: number; ty: number } | { kind: "pinch"; d: number; cx: number; cy: number; s: number; tx: number; ty: number }
-    | { kind: "box"; ax: number; ay: number } | { kind: "token"; uid: string; ox: number; oy: number; from: { x: number; y: number } } | { kind: "fog"; from: { x: number; y: number }; cells: Set<string> } | { kind: "measure"; from: { x: number; y: number } }>(null);
+    | { kind: "box"; ax: number; ay: number } | { kind: "token"; uid: string; ox: number; oy: number; from: { x: number; y: number } } | { kind: "fog"; from: { x: number; y: number }; last: { x: number; y: number }; cells: Set<string> } | { kind: "measure"; from: { x: number; y: number } }>(null);
   const [drag, setDrag] = useState<{ uid: string; px: number; py: number } | null>(null);
   const [paint, setPaint] = useState<{ cells: string[]; box?: [{ x: number; y: number }, { x: number; y: number }] } | null>(null);
   const [box, setBox] = useState<{ ax: number; ay: number; bx: number; by: number } | null>(null);
@@ -130,7 +130,7 @@ export default function MapBoard(p: Props) {
     }
     if ((p.tool === "reveal" || p.tool === "cover") && p.onFog) {
       const cells = new Set(brushAt(c));
-      gesture.current = { kind: "fog", from: c, cells };
+      gesture.current = { kind: "fog", from: c, last: c, cells };
       setPaint({ cells: [...cells], box: p.brush === "box" ? [c, c] : undefined });
       return;
     }
@@ -174,7 +174,13 @@ export default function MapBoard(p: Props) {
     else if (gs.kind === "token") setDrag({ uid: gs.uid, px: px - gs.ox, py: py - gs.oy });
     else if (gs.kind === "fog") {
       if (p.brush === "box") { const cells = rectCells(gs.from, c); gs.cells = new Set(cells); setPaint({ cells, box: [gs.from, c] }); }
-      else { brushAt(c).forEach((k) => gs.cells.add(k)); setPaint({ cells: [...gs.cells] }); }
+      else {
+        // fill in every square between this point and the last one, so a quick stroke leaves no gaps
+        const n = Math.max(Math.abs(c.x - gs.last.x), Math.abs(c.y - gs.last.y));
+        for (let i = 1; i <= n; i++) brushAt({ x: Math.round(gs.last.x + ((c.x - gs.last.x) * i) / n), y: Math.round(gs.last.y + ((c.y - gs.last.y) * i) / n) }).forEach((k) => gs.cells.add(k));
+        gs.last = c;
+        setPaint({ cells: [...gs.cells] });
+      }
     } else if (gs.kind === "measure") setMeasure({ a: gs.from, b: c });
   };
 
