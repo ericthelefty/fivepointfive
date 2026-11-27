@@ -23,7 +23,7 @@ import {
 } from "../lib/play.ts";
 import { baseOf, catalog, inventoryOf, isActive, itemTitle, magicInfo, newItemId, type Coins, type Item } from "../lib/inventory.ts";
 import { DamageDial, DIAL_STAGGER } from "../components/DamageDial.tsx";
-import { damageTypeOf, type DamageType } from "../lib/damageDial.ts";
+import { DAMAGE_COLOR, DAMAGE_COLOR_LIGHT, damageChoices, damageName, damageTypeOf, type DamageType } from "../lib/damageDial.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
 import { DetailsForm } from "../components/DetailsForm.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
@@ -378,6 +378,30 @@ export default function Sheet() {
   const [featFilter, setFeatFilter] = useState<"all" | "class" | "species" | "feats">("all");
   const [actFilter, setActFilter] = useState<"all" | "attack" | "action" | "bonus" | "reaction" | "other" | "limited">("all");
   const [memPick, setMemPick] = useState<{ out: string; in: string }>({ out: "", in: "" });
+  /**
+   * The damage type menu: a damage roll that lets the player choose its type ("Bludgeoning or Necrotic or ...") opens
+   * this by the button pressed, and picking a type rolls the damage as that type. The type picked last for each
+   * weapon or spell is highlighted next time.
+   */
+  const [dmgPick, setDmgPick] = useState<{ x: number; y: number; above: boolean; title: string; types: DamageType[]; go: (t: DamageType) => void }>();
+  const lastDmgType = useRef(new Map<string, DamageType>());
+  const lastPress = useRef<DOMRect | undefined>(undefined);
+  useEffect(() => {
+    const press = (e: PointerEvent) => { const b = (e.target as HTMLElement).closest?.("button"); if (b && !b.closest(".dmgpick")) lastPress.current = b.getBoundingClientRect(); };
+    window.addEventListener("pointerdown", press, true);
+    return () => window.removeEventListener("pointerdown", press, true);
+  }, []);
+  useEffect(() => {
+    if (!dmgPick) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !(e.target as HTMLElement).closest?.(".dmgpick")) setDmgPick(undefined);
+    };
+    const gone = () => setDmgPick(undefined);
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", close);
+    window.addEventListener("scroll", gone, true);
+    return () => { window.removeEventListener("mousedown", close); window.removeEventListener("keydown", close); window.removeEventListener("scroll", gone, true); };
+  }, [dmgPick]);
   /** Which spell row's cast-level menu is open. */
   const [castMenu, setCastMenu] = useState<{ key: string; x: number; y: number }>();
   useEffect(() => {
@@ -829,7 +853,31 @@ export default function Sheet() {
     });
     return out;
   };
-  const rollDamage = (title: string, expr: string, crit: boolean, type = "", heal = false, mods: { minDie?: number; maximize?: string; floorSource?: string } = {}, pieces?: { expr: string; type: string }[]) => {
+  type DmgMods = { minDie?: number; maximize?: string; floorSource?: string };
+  /** Roll damage; when its type is a choice, open the damage type menu first and roll as the type picked. */
+  const rollDamage = (title: string, expr: string, crit: boolean, type = "", heal = false, mods: DmgMods = {}, pieces?: { expr: string; type: string }[]) => {
+    const choicePiece = pieces?.findIndex((x) => damageChoices(x.type).length > 1) ?? -1;
+    const types = heal ? [] : choicePiece >= 0 ? damageChoices(pieces![choicePiece].type) : damageChoices(type);
+    if (types.length < 2) return rollDamageNow(title, expr, crit, type, heal, mods, pieces);
+    const r = lastPress.current;
+    const h = 46 + 38 * types.length;
+    const above = !!r && r.bottom + 4 + h > window.innerHeight - 8;
+    const x = r ? Math.max(8, Math.min(r.left, window.innerWidth - 228)) : window.innerWidth / 2 - 110;
+    const y = r ? (above ? Math.max(8, r.top - 4 - h) : r.bottom + 4) : window.innerHeight / 2 - h / 2;
+    setDmgPick({
+      x, y, above, title, types,
+      go: (t) => {
+        lastDmgType.current.set(title, t);
+        setDmgPick(undefined);
+        const name = damageName(t);
+        if (choicePiece >= 0) {
+          const ps = pieces!.map((p, i) => (i === choicePiece ? { ...p, type: name } : p));
+          rollDamageNow(title, expr, crit, ps.map((p) => p.type).filter(Boolean).join(" + "), heal, mods, ps);
+        } else rollDamageNow(title, expr, crit, type.replace(/^.*?(?=,\s*plus\s+|$)/i, name), heal, mods, pieces);
+      },
+    });
+  };
+  const rollDamageNow = (title: string, expr: string, crit: boolean, type = "", heal = false, mods: DmgMods = {}, pieces?: { expr: string; type: string }[]) => {
     const r = roll(expr, { doubleDice: crit, minDie: mods.minDie, maximize: !!mods.maximize });
     if (!r) return;
     const why = [
@@ -3575,6 +3623,16 @@ export default function Sheet() {
       {editable && bgInput}
       {backdropUrl && <div className="sheetbg" aria-hidden="true" style={{ backgroundImage: `url("${backdropUrl}")` }} />}
       {drawerPanel()}
+      {dmgPick && (
+        <div className="castmenu dmgpick" role="menu" aria-label={`Choose the damage type for ${dmgPick.title}`} style={{ left: dmgPick.x, top: dmgPick.y }}>
+          <div className="dmgpickhd">{dmgPick.title}: damage type</div>
+          {dmgPick.types.map((t) => (
+            <button key={t} role="menuitem" className={lastDmgType.current.get(dmgPick.title) === t ? "on" : ""} data-ex={`t:Rolls ${dmgPick.title}’s damage as ${damageName(t)} damage.`} onClick={() => dmgPick.go(t)}>
+              <b><span className="dmgdot" style={{ background: (document.documentElement.dataset.theme === "light" ? DAMAGE_COLOR_LIGHT : DAMAGE_COLOR)[t] }} />{damageName(t)}</b>
+            </button>
+          ))}
+        </div>
+      )}
       {diceFx && (
         <div key={diceFx.key} className={`dice3d ${critFx === "out" || critFx === "back" ? "critd" : ""}`} aria-hidden="true" style={diceFx.ms && diceFx.ms !== 1700 ? { animationDuration: `${diceFx.ms}ms` } : undefined}>
           {diceFx.crit && <div className="critlab">Critical Hit</div>}

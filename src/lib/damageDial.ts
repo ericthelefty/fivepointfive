@@ -68,3 +68,22 @@ export function damageTypeOf(s: string): DamageType | undefined {
   }
   return best?.k;
 }
+
+/**
+ * The damage types a roll lets the player choose between, in the order written: "Bludgeoning or Necrotic or Psychic or
+ * Radiant" gives four. Only the part before any ", plus ..." extra damage counts. Fewer than two means no choice.
+ */
+export function damageChoices(s: string): DamageType[] {
+  const base = s.split(/,\s*plus\s+/i)[0];
+  if (!/\bor\b/i.test(base)) return [];
+  const found: DamageType[] = [];
+  for (const m of base.toLowerCase().matchAll(/[a-z]+/g)) {
+    const t = m[0] as DamageType;
+    if ((DAMAGE_TYPES as readonly string[]).includes(t) && !found.includes(t)) found.push(t);
+  }
+  return found.length >= 2 ? found : [];
+}
+
+/** A damage type's name as the SRD writes it: "Radiant". */
+export const damageName = (t: DamageType) => t[0].toUpperCase() + t.slice(1);
+
