@@ -67,6 +67,8 @@ export interface Character {
   sheetBackground?: string;
   /** The character's own uploaded backdrop: "storage:<path>" on a shared instance, a data URL in local-only mode. */
   customBackground?: string;
+  /** The character's token picture for battle maps (a round-framed square image), stored the same way. */
+  tokenImage?: string;
 }
 
 export const DETAIL_GROUPS: { title: string; fields: { key: string; label: string; long?: boolean; options?: string[] }[] }[] = [

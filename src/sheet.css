@@ -1240,3 +1240,12 @@ body.sheetbg-on { background: transparent !important; }
 .sheetv .bgmenu .bgthumb { width: 76px; height: 52px; }
 .sheetv .mbgopts { grid-template-columns: repeat(4, 1fr); }
 .sheetv .mbgopts .bgfoot { max-width: none; }
+
+/* the character's token picture, beside its name */
+.sheetv .stoken { flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; padding: 0;
+  border: 3px solid #2f5fa8; background: var(--s-panel3); color: var(--s-mut); font: 700 18px/1 var(--serif, Georgia, serif); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+.sheetv .stoken img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sheetv button.stoken { cursor: pointer; }
+.sheetv button.stoken:hover { border-color: var(--s-gold); }
+.sheetv .stoken.empty { border-style: dashed; font-size: 24px; }
+.sheetv .stoken.sm { width: 40px; height: 40px; font-size: 15px; }

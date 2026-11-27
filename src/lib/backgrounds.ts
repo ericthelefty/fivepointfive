@@ -98,6 +98,43 @@ export async function removeBackground(stored?: string): Promise<void> {
   await supabase.storage.from(BACKGROUND_BUCKET).remove([stored.slice("storage:".length)]);
 }
 
+/** The size of a token picture, in pixels each way. */
+export const TOKEN_PX = 256;
+
+/**
+ * Store a character's token picture (already framed and drawn at TOKEN_PX) and return what goes in `tokenImage`, as
+ * for backgrounds: "storage:<character id>/token-<file>" on a shared instance, a data URL in local-only mode. The
+ * previous picture, if any, is removed. (It sits in the backgrounds bucket, under the same rules: whoever can see the
+ * character sees it, and whoever can edit the character changes it.)
+ */
+export async function uploadToken(characterId: string, img: Blob, previous?: string): Promise<string> {
+  if (!supabase) return blobToDataUrl(img);
+  const ext = img.type === "image/webp" ? "webp" : img.type === "image/png" ? "png" : "jpg";
+  const path = `${characterId}/token-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
+  const { error } = await supabase.storage.from(BACKGROUND_BUCKET).upload(path, img, { contentType: img.type, upsert: false });
+  if (error) throw new Error(`Couldn’t upload the picture: ${error.message}`);
+  if (previous) await removeBackground(previous);
+  return `storage:${path}`;
+}
+
+/** URLs to show for several stored images at once (a map's token pictures), by key; missing while loading. */
+export function useStoredImages(stored: Record<string, string | undefined>): Record<string, string> {
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const sig = JSON.stringify(stored);
+  useEffect(() => {
+    let live = true;
+    const entries = Object.entries(stored).filter(([, v]) => !!v) as [string, string][];
+    Promise.all(entries.map(async ([k, v]) => [k, await storedUrl(v)] as const)).then((got) => {
+      if (!live) return;
+      const out: Record<string, string> = {};
+      for (const [k, u] of got) if (u) out[k] = u;
+      setUrls(out);
+    });
+    return () => { live = false; };
+  }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
+  return urls;
+}
+
 /** Delete every uploaded background of a character (when the character is deleted). */
 export async function removeCharacterBackgrounds(characterId: string): Promise<void> {
   if (!supabase) return;

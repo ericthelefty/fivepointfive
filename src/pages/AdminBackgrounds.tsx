@@ -85,14 +85,16 @@ export default function AdminBackgrounds() {
   };
 
   const deleteUpload = (f: StoredFile, owner?: CharRow) => {
-    const who = owner ? `${owner.c.name || "this character"}’s uploaded image` : "this leftover image";
-    const warn = owner?.c.sheetBackground === CUSTOM_BACKGROUND ? ` ${owner.c.name || "The character"}’s sheet will go back to no background.` : "";
+    const isToken = owner?.c.tokenImage === `storage:${f.path}`;
+    const who = owner ? `${owner.c.name || "this character"}’s ${isToken ? "token picture" : "uploaded image"}` : "this leftover image";
+    const warn = isToken ? ` ${owner!.c.name || "The character"}’s token goes back to initials.` : owner?.c.sheetBackground === CUSTOM_BACKGROUND ? ` ${owner.c.name || "The character"}’s sheet will go back to no background.` : "";
     if (!confirm(`Delete ${who}? This can’t be undone.${warn}`)) return;
     run(f.path, async () => {
       await removeBackground(`storage:${f.path}`);
       if (owner) {
         const c = owner.c;
-        chars.save({ ...c, customBackground: undefined, sheetBackground: c.sheetBackground === CUSTOM_BACKGROUND ? undefined : c.sheetBackground });
+        if (isToken) chars.save({ ...c, tokenImage: undefined });
+        else chars.save({ ...c, customBackground: undefined, sheetBackground: c.sheetBackground === CUSTOM_BACKGROUND ? undefined : c.sheetBackground });
       }
       await loadFiles();
     });
@@ -146,18 +148,19 @@ export default function AdminBackgrounds() {
   }));
 
   const uploads: Row[] = files.map((f) => {
-    const owner = chars.rows.find((r) => r.c.customBackground === `storage:${f.path}`);
+    const owner = chars.rows.find((r) => r.c.customBackground === `storage:${f.path}` || r.c.tokenImage === `storage:${f.path}`);
+    const isToken = owner?.c.tokenImage === `storage:${f.path}`;
     const folderChar = chars.get(f.path.split("/")[0]);
     return {
       key: f.path,
       thumb: <StoredThumb className="admbg-thumb" stored={`storage:${f.path}`} />,
       name: owner ? (
-        <>Image for <Link to={`/sheet/${owner.c.id}`}>{owner.c.name || "Unnamed"}</Link></>
+        <>{isToken ? "Token picture" : "Image"} for <Link to={`/sheet/${owner.c.id}`}>{owner.c.name || "Unnamed"}</Link></>
       ) : (
         <>Leftover image{folderChar ? <> from <Link to={`/sheet/${folderChar.c.id}`}>{folderChar.c.name || "Unnamed"}</Link></> : <span className="faint"> · its character was deleted</span>}</>
       ),
       source: <>Uploaded{owner?.owner ? <> · {session.nameOf(owner.owner)}’s character</> : ""}<span className="faint"> · {kb(f.size)}{f.created_at ? ` · ${new Date(f.created_at).toLocaleDateString()}` : ""}</span></>,
-      usedBy: owner && owner.c.sheetBackground === CUSTOM_BACKGROUND ? [owner] : [],
+      usedBy: owner && (isToken || owner.c.sheetBackground === CUSTOM_BACKGROUND) ? [owner] : [],
       unused: owner ? "Uploaded, but not picked" : "Not attached to any character",
       actions: <button className="btn small" disabled={busy === f.path} onClick={() => deleteUpload(f, owner)}>Delete</button>,
     };

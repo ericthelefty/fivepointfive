@@ -28,7 +28,8 @@ import InventoryPanel from "./InventoryPanel.tsx";
 import { DetailsForm } from "../components/DetailsForm.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
 import { NARROW, useMedia } from "../lib/useMedia.ts";
-import { CUSTOM_BACKGROUND, LIBRARY_PREFIX, SHEET_BACKGROUNDS, StoredThumb, libraryBackground, removeBackground, sheetBackground, uploadBackground, useLibraryBackgrounds, useStoredImage } from "../lib/backgrounds.ts";
+import { CUSTOM_BACKGROUND, LIBRARY_PREFIX, SHEET_BACKGROUNDS, StoredThumb, libraryBackground, removeBackground, sheetBackground, uploadBackground, uploadToken, useLibraryBackgrounds, useStoredImage } from "../lib/backgrounds.ts";
+import { TokenMaker } from "../components/TokenMaker.tsx";
 import {
   advantageFor, computeModif, type ScrollUse, disadvantageFor, spellcastingOf, spellMinutes, spellPlan as basePlan, statusOf, treatRoll, weaponFits, weaponProficient,
   type ModifConvert, type ConvertSide, type WeaponInfo,
@@ -260,6 +261,9 @@ export default function Sheet() {
   const bgRef = useRef<HTMLDivElement>(null);
   // the character's own uploaded backdrop, if any (downloaded from private storage on a shared instance)
   const customUrl = useStoredImage(c?.customBackground);
+  // the character's token picture for battle maps
+  const tokenUrl = useStoredImage(c?.tokenImage);
+  const [tokOpen, setTokOpen] = useState(false);
   // images an admin added to the instance's library, and built-in ones an admin hid
   const library = useLibraryBackgrounds();
   const hiddenBgs = session.settings.hidden_backgrounds || [];
@@ -3486,6 +3490,25 @@ export default function Sheet() {
     setC((prev) => (prev ? { ...prev, customBackground: undefined, sheetBackground: prev.sheetBackground === CUSTOM_BACKGROUND ? undefined : prev.sheetBackground } : prev));
     await removeBackground(old);
   };
+  const saveToken = async (img: Blob) => {
+    const stored = await uploadToken(c.id, img, c.tokenImage);
+    dirty.current = true;
+    setC((prev) => (prev ? { ...prev, tokenImage: stored } : prev));
+  };
+  const removeToken = async () => {
+    const old = c.tokenImage;
+    dirty.current = true;
+    setC((prev) => (prev ? { ...prev, tokenImage: undefined } : prev));
+    await removeBackground(old);
+  };
+  /** The character's token: its picture in a circle (or initials); its owner or the GM clicks it to change it. */
+  const tokenFace = (cls2: string) => {
+    const initials = (c.name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+    const face = tokenUrl ? <img src={tokenUrl} alt="" /> : <span>{editable ? "+" : initials}</span>;
+    return editable
+      ? <button className={`stoken ${cls2} ${tokenUrl ? "" : "empty"}`} title={tokenUrl ? "Change this character’s token picture for battle maps" : "Add a token picture for battle maps"} aria-label="Token picture" onClick={() => setTokOpen(true)}>{face}</button>
+      : tokenUrl ? <span className={`stoken ${cls2}`} title="This character’s token on battle maps">{face}</span> : null;
+  };
   /** The backdrop choices (None, each image, then the character's own), for the toolbar menu and the phone Sections menu. */
   const bgOptions = (done: () => void) => (
     <>
@@ -3539,6 +3562,7 @@ export default function Sheet() {
   const phoneTop = narrow && (
     <div className="mtop">
       <div className="mhd">
+        {tokenFace("sm")}
         <div className="mname">
           <div className="mrow1">
             <h1 className="disp">{c.name || "Unnamed character"}</h1>
@@ -3668,6 +3692,7 @@ export default function Sheet() {
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
             <div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                {tokenFace("")}
                 <h1 className="disp">{c.name || "Unnamed character"}</h1>
                 {editable && <Link className="sbtn ghost sm" title="Change your species, class, ability scores, feats and other choices in the character builder." to={`/build/${c.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Edit in builder</Link>}
                 {editable && (() => {
@@ -4328,6 +4353,7 @@ export default function Sheet() {
         </div>
       )}
       {phoneBits}
+      {tokOpen && <TokenMaker name={c.name || ""} current={tokenUrl} onSave={saveToken} onRemove={c.tokenImage ? removeToken : undefined} onClose={() => setTokOpen(false)} />}
       <div className="explainbar">
         <button className={`exsw ${explain ? "on" : ""}`} data-exnav role="switch" aria-checked={explain} title="Explainer Mode: point at (or tap) anything on the sheet to see what it means and how it's worked out. Rolling is off while it's on. Press this to turn it off." onClick={() => { setExplain(!explain); setExAt(undefined); }}>
           <span className="knob" aria-hidden="true" /> Explainer Mode

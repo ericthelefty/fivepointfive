@@ -12,6 +12,16 @@ import { useAreas } from "../lib/areas.ts";
 import { CONDITION_EFFECTS } from "../lib/play.ts";
 import { useSession } from "../lib/session.tsx";
 import { useMedia } from "../lib/useMedia.ts";
+import { useCharacters } from "../lib/characters.tsx";
+import { useStoredImages } from "../lib/backgrounds.ts";
+
+/** The token pictures of the characters on a map, by token uid. */
+function useTokenImages(tokens: MapToken[] | undefined) {
+  const chars = useCharacters();
+  const want: Record<string, string | undefined> = {};
+  for (const t of tokens || []) if (t.char) want[t.uid] = chars.get(t.char)?.c.tokenImage;
+  return useStoredImages(want);
+}
 import type { Combatant, Encounter } from "../lib/encounter.ts";
 import {
   addMap, allCells, announceMap, normBlock, setBlocks, withFog, deleteMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
@@ -194,6 +204,7 @@ export function EncounterMapTab({ e, st, onExit, onCondition }: { e: Encounter; 
   const me = colorOf(session.user?.id);
   useFullWindow(!!(desktop && e.campaignId && em && map && !editing));
   const areas = useAreas(e.id, st.campaignId, session.user?.id, true);
+  const images = useTokenImages(em?.tokens);
   const [areaSet, setAreaSet] = useState<AreaSettings>(defaultAreaSettings);
   const [selArea, setSelArea] = useState<string | null>(null);
   const [areaHint, setAreaHint] = useState("");
@@ -308,7 +319,7 @@ export function EncounterMapTab({ e, st, onExit, onCondition }: { e: Encounter; 
           onBlockAdd={(b) => { const id = Date.now().toString(36); fogDo((f) => setBlocks(f, [...(f.blocks || []), normBlock({ ...b, id })])); setSelBlock(id); }}
           onBlockChange={putBlock} onBlockSelect={setSelBlock} onBlockDelete={dropBlock}
           areas={areas.all.map((a) => ({ a, mine: areas.mine(a), shown: areas.isShown(a.id) }))} selArea={selArea} onAreaSelect={(id) => { setSelArea(id); setAreaHint(""); }}
-          areaNew={newArea(areaSet)} onAreaAdd={(a) => { areas.add(a); setAreaHint(""); }} onAreaChange={areas.change} onAreaHint={setAreaHint}
+          areaNew={newArea(areaSet)} onAreaAdd={(a) => { areas.add(a); setAreaHint(""); }} onAreaChange={areas.change} onAreaHint={setAreaHint} images={images}
           color={me} pings={pings} canDrag={() => true}
           onMove={(uid, x, y) => place(uid, x, y)}
           onSelect={(uid) => { setSel(uid); setPick(null); }}
@@ -405,6 +416,7 @@ export function PlayerMap() {
   const me = colorOf(session.user?.id);
   useFullWindow(!!v?.map);
   const areas = useAreas(id, v?.campaignId, session.user?.id, !!v?.gm);
+  const images = useTokenImages(v?.tokens);
   const [areaSet, setAreaSet] = useState<AreaSettings>(defaultAreaSettings);
   const [selArea, setSelArea] = useState<string | null>(null);
   const [areaHint, setAreaHint] = useState("");
@@ -462,7 +474,7 @@ export function PlayerMap() {
           }}
           onPing={(px, py) => { addPing(px, py, me); announceMap(v.campaignId, { encounterId: v.encounterId, ping: { px, py, who: session.user?.id || "" } }); }}
           areas={areas.all.map((a) => ({ a, mine: areas.mine(a), shown: areas.isShown(a.id) }))} selArea={selArea} onAreaSelect={(i) => { setSelArea(i); setAreaHint(""); }}
-          areaNew={newArea(areaSet)} onAreaAdd={(a) => { areas.add(a); setAreaHint(""); }} onAreaChange={areas.change} onAreaHint={setAreaHint} />
+          areaNew={newArea(areaSet)} onAreaAdd={(a) => { areas.add(a); setAreaHint(""); }} onAreaChange={areas.change} onAreaHint={setAreaHint} images={images} />
         {tool === "move" && picked && (
           <div className="mapfloat">
             <div className="mfcard">

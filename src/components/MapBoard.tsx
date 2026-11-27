@@ -57,6 +57,8 @@ interface Props {
   pings?: Ping[];
   /** The colour this viewer's pings and measurements use. */
   color?: string;
+  /** Pictures for tokens (a character's token picture), by token uid: shown in the circle instead of initials. */
+  images?: Record<string, string>;
 }
 
 const KIND_FILL: Record<MapToken["kind"], string> = { pc: "#2f5fa8", monster: "#9a2f25", other: "#5b5560" };
@@ -422,7 +424,12 @@ export default function MapBoard(p: Props) {
                 {(t.conds || []).map((k, i) => <circle key={k} cx={cx} cy={cy} r={rad + u * (0.075 + i * 0.075)} fill="none" stroke={condColor(k)} strokeWidth={u * 0.06} pointerEvents="none"><title>{k}</title></circle>)}
                 {hits.map((h, i) => <circle key={i} cx={cx} cy={cy} r={rad + u * (0.12 + ((t.conds?.length || 0) + i) * 0.09)} fill="none" stroke={h.color} strokeWidth={u * 0.07} strokeDasharray={h.shown ? undefined : `${u * 0.1} ${u * 0.07}`} pointerEvents="none" />)}
                 <circle cx={cx} cy={cy} r={rad} fill={KIND_FILL[t.kind]} stroke="#0b090d" strokeWidth={u * 0.04} />
-                <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.min(rad * 0.82, u * 0.36 * Math.min(t.size, 2))} fill="#fff8ea" fontWeight={700}>{tokenLabel(t.name)}</text>
+                {p.images?.[t.uid] ? (
+                  <>
+                    <clipPath id={`tokclip${id}${t.uid}`}><circle cx={cx} cy={cy} r={rad * 0.9} /></clipPath>
+                    <image href={p.images[t.uid]} x={cx - rad * 0.9} y={cy - rad * 0.9} width={rad * 1.8} height={rad * 1.8} clipPath={`url(#tokclip${id}${t.uid})`} preserveAspectRatio="xMidYMid slice" />
+                  </>
+                ) : <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.min(rad * 0.82, u * 0.36 * Math.min(t.size, 2))} fill="#fff8ea" fontWeight={700}>{tokenLabel(t.name)}</text>}
                 {t.out && <path d={`M ${cx - rad * 0.6} ${cy - rad * 0.6} L ${cx + rad * 0.6} ${cy + rad * 0.6} M ${cx + rad * 0.6} ${cy - rad * 0.6} L ${cx - rad * 0.6} ${cy + rad * 0.6}`} stroke="#0b090d" strokeWidth={u * 0.08} strokeLinecap="round" />}
                 {t.note && <text x={cx} y={r.top + r.h + u * 0.24} textAnchor="middle" dominantBaseline="hanging" className={`mlabel mnote ${t.noteGm ? "gm" : ""}`} fontSize={u * 0.26} strokeWidth={u * 0.06}>{t.note.length > 28 ? `${t.note.slice(0, 27)}…` : t.note}</text>}
                 <title>{t.name}{t.conds?.length ? ` — ${t.conds.join(", ")}` : ""}{hits.length ? " (in an area of effect)" : ""}{t.note ? ` — ${t.note}${t.noteGm ? " (GM only)" : ""}` : ""}{t.hidden ? " (hidden from players)" : ""}{t.out ? " (out of the fight)" : ""}</title>
