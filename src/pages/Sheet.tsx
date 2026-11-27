@@ -3578,6 +3578,8 @@ export default function Sheet() {
       {diceFx && (
         <div key={diceFx.key} className={`dice3d ${critFx === "out" || critFx === "back" ? "critd" : ""}`} aria-hidden="true" style={diceFx.ms && diceFx.ms !== 1700 ? { animationDuration: `${diceFx.ms}ms` } : undefined}>
           {diceFx.crit && <div className="critlab">Critical Hit</div>}
+          {/* the dice sit in their own row so the damage dial centres on them, not on the modifier beside them */}
+          <div className="dicerow">
           {diceFx.dial && <DamageDial parts={diceFx.dial} delay={diceFx.hold || 0} />}
           {diceFx.dice.map((x, i) => (
             <div key={i} className="diewrap" style={{ animationDelay: `${i * 60}ms` }}>
@@ -3587,6 +3589,7 @@ export default function Sheet() {
             </div>
             </div>
           ))}
+          </div>
           {diceFx.mod !== 0 && (
             <div className="dmod" style={{ animationDelay: `${diceFx.dice.length * 60 + 450}ms`, ["--tilt" as string]: `${diceFx.tilt.toFixed(1)}deg` }}>
               {diceFx.mod < 0 ? "−" : "+"}{Math.abs(diceFx.mod)}
