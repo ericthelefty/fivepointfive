@@ -11,7 +11,7 @@ import { useSession } from "../lib/session.tsx";
 import { useMedia } from "../lib/useMedia.ts";
 import type { Combatant, Encounter } from "../lib/encounter.ts";
 import {
-  addMap, allCells, announceMap, deleteMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
+  addMap, allCells, announceMap, normBlock, setBlocks, withFog, deleteMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
   NOTE_MAX, tokenSeen, useMapImage, viewEncounterMap, type CampaignMap, type EncounterMap, type MapFog, type MapToken, type MapView,
 } from "../lib/maps.ts";
 
@@ -120,8 +120,7 @@ type MapState = ReturnType<typeof useEncounterMap>;
 const TOOLS: { id: MapTool; label: string; tip: string }[] = [
   { id: "select", label: "Cursor", tip: "Click a token to select it, and add text to it; drag the map to pan" },
   { id: "move", label: "Move", tip: "Drag tokens; drag the map to pan" },
-  { id: "reveal", label: "Reveal", tip: "Uncover fog" },
-  { id: "cover", label: "Cover", tip: "Cover with fog" },
+  { id: "fog", label: "Fog", tip: "Uncover or cover the map, or draw blocks of fog (hold Alt to do the opposite)" },
   { id: "measure", label: "Measure", tip: "Drag from one square to another" },
   { id: "ping", label: "Point", tip: "Point at a spot for everyone" },
 ];
@@ -156,12 +155,27 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
   const url = useMapImage(map?.path);
   const [tool, setTool] = useState<MapTool>("select");
   const [brush, setBrush] = useState<number | "box">(1);
+  const [fogReveal, setFogReveal] = useState(true);
+  const [selBlock, setSelBlock] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
   const [undo, setUndo] = useState<MapFog[]>([]);
   const [pings, addPing] = usePings();
   const me = colorOf(session.user?.id);
   useFullWindow(!!(desktop && e.campaignId && em && map && !editing));
+  // Delete or Backspace removes the chosen fog block (not while typing in a box)
+  const delKey = useRef<() => void>(undefined);
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key !== "Delete" && ev.key !== "Backspace") return;
+      const t = ev.target as HTMLElement;
+      if (t.closest("input, textarea, select, [contenteditable]")) return;
+      if (delKey.current) { ev.preventDefault(); delKey.current(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  delKey.current = undefined; // set again below while a block is chosen
 
   useEffect(() => {
     if (!st.campaignId) return;
@@ -231,7 +245,12 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
     }) }));
   };
 
-  const fogTool = tool === "reveal" || tool === "cover";
+  const fogTool = tool === "fog";
+  const blocks = em.fog.blocks || [];
+  const block = blocks.find((b) => b.id === selBlock);
+  const dropBlock = (id: string) => { fogDo((f) => setBlocks(f, (f.blocks || []).filter((x) => x.id !== id))); setSelBlock(null); };
+  const putBlock = (b: typeof blocks[number]) => fogDo((f) => setBlocks(f, (f.blocks || []).map((x) => (x.id === b.id ? normBlock(b) : x))));
+  delKey.current = fogTool && block ? () => dropBlock(block.id) : undefined;
   return (
     <div className="mapfull" role="dialog" aria-label={`Map: ${e.name}`}>
       <div className="maptop">
@@ -251,7 +270,9 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
         <button className="mtbtn" disabled={uploading} onClick={() => file.current?.click()}>{uploading ? "Uploading…" : "Upload a map"}</button>
       </div>
       <div className="mapstage">
-        <MapBoard url={url} width={map.width} height={map.height} grid={g} tokens={em.tokens} fog={em.fog} gm tool={tool} brush={brush} turn={em.turn} selected={sel}
+        <MapBoard url={url} width={map.width} height={map.height} grid={g} tokens={em.tokens} fog={em.fog} gm tool={tool} brush={brush} fogReveal={fogReveal} blocks={blocks} selBlock={selBlock} turn={em.turn} selected={sel}
+          onBlockAdd={(b) => { const id = Date.now().toString(36); fogDo((f) => setBlocks(f, [...(f.blocks || []), normBlock({ ...b, id })])); setSelBlock(id); }}
+          onBlockChange={putBlock} onBlockSelect={setSelBlock} onBlockDelete={dropBlock}
           color={me} pings={pings} canDrag={() => true}
           onMove={(uid, x, y) => place(uid, x, y)}
           onSelect={(uid) => { setSel(uid); setPick(null); }}
@@ -259,7 +280,7 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
           onFog={(cells, reveal) => fogDo((f) => paintFog(f, cells, reveal))}
           onPing={(px, py) => { addPing(px, py, me); announceMap(st.campaignId, { encounterId: e.id, ping: { px, py, who: session.user?.id || "" } }); }} />
         <div className="maprail" role="toolbar" aria-label="Map tools">
-          {TOOLS.filter((t) => em.fog.on || (t.id !== "reveal" && t.id !== "cover")).map((t) => (
+          {TOOLS.filter((t) => em.fog.on || t.id !== "fog").map((t) => (
             <button key={t.id} className={`mrbtn ${tool === t.id ? "on" : ""}`} title={`${t.label}: ${t.tip}`} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><MapIcon name={t.id} /></button>
           ))}
           {em.fog.on && <>
@@ -273,13 +294,32 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
           <div className="mapfloat">
             {fogTool && (
               <div className="mfcard">
-                <b>{tool === "reveal" ? "Reveal" : "Cover"}</b>
-                <div className="maprow">
-                  {([0, 1, 2, "box"] as const).map((b) => <button key={b} className={`mtbtn ${brush === b ? "on" : ""}`} onClick={() => setBrush(b)}>{b === "box" ? "Box" : `${b * 2 + 1} sq`}</button>)}
+                <b>Fog</b>
+                <div className="maprow" role="group" aria-label="Fog does">
+                  <button className={`mtbtn ${fogReveal ? "on" : ""}`} aria-pressed={fogReveal} onClick={() => setFogReveal(true)}>Reveal</button>
+                  <button className={`mtbtn ${!fogReveal ? "on" : ""}`} aria-pressed={!fogReveal} onClick={() => setFogReveal(false)}>Cover</button>
+                  <span className="mfhint">Alt: the other</span>
                 </div>
+                <div className="maprow" role="group" aria-label="Shape">
+                  {([0, 1, 2] as const).map((r) => <button key={r} className={`mtbtn ${brush === r ? "on" : ""}`} onClick={() => setBrush(r)}>{r * 2 + 1} sq</button>)}
+                  <button className={`mtbtn ${brush === "box" ? "on" : ""}`} onClick={() => setBrush("box")} title="Drag a rectangle that snaps to the grid">Rectangle</button>
+                </div>
+                {brush === "box" && <p className="mfhint" style={{ margin: 0 }}>{fogReveal ? "Drag a rectangle to uncover it." : "Drag a rectangle to make a block of fog. Drag a block to move it, or its corners to resize it."}</p>}
+                {block && (
+                  <div className="mfsub">
+                    <div className="maprow"><b style={{ flex: 1 }}>Fog block</b><span className="mfhint">Delete key</span><button className="mtbtn" onClick={() => dropBlock(block.id)}>Delete</button></div>
+                    <div className="maprow">
+                      <label className="mfield" style={{ flex: 1 }}><span>Width (squares)</span>
+                        <input type="number" min={1} max={200} value={block.w} onChange={(ev) => { const n = Number(ev.target.value); if (n >= 1) putBlock({ ...block, w: n }); }} /></label>
+                      <label className="mfield" style={{ flex: 1 }}><span>Length (squares)</span>
+                        <input type="number" min={1} max={200} value={block.h} onChange={(ev) => { const n = Number(ev.target.value); if (n >= 1) putBlock({ ...block, h: n }); }} /></label>
+                    </div>
+                  </div>
+                )}
                 <div className="maprow">
-                  <button className="mtbtn" onClick={() => fogDo((f) => ({ ...f, cells: allCells(g, map.width, map.height) }))}>Reveal all</button>
-                  <button className="mtbtn" onClick={() => fogDo((f) => ({ ...f, cells: [] }))}>Cover all</button>
+                  <button className="mtbtn" onClick={() => fogDo((f) => withFog(f, allCells(g, map.width, map.height), f.blocks || []))}>Reveal all</button>
+                  <button className="mtbtn" onClick={() => fogDo((f) => withFog(f, [], f.blocks || []))}>Cover all</button>
+                  {blocks.length > 0 && <button className="mtbtn" onClick={() => { fogDo((f) => setBlocks(f, [])); setSelBlock(null); }}>Remove blocks</button>}
                 </div>
               </div>
             )}

@@ -70,9 +70,17 @@ export const NOTE_MAX = 40;
 
 export interface MapFog {
   on: boolean;
-  /** Squares uncovered, as "x,y". */
+  /** Squares the players can see, as "x,y": what the GM uncovered, less any fog blocks. The database and the players'
+   * map go by this alone. */
   cells: string[];
+  /** The squares the GM uncovered with the brush (unset on older maps: the same as `cells`). */
+  revealed?: string[];
+  /** Rectangles of fog the GM drew, which cover whatever is under them; they can be moved and resized. */
+  blocks?: FogBlock[];
 }
+
+/** A rectangle of fog, in grid squares. */
+export interface FogBlock { id: string; x: number; y: number; w: number; h: number }
 
 /** An encounter's map, as the GM keeps it. */
 export interface EncounterMap {
@@ -190,14 +198,36 @@ export function rectCells(a: { x: number; y: number }, b: { x: number; y: number
   return out;
 }
 
+/** What the GM uncovered with the brush. */
+export const fogRevealed = (f: MapFog) => f.revealed ?? f.cells;
+
+/** The squares a fog block covers. */
+export const blockCells = (b: FogBlock) => rectCells({ x: b.x, y: b.y }, { x: b.x + b.w - 1, y: b.y + b.h - 1 });
+
+/** A fog with these uncovered squares and blocks, and what the players see worked out from them. */
+export function withFog(f: MapFog, revealed: string[], blocks: FogBlock[]): MapFog {
+  const hidden = new Set(blocks.flatMap(blockCells));
+  const out: MapFog = { ...f, revealed, cells: revealed.filter((c) => !hidden.has(c)) };
+  if (blocks.length) out.blocks = blocks; else delete out.blocks;
+  return out;
+}
+
 /** Uncover (or cover) some squares. */
 export function paintFog(fog: MapFog, cells: string[], reveal: boolean): MapFog {
-  const s = new Set(fog.cells);
+  const s = new Set(fogRevealed(fog));
   let changed = false;
   for (const c of cells) {
     if (reveal ? !s.has(c) : s.has(c)) { changed = true; if (reveal) s.add(c); else s.delete(c); }
   }
-  return changed ? { ...fog, cells: [...s] } : fog;
+  return changed ? withFog(fog, [...s], fog.blocks || []) : fog;
+}
+
+/** Add, change or remove fog blocks. */
+export const setBlocks = (fog: MapFog, blocks: FogBlock[]): MapFog => withFog(fog, fogRevealed(fog), blocks);
+
+/** A block kept at least one square each way. */
+export function normBlock(b: FogBlock): FogBlock {
+  return { ...b, w: Math.max(1, Math.round(b.w)), h: Math.max(1, Math.round(b.h)), x: Math.round(b.x), y: Math.round(b.y) };
 }
 
 /** Every square of the map, uncovered. */

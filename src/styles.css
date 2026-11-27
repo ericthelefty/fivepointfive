@@ -369,7 +369,7 @@ label.radio input { margin-top: 3px; }
 .mapboard { position: relative; width: 100%; height: 100%; overflow: hidden; touch-action: none; user-select: none; border-radius: 12px; cursor: grab;
   background-color: #1b1820; background-image: linear-gradient(rgba(255, 255, 255, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .06) 1px, transparent 1px); background-size: 32px 32px; }
 .mapboard:active { cursor: grabbing; }
-.mapboard.tool-reveal, .mapboard.tool-cover, .mapboard.tool-measure, .mapboard.tool-align, .mapboard.tool-ping { cursor: crosshair; }
+.mapboard.tool-measure, .mapboard.tool-align, .mapboard.tool-ping { cursor: crosshair; }
 .mapboard svg { display: block; }
 .mapboard .mtok.can { cursor: grab; }
 .mapboard .mtok.drag { opacity: .85; }
@@ -413,6 +413,16 @@ body.mapopen { overflow: hidden; }
 .mapfloat { position: absolute; left: 10px; bottom: 10px; width: 300px; max-width: calc(100% - 70px); max-height: calc(100% - 20px); overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .mfcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: rgba(20, 17, 22, .92); border: 1px solid rgba(255, 255, 255, .12); color: #f2eadf; font-size: 14px; backdrop-filter: blur(4px); }
 .mfcard .mchk { color: #f2eadf; }
+.mfhint { font-size: 12px; color: #c9bfb6; }
+.mfsub { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 9px; background: rgba(255, 255, 255, .05); }
+.mapboard .mblock { cursor: move; }
+.mapboard .mbdel { cursor: pointer; }
+.mapboard .mbdel circle { fill: #9a2f25; stroke: #141114; stroke-width: 1; }
+.mapboard .mbdel path { stroke: #fff8ea; }
+.mapboard .mbh { fill: #f2cd85; stroke: #141114; stroke-width: 1; }
+.mapboard .mbh.nw, .mapboard .mbh.se { cursor: nwse-resize; }
+.mapboard .mbh.ne, .mapboard .mbh.sw { cursor: nesw-resize; }
+.mapboard.tool-fog { cursor: crosshair; }
 .maphint.bad { top: auto; bottom: 54px; background: rgba(110, 30, 24, .92); white-space: normal; text-align: center; }
 .mapfoot { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); font-size: 12px; color: #c9bfb6; background: rgba(12, 10, 14, .7); padding: 4px 10px; border-radius: 999px; pointer-events: none; white-space: nowrap; }
 @media (max-width: 640px) { .mapfoot { display: none; } .mapfloat { width: auto; right: 60px; max-height: 45%; } }

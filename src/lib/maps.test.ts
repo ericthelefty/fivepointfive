@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allCells, brushCells, cellAt, cellRect, clampCell, DEFAULT_GRID, feetBetween, gridAcross, gridBounds, gridCount, gridDown, gridFromBox, normGrid, paintFog, rectCells, sizeSquares, syncTokens, tokenLabel, tokenSeen, type MapGrid, type MapToken } from "./maps.ts";
+import { blockCells, normBlock, setBlocks, withFog, allCells, brushCells, cellAt, cellRect, clampCell, DEFAULT_GRID, feetBetween, gridAcross, gridBounds, gridCount, gridDown, gridFromBox, normGrid, paintFog, rectCells, sizeSquares, syncTokens, tokenLabel, tokenSeen, type MapGrid, type MapToken } from "./maps.ts";
 import type { Combatant } from "./encounter.ts";
 
 const g = (p: Partial<MapGrid> = {}): MapGrid => ({ ...DEFAULT_GRID, size: 50, ox: 0, oy: 0, ...p });
@@ -70,6 +70,21 @@ describe("fog", () => {
     expect(more.cells.sort()).toEqual(["0,0", "1,0"]);
     expect(paintFog(more, ["0,0"], false).cells).toEqual(["1,0"]);
     expect(paintFog(f, ["0,0"], true)).toBe(f);
+  });
+  it("fog blocks cover what's under them, and come off again", () => {
+    const f = withFog({ on: true, cells: [] }, ["0,0", "1,0", "2,0", "3,0"], []);
+    expect(f.cells).toEqual(["0,0", "1,0", "2,0", "3,0"]);
+    const b = setBlocks(f, [{ id: "a", x: 1, y: 0, w: 2, h: 1 }]);
+    expect(b.cells).toEqual(["0,0", "3,0"]);
+    expect(b.revealed).toHaveLength(4);
+    // uncovering under a block shows nothing until the block goes
+    expect(paintFog(b, ["1,0"], true).cells).toEqual(["0,0", "3,0"]);
+    expect(setBlocks(b, []).cells).toHaveLength(4);
+    expect(setBlocks(b, []).blocks).toBeUndefined();
+    // an older map without the brush layer keeps what it had uncovered
+    expect(paintFog({ on: true, cells: ["5,5"] }, ["6,6"], true).cells.sort()).toEqual(["5,5", "6,6"]);
+    expect(blockCells({ id: "x", x: 2, y: 3, w: 2, h: 2 }).sort()).toEqual(["2,3", "2,4", "3,3", "3,4"]);
+    expect(normBlock({ id: "x", x: 1.4, y: 2, w: 0, h: 3.6 })).toEqual({ id: "x", x: 1, y: 2, w: 1, h: 4 });
   });
   it("hides monsters under the fog and hidden tokens from players, never characters", () => {
     const fog = { on: true, cells: ["3,3"] };

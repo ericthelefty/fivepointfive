@@ -5,9 +5,9 @@
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { MapIcon } from "./MapIcons.tsx";
-import { brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, rectCells, sizeH, tokenLabel, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
+import { brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, normBlock, rectCells, sizeH, tokenLabel, type FogBlock, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
 
-export type MapTool = "select" | "move" | "reveal" | "cover" | "measure" | "ping" | "align";
+export type MapTool = "select" | "move" | "fog" | "measure" | "ping" | "align";
 export interface Ping { id: number; px: number; py: number; color: string }
 
 interface Props {
@@ -20,8 +20,18 @@ interface Props {
   /** The GM sees the fog as a wash and hidden tokens faintly; players see the fog as solid black. */
   gm: boolean;
   tool: MapTool;
-  /** Fog brush radius in squares (0 is one square); "box" drags a rectangle. */
+  /** Fog brush radius in squares (0 is one square); "box" drags a rectangle that snaps to the grid. */
   brush?: number | "box";
+  /** The fog tool uncovers (true) or covers (false); holding Alt while dragging does the other. */
+  fogReveal?: boolean;
+  /** Fog blocks, shown with handles to move and resize them while the fog tool is out. */
+  blocks?: FogBlock[];
+  selBlock?: string | null;
+  /** A rectangle drawn while covering becomes a fog block. */
+  onBlockAdd?: (b: Omit<FogBlock, "id">) => void;
+  onBlockChange?: (b: FogBlock) => void;
+  onBlockSelect?: (id: string | null) => void;
+  onBlockDelete?: (id: string) => void;
   turn?: string | null;
   selected?: string | null;
   canDrag: (t: MapToken) => boolean;
@@ -64,9 +74,11 @@ export default function MapBoard(p: Props) {
   const fitted = useRef(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<null | { kind: "pan"; sx: number; sy: number; tx: number; ty: number } | { kind: "pinch"; d: number; cx: number; cy: number; s: number; tx: number; ty: number }
-    | { kind: "box"; ax: number; ay: number } | { kind: "token"; uid: string; ox: number; oy: number; from: { x: number; y: number } } | { kind: "fog"; from: { x: number; y: number }; last: { x: number; y: number }; cells: Set<string> } | { kind: "measure"; from: { x: number; y: number } }>(null);
+    | { kind: "box"; ax: number; ay: number } | { kind: "token"; uid: string; ox: number; oy: number; from: { x: number; y: number } } | { kind: "fog"; from: { x: number; y: number }; last: { x: number; y: number }; cells: Set<string>; reveal: boolean }
+    | { kind: "block"; orig: FogBlock; mode: "move" | "nw" | "ne" | "sw" | "se"; from: { x: number; y: number } } | { kind: "measure"; from: { x: number; y: number } }>(null);
   const [drag, setDrag] = useState<{ uid: string; px: number; py: number } | null>(null);
-  const [paint, setPaint] = useState<{ cells: string[]; box?: [{ x: number; y: number }, { x: number; y: number }] } | null>(null);
+  const [paint, setPaint] = useState<{ cells: string[]; reveal: boolean; box?: [{ x: number; y: number }, { x: number; y: number }] } | null>(null);
+  const [blockDraft, setBlockDraft] = useState<FogBlock | null>(null);
   const [box, setBox] = useState<{ ax: number; ay: number; bx: number; by: number } | null>(null);
   const id = useId().replace(/:/g, "");
   const [measure, setMeasure] = useState<{ a: { x: number; y: number }; b: { x: number; y: number } } | null>(null);
@@ -137,10 +149,26 @@ export default function MapBoard(p: Props) {
         return;
       }
     }
-    if ((p.tool === "reveal" || p.tool === "cover") && p.onFog) {
+    if (p.tool === "fog" && p.blocks) {
+      const del = (e.target as Element).closest?.("[data-bdel]")?.getAttribute("data-bdel");
+      if (del) { p.onBlockDelete?.(del); return; }
+      // a block's corner resizes it; anywhere else on it moves it
+      const h = (e.target as Element).closest?.("[data-bh]")?.getAttribute("data-bh");
+      const bid = h ? h.split(":")[0] : (e.target as Element).closest?.("[data-block]")?.getAttribute("data-block");
+      const b = bid ? p.blocks.find((x) => x.id === bid) : undefined;
+      if (b) {
+        p.onBlockSelect?.(b.id);
+        gesture.current = { kind: "block", orig: b, mode: (h?.split(":")[1] as "nw") || "move", from: c };
+        setBlockDraft(b);
+        return;
+      }
+    }
+    if (p.tool === "fog" && p.onFog) {
+      const reveal = !!p.fogReveal !== e.altKey;
       const cells = new Set(brushAt(c));
-      gesture.current = { kind: "fog", from: c, last: c, cells };
-      setPaint({ cells: [...cells], box: p.brush === "box" ? [c, c] : undefined });
+      gesture.current = { kind: "fog", from: c, last: c, cells, reveal };
+      p.onBlockSelect?.(null);
+      setPaint({ cells: [...cells], reveal, box: p.brush === "box" ? [c, c] : undefined });
       return;
     }
     if (p.tool === "measure") {
@@ -179,16 +207,25 @@ export default function MapBoard(p: Props) {
     if (gs.kind === "pan") { setView((v) => ({ ...v, tx: gs.tx + e.clientX - gs.sx, ty: gs.ty + e.clientY - gs.sy })); return; }
     const { px, py } = toImage(e.clientX, e.clientY);
     const c = cellAt(g, px, py);
-    if (gs.kind === "box") setBox({ ax: gs.ax, ay: gs.ay, bx: px, by: py });
+    if (gs.kind === "block") {
+      const dx = c.x - gs.from.x, dy = c.y - gs.from.y, o = gs.orig;
+      const b = gs.mode === "move" ? { ...o, x: o.x + dx, y: o.y + dy }
+        : { ...o,
+          x: gs.mode === "nw" || gs.mode === "sw" ? Math.min(o.x + dx, o.x + o.w - 1) : o.x,
+          y: gs.mode === "nw" || gs.mode === "ne" ? Math.min(o.y + dy, o.y + o.h - 1) : o.y,
+          w: gs.mode === "nw" || gs.mode === "sw" ? o.w - Math.min(dx, o.w - 1) : o.w + dx,
+          h: gs.mode === "nw" || gs.mode === "ne" ? o.h - Math.min(dy, o.h - 1) : o.h + dy };
+      setBlockDraft(normBlock(b));
+    } else if (gs.kind === "box") setBox({ ax: gs.ax, ay: gs.ay, bx: px, by: py });
     else if (gs.kind === "token") setDrag({ uid: gs.uid, px: px - gs.ox, py: py - gs.oy });
     else if (gs.kind === "fog") {
-      if (p.brush === "box") { const cells = rectCells(gs.from, c); gs.cells = new Set(cells); setPaint({ cells, box: [gs.from, c] }); }
+      if (p.brush === "box") { const cells = rectCells(gs.from, c); gs.cells = new Set(cells); setPaint({ cells, reveal: gs.reveal, box: [gs.from, c] }); }
       else {
         // fill in every square between this point and the last one, so a quick stroke leaves no gaps
         const n = Math.max(Math.abs(c.x - gs.last.x), Math.abs(c.y - gs.last.y));
         for (let i = 1; i <= n; i++) brushAt({ x: Math.round(gs.last.x + ((c.x - gs.last.x) * i) / n), y: Math.round(gs.last.y + ((c.y - gs.last.y) * i) / n) }).forEach((k) => gs.cells.add(k));
         gs.last = c;
-        setPaint({ cells: [...gs.cells] });
+        setPaint({ cells: [...gs.cells], reveal: gs.reveal });
       }
     } else if (gs.kind === "measure") setMeasure({ a: gs.from, b: c });
   };
@@ -208,8 +245,15 @@ export default function MapBoard(p: Props) {
       const at = cellAt(g, px - gs.ox + g.size / 2, py - gs.oy + gh / 2);
       const c = clampCell(g, W, H, at.x, at.y, t.size);
       if (c.x !== gs.from.x || c.y !== gs.from.y) p.onMove?.(t.uid, c.x, c.y);
+    } else if (gs.kind === "block") {
+      if (blockDraft && JSON.stringify(blockDraft) !== JSON.stringify(gs.orig)) p.onBlockChange?.(blockDraft);
+      setBlockDraft(null);
     } else if (gs.kind === "fog") {
-      p.onFog?.([...gs.cells], p.tool === "reveal");
+      if (p.brush === "box" && !gs.reveal && p.onBlockAdd) {
+        // a rectangle of fog: a block, which can be moved and resized afterwards
+        const { x: ax, y: ay } = gs.from, b = cellAt(g, ...(() => { const { px, py } = toImage(e.clientX, e.clientY); return [px, py] as const; })());
+        p.onBlockAdd({ x: Math.min(ax, b.x), y: Math.min(ay, b.y), w: Math.abs(b.x - ax) + 1, h: Math.abs(b.y - ay) + 1 });
+      } else p.onFog?.([...gs.cells], gs.reveal);
       setPaint(null);
     } else if (gs.kind === "box") {
       const { px, py } = toImage(e.clientX, e.clientY);
@@ -260,9 +304,29 @@ export default function MapBoard(p: Props) {
           {p.fog.on && <rect x={0} y={0} width={W} height={H} fill={p.gm ? "rgba(8,6,12,.55)" : "#08060c"} mask={`url(#mapfog${id})`} pointerEvents="none" />}
           {paint && (
             <g clipPath={`url(#mapclip${id})`} pointerEvents="none">
-              {paint.cells.map((k) => { const [x, y] = k.split(",").map(Number); const c = cellRect(g, x, y); return <rect key={k} x={c.left} y={c.top} width={c.w} height={c.h} fill={p.tool === "reveal" ? "rgba(242,205,133,.28)" : "rgba(8,6,12,.5)"} />; })}
+              {paint.cells.map((k) => { const [x, y] = k.split(",").map(Number); const c = cellRect(g, x, y); return <rect key={k} x={c.left} y={c.top} width={c.w} height={c.h} fill={paint.reveal ? "rgba(242,205,133,.28)" : "rgba(8,6,12,.5)"} />; })}
             </g>
           )}
+          {p.tool === "fog" && p.blocks?.map((b0) => {
+            const b = blockDraft?.id === b0.id ? blockDraft : b0;
+            const a = cellRect(g, b.x, b.y), sel = p.selBlock === b.id, hs = u * 0.3;
+            const W2 = b.w * g.size, H2 = b.h * gh;
+            const corners: [string, number, number][] = [["nw", a.left, a.top], ["ne", a.left + W2, a.top], ["sw", a.left, a.top + H2], ["se", a.left + W2, a.top + H2]];
+            return (
+              <g key={b.id} className={`mblock ${sel ? "sel" : ""}`} data-block={b.id}>
+                <rect x={a.left} y={a.top} width={W2} height={H2} fill="rgba(8,6,12,.35)" stroke={sel ? "#f2cd85" : "rgba(242,205,133,.7)"} strokeWidth={lineW * 2} strokeDasharray={`${u * 0.15} ${u * 0.1}`} />
+                <text x={a.left + W2 / 2} y={a.top + H2 / 2} textAnchor="middle" dominantBaseline="central" className="mlabel" fontSize={Math.min(u * 0.34, H2 * 0.4)} strokeWidth={u * 0.06}>{b.w} × {b.h}</text>
+                {corners.map(([m, x, y]) => <rect key={m} data-bh={`${b.id}:${m}`} className={`mbh ${m}`} x={x - hs / 2} y={y - hs / 2} width={hs} height={hs} rx={hs * 0.2} />)}
+                {sel && p.onBlockDelete && (
+                  <g data-bdel={b.id} className="mbdel" transform={`translate(${a.left + W2 + hs * 1.1} ${a.top - hs * 1.1})`}>
+                    <title>Delete this block (or press Delete)</title>
+                    <circle r={hs * 0.9} />
+                    <path d={`M ${-hs * 0.35} ${-hs * 0.35} L ${hs * 0.35} ${hs * 0.35} M ${hs * 0.35} ${-hs * 0.35} L ${-hs * 0.35} ${hs * 0.35}`} strokeWidth={hs * 0.18} strokeLinecap="round" />
+                  </g>
+                )}
+              </g>
+            );
+          })}
           {placed.map((t) => {
             const r = tokFor(t);
             const cx = r.left + r.w / 2, cy = r.top + r.h / 2, rad = Math.min(r.w, r.h) * 0.44;
