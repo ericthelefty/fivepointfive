@@ -9,6 +9,7 @@ import { useSession } from "../lib/session.tsx";
 import { cloud } from "../lib/backend.ts";
 import { CampaignSelect, useCampaignChoices } from "../components/CampaignSelect.tsx";
 import { LiveMapLinks } from "./Maps.tsx";
+import { useStoredImage } from "../lib/backgrounds.ts";
 import { newCharacter, type Character } from "../lib/rules.ts";
 
 export default function Home() {
@@ -119,16 +120,21 @@ export default function Home() {
             const mine = chars.canEdit(c.id);
             return (
               <div key={c.id} className={`panel ${hidden ? "charhidden" : ""}`} style={{ padding: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
-                  <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600 }}>{c.name || "Unnamed character"}</div>
-                  {cloud && hidden && (
-                    <Tip tip={owner === session.user?.id ? "Only you, the campaign’s GM and admins can see this character." : "Hidden by its player: only they, the campaign’s GM and admins can see it."}>
-                      <span className="tag warn">Hidden</span>
-                    </Tip>
-                  )}
-                </div>
-                <div className="muted" style={{ fontSize: 13 }}>
-                  {[sp?.name, cls ? classLabel(classInfos(c, byId)) : null].filter(Boolean).join(" · ") || "Not started"}
+                <div className="charhead">
+                  <CharToken name={c.name} stored={c.tokenImage} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                      <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600 }}>{c.name || "Unnamed character"}</div>
+                      {cloud && hidden && (
+                        <Tip tip={owner === session.user?.id ? "Only you, the campaign’s GM and admins can see this character." : "Hidden by its player: only they, the campaign’s GM and admins can see it."}>
+                          <span className="tag warn">Hidden</span>
+                        </Tip>
+                      )}
+                    </div>
+                    <div className="muted" style={{ fontSize: 13 }}>
+                      {[sp?.name, cls ? classLabel(classInfos(c, byId)) : null].filter(Boolean).join(" · ") || "Not started"}
+                    </div>
+                  </div>
                 </div>
                 {cloud && (session.isAdmin && session.members.length > 1 ? (
                   <label className="faint assignrow" title="Give this character to another player. They’ll own it as if they had made it: only they and admins can edit it.">
@@ -212,3 +218,9 @@ function CampaignRow({ id, name, owner, campaignId, canMove }: { id: string; nam
   );
 }
 
+/** A character's token picture in a circle (or their initials), for their card. */
+function CharToken({ name, stored }: { name?: string; stored?: string }) {
+  const url = useStoredImage(stored);
+  const initials = (name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  return <span className={`ctoken ${url ? "" : "none"}`} aria-hidden="true">{url ? <img src={url} alt="" /> : initials}</span>;
+}

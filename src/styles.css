@@ -488,3 +488,9 @@ body.mapopen { overflow: hidden; }
 .tokbtns .btn { color: #f2eadf; border-color: rgba(255, 255, 255, .25); }
 .tokbtns .btn.primary { color: #141114; }
 .tokerr { margin: 0; color: #ffb4a8; font-size: 13px; text-align: center; }
+
+/* a character's token picture on their card (the Characters page) */
+.charhead { display: flex; gap: 12px; align-items: center; }
+.ctoken { flex: 0 0 auto; width: 56px; height: 56px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; border: 3px solid #2f5fa8; background: var(--chip, #2f2932); color: var(--muted); font: 600 18px/1 var(--serif, Georgia, serif); }
+.ctoken img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ctoken.none { border-style: dashed; border-color: var(--line-3, #4a3f4d); }
