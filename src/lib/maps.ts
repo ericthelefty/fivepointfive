@@ -391,6 +391,8 @@ export interface MapPing {
   move?: { uid: string; x: number; y: number };
   /** Someone pointed at a spot (image pixels), with their colour. */
   ping?: { px: number; py: number; who: string };
+  /** Someone showed, changed or hid an area of effect. */
+  areas?: boolean;
 }
 
 /** Listen for map changes in a campaign. Returns the function that stops listening. */

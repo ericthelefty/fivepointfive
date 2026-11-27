@@ -7,6 +7,8 @@ import { Link, useParams } from "react-router-dom";
 import { GridEditor } from "./Maps.tsx";
 import MapBoard, { type MapTool, type Ping } from "../components/MapBoard.tsx";
 import { MapIcon } from "../components/MapIcons.tsx";
+import { AreaPanel, defaultAreaSettings, newArea, type AreaSettings } from "../components/AreaPanel.tsx";
+import { useAreas } from "../lib/areas.ts";
 import { useSession } from "../lib/session.tsx";
 import { useMedia } from "../lib/useMedia.ts";
 import type { Combatant, Encounter } from "../lib/encounter.ts";
@@ -121,6 +123,7 @@ const TOOLS: { id: MapTool; label: string; tip: string }[] = [
   { id: "select", label: "Cursor", tip: "Click a token to select it, and add text to it; drag the map to pan" },
   { id: "move", label: "Move", tip: "Drag tokens; drag the map to pan" },
   { id: "fog", label: "Fog", tip: "Uncover or cover the map, or draw blocks of fog (hold Alt to do the opposite)" },
+  { id: "aoe", label: "Area of effect", tip: "Lay out a spell's area to try it; only you see it until you show it" },
   { id: "measure", label: "Measure", tip: "Drag from one square to another" },
   { id: "ping", label: "Point", tip: "Point at a spot for everyone" },
 ];
@@ -163,6 +166,10 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
   const [pings, addPing] = usePings();
   const me = colorOf(session.user?.id);
   useFullWindow(!!(desktop && e.campaignId && em && map && !editing));
+  const areas = useAreas(e.id, st.campaignId, session.user?.id, true);
+  const [areaSet, setAreaSet] = useState<AreaSettings>(defaultAreaSettings);
+  const [selArea, setSelArea] = useState<string | null>(null);
+  const [areaHint, setAreaHint] = useState("");
   // Delete or Backspace removes the chosen fog block (not while typing in a box)
   const delKey = useRef<() => void>(undefined);
   useEffect(() => {
@@ -273,6 +280,8 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
         <MapBoard url={url} width={map.width} height={map.height} grid={g} tokens={em.tokens} fog={em.fog} gm tool={tool} brush={brush} fogReveal={fogReveal} blocks={blocks} selBlock={selBlock} turn={em.turn} selected={sel}
           onBlockAdd={(b) => { const id = Date.now().toString(36); fogDo((f) => setBlocks(f, [...(f.blocks || []), normBlock({ ...b, id })])); setSelBlock(id); }}
           onBlockChange={putBlock} onBlockSelect={setSelBlock} onBlockDelete={dropBlock}
+          areas={areas.all.map((a) => ({ a, mine: areas.mine(a), shown: areas.isShown(a.id) }))} selArea={selArea} onAreaSelect={(id) => { setSelArea(id); setAreaHint(""); }}
+          areaNew={newArea(areaSet)} onAreaAdd={(a) => { areas.add(a); setAreaHint(""); }} onAreaChange={areas.change} onAreaHint={setAreaHint}
           color={me} pings={pings} canDrag={() => true}
           onMove={(uid, x, y) => place(uid, x, y)}
           onSelect={(uid) => { setSel(uid); setPick(null); }}
@@ -290,8 +299,10 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
         </div>
         {pick && <div className="maphint">Click a square to put {em.tokens.find((t) => t.uid === pick)?.name} there.</div>}
         {st.error && <div className="maphint bad">{st.error}</div>}
-        {(fogTool || selTok || tray.length > 0) && (
+        {(fogTool || selTok || tray.length > 0 || tool === "aoe") && (
           <div className="mapfloat">
+            {tool === "aoe" && <AreaPanel st={areas} settings={areaSet} setSettings={setAreaSet} selected={selArea} setSelected={setSelArea}
+              ctx={{ feet: g.feet, tokens: em.tokens }} nameOf={(uid) => (uid === session.user?.id ? "you" : session.nameOf(uid || ""))} hint={areaHint} />}
             {fogTool && (
               <div className="mfcard">
                 <b>Fog</b>
@@ -364,6 +375,10 @@ export function PlayerMap() {
   const url = useMapImage(v?.map?.path);
   const me = colorOf(session.user?.id);
   useFullWindow(!!v?.map);
+  const areas = useAreas(id, v?.campaignId, session.user?.id, !!v?.gm);
+  const [areaSet, setAreaSet] = useState<AreaSettings>(defaultAreaSettings);
+  const [selArea, setSelArea] = useState<string | null>(null);
+  const [areaHint, setAreaHint] = useState("");
 
   const load = useCallback(() => { if (id) viewEncounterMap(id).then(setV, (e) => setErr(e.message)); }, [id]);
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, [load]);
@@ -373,6 +388,7 @@ export function PlayerMap() {
     return onMapChange(v.campaignId, (p) => {
       if (p.encounterId !== id) return;
       if (p.ping) { addPing(p.ping.px, p.ping.py, colorOf(p.ping.who)); return; }
+      if (p.areas) return; // areas look themselves up (useAreas)
       if (p.move) { const mv = p.move; setV((cur) => cur && { ...cur, tokens: cur.tokens.map((t) => (t.uid === mv.uid ? { ...t, x: mv.x, y: mv.y } : t)) }); }
       // fog and hidden tokens are worked out by the database, so look again
       clearTimeout(reload.current);
@@ -412,9 +428,17 @@ export function PlayerMap() {
               setErr("");
             } catch (e) { setErr((e as Error).message); setV((cur) => cur && { ...cur, tokens: before }); }
           }}
-          onPing={(px, py) => { addPing(px, py, me); announceMap(v.campaignId, { encounterId: v.encounterId, ping: { px, py, who: session.user?.id || "" } }); }} />
+          onPing={(px, py) => { addPing(px, py, me); announceMap(v.campaignId, { encounterId: v.encounterId, ping: { px, py, who: session.user?.id || "" } }); }}
+          areas={areas.all.map((a) => ({ a, mine: areas.mine(a), shown: areas.isShown(a.id) }))} selArea={selArea} onAreaSelect={(i) => { setSelArea(i); setAreaHint(""); }}
+          areaNew={newArea(areaSet)} onAreaAdd={(a) => { areas.add(a); setAreaHint(""); }} onAreaChange={areas.change} onAreaHint={setAreaHint} />
+        {tool === "aoe" && (
+          <div className="mapfloat">
+            <AreaPanel st={areas} settings={areaSet} setSettings={setAreaSet} selected={selArea} setSelected={setSelArea}
+              ctx={{ feet: map.grid.feet, tokens }} nameOf={(uid) => (uid === session.user?.id ? "you" : session.nameOf(uid || "") || "someone")} hint={areaHint} />
+          </div>
+        )}
         <div className="maprail" role="toolbar" aria-label="Map tools">
-          {TOOLS.filter((t) => t.id === "move" || t.id === "measure" || t.id === "ping").map((t) => (
+          {TOOLS.filter((t) => t.id === "move" || t.id === "aoe" || t.id === "measure" || t.id === "ping").map((t) => (
             <button key={t.id} className={`mrbtn ${tool === t.id ? "on" : ""}`} title={`${t.label}: ${t.id === "move" ? "Drag your token; drag the map to pan" : t.tip}`} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><MapIcon name={t.id} /></button>
           ))}
         </div>

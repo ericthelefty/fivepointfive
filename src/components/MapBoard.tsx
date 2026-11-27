@@ -5,9 +5,10 @@
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { MapIcon } from "./MapIcons.tsx";
+import { AIMED, aimPoint, areaOutline, areaSquares, areaTokens, snapHalf, type Area, type AreaKind } from "../lib/areas.ts";
 import { brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, normBlock, rectCells, sizeH, tokenLabel, type FogBlock, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
 
-export type MapTool = "select" | "move" | "fog" | "measure" | "ping" | "align";
+export type MapTool = "select" | "move" | "fog" | "aoe" | "measure" | "ping" | "align";
 export interface Ping { id: number; px: number; py: number; color: string }
 
 interface Props {
@@ -32,6 +33,16 @@ interface Props {
   onBlockChange?: (b: FogBlock) => void;
   onBlockSelect?: (id: string | null) => void;
   onBlockDelete?: (id: string) => void;
+  /** Areas of effect to draw: each with whether it's this viewer's own (so they can move and aim it) and shown. */
+  areas?: { a: Area; mine: boolean; shown: boolean }[];
+  selArea?: string | null;
+  onAreaSelect?: (id: string | null) => void;
+  /** What a new area looks like (the AOE tool's settings). */
+  areaNew?: Omit<Area, "id" | "x" | "y">;
+  onAreaAdd?: (a: Area) => void;
+  onAreaChange?: (a: Area) => void;
+  /** Said when a click can't place the area (an Emanation needs a creature). */
+  onAreaHint?: (msg: string) => void;
   turn?: string | null;
   selected?: string | null;
   canDrag: (t: MapToken) => boolean;
@@ -75,10 +86,14 @@ export default function MapBoard(p: Props) {
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<null | { kind: "pan"; sx: number; sy: number; tx: number; ty: number } | { kind: "pinch"; d: number; cx: number; cy: number; s: number; tx: number; ty: number }
     | { kind: "box"; ax: number; ay: number } | { kind: "token"; uid: string; ox: number; oy: number; from: { x: number; y: number } } | { kind: "fog"; from: { x: number; y: number }; last: { x: number; y: number }; cells: Set<string>; reveal: boolean }
+    | { kind: "area"; mode: "new" | "aim" | "move"; area: Area; from: { x: number; y: number }; free: boolean; snap45: boolean }
     | { kind: "block"; orig: FogBlock; mode: "move" | "nw" | "ne" | "sw" | "se"; from: { x: number; y: number } } | { kind: "measure"; from: { x: number; y: number } }>(null);
   const [drag, setDrag] = useState<{ uid: string; px: number; py: number } | null>(null);
   const [paint, setPaint] = useState<{ cells: string[]; reveal: boolean; box?: [{ x: number; y: number }, { x: number; y: number }] } | null>(null);
   const [blockDraft, setBlockDraft] = useState<FogBlock | null>(null);
+  const [areaDraft, setAreaDraft] = useState<Area | null>(null);
+  /** A point on the image in squares (whole numbers are grid lines). */
+  const toSq = (px: number, py: number) => ({ x: (px - g.ox) / g.size, y: (py - g.oy) / gh });
   const [box, setBox] = useState<{ ax: number; ay: number; bx: number; by: number } | null>(null);
   const id = useId().replace(/:/g, "");
   const [measure, setMeasure] = useState<{ a: { x: number; y: number }; b: { x: number; y: number } } | null>(null);
@@ -121,8 +136,13 @@ export default function MapBoard(p: Props) {
   const brushAt = (c: { x: number; y: number }) => (p.brush === "box" ? [cellKey(c.x, c.y)] : brushCells(c.x, c.y, p.brush ?? 0));
 
   const down = (e: RPointerEvent<HTMLDivElement>) => {
-    if (e.button === 2) return;
     wrap.current!.setPointerCapture(e.pointerId);
+    if (e.button === 1 || e.button === 2) {
+      // the right or middle button always pans, whatever the tool
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      gesture.current = { kind: "pan", sx: e.clientX, sy: e.clientY, tx: view.tx, ty: view.ty };
+      return;
+    }
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 2) {
       // two fingers: pinch and pan, whatever the tool (and drop what one finger started)
@@ -146,6 +166,35 @@ export default function MapBoard(p: Props) {
         const r = cellRect(g, tok.x, tok.y, tok.size);
         gesture.current = { kind: "token", uid: tok.uid, ox: px - r.left, oy: py - r.top, from: { x: tok.x, y: tok.y } };
         setDrag({ uid: tok.uid, px: r.left, py: r.top });
+        return;
+      }
+    }
+    if (p.tool === "aoe") {
+      const at = toSq(px, py), free = e.altKey;
+      const aim = (e.target as Element).closest?.("[data-aim]")?.getAttribute("data-aim");
+      const hit = aim || (e.target as Element).closest?.("[data-area]")?.getAttribute("data-area");
+      const own = hit ? p.areas?.find((x) => x.a.id === hit && x.mine)?.a : undefined;
+      if (own) {
+        p.onAreaSelect?.(own.id);
+        // an Emanation moves with its creature, so it can't be dragged
+        if (aim || own.kind !== "emanation") gesture.current = { kind: "area", mode: aim ? "aim" : "move", area: own, from: at, free, snap45: e.shiftKey };
+        return;
+      }
+      const n = p.areaNew;
+      if (n && p.onAreaAdd) {
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        if (n.kind === "emanation") {
+          if (!tok || tok.x == null) { p.onAreaHint?.("An Emanation comes from a creature: click a token on the map."); return; }
+          const a: Area = { ...n, id, x: 0, y: 0, token: tok.uid };
+          p.onAreaAdd(a); p.onAreaSelect?.(id);
+          return;
+        }
+        const o = free ? at : { x: snapHalf(at.x), y: snapHalf(at.y) };
+        const a: Area = { ...n, id, x: o.x, y: o.y, ...(n.kind === "wall" ? { x2: o.x, y2: o.y } : {}) };
+        if ((AIMED as AreaKind[]).includes(n.kind) || n.kind === "wall") {
+          gesture.current = { kind: "area", mode: "new", area: a, from: at, free, snap45: e.shiftKey };
+          setAreaDraft(a);
+        } else { p.onAreaAdd(a); p.onAreaSelect?.(id); }
         return;
       }
     }
@@ -207,6 +256,26 @@ export default function MapBoard(p: Props) {
     if (gs.kind === "pan") { setView((v) => ({ ...v, tx: gs.tx + e.clientX - gs.sx, ty: gs.ty + e.clientY - gs.sy })); return; }
     const { px, py } = toImage(e.clientX, e.clientY);
     const c = cellAt(g, px, py);
+    if (gs.kind === "area") {
+      const at = toSq(px, py), a0 = gs.area;
+      let next: Area;
+      if (gs.mode === "move") {
+        const dx = at.x - gs.from.x, dy = at.y - gs.from.y;
+        const sx = gs.free ? a0.x + dx : snapHalf(a0.x + dx), sy = gs.free ? a0.y + dy : snapHalf(a0.y + dy);
+        const mx = sx - a0.x, my = sy - a0.y;
+        next = { ...a0, x: sx, y: sy, ...(a0.kind === "wall" ? { x2: (a0.x2 ?? a0.x) + mx, y2: (a0.y2 ?? a0.y) + my } : {}) };
+      } else if (a0.kind === "wall") {
+        next = { ...a0, x2: gs.free ? at.x : snapHalf(at.x), y2: gs.free ? at.y : snapHalf(at.y) };
+      } else {
+        let ang = Math.atan2(at.y - a0.y, at.x - a0.x);
+        // a Cube lines up with the grid (or the diagonals); Shift does the same for the others
+        if (a0.kind === "cube" || gs.snap45 || e.shiftKey) ang = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
+        next = { ...a0, angle: ang };
+      }
+      gs.area = next;
+      setAreaDraft(next);
+      return;
+    }
     if (gs.kind === "block") {
       const dx = c.x - gs.from.x, dy = c.y - gs.from.y, o = gs.orig;
       const b = gs.mode === "move" ? { ...o, x: o.x + dx, y: o.y + dy }
@@ -245,6 +314,10 @@ export default function MapBoard(p: Props) {
       const at = cellAt(g, px - gs.ox + g.size / 2, py - gs.oy + gh / 2);
       const c = clampCell(g, W, H, at.x, at.y, t.size);
       if (c.x !== gs.from.x || c.y !== gs.from.y) p.onMove?.(t.uid, c.x, c.y);
+    } else if (gs.kind === "area") {
+      if (gs.mode === "new") { p.onAreaAdd?.(gs.area); p.onAreaSelect?.(gs.area.id); }
+      else if (JSON.stringify(gs.area) !== JSON.stringify(p.areas?.find((x) => x.a.id === gs.area.id)?.a)) p.onAreaChange?.(gs.area);
+      setAreaDraft(null);
     } else if (gs.kind === "block") {
       if (blockDraft && JSON.stringify(blockDraft) !== JSON.stringify(gs.orig)) p.onBlockChange?.(blockDraft);
       setBlockDraft(null);
@@ -270,6 +343,15 @@ export default function MapBoard(p: Props) {
     return cellRect(g, t.x!, t.y!, t.size);
   };
   const placed = p.tokens.filter((t) => t.x != null && t.y != null);
+  // which tokens each area catches (any square of their space), so they can be ringed in its colour
+  const caughtBy = useMemo(() => {
+    const m = new Map<string, { color: string; shown: boolean }[]>();
+    const list = (p.areas || []).map((x) => (areaDraft && x.a.id === areaDraft.id ? { ...x, a: areaDraft } : x));
+    if (areaDraft && !list.some((x) => x.a.id === areaDraft.id)) list.push({ a: areaDraft, mine: true, shown: false });
+    const actx = { feet: g.feet, tokens: p.tokens };
+    for (const { a, shown } of list) for (const t of areaTokens(a, areaSquares(a, actx), actx)) m.set(t.uid, [...(m.get(t.uid) || []), { color: a.color, shown }]);
+    return m;
+  }, [p.areas, areaDraft, p.tokens, g.feet]);
   const dragged = drag && p.tokens.find((t) => t.uid === drag.uid);
   const dragFeet = (() => {
     if (!drag || !dragged || gesture.current?.kind !== "token") return null;
@@ -307,6 +389,34 @@ export default function MapBoard(p: Props) {
               {paint.cells.map((k) => { const [x, y] = k.split(",").map(Number); const c = cellRect(g, x, y); return <rect key={k} x={c.left} y={c.top} width={c.w} height={c.h} fill={paint.reveal ? "rgba(242,205,133,.28)" : "rgba(8,6,12,.5)"} />; })}
             </g>
           )}
+          {(() => {
+            const list = [...(p.areas || []).map((x) => (areaDraft && x.a.id === areaDraft.id ? { ...x, a: areaDraft } : x))];
+            if (areaDraft && !list.some((x) => x.a.id === areaDraft.id)) list.push({ a: areaDraft, mine: true, shown: false });
+            const X = (x: number) => g.ox + x * g.size, Y = (y: number) => g.oy + y * gh;
+            const actx = { feet: g.feet, tokens: p.tokens };
+            return list.map(({ a, mine, shown }) => {
+              const o = areaOutline(a, actx);
+              if (!o) return null;
+              const sel = p.selArea === a.id || areaDraft?.id === a.id;
+              const sqs = areaSquares(a, actx);
+              const dash = shown ? undefined : `${u * 0.16} ${u * 0.1}`;
+              const stroke = { stroke: a.color, strokeWidth: lineW * (sel ? 3 : 2), strokeDasharray: dash, fill: a.color, fillOpacity: 0.12 };
+              const shape = o.kind === "circle" ? <ellipse cx={X(o.cx)} cy={Y(o.cy)} rx={o.r * g.size} ry={o.r * gh} {...stroke} />
+                : o.kind === "ring" ? <path fillRule="evenodd" d={`M ${X(o.cx) - o.r2 * g.size} ${Y(o.cy)} a ${o.r2 * g.size} ${o.r2 * gh} 0 1 0 ${2 * o.r2 * g.size} 0 a ${o.r2 * g.size} ${o.r2 * gh} 0 1 0 ${-2 * o.r2 * g.size} 0 Z M ${X(o.cx) - o.r1 * g.size} ${Y(o.cy)} a ${o.r1 * g.size} ${o.r1 * gh} 0 1 0 ${2 * o.r1 * g.size} 0 a ${o.r1 * g.size} ${o.r1 * gh} 0 1 0 ${-2 * o.r1 * g.size} 0 Z`} {...stroke} />
+                : o.kind === "rrect" ? <rect x={X(o.x)} y={Y(o.y)} width={o.w * g.size} height={o.h * gh} rx={o.r * g.size} ry={o.r * gh} {...stroke} />
+                : <polygon points={o.pts.map((q) => `${X(q.x)},${Y(q.y)}`).join(" ")} {...stroke} />;
+              const aimAt = mine && sel ? aimPoint(a, actx) : null;
+              return (
+                <g key={a.id} className={`marea ${mine ? "mine" : ""} ${p.tool === "aoe" && mine ? "can" : ""}`} data-area={a.id} pointerEvents={p.tool === "aoe" ? undefined : "none"}>
+                  {sqs.map((k) => { const [x, y] = k.split(",").map(Number); return <rect key={k} x={X(x)} y={Y(y)} width={g.size} height={gh} fill={a.color} fillOpacity={shown ? 0.28 : 0.18} pointerEvents="none" />; })}
+                  {shape}
+                  {a.kind !== "emanation" && <circle cx={X(a.x)} cy={Y(a.y)} r={u * 0.09} fill={a.color} stroke="#141114" strokeWidth={lineW} pointerEvents="none" />}
+                  {(a.label || sel) && <text x={X(a.x)} y={Y(a.y) - u * 0.22} textAnchor="middle" className="mlabel" fontSize={u * 0.3} strokeWidth={u * 0.06} pointerEvents="none">{a.label || ""}{!shown && mine ? " (only you)" : ""}</text>}
+                  {aimAt && <circle data-aim={a.id} className="maim" cx={X(aimAt.x)} cy={Y(aimAt.y)} r={u * 0.2} fill="#fff8ea" stroke={a.color} strokeWidth={u * 0.06} />}
+                </g>
+              );
+            });
+          })()}
           {p.tool === "fog" && p.blocks?.map((b0) => {
             const b = blockDraft?.id === b0.id ? blockDraft : b0;
             const a = cellRect(g, b.x, b.y), sel = p.selBlock === b.id, hs = u * 0.3;
@@ -331,14 +441,16 @@ export default function MapBoard(p: Props) {
             const r = tokFor(t);
             const cx = r.left + r.w / 2, cy = r.top + r.h / 2, rad = Math.min(r.w, r.h) * 0.44;
             const turn = p.turn === t.uid, sel = p.selected === t.uid;
+            const hits = caughtBy.get(t.uid) || [];
             return (
-              <g key={t.uid} data-token={t.uid} className={`mtok ${p.canDrag(t) ? "can" : ""} ${t.out ? "out" : ""} ${t.hidden ? "hid" : ""} ${drag?.uid === t.uid ? "drag" : ""}`}>
+              <g key={t.uid} data-token={t.uid} className={`mtok ${hits.length ? "hit" : ""} ${p.canDrag(t) ? "can" : ""} ${t.out ? "out" : ""} ${t.hidden ? "hid" : ""} ${drag?.uid === t.uid ? "drag" : ""}`}>
                 {(turn || sel) && <circle cx={cx} cy={cy} r={rad + u * 0.07} fill="none" stroke={turn ? "#f2cd85" : "#fff"} strokeWidth={u * 0.06} strokeDasharray={sel && !turn ? `${u * 0.12} ${u * 0.08}` : undefined} />}
+                {hits.map((h, i) => <circle key={i} cx={cx} cy={cy} r={rad + u * (0.12 + i * 0.09)} fill="none" stroke={h.color} strokeWidth={u * 0.07} strokeDasharray={h.shown ? undefined : `${u * 0.1} ${u * 0.07}`} pointerEvents="none" />)}
                 <circle cx={cx} cy={cy} r={rad} fill={KIND_FILL[t.kind]} stroke="#0b090d" strokeWidth={u * 0.04} />
                 <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.min(rad * 0.82, u * 0.36 * Math.min(t.size, 2))} fill="#fff8ea" fontWeight={700}>{tokenLabel(t.name)}</text>
                 {t.out && <path d={`M ${cx - rad * 0.6} ${cy - rad * 0.6} L ${cx + rad * 0.6} ${cy + rad * 0.6} M ${cx + rad * 0.6} ${cy - rad * 0.6} L ${cx - rad * 0.6} ${cy + rad * 0.6}`} stroke="#0b090d" strokeWidth={u * 0.08} strokeLinecap="round" />}
                 {t.note && <text x={cx} y={r.top + r.h + u * 0.24} textAnchor="middle" dominantBaseline="hanging" className={`mlabel mnote ${t.noteGm ? "gm" : ""}`} fontSize={u * 0.26} strokeWidth={u * 0.06}>{t.note.length > 28 ? `${t.note.slice(0, 27)}…` : t.note}</text>}
-                <title>{t.name}{t.note ? ` — ${t.note}${t.noteGm ? " (GM only)" : ""}` : ""}{t.hidden ? " (hidden from players)" : ""}{t.out ? " (out of the fight)" : ""}</title>
+                <title>{t.name}{hits.length ? " (in an area of effect)" : ""}{t.note ? ` — ${t.note}${t.noteGm ? " (GM only)" : ""}` : ""}{t.hidden ? " (hidden from players)" : ""}{t.out ? " (out of the fight)" : ""}</title>
               </g>
             );
           })}

@@ -12,6 +12,7 @@ const paths: Record<string, ReactNode> = {
   fog: <><path d="M7 14.5h10.5a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6-1.2A4.2 4.2 0 0 0 7 14.5z" /><path d="M4 18h9M15.5 18H20M6 21h12" /></>,
   measure: <><path d="M3.5 16.5l13-13 4 4-13 13z" /><path d="M7 13l1.8 1.8M9.8 10.2l1.2 1.2M12.6 7.4l1.8 1.8M15.4 4.6l1.2 1.2" /></>,
   ping: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none" /></>,
+  aoe: <><circle cx="12" cy="12" r="3.2" /><circle cx="12" cy="12" r="7.6" strokeDasharray="2.6 2.4" /><path d="M12 1.8v2M12 20.2v2M1.8 12h2M20.2 12h2" /></>,
   undo: <><path d="M8.5 6.5L4 11l4.5 4.5" /><path d="M4.5 11H14a5.5 5.5 0 0 1 0 11h-3" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
   minus: <path d="M5 12h14" />,

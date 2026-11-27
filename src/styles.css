@@ -414,6 +414,19 @@ body.mapopen { overflow: hidden; }
 .mfcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: rgba(20, 17, 22, .92); border: 1px solid rgba(255, 255, 255, .12); color: #f2eadf; font-size: 14px; backdrop-filter: blur(4px); }
 .mfcard .mchk { color: #f2eadf; }
 .mfhint { font-size: 12px; color: #c9bfb6; }
+.mshapes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.mshapes .mtbtn.mtbtn { justify-content: center; padding: 0 4px; font-size: 13px; }
+.mswatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.mswatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .25); cursor: pointer; padding: 0; }
+.mswatch.on { border-color: #fff8ea; box-shadow: 0 0 0 2px rgba(255, 248, 234, .35); }
+.mlist { display: flex; flex-direction: column; gap: 4px; }
+.mlistrow { display: flex; align-items: center; gap: 6px; }
+.mlistrow.on .mlistname { color: #f2cd85; }
+.mlistname { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; background: none; border: 0; color: #f2eadf; font: inherit; font-size: 13px; text-align: left; cursor: pointer; padding: 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mdot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.mapboard.tool-aoe { cursor: crosshair; }
+.mapboard .marea.can { cursor: move; }
+.mapboard .maim { cursor: grab; }
 .mfsub { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 9px; background: rgba(255, 255, 255, .05); }
 .mapboard .mblock { cursor: move; }
 .mapboard .mbdel { cursor: pointer; }

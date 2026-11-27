@@ -16,7 +16,7 @@ export function useLiveMaps(campaignId?: string | null) {
     let alive = true;
     const load = () => liveMaps(campaignId).then((l) => { if (alive) setLive(l); });
     load();
-    const stop = onMapChange(campaignId, (p) => { if (!p.move && !p.ping) load(); });
+    const stop = onMapChange(campaignId, (p) => { if (!p.move && !p.ping && !p.areas) load(); });
     return () => { alive = false; stop(); };
   }, [campaignId]);
   return live;
