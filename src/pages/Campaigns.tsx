@@ -157,7 +157,6 @@ export function CampaignPage() {
           {session.campaignId !== c.id
             ? <button className="btn small" onClick={() => session.setCampaignId(c.id)} title="Show this campaign’s characters and encounters on those pages">Show its characters</button>
             : <span className="tag ok">Showing on Characters{gm ? " and Encounters" : ""}</span>}
-          {gm && <Link className="btn small" to="/encounters" onClick={() => session.setCampaignId(c.id)}>Encounters</Link>}
           {admin && rename === undefined && <button className="btn small" onClick={() => setRename(c.name)}>Rename</button>}
         </div>
       </div>

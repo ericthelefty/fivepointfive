@@ -119,7 +119,7 @@ export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
   const session = useSession();
   const { em, maps, update, start } = st;
   const map = em?.mapId ? maps.find((m) => m.id === em.mapId) : undefined;
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<false | "new" | "edit">(false);
   const [uploading, setUploading] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   // a new map for this encounter: upload it, use it, then set its grid
@@ -130,7 +130,7 @@ export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
       const m = await addMap(e.campaignId, f, e.name);
       st.setMaps((l) => [m, ...l]);
       start(m.id);
-      setEditing(true);
+      setEditing("new");
       st.setError("");
     } catch (err) { st.setError((err as Error).message); }
     finally { setUploading(false); if (file.current) file.current.value = ""; }
@@ -174,7 +174,7 @@ export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
 
   if (editing) {
     return (
-      <GridEditor key={map.id} map={map} onClose={() => setEditing(false)}
+      <GridEditor key={map.id} map={map} detectFirst={editing === "new"} onClose={() => setEditing(false)}
         onSaved={(m) => { st.setMaps((l) => l.map((x) => (x.id === m.id ? m : x))); announceMap(st.campaignId, { encounterId: e.id }); }}
         onDelete={async () => {
           try { await deleteMap(map); st.setMaps((l) => l.filter((x) => x.id !== map.id)); update((m) => ({ ...m, mapId: null, shown: false })); setEditing(false); }
@@ -220,7 +220,7 @@ export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
         <label className="mchk" title="Cover the map with fog; uncover what the players can see">
           <input type="checkbox" checked={em.fog.on} onChange={(ev) => update((m) => ({ ...m, fog: { ...m.fog, on: ev.target.checked } }))} /> Fog
         </label>
-        <button className="sbtn ghost" onClick={() => setEditing(true)}>Edit map and grid</button>
+        <button className="sbtn ghost" onClick={() => setEditing("edit")}>Edit map and grid</button>
         {uploader}
       </div>
       {st.error && <p className="note">{st.error}</p>}

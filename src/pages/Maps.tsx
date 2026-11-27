@@ -2,10 +2,11 @@
  * Battle map pieces used outside the board itself: the grid editor (opened from an encounter's Map tab), where the GM
  * draws a grid over a map or lines one up with the grid printed on it, and the "the GM is showing a map" banner.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { detectGrid } from "../lib/gridDetect.ts";
 import { Link } from "react-router-dom";
 import MapBoard, { type MapTool } from "../components/MapBoard.tsx";
-import { gridAcross, gridBounds, gridFromBox, liveMaps, normGrid, onMapChange, saveMap, useMapImage, type CampaignMap, type MapGrid } from "../lib/maps.ts";
+import { gridAcross, gridBounds, gridCount, gridDown, gridFromBox, liveMaps, sizeH, normGrid, onMapChange, saveMap, useMapImage, type CampaignMap, type MapGrid } from "../lib/maps.ts";
 
 /** The maps the GM is showing in a campaign right now, as links (kept up to date). */
 export function useLiveMaps(campaignId?: string | null) {
@@ -35,8 +36,10 @@ export function LiveMapLinks({ campaignId, label }: { campaignId?: string | null
 }
 
 /** The grid editor, in place of the map on an encounter's Map tab. */
-export function GridEditor({ map, onSaved, onDelete, onClose }: {
+export function GridEditor({ map, onSaved, onDelete, onClose, detectFirst }: {
   map: CampaignMap;
+  /** Look for a printed grid straight away (a map just uploaded). */
+  detectFirst?: boolean;
   onSaved: (m: CampaignMap) => void;
   onDelete: () => void;
   onClose: () => void;
@@ -46,11 +49,32 @@ export function GridEditor({ map, onSaved, onDelete, onClose }: {
   const [tool, setTool] = useState<MapTool>("move");
   const [msg, setMsg] = useState("");
   const [saved, setSaved] = useState(true);
+  const [step, setStep] = useState(1);
   const url = useMapImage(map.path);
+  const [finding, setFinding] = useState(false);
+  const tried = useRef(false);
+
+  const find = async () => {
+    if (!url) return;
+    setFinding(true); setMsg("");
+    try {
+      const f = await detectGrid(url, map.width, map.height);
+      if (!f) { setMsg("Couldn’t find a printed grid on this map. Set the columns and rows yourself."); return; }
+      const next = normGrid({ ...grid, size: f.size, sizeY: f.sizeY, ox: f.ox, oy: f.oy, show: false });
+      setGrid(next); setSaved(false);
+      const c = gridCount(next, map.width, map.height);
+      setMsg(`Found a printed grid: ${c.cols} × ${c.rows} squares. Its lines aren’t drawn over (the map has its own); the blue lines show where the squares are while you edit. Nudge them if they’re off.`);
+    } catch (e) { setMsg(`Couldn’t look for a grid: ${(e as Error).message}`); }
+    finally { setFinding(false); }
+  };
+  useEffect(() => { if (detectFirst && url && !tried.current) { tried.current = true; find(); } }, [detectFirst, url]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (g: Partial<MapGrid>) => { setGrid((cur) => normGrid({ ...cur, ...g })); setSaved(false); };
   const b = gridBounds(grid, map.width, map.height);
   const across = b.x1 - b.x0 + 1, down = b.y1 - b.y0 + 1;
+  const count = gridCount(grid, map.width, map.height);
+  const h = sizeH(grid);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
   const save = async (close?: boolean) => {
     try {
       const next = { ...map, name: name.trim(), grid };
@@ -66,36 +90,60 @@ export function GridEditor({ map, onSaved, onDelete, onClose }: {
   return (
     <div className="mapplay">
       <div className="mapstage">
-        <MapBoard url={url} width={map.width} height={map.height} grid={grid} tokens={[]} fog={{ on: false, cells: [] }} gm tool={tool}
+        <MapBoard url={url} width={map.width} height={map.height} grid={grid.show ? grid : { ...grid, show: true, color: "#38bdf8", opacity: 0.85 }} tokens={[]} fog={{ on: false, cells: [] }} gm tool={tool}
           canDrag={() => false} onBox={(ax, ay, bx, by) => { set(gridFromBox(grid, ax, ay, bx, by)); setTool("move"); }} />
         {tool === "align" && <div className="maphint">Drag a box from one corner of a printed square to the opposite corner.</div>}
+        {finding && <div className="maphint">Looking for a grid…</div>}
       </div>
       <aside className="spanel stack mapside">
         <b>Map and grid</b>
         <label className="mfield"><span>Name</span><input type="text" value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} placeholder="Unnamed map" /></label>
         <label className="mchk"><input type="checkbox" checked={grid.show} onChange={(e) => set({ show: e.target.checked })} /> Draw the grid</label>
-        <p className="note" style={{ margin: 0 }}>{grid.show ? "Lines are drawn over the map." : "No lines are drawn: use this when the map has its own grid printed on it, and line these squares up with it."}</p>
+        <p className="note" style={{ margin: 0 }}>{grid.show ? "Lines are drawn over the map." : "No lines are drawn over the map (it has its own grid printed on it). Here the squares show in blue so you can line them up."}</p>
+        {msg && !msg.startsWith("Saved") && <div className="note" role="status">{msg}</div>}
 
         <b style={{ marginTop: 6 }}>Line it up</b>
-        <button className={`sbtn ${tool === "align" ? "gold" : "ghost"}`} onClick={() => setTool(tool === "align" ? "move" : "align")}>{tool === "align" ? "Cancel" : "Fit to one printed square"}</button>
-        <label className="mfield"><span>Squares across</span>
-          <input type="number" min={1} max={200} value={across} onChange={(e) => { const n = num(e.target.value); if (n >= 1) set(gridAcross(grid, map.width, n)); }} />
-        </label>
-        <label className="mfield"><span>Square size (pixels)</span>
+        <p className="note" style={{ margin: 0 }}>Detect the grid printed on the map, or set how many columns and rows of squares it has, then nudge the grid until its lines sit on the map’s.</p>
+        <div className="maprow">
+          <label className="mfield" style={{ flex: 1 }}><span>Columns</span>
+            <input type="number" min={1} max={300} value={count.cols} onChange={(e) => { const n = num(e.target.value); if (n >= 1) set(gridAcross(grid, map.width, n)); }} />
+          </label>
+          <label className="mfield" style={{ flex: 1 }}><span>Rows</span>
+            <input type="number" min={1} max={300} value={count.rows} onChange={(e) => { const n = num(e.target.value); if (n >= 1) set(gridDown(grid, map.height, n)); }} />
+          </label>
+        </div>
+        <div className="maprow">
+          <button className="sbtn ghost" disabled={finding || !url} onClick={find} title="Find the grid printed on the map">{finding ? "Looking…" : "Detect grid"}</button>
+          <button className={`sbtn ${tool === "align" ? "gold" : "ghost"}`} onClick={() => setTool(tool === "align" ? "move" : "align")}>{tool === "align" ? "Cancel" : "Fit to one printed square"}</button>
+        </div>
+        <div className="mfield"><span>Move the grid</span>
           <div className="maprow">
-            <button className="sbtn ghost" aria-label="Smaller" onClick={() => set({ size: grid.size - 0.5 })}>−</button>
-            <input type="number" step={0.5} min={8} value={Math.round(grid.size * 100) / 100} onChange={(e) => { const n = num(e.target.value); if (n >= 8) set({ size: n }); }} />
-            <button className="sbtn ghost" aria-label="Larger" onClick={() => set({ size: grid.size + 0.5 })}>+</button>
+            <button className="sbtn ghost" aria-label="Left" onClick={() => set({ ox: grid.ox - step })}>←</button>
+            <button className="sbtn ghost" aria-label="Up" onClick={() => set({ oy: grid.oy - step })}>↑</button>
+            <button className="sbtn ghost" aria-label="Down" onClick={() => set({ oy: grid.oy + step })}>↓</button>
+            <button className="sbtn ghost" aria-label="Right" onClick={() => set({ ox: grid.ox + step })}>→</button>
           </div>
-        </label>
-        <label className="mfield"><span>Nudge the grid</span>
+        </div>
+        <div className="mfield"><span>Stretch the grid</span>
           <div className="maprow">
-            <button className="sbtn ghost" aria-label="Left" onClick={() => set({ ox: grid.ox - 1 })}>←</button>
-            <button className="sbtn ghost" aria-label="Up" onClick={() => set({ oy: grid.oy - 1 })}>↑</button>
-            <button className="sbtn ghost" aria-label="Down" onClick={() => set({ oy: grid.oy + 1 })}>↓</button>
-            <button className="sbtn ghost" aria-label="Right" onClick={() => set({ ox: grid.ox + 1 })}>→</button>
+            <button className="sbtn ghost" title="Narrower squares" onClick={() => set({ size: grid.size - step / 4, sizeY: h })}>↔ −</button>
+            <button className="sbtn ghost" title="Wider squares" onClick={() => set({ size: grid.size + step / 4, sizeY: h })}>↔ +</button>
+            <button className="sbtn ghost" title="Shorter squares" onClick={() => set({ sizeY: h - step / 4 })}>↕ −</button>
+            <button className="sbtn ghost" title="Taller squares" onClick={() => set({ sizeY: h + step / 4 })}>↕ +</button>
           </div>
-        </label>
+        </div>
+        <div className="chipsrow" style={{ margin: 0 }} role="group" aria-label="Step">
+          {[[0.25, "Fine"], [1, "1 px"], [5, "5 px"]].map(([v, l]) => <button key={v} className={step === v ? "on" : ""} onClick={() => setStep(v as number)}>{l}</button>)}
+        </div>
+        <div className="maprow">
+          <label className="mfield" style={{ flex: 1 }}><span>Square width (px)</span>
+            <input type="number" step={0.25} min={8} value={r2(grid.size)} onChange={(e) => { const n = num(e.target.value); if (n >= 8) set({ size: n, sizeY: h }); }} />
+          </label>
+          <label className="mfield" style={{ flex: 1 }}><span>Height (px)</span>
+            <input type="number" step={0.25} min={8} value={r2(h)} onChange={(e) => { const n = num(e.target.value); if (n >= 8) set({ sizeY: n }); }} />
+          </label>
+        </div>
+        {grid.sizeY != null && <button className="sbtn ghost" onClick={() => set({ sizeY: grid.size })}>Make the squares square</button>}
         <p className="note" style={{ margin: 0 }}>{across} × {down} squares · {across * grid.feet} × {down * grid.feet} feet</p>
 
         <b style={{ marginTop: 6 }}>Look</b>
@@ -113,7 +161,7 @@ export function GridEditor({ map, onSaved, onDelete, onClose }: {
         <button className="sbtn ghost" onClick={() => {
           if (confirm(`Delete the map “${map.name || "Unnamed map"}”? Any encounter using it loses its map (its tokens and fog stay, ready for another).`)) onDelete();
         }}>Delete this map</button>
-        {msg && <div className="note" role="status">{msg}</div>}
+        {msg.startsWith("Saved") && <div className="note" role="status">{msg}</div>}
       </aside>
     </div>
   );

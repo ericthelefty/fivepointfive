@@ -4,7 +4,7 @@
  * fog, measure, or point at a spot for everyone.
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
-import { brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, rectCells, tokenLabel, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
+import { brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, rectCells, sizeH, tokenLabel, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
 
 export type MapTool = "move" | "reveal" | "cover" | "measure" | "ping" | "align";
 export interface Ping { id: number; px: number; py: number; color: string }
@@ -55,6 +55,9 @@ function runs(cells: Set<string>, b: { x0: number; y0: number; x1: number; y1: n
 
 export default function MapBoard(p: Props) {
   const { grid: g, width: W, height: H } = p;
+  const gh = sizeH(g);
+  /** For things drawn at a square's scale (rings, labels): the smaller side. */
+  const u = Math.min(g.size, gh);
   const wrap = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ s: 1, tx: 0, ty: 0 });
   const fitted = useRef(false);
@@ -196,7 +199,7 @@ export default function MapBoard(p: Props) {
       setDrag(null);
       if (!t) return;
       // drop on the square under the token's top-left quarter, so it lands where it looks
-      const at = cellAt(g, px - gs.ox + g.size / 2, py - gs.oy + g.size / 2);
+      const at = cellAt(g, px - gs.ox + g.size / 2, py - gs.oy + gh / 2);
       const c = clampCell(g, W, H, at.x, at.y, t.size);
       if (c.x !== gs.from.x || c.y !== gs.from.y) p.onMove?.(t.uid, c.x, c.y);
     } else if (gs.kind === "fog") {
@@ -213,28 +216,33 @@ export default function MapBoard(p: Props) {
 
   const lineW = Math.max(1, 1.2 / view.s);
   const tokFor = (t: MapToken) => {
-    if (drag?.uid === t.uid) return { left: drag.px, top: drag.py, size: t.size * g.size };
+    if (drag?.uid === t.uid) return { left: drag.px, top: drag.py, w: t.size * g.size, h: t.size * gh };
     return cellRect(g, t.x!, t.y!, t.size);
   };
   const placed = p.tokens.filter((t) => t.x != null && t.y != null);
   const dragged = drag && p.tokens.find((t) => t.uid === drag.uid);
   const dragFeet = (() => {
     if (!drag || !dragged || gesture.current?.kind !== "token") return null;
-    const at = cellAt(g, drag.px + g.size / 2, drag.py + g.size / 2);
+    const at = cellAt(g, drag.px + g.size / 2, drag.py + gh / 2);
     return feetBetween(gesture.current.from, at, g.feet);
   })();
 
+  // the grid around the map carries on the map's own squares, at the same size and lined up with them
+  let cw = g.size * view.s, ch = gh * view.s;
+  while (Math.min(cw, ch) < 10) { cw *= 2; ch *= 2; }
+  const backdrop = { backgroundSize: `${cw}px ${ch}px`, backgroundPosition: `${view.tx + g.ox * view.s}px ${view.ty + g.oy * view.s}px` };
+
   return (
-    <div className={`mapboard tool-${p.tool}`} ref={wrap} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onContextMenu={(e) => e.preventDefault()}>
+    <div className={`mapboard tool-${p.tool}`} ref={wrap} style={backdrop} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onContextMenu={(e) => e.preventDefault()}>
       <svg width="100%" height="100%">
         <defs>
-          <pattern id={`mapgrid${id}`} patternUnits="userSpaceOnUse" x={g.ox} y={g.oy} width={g.size} height={g.size}>
-            <path d={`M ${g.size} 0 L 0 0 0 ${g.size}`} fill="none" stroke={g.color} strokeOpacity={g.opacity} strokeWidth={lineW} />
+          <pattern id={`mapgrid${id}`} patternUnits="userSpaceOnUse" x={g.ox} y={g.oy} width={g.size} height={gh}>
+            <path d={`M ${g.size} 0 L 0 0 0 ${gh}`} fill="none" stroke={g.color} strokeOpacity={g.opacity} strokeWidth={lineW} />
           </pattern>
           {p.fog.on && (
             <mask id={`mapfog${id}`} maskUnits="userSpaceOnUse" x={0} y={0} width={W} height={H}>
               <rect x={0} y={0} width={W} height={H} fill="#fff" />
-              {runs(fogCells, bounds, true).map((r) => { const c = cellRect(g, r.x, r.y); return <rect key={`${r.x},${r.y}`} x={c.left} y={c.top} width={r.n * g.size} height={g.size} fill="#000" />; })}
+              {runs(fogCells, bounds, true).map((r) => { const c = cellRect(g, r.x, r.y); return <rect key={`${r.x},${r.y}`} x={c.left} y={c.top} width={r.n * g.size} height={gh} fill="#000" />; })}
             </mask>
           )}
           <clipPath id={`mapclip${id}`}><rect x={0} y={0} width={W} height={H} /></clipPath>
@@ -246,39 +254,40 @@ export default function MapBoard(p: Props) {
           {p.fog.on && <rect x={0} y={0} width={W} height={H} fill={p.gm ? "rgba(8,6,12,.55)" : "#08060c"} mask={`url(#mapfog${id})`} pointerEvents="none" />}
           {paint && (
             <g clipPath={`url(#mapclip${id})`} pointerEvents="none">
-              {paint.cells.map((k) => { const [x, y] = k.split(",").map(Number); const c = cellRect(g, x, y); return <rect key={k} x={c.left} y={c.top} width={g.size} height={g.size} fill={p.tool === "reveal" ? "rgba(242,205,133,.28)" : "rgba(8,6,12,.5)"} />; })}
+              {paint.cells.map((k) => { const [x, y] = k.split(",").map(Number); const c = cellRect(g, x, y); return <rect key={k} x={c.left} y={c.top} width={c.w} height={c.h} fill={p.tool === "reveal" ? "rgba(242,205,133,.28)" : "rgba(8,6,12,.5)"} />; })}
             </g>
           )}
           {placed.map((t) => {
             const r = tokFor(t);
-            const cx = r.left + r.size / 2, cy = r.top + r.size / 2, rad = r.size * 0.44;
+            const cx = r.left + r.w / 2, cy = r.top + r.h / 2, rad = Math.min(r.w, r.h) * 0.44;
             const turn = p.turn === t.uid, sel = p.selected === t.uid;
             return (
               <g key={t.uid} data-token={t.uid} className={`mtok ${p.canDrag(t) ? "can" : ""} ${t.out ? "out" : ""} ${t.hidden ? "hid" : ""} ${drag?.uid === t.uid ? "drag" : ""}`}>
-                {(turn || sel) && <circle cx={cx} cy={cy} r={rad + g.size * 0.07} fill="none" stroke={turn ? "#f2cd85" : "#fff"} strokeWidth={g.size * 0.06} strokeDasharray={sel && !turn ? `${g.size * 0.12} ${g.size * 0.08}` : undefined} />}
-                <circle cx={cx} cy={cy} r={rad} fill={KIND_FILL[t.kind]} stroke="#0b090d" strokeWidth={g.size * 0.04} />
-                <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.min(rad * 0.82, g.size * 0.36 * Math.min(t.size, 2))} fill="#fff8ea" fontWeight={700}>{tokenLabel(t.name)}</text>
-                {t.out && <path d={`M ${cx - rad * 0.6} ${cy - rad * 0.6} L ${cx + rad * 0.6} ${cy + rad * 0.6} M ${cx + rad * 0.6} ${cy - rad * 0.6} L ${cx - rad * 0.6} ${cy + rad * 0.6}`} stroke="#0b090d" strokeWidth={g.size * 0.08} strokeLinecap="round" />}
+                {(turn || sel) && <circle cx={cx} cy={cy} r={rad + u * 0.07} fill="none" stroke={turn ? "#f2cd85" : "#fff"} strokeWidth={u * 0.06} strokeDasharray={sel && !turn ? `${u * 0.12} ${u * 0.08}` : undefined} />}
+                <circle cx={cx} cy={cy} r={rad} fill={KIND_FILL[t.kind]} stroke="#0b090d" strokeWidth={u * 0.04} />
+                <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.min(rad * 0.82, u * 0.36 * Math.min(t.size, 2))} fill="#fff8ea" fontWeight={700}>{tokenLabel(t.name)}</text>
+                {t.out && <path d={`M ${cx - rad * 0.6} ${cy - rad * 0.6} L ${cx + rad * 0.6} ${cy + rad * 0.6} M ${cx + rad * 0.6} ${cy - rad * 0.6} L ${cx - rad * 0.6} ${cy + rad * 0.6}`} stroke="#0b090d" strokeWidth={u * 0.08} strokeLinecap="round" />}
                 <title>{t.name}{t.hidden ? " (hidden from players)" : ""}{t.out ? " (out of the fight)" : ""}</title>
               </g>
             );
           })}
-          {dragFeet != null && drag && <text x={drag.px + (dragged!.size * g.size) / 2} y={drag.py - g.size * 0.18} textAnchor="middle" className="mlabel" fontSize={g.size * 0.34} strokeWidth={g.size * 0.07}>{dragFeet} ft</text>}
+          {dragFeet != null && drag && <text x={drag.px + (dragged!.size * g.size) / 2} y={drag.py - u * 0.18} textAnchor="middle" className="mlabel" fontSize={u * 0.34} strokeWidth={u * 0.07}>{dragFeet} ft</text>}
           {measure && (() => {
-            const a = cellRect(g, measure.a.x, measure.a.y), b = cellRect(g, measure.b.x, measure.b.y), h = g.size / 2;
+            const a0 = cellRect(g, measure.a.x, measure.a.y), b0 = cellRect(g, measure.b.x, measure.b.y);
+            const a = { x: a0.left + a0.w / 2, y: a0.top + a0.h / 2 }, b = { x: b0.left + b0.w / 2, y: b0.top + b0.h / 2 };
             return (
               <g pointerEvents="none">
-                <line x1={a.left + h} y1={a.top + h} x2={b.left + h} y2={b.top + h} stroke={p.color || "#f2cd85"} strokeWidth={g.size * 0.08} strokeLinecap="round" />
-                <circle cx={a.left + h} cy={a.top + h} r={g.size * 0.12} fill={p.color || "#f2cd85"} />
-                <text x={b.left + h} y={b.top - g.size * 0.15} textAnchor="middle" className="mlabel" fontSize={g.size * 0.38} strokeWidth={g.size * 0.08}>{feetBetween(measure.a, measure.b, g.feet)} ft</text>
+                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={p.color || "#f2cd85"} strokeWidth={u * 0.08} strokeLinecap="round" />
+                <circle cx={a.x} cy={a.y} r={u * 0.12} fill={p.color || "#f2cd85"} />
+                <text x={b.x} y={b0.top - u * 0.15} textAnchor="middle" className="mlabel" fontSize={u * 0.38} strokeWidth={u * 0.08}>{feetBetween(measure.a, measure.b, g.feet)} ft</text>
               </g>
             );
           })()}
-          {box && <rect x={Math.min(box.ax, box.bx)} y={Math.min(box.ay, box.by)} width={Math.max(Math.abs(box.bx - box.ax), Math.abs(box.by - box.ay))} height={Math.max(Math.abs(box.bx - box.ax), Math.abs(box.by - box.ay))} fill="rgba(242,205,133,.2)" stroke="#f2cd85" strokeWidth={lineW * 2} pointerEvents="none" />}
+          {box && <rect x={Math.min(box.ax, box.bx)} y={Math.min(box.ay, box.by)} width={Math.abs(box.bx - box.ax)} height={Math.abs(box.by - box.ay)} fill="rgba(242,205,133,.2)" stroke="#f2cd85" strokeWidth={lineW * 2} pointerEvents="none" />}
           {(p.pings || []).map((pg) => (
             <g key={pg.id} className="mping" pointerEvents="none" style={{ color: pg.color }}>
-              <circle cx={pg.px} cy={pg.py} r={g.size * 0.5} fill="none" stroke="currentColor" strokeWidth={g.size * 0.08} />
-              <circle cx={pg.px} cy={pg.py} r={g.size * 0.12} fill="currentColor" />
+              <circle cx={pg.px} cy={pg.py} r={u * 0.5} fill="none" stroke="currentColor" strokeWidth={u * 0.08} />
+              <circle cx={pg.px} cy={pg.py} r={u * 0.12} fill="currentColor" />
             </g>
           ))}
         </g>

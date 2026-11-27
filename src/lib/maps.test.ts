@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allCells, brushCells, cellAt, cellRect, clampCell, DEFAULT_GRID, feetBetween, gridAcross, gridBounds, gridFromBox, normGrid, paintFog, rectCells, sizeSquares, syncTokens, tokenLabel, tokenSeen, type MapGrid, type MapToken } from "./maps.ts";
+import { allCells, brushCells, cellAt, cellRect, clampCell, DEFAULT_GRID, feetBetween, gridAcross, gridBounds, gridCount, gridDown, gridFromBox, normGrid, paintFog, rectCells, sizeSquares, syncTokens, tokenLabel, tokenSeen, type MapGrid, type MapToken } from "./maps.ts";
 import type { Combatant } from "./encounter.ts";
 
 const g = (p: Partial<MapGrid> = {}): MapGrid => ({ ...DEFAULT_GRID, size: 50, ox: 0, oy: 0, ...p });
@@ -10,7 +10,7 @@ describe("grid", () => {
     expect(cellAt(g(), 99.9, 50)).toEqual({ x: 1, y: 1 });
     // lines start 20 px in: the strip left of them is square -1
     expect(cellAt(g({ ox: 20 }), 10, 0)).toEqual({ x: -1, y: 0 });
-    expect(cellRect(g({ ox: 20, oy: 5 }), 2, 1, 2)).toEqual({ left: 120, top: 55, size: 100 });
+    expect(cellRect(g({ ox: 20, oy: 5 }), 2, 1, 2)).toEqual({ left: 120, top: 55, w: 100, h: 100 });
   });
   it("covers the image, partial squares included", () => {
     expect(gridBounds(g(), 500, 300)).toEqual({ x0: 0, y0: 0, x1: 9, y1: 5 });
@@ -19,16 +19,30 @@ describe("grid", () => {
   it("keeps the offset inside one square", () => {
     expect(normGrid(g({ ox: 130, oy: -10 }))).toMatchObject({ ox: 30, oy: 40 });
   });
-  it("fits a box drawn round one printed square", () => {
+  it("fits a box drawn round one printed square, wider than tall if it is", () => {
     const fit = gridFromBox(g(), 172, 43, 242, 112);
     expect(fit.size).toBe(70);
+    expect(fit.sizeY).toBe(69);
     expect(fit.ox).toBe(172 % 70);
     expect(fit.oy).toBe(43);
+    const sq = gridFromBox(g(), 0, 0, 60, 60);
+    expect(sq.size).toBe(60);
+    expect(sq.sizeY).toBeUndefined();
     // a tiny box (a click) changes nothing
     expect(gridFromBox(g(), 10, 10, 12, 12)).toEqual(g());
   });
-  it("fits a number of squares across", () => {
-    expect(gridAcross(g({ ox: 13 }), 1400, 20)).toMatchObject({ size: 70, ox: 0 });
+  it("sets columns and rows separately, leaving the grid where it is to nudge", () => {
+    const a = gridAcross(g({ ox: 13 }), 1400, 20);
+    expect(a).toMatchObject({ size: 70, ox: 13 });
+    expect(a.sizeY).toBe(50); // the rows stay as they were
+    const b = gridDown(a, 1000, 16);
+    expect(b.sizeY).toBe(62.5);
+    expect(gridCount(b, 1400, 1000)).toEqual({ cols: 20, rows: 16 });
+    // squares that aren't square
+    expect(cellAt(b, 13 + 70, 62.5 * 2 + 1)).toEqual({ x: 1, y: 2 });
+    expect(cellRect(b, 1, 1)).toEqual({ left: 83, top: 62.5, w: 70, h: 62.5 });
+    // the same height as width is written without sizeY
+    expect(normGrid({ ...b, sizeY: 70 }).sizeY).toBeUndefined();
   });
   it("keeps big tokens on the map", () => {
     expect(clampCell(g(), 500, 300, 9, 5, 2)).toEqual({ x: 8, y: 4 });

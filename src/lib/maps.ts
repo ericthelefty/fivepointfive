@@ -17,9 +17,11 @@ export const MAP_MAX_SIDE = 4096;
 export interface MapGrid {
   /** Draw the lines (off when the image has its own grid printed on it, and this one just lines up with it). */
   show: boolean;
-  /** Pixels per square, in the image's own pixels. */
+  /** A square's width in the image's own pixels. */
   size: number;
-  /** Where the grid's lines start (0 ≤ ox, oy < size). */
+  /** Its height, when that differs (a printed grid that isn't quite square); unset: the same as the width. */
+  sizeY?: number;
+  /** Where the grid's lines start (0 ≤ ox < size, 0 ≤ oy < height). */
   ox: number;
   oy: number;
   color: string;
@@ -92,20 +94,27 @@ export const gridOf = (g: Partial<MapGrid> | undefined): MapGrid => ({ ...DEFAUL
 // ------------------------------------------------------------------ grid maths
 const mod = (a: number, n: number) => ((a % n) + n) % n;
 
-/** Keep a grid's offset inside one square, so the same grid has one way to write it. */
+/** A square's height (its width is `size`). */
+export const sizeH = (g: MapGrid) => g.sizeY ?? g.size;
+
+/** Keep a grid's sizes sensible and its offset inside one square, so the same grid has one way to write it. */
 export function normGrid(g: MapGrid): MapGrid {
   const size = Math.max(8, Math.min(1000, g.size));
-  return { ...g, size, ox: mod(g.ox, size), oy: mod(g.oy, size) };
+  const h = Math.max(8, Math.min(1000, g.sizeY ?? size));
+  const out: MapGrid = { ...g, size, ox: mod(g.ox, size), oy: mod(g.oy, h) };
+  if (Math.abs(h - size) > 0.001) out.sizeY = h; else delete out.sizeY;
+  return out;
 }
 
 /** The square a point on the image falls in. */
 export function cellAt(g: MapGrid, px: number, py: number): { x: number; y: number } {
-  return { x: Math.floor((px - g.ox) / g.size), y: Math.floor((py - g.oy) / g.size) };
+  return { x: Math.floor((px - g.ox) / g.size), y: Math.floor((py - g.oy) / sizeH(g)) };
 }
 
-/** Where a square (or a token `n` squares across) sits on the image. */
+/** Where a square (or a token `n` squares across) sits on the image: its left and top, width and height. */
 export function cellRect(g: MapGrid, x: number, y: number, n = 1) {
-  return { left: g.ox + x * g.size, top: g.oy + y * g.size, size: n * g.size };
+  const h = sizeH(g);
+  return { left: g.ox + x * g.size, top: g.oy + y * h, w: n * g.size, h: n * h };
 }
 
 /** The squares that touch the image: x from x0 to x1, y from y0 to y1 (inclusive). */
@@ -121,19 +130,30 @@ export function clampCell(g: MapGrid, w: number, h: number, x: number, y: number
 }
 
 /**
- * A grid that fits one square drawn over the image (from the GM dragging a box round one printed square): the box's
- * longer side is the square's size, and its corner is where a grid line crosses.
+ * A grid that fits one square drawn over the image (from the GM dragging a box round one printed square): the box is
+ * the square, and its corner is where grid lines cross.
  */
 export function gridFromBox(g: MapGrid, ax: number, ay: number, bx: number, by: number): MapGrid {
-  const size = Math.max(Math.abs(bx - ax), Math.abs(by - ay));
-  if (size < 8) return g;
-  return normGrid({ ...g, size, ox: Math.min(ax, bx), oy: Math.min(ay, by) });
+  const w = Math.abs(bx - ax), h = Math.abs(by - ay);
+  if (w < 8 || h < 8) return g;
+  return normGrid({ ...g, size: w, sizeY: h, ox: Math.min(ax, bx), oy: Math.min(ay, by) });
 }
 
-/** A grid with `n` squares across the image's width. */
+/** A grid with `n` columns across the image's width (it stays where it is: nudge it to fit). */
 export function gridAcross(g: MapGrid, w: number, n: number): MapGrid {
   if (!(n >= 1)) return g;
-  return normGrid({ ...g, size: w / n, ox: 0 });
+  return normGrid({ ...g, size: w / n, sizeY: sizeH(g) });
+}
+
+/** A grid with `n` rows down the image's height. */
+export function gridDown(g: MapGrid, h: number, n: number): MapGrid {
+  if (!(n >= 1)) return g;
+  return normGrid({ ...g, sizeY: h / n });
+}
+
+/** How many columns and rows fit the image (rounded, for showing). */
+export function gridCount(g: MapGrid, w: number, h: number) {
+  return { cols: Math.round(w / g.size), rows: Math.round(h / sizeH(g)) };
 }
 
 /** Squares across for a creature size. */
@@ -259,7 +279,7 @@ export async function addMap(campaignId: string, file: File, name: string): Prom
   const path = `${campaignId}/${id}.${img.type === "image/webp" ? "webp" : "jpg"}`;
   const up = await supabase.storage.from(MAP_BUCKET).upload(path, img, { contentType: img.type, upsert: false });
   if (up.error) throw new Error(`Couldn’t upload the map: ${up.error.message}`);
-  // a first guess at the grid: squares about 1/20 of the long side, drawn
+  // a first guess at the grid: squares about 1/20 of the long side, drawn (the GM sets the columns and rows next)
   const grid: MapGrid = { ...DEFAULT_GRID, size: Math.max(24, Math.round(Math.max(width, height) / 20)) };
   const { data, error } = await supabase.from("maps").insert({ id, campaign_id: campaignId, name: name || file.name.replace(/\.\w+$/, ""), path, width, height, grid }).select("*").single();
   if (error) {
