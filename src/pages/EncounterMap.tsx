@@ -302,7 +302,7 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
         {(fogTool || selTok || tray.length > 0 || tool === "aoe") && (
           <div className="mapfloat">
             {tool === "aoe" && <AreaPanel st={areas} settings={areaSet} setSettings={setAreaSet} selected={selArea} setSelected={setSelArea}
-              ctx={{ feet: g.feet, tokens: em.tokens }} nameOf={(uid) => (uid === session.user?.id ? "you" : session.nameOf(uid || ""))} hint={areaHint} />}
+              ctx={{ feet: g.feet, tokens: em.tokens, bounds: gridBounds(g, map.width, map.height) }} nameOf={(uid) => (uid === session.user?.id ? "you" : session.nameOf(uid || ""))} hint={areaHint} />}
             {fogTool && (
               <div className="mfcard">
                 <b>Fog</b>
@@ -434,7 +434,7 @@ export function PlayerMap() {
         {tool === "aoe" && (
           <div className="mapfloat">
             <AreaPanel st={areas} settings={areaSet} setSettings={setAreaSet} selected={selArea} setSelected={setSelArea}
-              ctx={{ feet: map.grid.feet, tokens }} nameOf={(uid) => (uid === session.user?.id ? "you" : session.nameOf(uid || "") || "someone")} hint={areaHint} />
+              ctx={{ feet: map.grid.feet, tokens, bounds: gridBounds(map.grid, map.width, map.height) }} nameOf={(uid) => (uid === session.user?.id ? "you" : session.nameOf(uid || "") || "someone")} hint={areaHint} />
           </div>
         )}
         <div className="maprail" role="toolbar" aria-label="Map tools">

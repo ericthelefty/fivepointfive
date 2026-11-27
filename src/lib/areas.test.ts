@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aimPoint, areaName, areaOutline, areaSquares, areaTokens, inArea, snapHalf, wallEnds, type Area, type AreaCtx } from "./areas.ts";
+import { aimPoint, areaName, areaOutline, areaSquares, areaTokens, inArea, snapCenter, wallEnds, type Area, type AreaCtx } from "./areas.ts";
 import type { MapToken } from "./maps.ts";
 
 const ctx = (tokens: MapToken[] = []): AreaCtx => ({ feet: 5, tokens });
@@ -67,6 +67,24 @@ describe("areas of effect", () => {
     expect(s).toContain("11,9");
     expect(s).not.toContain("13,9");
   });
+  it("from the middle of a square: a 15-foot Cone, Cube and 60-foot Line", () => {
+    // a cone from the middle of square (5,5) pointing right: 1, then 3, then 3 squares, not its own square
+    const cone = areaSquares(A({ kind: "cone", x: 5.5, y: 5.5, size: 15, angle: 0 }), ctx());
+    expect(cone).not.toContain("5,5");
+    expect(cone.sort()).toEqual(["6,5", "7,4", "7,5", "7,6", "8,4", "8,5", "8,6"]);
+    // a cube from a square: the 3 × 3 squares in front of it
+    expect(areaSquares(A({ kind: "cube", x: 5.5, y: 5.5, size: 15, angle: 0 }), ctx()).sort()).toEqual(["6,4", "6,5", "6,6", "7,4", "7,5", "7,6", "8,4", "8,5", "8,6"]);
+    // a 60 × 5-foot line: the 12 squares after its own
+    const line = areaSquares(A({ kind: "line", x: 0.5, y: 0.5, size: 60, width: 5, angle: 0 }), ctx());
+    expect(line.sort()).toEqual(Array.from({ length: 12 }, (_, i) => `${i + 1},0`).sort());
+    // a 20-foot Sphere from a square includes it
+    expect(areaSquares(A({ x: 10.5, y: 10.5, size: 20 }), ctx())).toContain("10,10");
+  });
+  it("only the map's own squares count", () => {
+    // a 5-foot Sphere in the corner square: the squares around it that are off the map don't count
+    const s = areaSquares(A({ x: 0.5, y: 0.5, size: 5 }), { feet: 5, tokens: [], bounds: { x0: 0, y0: 0, x1: 9, y1: 9 } });
+    expect(s.sort()).toEqual(["0,0", "0,1", "1,0"]);
+  });
   it("outlines, aiming and names", () => {
     expect(areaOutline(A({ x: 1, y: 2 }), ctx())).toEqual({ kind: "circle", cx: 1, cy: 2, r: 4 });
     expect((areaOutline(A({ kind: "cone", size: 15, angle: 0 }), ctx()) as { pts: unknown[] }).pts).toHaveLength(3);
@@ -74,6 +92,8 @@ describe("areas of effect", () => {
     expect(aimPoint(A({}), ctx())).toBeNull();
     expect(areaName(A({ kind: "line", size: 100, width: 5 }))).toBe("100 × 5-foot Line");
     expect(areaName(A({}))).toBe("20-foot-radius Sphere");
-    expect(snapHalf(3.3)).toBe(3.5);
+    expect(snapCenter(3.3)).toBe(3.5);
+    expect(snapCenter(3.9)).toBe(3.5);
+    expect(snapCenter(-0.2)).toBe(-0.5);
   });
 });

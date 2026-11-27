@@ -5,7 +5,7 @@
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { MapIcon } from "./MapIcons.tsx";
-import { AIMED, aimPoint, areaOutline, areaSquares, areaTokens, snapHalf, type Area, type AreaKind } from "../lib/areas.ts";
+import { AIMED, aimPoint, areaOutline, areaSquares, areaTokens, snapCenter, type Area, type AreaKind } from "../lib/areas.ts";
 import { brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, normBlock, rectCells, sizeH, tokenLabel, type FogBlock, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
 
 export type MapTool = "select" | "move" | "fog" | "aoe" | "measure" | "ping" | "align";
@@ -170,7 +170,7 @@ export default function MapBoard(p: Props) {
       }
     }
     if (p.tool === "aoe") {
-      const at = toSq(px, py), free = e.altKey;
+      const at = toSq(px, py), free = false; // a point of origin is always the middle of a square
       const aim = (e.target as Element).closest?.("[data-aim]")?.getAttribute("data-aim");
       const hit = aim || (e.target as Element).closest?.("[data-area]")?.getAttribute("data-area");
       const own = hit ? p.areas?.find((x) => x.a.id === hit && x.mine)?.a : undefined;
@@ -189,7 +189,7 @@ export default function MapBoard(p: Props) {
           p.onAreaAdd(a); p.onAreaSelect?.(id);
           return;
         }
-        const o = free ? at : { x: snapHalf(at.x), y: snapHalf(at.y) };
+        const o = { x: snapCenter(at.x), y: snapCenter(at.y) };
         const a: Area = { ...n, id, x: o.x, y: o.y, ...(n.kind === "wall" ? { x2: o.x, y2: o.y } : {}) };
         if ((AIMED as AreaKind[]).includes(n.kind) || n.kind === "wall") {
           gesture.current = { kind: "area", mode: "new", area: a, from: at, free, snap45: e.shiftKey };
@@ -261,11 +261,12 @@ export default function MapBoard(p: Props) {
       let next: Area;
       if (gs.mode === "move") {
         const dx = at.x - gs.from.x, dy = at.y - gs.from.y;
-        const sx = gs.free ? a0.x + dx : snapHalf(a0.x + dx), sy = gs.free ? a0.y + dy : snapHalf(a0.y + dy);
+        // moved a whole square at a time, so it stays on a square's middle
+        const sx = gs.free ? a0.x + dx : a0.x + Math.round(dx), sy = gs.free ? a0.y + dy : a0.y + Math.round(dy);
         const mx = sx - a0.x, my = sy - a0.y;
         next = { ...a0, x: sx, y: sy, ...(a0.kind === "wall" ? { x2: (a0.x2 ?? a0.x) + mx, y2: (a0.y2 ?? a0.y) + my } : {}) };
       } else if (a0.kind === "wall") {
-        next = { ...a0, x2: gs.free ? at.x : snapHalf(at.x), y2: gs.free ? at.y : snapHalf(at.y) };
+        next = { ...a0, x2: snapCenter(at.x), y2: snapCenter(at.y) };
       } else {
         let ang = Math.atan2(at.y - a0.y, at.x - a0.x);
         // a Cube lines up with the grid (or the diagonals); Shift does the same for the others
@@ -348,10 +349,10 @@ export default function MapBoard(p: Props) {
     const m = new Map<string, { color: string; shown: boolean }[]>();
     const list = (p.areas || []).map((x) => (areaDraft && x.a.id === areaDraft.id ? { ...x, a: areaDraft } : x));
     if (areaDraft && !list.some((x) => x.a.id === areaDraft.id)) list.push({ a: areaDraft, mine: true, shown: false });
-    const actx = { feet: g.feet, tokens: p.tokens };
+    const actx = { feet: g.feet, tokens: p.tokens, bounds };
     for (const { a, shown } of list) for (const t of areaTokens(a, areaSquares(a, actx), actx)) m.set(t.uid, [...(m.get(t.uid) || []), { color: a.color, shown }]);
     return m;
-  }, [p.areas, areaDraft, p.tokens, g.feet]);
+  }, [p.areas, areaDraft, p.tokens, g, W, H]); // eslint-disable-line react-hooks/exhaustive-deps
   const dragged = drag && p.tokens.find((t) => t.uid === drag.uid);
   const dragFeet = (() => {
     if (!drag || !dragged || gesture.current?.kind !== "token") return null;
@@ -393,7 +394,7 @@ export default function MapBoard(p: Props) {
             const list = [...(p.areas || []).map((x) => (areaDraft && x.a.id === areaDraft.id ? { ...x, a: areaDraft } : x))];
             if (areaDraft && !list.some((x) => x.a.id === areaDraft.id)) list.push({ a: areaDraft, mine: true, shown: false });
             const X = (x: number) => g.ox + x * g.size, Y = (y: number) => g.oy + y * gh;
-            const actx = { feet: g.feet, tokens: p.tokens };
+            const actx = { feet: g.feet, tokens: p.tokens, bounds };
             return list.map(({ a, mine, shown }) => {
               const o = areaOutline(a, actx);
               if (!o) return null;
@@ -408,7 +409,9 @@ export default function MapBoard(p: Props) {
               const aimAt = mine && sel ? aimPoint(a, actx) : null;
               return (
                 <g key={a.id} className={`marea ${mine ? "mine" : ""} ${p.tool === "aoe" && mine ? "can" : ""}`} data-area={a.id} pointerEvents={p.tool === "aoe" ? undefined : "none"}>
-                  {sqs.map((k) => { const [x, y] = k.split(",").map(Number); return <rect key={k} x={X(x)} y={Y(y)} width={g.size} height={gh} fill={a.color} fillOpacity={shown ? 0.28 : 0.18} pointerEvents="none" />; })}
+                  <g clipPath={`url(#mapclip${id})`} pointerEvents="none">
+                    {sqs.map((k) => { const [x, y] = k.split(",").map(Number); return <rect key={k} x={X(x)} y={Y(y)} width={g.size} height={gh} fill={a.color} fillOpacity={shown ? 0.28 : 0.18} />; })}
+                  </g>
                   {shape}
                   {a.kind !== "emanation" && <circle cx={X(a.x)} cy={Y(a.y)} r={u * 0.09} fill={a.color} stroke="#141114" strokeWidth={lineW} pointerEvents="none" />}
                   {(a.label || sel) && <text x={X(a.x)} y={Y(a.y) - u * 0.22} textAnchor="middle" className="mlabel" fontSize={u * 0.3} strokeWidth={u * 0.06} pointerEvents="none">{a.label || ""}{!shown && mine ? " (only you)" : ""}</text>}

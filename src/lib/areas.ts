@@ -6,8 +6,8 @@
  * in feet. An area is private to whoever placed it until they show it; shown areas are kept in fivepointfive.map_areas
  * (see supabase/migrations/0016_map_areas.sql) so everyone on the map sees them.
  *
- * The SRD doesn't say which squares on a grid an area catches, so a square counts when its centre is inside the shape;
- * thin walls and rings catch every square they pass through.
+ * Every point of origin is the middle of a square. The SRD doesn't say which squares on a grid an area catches, so a
+ * square counts when its centre is inside the shape; thin walls and rings catch every square they pass through.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./backend.ts";
@@ -50,7 +50,7 @@ export const SHAPES: Shape[] = [
   { kind: "emanation", name: "Emanation", size: "Distance", defaults: { size: 15 }, how: "Click the creature it comes from; it moves with them." },
   { kind: "cone", name: "Cone", size: "Length", defaults: { size: 15 }, how: "Press where it starts and drag the way it points." },
   { kind: "line", name: "Line", size: "Length", defaults: { size: 60, width: 5 }, how: "Press where it starts and drag the way it points." },
-  { kind: "cube", name: "Cube", size: "Side", defaults: { size: 15 }, how: "Press the middle of the side it starts from and drag the way it points." },
+  { kind: "cube", name: "Cube", size: "Side", defaults: { size: 15 }, how: "Press the square it starts from and drag the way it points." },
   { kind: "wall", name: "Wall", size: "Longest", defaults: { size: 60, width: 1, height: 20 }, how: "Press one end and drag to the other." },
   { kind: "ring", name: "Ring", size: "Diameter", defaults: { size: 20, width: 1 }, how: "Click its centre." },
 ];
@@ -66,6 +66,8 @@ export interface AreaCtx {
   /** Feet per square. */
   feet: number;
   tokens: MapToken[];
+  /** The map's squares (x0 to x1, y0 to y1, inclusive): squares off the map don't count. */
+  bounds?: { x0: number; y0: number; x1: number; y1: number };
 }
 
 const sq = (ft: number, c: AreaCtx) => ft / (c.feet || 5);
@@ -134,12 +136,14 @@ function reach(a: Area, c: AreaCtx) {
 
 /** The squares an area catches, as "x,y". */
 export function areaSquares(a: Area, c: AreaCtx): string[] {
-  const b = reach(a, c);
-  if (!b) return [];
+  const r0 = reach(a, c);
+  if (!r0) return [];
+  // only the map's own squares count
+  const b = c.bounds ? { x0: Math.max(r0.x0, c.bounds.x0), y0: Math.max(r0.y0, c.bounds.y0), x1: Math.min(r0.x1, c.bounds.x1), y1: Math.min(r0.y1, c.bounds.y1) } : r0;
   const thin = a.kind === "wall" || a.kind === "ring";
   const out: string[] = [];
-  for (let y = Math.floor(b.y0); y <= Math.ceil(b.y1); y++) {
-    for (let x = Math.floor(b.x0); x <= Math.ceil(b.x1); x++) {
+  for (let y = Math.floor(b.y0); y <= (c.bounds ? Math.min(Math.ceil(b.y1), c.bounds.y1) : Math.ceil(b.y1)); y++) {
+    for (let x = Math.floor(b.x0); x <= (c.bounds ? Math.min(Math.ceil(b.x1), c.bounds.x1) : Math.ceil(b.x1)); x++) {
       let hit = inArea(a, { x: x + 0.5, y: y + 0.5 }, c);
       // a wall or ring thinner than a square catches every square it passes through
       if (!hit && thin) for (let i = 0; i < 5 && !hit; i++) for (let j = 0; j < 5 && !hit; j++) hit = inArea(a, { x: x + 0.1 + i * 0.2, y: y + 0.1 + j * 0.2 }, c);
@@ -203,8 +207,8 @@ export function aimPoint(a: Area, c: AreaCtx): P | null {
   return { x: a.x + d.x * r, y: a.y + d.y * r };
 }
 
-/** A point of origin on a grid line or a square's middle (every half square), unless placed freely. */
-export const snapHalf = (v: number) => Math.round(v * 2) / 2;
+/** A point of origin is always the middle of a square. */
+export const snapCenter = (v: number) => Math.floor(v) + 0.5;
 
 /** "20-foot Sphere", "60 × 5-foot Line". */
 export function areaName(a: Area): string {

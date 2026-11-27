@@ -71,7 +71,7 @@ export function AreaPanel({ st, settings, setSettings, selected, setSelected, ct
       <div className="mswatches" role="group" aria-label="Colour">
         {AREA_COLORS.map((c) => <button key={c} className={`mswatch ${cur.color === c ? "on" : ""}`} style={{ background: c }} aria-label={`Colour ${c}`} aria-pressed={cur.color === c} onClick={() => put({ color: c })} />)}
       </div>
-      <p className="mfhint" style={{ margin: 0 }}>{hint || (editing ? "Drag it to move it, or its white handle to aim it." : `${shape.how} Hold Alt to place it off the grid.`)}</p>
+      <p className="mfhint" style={{ margin: 0 }}>{hint || (editing ? "Drag it to move it, or its white handle to aim it." : `${shape.how} It starts from the middle of a square.`)}</p>
 
       {sel && (
         <div className="mfsub">
