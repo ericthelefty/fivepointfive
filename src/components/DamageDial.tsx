@@ -3,8 +3,8 @@ import { DAMAGE_ICON, DAMAGE_TYPES, type DamageType } from "../lib/damageDial.ts
 /** The ring's geometry, in the dial's own units (the SVG scales it to the size the CSS gives it). */
 const C = 310;
 const R_ICON = 204;
-/** The icons are drawn about 36 units across; they're shown at twice that. */
-const ICON_SCALE = 2;
+/** The icons are drawn about 36 units across; they're shown at three times that. */
+const ICON_SCALE = 3;
 const STEP = 360 / DAMAGE_TYPES.length;
 const at = (r: number, deg: number) => {
   const t = ((deg - 90) * Math.PI) / 180;
@@ -16,7 +16,7 @@ export const DIAL_STAGGER = 140;
 
 /**
  * The damage dial around the dice: every damage type's icon in its fixed place on a ring. The types in this roll light
- * up one after another, play their own short effect, then keep a subtle loop, with their share of the damage in the
+ * up one after another, each playing its own animation (see sheet.css), then keep its loops going, with their share of the damage in the
  * middle of the icon, in the same gold as the dice's modifier with a heavy outline; once the number is up the icon fades
  * back behind it; the other types aren't shown. `delay` is when the dice land.
  */
@@ -33,11 +33,7 @@ export function DamageDial({ parts, delay }: { parts: { type: DamageType; total:
           <g key={t} className={`seg t-${t} on`} style={{ ["--d" as string]: `calc(var(--land) + ${on * DIAL_STAGGER}ms)` }}>
             <g transform={`translate(${ix.toFixed(1)} ${iy.toFixed(1)}) scale(${ICON_SCALE})`}>
               <g className="icon">
-                <g className="fade">
-                  <g className="inner">
-                    <g className="idle" dangerouslySetInnerHTML={{ __html: DAMAGE_ICON[t] }} />
-                  </g>
-                </g>
+                <g className="fade" dangerouslySetInnerHTML={{ __html: DAMAGE_ICON[t] }} />
               </g>
             </g>
             {<text x={ix.toFixed(1)} y={(iy + 13).toFixed(1)} textAnchor="middle" className="wtot">{totalOf(t)}</text>}

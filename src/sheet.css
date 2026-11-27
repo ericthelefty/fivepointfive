@@ -1015,76 +1015,202 @@
 .sheetv .ddial .icon { color: var(--c); }
 .sheetv .ddial .t-slashing{--c:#dfe3ea}.sheetv .ddial .t-piercing{--c:#dfe3ea}.sheetv .ddial .t-bludgeoning{--c:#c9ced6}.sheetv .ddial .t-fire{--c:#ff7a1a}.sheetv .ddial .t-cold{--c:#5cc8f2}.sheetv .ddial .t-lightning{--c:#4f8dff}.sheetv .ddial .t-thunder{--c:#9a78f5}.sheetv .ddial .t-acid{--c:#c6e01e}.sheetv .ddial .t-poison{--c:#a9c046}.sheetv .ddial .t-necrotic{--c:#6fe3a8}.sheetv .ddial .t-radiant{--c:#f5c85a}.sheetv .ddial .t-force{--c:#ef6f74}.sheetv .ddial .t-psychic{--c:#e472d6}
 :root[data-theme="light"] .sheetv .ddial .t-slashing{--c:#4a5566}:root[data-theme="light"] .sheetv .ddial .t-piercing{--c:#4a5566}:root[data-theme="light"] .sheetv .ddial .t-bludgeoning{--c:#5a6270}:root[data-theme="light"] .sheetv .ddial .t-fire{--c:#e2620c}:root[data-theme="light"] .sheetv .ddial .t-cold{--c:#1f86c0}:root[data-theme="light"] .sheetv .ddial .t-lightning{--c:#1d4fd6}:root[data-theme="light"] .sheetv .ddial .t-thunder{--c:#5a3fc8}:root[data-theme="light"] .sheetv .ddial .t-acid{--c:#7a9a00}:root[data-theme="light"] .sheetv .ddial .t-poison{--c:#6a8a10}:root[data-theme="light"] .sheetv .ddial .t-necrotic{--c:#1f9a62}:root[data-theme="light"] .sheetv .ddial .t-radiant{--c:#c99300}:root[data-theme="light"] .sheetv .ddial .t-force{--c:#c83a44}:root[data-theme="light"] .sheetv .ddial .t-psychic{--c:#b02aa0}
-.sheetv .ddial .seg .icon{opacity:.38;transform-box:fill-box;transform-origin:center;transition:opacity .3s}
-.sheetv .ddial .seg .inner{transform-box:fill-box;transform-origin:center}
-.sheetv .ddial .seg.dim .icon{animation:dd-dim .3s var(--land) both}
-@keyframes dd-dim{to{opacity:.14}}
-.sheetv .ddial .seg.on .icon{animation:dd-iconin .45s var(--d) cubic-bezier(.3,1.6,.5,1) both;filter:drop-shadow(0 0 7px var(--c))}
-@keyframes dd-iconin{from{opacity:.38;transform:scale(.6)}to{opacity:1;transform:scale(1.32)}}
-@keyframes dd-fadein{from{opacity:.4}to{opacity:1}}
-.sheetv .ddial .seg .wtot{font:700 38px var(--serif, Georgia, serif);fill:var(--s-gold);opacity:0;transform-box:fill-box;transform-origin:center;paint-order:stroke;stroke:var(--bg, #120f13);stroke-width:8px;stroke-linejoin:round}
-/* once the number is up, the icon steps back behind it (its idle loop keeps going) */
-.sheetv .ddial .seg.on .fade{animation:dd-back .4s calc(var(--d) + .4s) ease both}
-@keyframes dd-back{to{opacity:.38}}
-.sheetv .ddial .seg.on .wtot{animation:dd-totin .4s calc(var(--d) + .3s) cubic-bezier(.3,1.6,.5,1) both;filter:drop-shadow(0 2px 8px var(--bg, #120f13)) drop-shadow(0 0 3px var(--bg, #120f13))}
-@keyframes dd-totin{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:none}}
-.sheetv .ddial .on.t-fire .inner{animation:dd-flick .5s calc(var(--d) + .25s) ease-in-out 3}
-@keyframes dd-flick{50%{transform:scale(.92,1.12) translateY(-1px)}}
-.sheetv .ddial .on.t-cold .inner{animation:dd-spin .8s calc(var(--d) + .2s) ease-out both}
-@keyframes dd-spin{from{transform:rotate(-60deg)}to{transform:none}}
-.sheetv .ddial .on.t-lightning .inner{animation:dd-zap .6s calc(var(--d) + .15s) steps(2,end) 2}
-@keyframes dd-zap{50%{opacity:.25}}
-.sheetv .ddial .on.t-thunder .inner{animation:dd-boom .45s calc(var(--d) + .2s) ease-out 2}
-@keyframes dd-boom{40%{transform:scale(1.25)}}
-.sheetv .ddial .on.t-force .inner{animation:dd-burst .5s calc(var(--d) + .1s) cubic-bezier(.2,.8,.3,1) both}
-@keyframes dd-burst{from{transform:scale(.2,.2)}to{transform:none}}
-.sheetv .ddial .on.t-radiant .inner{animation:dd-turn 1.2s calc(var(--d) + .1s) ease-out both}
-@keyframes dd-turn{from{transform:rotate(-45deg) scale(.6)}to{transform:none}}
-.sheetv .ddial .on.t-psychic .inner{animation:dd-blink .9s calc(var(--d) + .2s) ease-in-out both}
-@keyframes dd-blink{0%{transform:scaleY(0)}30%{transform:none}60%{transform:scaleY(.1)}75%,100%{transform:none}}
-.sheetv .ddial .on.t-slashing .slash{stroke-dasharray:40;animation:dd-cut .2s calc(var(--d) + .15s) ease-out both}
-.sheetv .ddial .on.t-slashing .slash + .slash{animation-delay:calc(var(--d) + .26s)}
-@keyframes dd-cut{from{stroke-dashoffset:40}to{stroke-dashoffset:0}}
-.sheetv .ddial .on.t-piercing .inner{animation:dd-thrust .28s calc(var(--d) + .15s) ease-in both}
-@keyframes dd-thrust{from{transform:translateX(-14px);opacity:0}to{transform:none;opacity:1}}
-.sheetv .ddial .on.t-bludgeoning .inner{animation:dd-thump .5s calc(var(--d) + .12s) both}
-@keyframes dd-thump{0%{transform:translateY(-14px)}35%{transform:none;animation-timing-function:ease-out}50%{transform:scale(1.15,.82)}75%{transform:scale(.97,1.04)}100%{transform:none}}
-.sheetv .ddial .on.t-necrotic .inner{animation:dd-rise 1s calc(var(--d) + .1s) ease-out both}
-@keyframes dd-rise{from{transform:translateY(6px);opacity:.3}to{transform:translateY(-2px);opacity:1}}
-.sheetv .ddial .on.t-poison .inner{animation:dd-wob .9s calc(var(--d) + .15s) ease-in-out both}
-@keyframes dd-wob{25%{transform:rotate(-10deg)}50%{transform:rotate(8deg)}75%{transform:rotate(-4deg)}}
-.sheetv .ddial .on.t-acid .inner{animation:dd-splash .6s calc(var(--d) + .12s) cubic-bezier(.3,1.5,.5,1) both}
-@keyframes dd-splash{0%{transform:scale(.3,.2) translateY(14px)}55%{transform:scale(1.12,.92)}100%{transform:none}}
-.sheetv .ddial .seg .idle{transform-box:fill-box;transform-origin:center}
-.sheetv .ddial .seg.on .idle{animation-delay:calc(var(--d) + 1s);animation-iteration-count:infinite;animation-timing-function:ease-in-out}
-.sheetv .ddial .on.t-fire .idle{animation-name:dd-i-fire;animation-duration:1.1s;transform-origin:50% 100%}
-@keyframes dd-i-fire{50%{transform:scale(.96,1.07) skewX(-3deg)}}
-.sheetv .ddial .on.t-cold .idle{animation-name:dd-i-spin;animation-duration:9s;animation-timing-function:linear}
-@keyframes dd-i-spin{to{transform:rotate(360deg)}}
-.sheetv .ddial .on.t-lightning .idle{animation-name:dd-i-zap;animation-duration:2.6s}
-@keyframes dd-i-zap{0%,86%,92%,100%{opacity:1}89%{opacity:.35}95%{opacity:.55}}
-.sheetv .ddial .on.t-thunder .idle{animation-name:dd-i-pulse;animation-duration:1.4s}
-@keyframes dd-i-pulse{50%{transform:scale(1.08)}}
-.sheetv .ddial .on.t-acid .idle{animation-name:dd-i-bob;animation-duration:1.6s}
-@keyframes dd-i-bob{50%{transform:translateY(-1.6px)}}
-.sheetv .ddial .on.t-poison .idle{animation-name:dd-i-sway;animation-duration:2.2s;transform-origin:50% 100%}
-@keyframes dd-i-sway{25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
-.sheetv .ddial .on.t-necrotic .idle{animation-name:dd-i-lick;animation-duration:1.8s;transform-origin:50% 100%}
-@keyframes dd-i-lick{25%{transform:skewX(-4deg)}75%{transform:skewX(4deg)}}
-.sheetv .ddial .on.t-radiant .idle{animation-name:dd-i-turn;animation-duration:7s;animation-timing-function:linear}
-@keyframes dd-i-turn{to{transform:rotate(90deg)}}
-.sheetv .ddial .on.t-force .idle{animation-name:dd-i-breathe;animation-duration:2s;transform-origin:50% 100%}
-@keyframes dd-i-breathe{50%{transform:scale(1.06,.95)}}
-.sheetv .ddial .on.t-psychic .idle{animation-name:dd-i-blink;animation-duration:3.6s}
-@keyframes dd-i-blink{0%,84%,94%,100%{transform:none}89%{transform:scaleY(.12)}}
-.sheetv .ddial .on.t-slashing .idle{animation-name:dd-i-glint;animation-duration:1.8s}
-@keyframes dd-i-glint{50%{opacity:.6}}
-.sheetv .ddial .on.t-piercing .idle{animation-name:dd-i-nudge;animation-duration:1.4s}
-@keyframes dd-i-nudge{50%{transform:translateX(2.4px)}}
-.sheetv .ddial .on.t-bludgeoning .idle{animation-name:dd-i-bounce;animation-duration:1.6s;transform-origin:50% 100%}
-@keyframes dd-i-bounce{0%,60%,100%{transform:none}25%{transform:translateY(-2.5px)}45%{transform:scale(1.05,.94)}}
+.sheetv .ddial .seg.on .icon { filter: drop-shadow(0 0 7px var(--c)); }
+.sheetv .ddial .seg .wtot { font: 700 38px var(--serif, Georgia, serif); fill: var(--s-gold); opacity: 0; transform-box: fill-box; transform-origin: center; paint-order: stroke; stroke: var(--bg, #120f13); stroke-width: 8px; stroke-linejoin: round; }
+/* the number arrives once the icon has played its moment, then the icon steps back behind it (its loops keep going) */
+.sheetv .ddial .seg.on .wtot { animation: dd-totin .4s calc(var(--d) + .84s) cubic-bezier(.3, 1.6, .5, 1) both; filter: drop-shadow(0 2px 8px var(--bg, #120f13)) drop-shadow(0 0 3px var(--bg, #120f13)); }
+@keyframes dd-totin { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
+.sheetv .ddial .seg.on .fade { animation: dd-back .4s calc(var(--d) + 1.04s) ease both; }
+@keyframes dd-back { to { opacity: .38; } }
+/* each damage type's own animation, as designed on the canvas (CSS only). It plays once when the type lights up
+   (--d), from --s: --d less how far into the canvas loop the moment started, so the canvas keyframes are kept as they
+   are, on a 4 s timeline that runs once. Loops (flicker, embers, snow...) start at --d and keep going while the dice
+   are up. Origins in px are in the icon's own units. */
+.sheetv .ddial .seg { --s: calc(var(--d) - var(--o, 0ms)); }
+.sheetv .ddial .t-lightning, .sheetv .ddial .t-thunder, .sheetv .ddial .t-force, .sheetv .ddial .t-psychic { --o: 120ms; }
+.sheetv .ddial .t-radiant { --o: 80ms; }
+.sheetv .ddial .t-acid { --o: 240ms; }
+.sheetv .ddial .t-slashing, .sheetv .ddial .t-piercing, .sheetv .ddial .t-bludgeoning, .sheetv .ddial .t-necrotic, .sheetv .ddial .t-poison, .sheetv .ddial .t-cold { --o: 320ms; }
+
+/* Fire: the lower half of the flame never moves, the upper half waves from the line where they meet, embers drift off */
+.sheetv .ddial .t-fire .rise, .sheetv .ddial .t-fire .wave, .sheetv .ddial .t-fire .core { transform-box: view-box; }
+.sheetv .ddial .t-fire .rise { transform-origin: 0px 17px; animation: dd-fire-rise 4s var(--s) both; }
+@keyframes dd-fire-rise { 0% { opacity: 0; transform: scale(.6, 0); } 4% { opacity: 1; } 16% { transform: scale(1, 1.18); } 23% { transform: scale(1, .95); } 30%, 100% { transform: none; } }
+.sheetv .ddial .t-fire .wave { transform-origin: 0px 4px; animation: dd-fire-wave 1.3s ease-in-out var(--d) infinite; }
+@keyframes dd-fire-wave { 0%, 100% { transform: skewX(0) scale(1, 1); } 25% { transform: skewX(-9deg) scale(.97, 1.06); } 50% { transform: skewX(0) scale(1, 1.02); } 75% { transform: skewX(8deg) scale(1.02, .97); } }
+.sheetv .ddial .t-fire .core { transform-origin: 0px 15px; animation: dd-fire-core .7s ease-in-out var(--d) infinite; }
+@keyframes dd-fire-core { 0%, 100% { transform: scale(1, 1); opacity: .85; } 50% { transform: scale(.9, 1.15); opacity: 1; } }
+.sheetv .ddial .t-fire .ember { fill: #ffb45a; opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; animation: dd-fire-ember 1.8s ease-out var(--d) infinite both; }
+.sheetv .ddial .t-fire .e2 { animation-delay: calc(var(--d) + .36s); fill: #ff8a2a; } .sheetv .ddial .t-fire .e3 { animation-delay: calc(var(--d) + .72s); }
+.sheetv .ddial .t-fire .e4 { animation-delay: calc(var(--d) + 1.08s); fill: #ff8a2a; } .sheetv .ddial .t-fire .e5 { animation-delay: calc(var(--d) + 1.44s); }
+@keyframes dd-fire-ember { 0% { opacity: 0; transform: translate(0, 0) scale(1); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), -28px) scale(.3); } }
+.sheetv .ddial .t-fire .e1 { --dx: -7px; } .sheetv .ddial .t-fire .e2 { --dx: 5px; } .sheetv .ddial .t-fire .e3 { --dx: -2px; } .sheetv .ddial .t-fire .e4 { --dx: 9px; } .sheetv .ddial .t-fire .e5 { --dx: -10px; }
+
+/* Lightning: drops in and stretches down as it strikes, a white flash, two after-flashes, then a flicker now and then */
+.sheetv .ddial .t-lightning .vb { transform-box: view-box; transform-origin: 0px -18px; }
+.sheetv .ddial .t-lightning .st { animation: dd-li-st 4s var(--s) both; }
+@keyframes dd-li-st { 0%, 3% { opacity: 0; transform: translateY(-26px) scale(1, .6); } 6% { opacity: 1; transform: translateY(-4px) scale(.9, 1.45); } 8% { transform: scale(.92, 1.38); } 12% { transform: scale(1.04, .93); } 15% { transform: none; } 18% { transform: scale(.97, 1.14); } 19.5% { transform: none; } 21% { transform: scale(.98, 1.09); } 23%, 100% { transform: none; } }
+.sheetv .ddial .t-lightning .flash { fill: #fff; animation: dd-li-fl 4s var(--s) both; }
+@keyframes dd-li-fl { 0%, 5% { opacity: 0; } 7% { opacity: 1; } 13% { opacity: 0; } 18% { opacity: .8; } 19.5% { opacity: 0; } 21% { opacity: .55; } 23%, 100% { opacity: 0; } }
+.sheetv .ddial .t-lightning .idlez { animation: dd-li-iz 2.4s calc(var(--d) + .6s) infinite; }
+@keyframes dd-li-iz { 0%, 84%, 90%, 100% { opacity: 1; } 87% { opacity: .35; } 93% { opacity: .6; } }
+.sheetv .ddial .t-lightning .glowpulse { animation: dd-li-gp 4s var(--s) both; }
+@keyframes dd-li-gp { 0%, 5% { filter: none; } 8% { filter: drop-shadow(0 0 10px #9cc0ff) drop-shadow(0 0 4px #fff); } 30%, 100% { filter: none; } }
+
+/* Thunder: the centre pumps, the waves punch outward one ring after the other and the icon jolts, then they keep pulsing */
+.sheetv .ddial .t-thunder .vb { transform-box: view-box; transform-origin: 0px 0px; }
+.sheetv .ddial .t-thunder .b-dot { animation: dd-th-dot 4s var(--s) both; }
+@keyframes dd-th-dot { 0%, 3% { opacity: 0; transform: scale(0); } 8% { opacity: 1; transform: scale(2); } 14% { transform: scale(.85); } 20%, 100% { transform: none; } }
+.sheetv .ddial .t-thunder .b-in, .sheetv .ddial .t-thunder .b-out { opacity: 0; animation: 4s var(--s) both; }
+.sheetv .ddial .t-thunder .b-inl { animation-name: dd-th-inl; } .sheetv .ddial .t-thunder .b-inr { animation-name: dd-th-inr; }
+.sheetv .ddial .t-thunder .b-outl { animation-name: dd-th-outl; } .sheetv .ddial .t-thunder .b-outr { animation-name: dd-th-outr; }
+@keyframes dd-th-inl { 0%, 7% { opacity: 0; transform: translateX(5px); } 12% { opacity: 1; transform: translateX(-4px); } 18%, 100% { opacity: 1; transform: none; } }
+@keyframes dd-th-inr { 0%, 7% { opacity: 0; transform: translateX(-5px); } 12% { opacity: 1; transform: translateX(4px); } 18%, 100% { opacity: 1; transform: none; } }
+@keyframes dd-th-outl { 0%, 10% { opacity: 0; transform: translateX(6px); } 15% { opacity: 1; transform: translateX(-5px); } 21%, 100% { opacity: 1; transform: none; } }
+@keyframes dd-th-outr { 0%, 10% { opacity: 0; transform: translateX(-6px); } 15% { opacity: 1; transform: translateX(5px); } 21%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-thunder .jolt { animation: dd-th-jolt 4s var(--s) both; }
+@keyframes dd-th-jolt { 0%, 8%, 22%, 100% { transform: none; } 10% { transform: translate(-1.5px, .5px); } 12% { transform: translate(1.5px, -.5px); } 14% { transform: translate(-1px, 0); } 17% { transform: translate(.6px, 0); } }
+.sheetv .ddial .t-thunder .pulse-l { animation: dd-th-pl 1.4s ease-in-out calc(var(--d) + .7s) infinite; }
+.sheetv .ddial .t-thunder .pulse-r { animation: dd-th-pr 1.4s ease-in-out calc(var(--d) + .7s) infinite; }
+.sheetv .ddial .t-thunder .pulse-l.o, .sheetv .ddial .t-thunder .pulse-r.o { animation-delay: calc(var(--d) + .88s); }
+@keyframes dd-th-pl { 50% { transform: translateX(-1.6px); } } @keyframes dd-th-pr { 50% { transform: translateX(1.6px); } }
+
+/* Force: each spike grows up from the base where they meet, overshoots and settles, then they breathe out in turn */
+.sheetv .ddial .t-force .sk, .sheetv .ddial .t-force .breathe { transform-box: view-box; transform-origin: 0px 12px; }
+.sheetv .ddial .t-force .fan .sk { animation: dd-fo-fan 4s var(--s) both; }
+@keyframes dd-fo-fan { 0%, 3% { opacity: 0; transform: scale(.7, 0); } 5% { opacity: 1; } 11% { transform: scale(.92, 1.22); } 16% { transform: scale(1.04, .94); } 21%, 100% { transform: none; } }
+.sheetv .ddial .t-force .breathe { animation: dd-fo-br 1.5s ease-in-out calc(var(--d) + .7s) infinite; }
+.sheetv .ddial .t-force .k0 .breathe, .sheetv .ddial .t-force .k4 .breathe { animation-delay: calc(var(--d) + 1s); }
+.sheetv .ddial .t-force .k1 .breathe, .sheetv .ddial .t-force .k3 .breathe { animation-delay: calc(var(--d) + .85s); }
+@keyframes dd-fo-br { 50% { transform: scale(1, 1.08); } }
+
+/* Radiant: swells out of a white-hot glow, the rays reach out round the clock, then pulse in turn while it twinkles */
+.sheetv .ddial .t-radiant .vb, .sheetv .ddial .t-radiant .ry, .sheetv .ddial .t-radiant .pl { transform-box: view-box; transform-origin: 0px 0px; }
+.sheetv .ddial .t-radiant .hot { fill: #fffbe8; opacity: 0; }
+.sheetv .ddial .t-radiant .dawn { animation: dd-ra-dawn 4s var(--s) both; }
+@keyframes dd-ra-dawn { 0%, 2% { opacity: 0; transform: scale(.2) rotate(-30deg); } 9% { opacity: 1; transform: scale(1.2) rotate(4deg); } 15% { transform: scale(.95); } 20%, 100% { transform: none; } }
+.sheetv .ddial .t-radiant .dawn .hot { animation: dd-ra-hot 4s var(--s) both; }
+@keyframes dd-ra-hot { 0%, 4% { opacity: 0; } 9% { opacity: 1; } 22%, 100% { opacity: 0; } }
+.sheetv .ddial .t-radiant .reach .ry { animation: dd-ra-reach 4s var(--s) both; }
+.sheetv .ddial .t-radiant .reach .r0 { animation-delay: calc(var(--s) + .08s); } .sheetv .ddial .t-radiant .reach .r1 { animation-delay: calc(var(--s) + .16s); } .sheetv .ddial .t-radiant .reach .r2 { animation-delay: calc(var(--s) + .24s); }
+@keyframes dd-ra-reach { 0%, 10% { opacity: 0; transform: scale(.5); } 15% { opacity: 1; transform: scale(1.35); } 20%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-radiant .ry .pl { animation: dd-ra-pl 1.6s ease-in-out calc(var(--d) + .6s) infinite; }
+.sheetv .ddial .t-radiant .r1 .pl, .sheetv .ddial .t-radiant .r3 .pl { animation-delay: calc(var(--d) + 1.4s); }
+@keyframes dd-ra-pl { 50% { transform: scale(1.18); } }
+.sheetv .ddial .t-radiant .twink { animation: dd-ra-tw 1.6s ease-in-out calc(var(--d) + .6s) infinite; }
+@keyframes dd-ra-tw { 50% { transform: scale(.94); } }
+
+/* Psychic: the eye snaps open, the pupil dilates, the dots swing once round it; then it glances about and blinks */
+.sheetv .ddial .t-psychic .vb { transform-box: view-box; transform-origin: 0px 0px; }
+.sheetv .ddial .t-psychic .open { animation: dd-ps-open 4s var(--s) both; }
+@keyframes dd-ps-open { 0%, 3% { opacity: 0; transform: scaleY(0); } 5% { opacity: 1; } 10% { transform: scaleY(1.15); } 14%, 100% { transform: none; } }
+.sheetv .ddial .t-psychic .dil { animation: dd-ps-dil 4s var(--s) both; }
+@keyframes dd-ps-dil { 0%, 9% { transform: scale(.3); } 15% { transform: scale(1.3); } 20%, 100% { transform: none; } }
+.sheetv .ddial .t-psychic .orbit { animation: dd-ps-orb 4s var(--s) both; }
+@keyframes dd-ps-orb { 0%, 8% { opacity: 0; transform: rotate(-180deg); } 10% { opacity: 1; } 22% { transform: rotate(15deg); } 27%, 100% { transform: none; } }
+.sheetv .ddial .t-psychic .look { animation: dd-ps-look 3s ease-in-out calc(var(--d) + 1s) infinite; }
+@keyframes dd-ps-look { 0%, 20%, 100% { transform: none; } 30%, 45% { transform: translateX(-3.5px); } 60%, 75% { transform: translateX(3.5px); } }
+.sheetv .ddial .t-psychic .blink { animation: dd-ps-blink 3.2s calc(var(--d) + 1.2s) infinite; }
+@keyframes dd-ps-blink { 0%, 88%, 96%, 100% { transform: none; } 92% { transform: scaleY(.1); } }
+
+/* Slashing: a blade slices the canvas twice, left to right along the long slash, then right to left along the short
+   one. Each path has pathLength 100: a dash of 100 with a gap of 200 slides from fully off one end to fully on, so no
+   round end cap shows before its slice starts. */
+.sheetv .ddial .t-slashing .s1, .sheetv .ddial .t-slashing .s2, .sheetv .ddial .t-slashing .b1, .sheetv .ddial .t-slashing .b2 { stroke-linecap: round; fill: none; }
+.sheetv .ddial .t-slashing .s1 { stroke-dasharray: 100 200; animation: dd-sl-s1 4s var(--s) both; }
+@keyframes dd-sl-s1 { 0%, 7.9% { stroke-dashoffset: 101; opacity: 0; } 8% { stroke-dashoffset: 101; opacity: 1; } 14%, 100% { stroke-dashoffset: 0; opacity: 1; } }
+.sheetv .ddial .t-slashing .s2 { stroke-dasharray: 100 200; animation: dd-sl-s2 4s var(--s) both; }
+@keyframes dd-sl-s2 { 0%, 17.9% { stroke-dashoffset: -101; opacity: 0; } 18% { stroke-dashoffset: -101; opacity: .8; } 24%, 100% { stroke-dashoffset: 0; opacity: .8; } }
+.sheetv .ddial .t-slashing .b1 { stroke: #fff; stroke-dasharray: 12 200; animation: dd-sl-b1 4s var(--s) both; }
+@keyframes dd-sl-b1 { 0%, 7.9% { stroke-dashoffset: 13; opacity: 0; } 8% { stroke-dashoffset: 13; opacity: 1; } 14% { stroke-dashoffset: -88; opacity: 1; } 15.5%, 100% { stroke-dashoffset: -88; opacity: 0; } }
+.sheetv .ddial .t-slashing .b2 { stroke: #fff; stroke-dasharray: 12 200; animation: dd-sl-b2 4s var(--s) both; }
+@keyframes dd-sl-b2 { 0%, 17.9% { stroke-dashoffset: -101; opacity: 0; } 18% { stroke-dashoffset: -101; opacity: 1; } 24% { stroke-dashoffset: 0; opacity: 1; } 25.5%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+.sheetv .ddial .t-slashing .jolt { animation: dd-sl-jolt 4s var(--s) both; }
+@keyframes dd-sl-jolt { 0%, 8% { transform: none; } 13% { transform: translate(1.2px, -1.2px); } 16% { transform: none; } 23% { transform: translate(-1.2px, 1.2px); } 26%, 100% { transform: none; } }
+
+/* Piercing: the arrow flies in from the left with a streak behind it, stops dead, and quivers from the tip */
+.sheetv .ddial .t-piercing .tip { transform-box: view-box; transform-origin: 17px 0px; }
+.sheetv .ddial .t-piercing .fly { animation: dd-pi-fly 4s var(--s) both; }
+@keyframes dd-pi-fly { 0%, 7.9% { opacity: 0; transform: translateX(-48px); } 8% { opacity: 1; transform: translateX(-48px); } 14% { transform: translateX(1.5px); } 15%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-piercing .quiver { animation: dd-pi-qv 4s var(--s) both; }
+@keyframes dd-pi-qv { 0%, 14% { transform: none; } 16% { transform: rotate(-6deg); } 18% { transform: rotate(5deg); } 20% { transform: rotate(-3.5deg); } 22% { transform: rotate(2.2deg); } 24% { transform: rotate(-1.2deg); } 26% { transform: rotate(.5deg); } 28%, 100% { transform: none; } }
+.sheetv .ddial .t-piercing .streak { stroke: currentColor; stroke-linecap: round; transform-box: view-box; transform-origin: 8px 0px; opacity: 0; animation: dd-pi-streak 4s var(--s) both; }
+@keyframes dd-pi-streak { 0%, 7.9% { opacity: 0; transform: translateX(-48px) scaleX(.2); } 8% { opacity: .7; transform: translateX(-48px) scaleX(.6); } 13.5% { opacity: .6; transform: translateX(0) scaleX(1); } 17%, 100% { opacity: 0; transform: translateX(0) scaleX(.2); } }
+
+/* Bludgeoning: the hammer swings over from the left and slams to a stop, lines burst from the blow, the icon shakes */
+.sheetv .ddial .t-bludgeoning .grip { transform-box: view-box; transform-origin: 0px 17px; }
+.sheetv .ddial .t-bludgeoning .swing { animation: dd-bl-swing 4s var(--s) both; }
+@keyframes dd-bl-swing { 0%, 7.9% { opacity: 0; transform: rotate(-85deg); } 8% { opacity: 1; transform: rotate(-85deg); } 14% { transform: rotate(14deg); } 17% { transform: rotate(-4deg); } 20%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-bludgeoning .hit { stroke: #fff; stroke-width: 1.5; stroke-linecap: round; fill: none; transform-box: view-box; transform-origin: 13px -9px; opacity: 0; animation: dd-bl-hit 4s var(--s) both; }
+@keyframes dd-bl-hit { 0%, 13.9% { opacity: 0; transform: scale(.4); } 14% { opacity: 1; transform: scale(.6); } 24%, 100% { opacity: 0; transform: scale(1.4); } }
+.sheetv .ddial .t-bludgeoning .shake { animation: dd-bl-shake 4s var(--s) both; }
+@keyframes dd-bl-shake { 0%, 14%, 24%, 100% { transform: none; } 15.5% { transform: translate(1.4px, .6px); } 17% { transform: translate(-1.2px, -.5px); } 19% { transform: translate(.8px, .3px); } 21% { transform: translate(-.4px, 0); } }
+
+/* Necrotic: the skull fades in while wisps of life are pulled into its black eyes, the sockets swell and angry brows come
+   down over them; the flames on top lick from where they meet the skull and embers drift off them */
+.sheetv .ddial .t-necrotic .lick { transform-box: view-box; transform-origin: 0px -10px; animation: dd-ne-lick 1.2s ease-in-out var(--d) infinite; }
+@keyframes dd-ne-lick { 0%, 100% { transform: none; } 25% { transform: skewX(-8deg) scale(.97, 1.08); } 75% { transform: skewX(7deg) scale(1.03, .95); } }
+.sheetv .ddial .t-necrotic .fadein { transform-box: view-box; transform-origin: 0px 0px; animation: dd-ne-in 4s var(--s) both; }
+@keyframes dd-ne-in { 0%, 7.9% { opacity: 0; transform: scale(.85); } 12%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-necrotic .wisp { fill: #b9ffd9; opacity: 0; animation: dd-ne-wisp 4s var(--s) both; }
+.sheetv .ddial .t-necrotic .w1 { --fx: -24px; --fy: -14px; } .sheetv .ddial .t-necrotic .w2 { --fx: 24px; --fy: -12px; } .sheetv .ddial .t-necrotic .w3 { --fx: -22px; --fy: 14px; }
+.sheetv .ddial .t-necrotic .w4 { --fx: 23px; --fy: 16px; } .sheetv .ddial .t-necrotic .w5 { --fx: 0px; --fy: -28px; } .sheetv .ddial .t-necrotic .w6 { --fx: -28px; --fy: 2px; }
+.sheetv .ddial .t-necrotic .w2, .sheetv .ddial .t-necrotic .w4 { animation-delay: calc(var(--s) + .06s); } .sheetv .ddial .t-necrotic .w5, .sheetv .ddial .t-necrotic .w6 { animation-delay: calc(var(--s) + .12s); }
+@keyframes dd-ne-wisp { 0%, 9.9% { opacity: 0; transform: translate(var(--fx), var(--fy)); } 12% { opacity: .9; } 22% { opacity: .9; transform: none; } 24%, 100% { opacity: 0; transform: none; } }
+.sheetv .ddial .t-necrotic .eye { transform-box: fill-box; transform-origin: center; animation: dd-ne-swell 4s var(--s) both; }
+@keyframes dd-ne-swell { 0%, 21% { transform: none; } 24% { transform: scale(1.18); } 29%, 100% { transform: scale(1.06); } }
+.sheetv .ddial .t-necrotic .brow { animation: dd-ne-brow 4s var(--s) both; }
+@keyframes dd-ne-brow { 0%, 22.9% { opacity: 0; transform: translateY(-2.5px); } 23% { opacity: 1; transform: translateY(-2.5px); } 28% { transform: translateY(.6px); } 31%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-necrotic .ember-g { fill: currentColor; opacity: 0; transform-box: fill-box; transform-origin: center; animation: dd-ne-eg 1.6s ease-out var(--d) infinite; }
+.sheetv .ddial .t-necrotic .eg2 { animation-delay: calc(var(--d) + .55s); } .sheetv .ddial .t-necrotic .eg3 { animation-delay: calc(var(--d) + 1.1s); }
+@keyframes dd-ne-eg { 0% { opacity: 0; transform: none; } 15% { opacity: .9; } 100% { opacity: 0; transform: translate(var(--dx), -14px) scale(.3); } }
+.sheetv .ddial .t-necrotic .eg1 { --dx: -3px; } .sheetv .ddial .t-necrotic .eg2 { --dx: 4px; } .sheetv .ddial .t-necrotic .eg3 { --dx: -1px; }
+
+/* Poison: the drop falls in stretched thin, splats (flicking droplets out) and wobbles; the crossbones spin in on top */
+.sheetv .ddial .t-poison .bottom { transform-box: view-box; transform-origin: 0px 17px; }
+.sheetv .ddial .t-poison .mid { transform-box: view-box; transform-origin: 0px 6px; }
+.sheetv .ddial .t-poison .fall { animation: dd-po-fall 4s var(--s) both; }
+@keyframes dd-po-fall { 0%, 7.9% { opacity: 0; transform: translateY(-34px); } 8% { opacity: 1; transform: translateY(-34px); } 14%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-poison .splat { animation: dd-po-splat 4s var(--s) both; }
+@keyframes dd-po-splat { 0%, 8% { transform: scale(.6, 1.4); } 13.9% { transform: scale(.7, 1.3); } 15% { transform: scale(1.3, .7); } 18% { transform: scale(.92, 1.1); } 21% { transform: scale(1.04, .96); } 24%, 100% { transform: none; } }
+.sheetv .ddial .t-poison .jelly { animation: dd-po-jelly 1.8s ease-in-out calc(var(--d) + .7s) infinite; }
+@keyframes dd-po-jelly { 0%, 100% { transform: none; } 30% { transform: scale(1.04, .96); } 60% { transform: scale(.97, 1.03); } }
+.sheetv .ddial .t-poison .bonepop { animation: dd-po-bones 4s var(--s) both; }
+@keyframes dd-po-bones { 0%, 17% { opacity: 0; transform: scale(0) rotate(-90deg); } 22% { opacity: 1; transform: scale(1.2) rotate(8deg); } 26%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-poison .sp { fill: currentColor; opacity: 0; transform-box: fill-box; transform-origin: center; animation: dd-po-sp 4s var(--s) both; }
+.sheetv .ddial .t-poison .sp1 { --dx: -11px; --dy: -5px; } .sheetv .ddial .t-poison .sp2 { --dx: 11px; --dy: -6px; } .sheetv .ddial .t-poison .sp3 { --dx: -6px; --dy: -9px; } .sheetv .ddial .t-poison .sp4 { --dx: 7px; --dy: -10px; }
+@keyframes dd-po-sp { 0%, 13.9% { opacity: 0; transform: none; } 14% { opacity: 1; } 24%, 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.4); } }
+
+/* Acid: a drop falls into the puddle, the crown shoots up, the droplets fly up and land; then it ripples and they bob */
+.sheetv .ddial .t-acid .base { transform-box: view-box; transform-origin: 0px 13px; }
+.sheetv .ddial .t-acid .falldrop { fill: currentColor; opacity: 0; animation: dd-ac-fd 4s var(--s) both; }
+@keyframes dd-ac-fd { 0%, 5.9% { opacity: 0; transform: translateY(-40px); } 6% { opacity: 1; transform: translateY(-40px); } 11% { opacity: 1; transform: translateY(0); } 11.5%, 100% { opacity: 0; transform: translateY(0); } }
+.sheetv .ddial .t-acid .puddle { animation: dd-ac-pud 4s var(--s) both; }
+@keyframes dd-ac-pud { 0%, 10.9% { opacity: 0; transform: scale(.3, .6); } 11% { opacity: 1; } 15% { transform: scale(1.12, 1); } 19%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-acid .crown { animation: dd-ac-crown 4s var(--s) both; }
+@keyframes dd-ac-crown { 0%, 10.9% { opacity: 0; transform: scale(.6, 0); } 11% { opacity: 1; } 16% { transform: scale(.95, 1.25); } 20% { transform: scale(1.03, .93); } 24%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-acid .fly { opacity: 0; animation: dd-ac-fly 4s var(--s) both; }
+.sheetv .ddial .t-acid .dd1, .sheetv .ddial .t-acid .dd3 { animation-delay: calc(var(--s) + .04s); } .sheetv .ddial .t-acid .dd2 { animation-delay: calc(var(--s) + .08s); }
+@keyframes dd-ac-fly { 0%, 11.9% { opacity: 0; transform: translateY(22px) scale(.5); } 12% { opacity: 1; } 17% { transform: translateY(-4px) scale(1.1); } 21%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-acid .ripple { animation: dd-ac-ripple 1.6s ease-in-out calc(var(--d) + .7s) infinite; }
+@keyframes dd-ac-ripple { 50% { transform: scale(1.03, .95); } }
+.sheetv .ddial .t-acid .bob { transform-box: fill-box; animation: dd-ac-bob 1.6s ease-in-out calc(var(--d) + .7s) infinite; }
+@keyframes dd-ac-bob { 50% { transform: translateY(-1.5px); } }
+
+/* Cold: the snowflake drifts down into place, turning, while little snowflakes keep falling round it */
+.sheetv .ddial .t-cold .vb { transform-box: view-box; transform-origin: 0px 0px; }
+.sheetv .ddial .t-cold .drift { animation: dd-co-drift 4s var(--s) both; }
+@keyframes dd-co-drift { 0%, 7.9% { opacity: 0; transform: translate(-6px, -22px) rotate(-60deg); } 8% { opacity: 1; } 22%, 100% { opacity: 1; transform: none; } }
+.sheetv .ddial .t-cold .snow { fill: #dff4ff; opacity: 0; animation: dd-co-snow 2.6s linear var(--d) infinite; }
+.sheetv .ddial .t-cold .sn2 { animation-delay: calc(var(--d) + .6s); } .sheetv .ddial .t-cold .sn3 { animation-delay: calc(var(--d) + 1.2s); } .sheetv .ddial .t-cold .sn4 { animation-delay: calc(var(--d) + 1.8s); }
+.sheetv .ddial .t-cold .sn5 { animation-delay: calc(var(--d) + .3s); } .sheetv .ddial .t-cold .sn6 { animation-delay: calc(var(--d) + 1.5s); }
+@keyframes dd-co-snow { 0% { opacity: 0; transform: none; } 15% { opacity: .9; } 85% { opacity: .9; } 100% { opacity: 0; transform: translate(var(--dx), 40px); } }
+.sheetv .ddial .t-cold .sn1 { --dx: 4px; } .sheetv .ddial .t-cold .sn2 { --dx: -5px; } .sheetv .ddial .t-cold .sn3 { --dx: 3px; } .sheetv .ddial .t-cold .sn4 { --dx: -3px; } .sheetv .ddial .t-cold .sn5 { --dx: 6px; } .sheetv .ddial .t-cold .sn6 { --dx: -4px; }
+
 @media (prefers-reduced-motion: reduce) { .sheetv .ddial, .sheetv .ddial * { animation: none !important; }
-  .sheetv .ddial .seg.on .icon { opacity: 1; } .sheetv .ddial .seg.on .fade { opacity: .38; } .sheetv .ddial .seg.on .wtot { opacity: 1; } }
+  .sheetv .ddial .seg.on .fade { opacity: .38; } .sheetv .ddial .seg.on .wtot { opacity: 1; }
+  .sheetv .ddial .t-thunder .b-in, .sheetv .ddial .t-thunder .b-out, .sheetv .ddial .t-acid .fly { opacity: 1; }
+  .sheetv .ddial .t-lightning .flash, .sheetv .ddial .t-slashing .b1, .sheetv .ddial .t-slashing .b2 { opacity: 0; } }
 /* the Background Image button sits at the bottom of the page, under Explainer Mode; its menu opens upward */
 .sheetv .bgbar { grid-column: 1 / -1; display: flex; justify-content: center; margin: 4px auto 16px; order: 1000; }
 .sheetv .bgbar .bgmenu { top: auto; bottom: calc(100% + 6px); right: auto; left: 50%; transform: translateX(-50%); }

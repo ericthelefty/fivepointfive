@@ -715,7 +715,7 @@ export default function Sheet() {
           // a damage roll's dice stay a little longer, while the damage dial lights up its types one after another
           const lit = dial?.length ? new Set(dial.map((x) => x.type)).size : 0;
           const land = dice.length * 60 + 450;
-          const ms = lit ? land + (lit - 1) * DIAL_STAGGER + 1500 : 1700;
+          const ms = lit ? land + (lit - 1) * DIAL_STAGGER + 2600 : 1700; // each type's animation, its number, a moment to read it
           setDiceFx({ key: entry.id, dice, crit: entry.cls === "crit", mod, tilt, dial: lit ? dial : undefined, hold: land, ms });
           clearTimeout(diceTimer.current);
           diceTimer.current = setTimeout(() => setDiceFx(undefined), ms);
