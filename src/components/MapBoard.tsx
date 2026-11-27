@@ -86,7 +86,7 @@ export default function MapBoard(p: Props) {
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<null | { kind: "pan"; sx: number; sy: number; tx: number; ty: number } | { kind: "pinch"; d: number; cx: number; cy: number; s: number; tx: number; ty: number }
     | { kind: "box"; ax: number; ay: number } | { kind: "token"; uid: string; ox: number; oy: number; from: { x: number; y: number } } | { kind: "fog"; from: { x: number; y: number }; last: { x: number; y: number }; cells: Set<string>; reveal: boolean }
-    | { kind: "area"; mode: "new" | "aim" | "move"; area: Area; from: { x: number; y: number }; free: boolean; snap45: boolean }
+    | { kind: "area"; mode: "new" | "aim" | "move"; area: Area; orig: Area; from: { x: number; y: number }; free: boolean; snap45: boolean }
     | { kind: "block"; orig: FogBlock; mode: "move" | "nw" | "ne" | "sw" | "se"; from: { x: number; y: number } } | { kind: "measure"; from: { x: number; y: number } }>(null);
   const [drag, setDrag] = useState<{ uid: string; px: number; py: number } | null>(null);
   const [paint, setPaint] = useState<{ cells: string[]; reveal: boolean; box?: [{ x: number; y: number }, { x: number; y: number }] } | null>(null);
@@ -181,7 +181,7 @@ export default function MapBoard(p: Props) {
       if (own) {
         p.onAreaSelect?.(own.id);
         // an Emanation moves with its creature, so it can't be dragged
-        if (aim || own.kind !== "emanation") gesture.current = { kind: "area", mode: aim ? "aim" : "move", area: own, from: at, free, snap45: e.shiftKey };
+        if (aim || own.kind !== "emanation") gesture.current = { kind: "area", mode: aim ? "aim" : "move", area: own, orig: own, from: at, free, snap45: e.shiftKey };
         return;
       }
       const n = p.areaNew;
@@ -196,7 +196,7 @@ export default function MapBoard(p: Props) {
         const o = { x: snapCenter(at.x), y: snapCenter(at.y) };
         const a: Area = { ...n, id, x: o.x, y: o.y, ...(n.kind === "wall" ? { x2: o.x, y2: o.y } : {}) };
         if ((AIMED as AreaKind[]).includes(n.kind) || n.kind === "wall") {
-          gesture.current = { kind: "area", mode: "new", area: a, from: at, free, snap45: e.shiftKey };
+          gesture.current = { kind: "area", mode: "new", area: a, orig: a, from: at, free, snap45: e.shiftKey };
           setAreaDraft(a);
         } else { p.onAreaAdd(a); p.onAreaSelect?.(id); }
         return;
@@ -261,7 +261,8 @@ export default function MapBoard(p: Props) {
     const { px, py } = toImage(e.clientX, e.clientY);
     const c = cellAt(g, px, py);
     if (gs.kind === "area") {
-      const at = toSq(px, py), a0 = gs.area;
+      // always measured from where the area was when the drag began (not from the last step)
+      const at = toSq(px, py), a0 = gs.orig;
       let next: Area;
       if (gs.mode === "move") {
         const dx = at.x - gs.from.x, dy = at.y - gs.from.y;
