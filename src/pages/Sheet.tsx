@@ -867,7 +867,7 @@ export default function Sheet() {
     setDmgPick({
       x, y, above, title, types,
       go: (t) => {
-        lastDmgType.current.set(title, t);
+        lastDmgType.current.set(title.replace(/ \(two hands\)$/, ""), t);
         setDmgPick(undefined);
         const name = damageName(t);
         if (choicePiece >= 0) {
@@ -1090,21 +1090,21 @@ export default function Sheet() {
   const dmgMods = (a: Attack, versatile: boolean) => ({
     minDie: a.dieFloor && (!a.dieFloor.twoHands || versatile) ? a.dieFloor.min : undefined, floorSource: a.dieFloor?.source, maximize: a.maximize,
   });
-  const attack = (a: Attack, versatile = false) => {
+  /** The attack roll, which is the same however the weapon is held; its card offers the damage one- and two-handed. */
+  const attack = (a: Attack) => {
     const cm = conditionMods(p, { kind: "attack" });
     cm.adv.push(...advantageFor(fx, { kind: "attack", ability: a.ability }));
     cm.dis.push(...disadvantageFor(fx, { kind: "attack", ability: a.ability }));
     const m = combineModes(mode === "adv" || cm.adv.length > 0, mode === "dis" || cm.dis.length > 0);
     const extra = takeBonus();
     const r = d20(a.toHit - cm.penalty, m, extra ? extra.replace(/^\+/, "") : undefined);
-    const dmg = versatile && a.versatile ? a.versatile : a.damage;
     // Improved Critical and similar: a lower natural roll is also a Critical Hit
     const crit = r.kept >= d.critRange;
     const critNote = crit && r.kept < 20 ? ` (${d.critRange}–20)` : "";
     const why = [...(mode !== "normal" ? [mode === "adv" ? "Advantage (roll bar)" : "Disadvantage (roll bar)"] : []), ...cm.adv.map((x) => `Advantage: ${x}`), ...cm.dis.map((x) => `Disadvantage: ${x}`)];
     log(
       {
-        title: `${a.name}${versatile ? " (two hands)" : ""}: attack`,
+        title: `${a.name}: attack`,
         total: String(r.total),
         cls: crit ? "crit" : r.fumble ? "fumble" : "atk",
         detail:
@@ -1112,9 +1112,12 @@ export default function Sheet() {
           (why.length ? `<div>${esc(why.join(" · "))}</div>` : "") +
           (crit ? `<div class="vd crit">Critical hit!${critNote}</div>` : r.fumble ? `<div class="vd bad">Natural 1: miss</div>` : ""),
       },
-      [{ label: crit ? `Roll crit damage (${dmg})` : `Roll damage (${dmg})`, run: () => rollDamage(a.name, dmg, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, versatile)) }],
+      [
+        { label: crit ? `Roll crit damage (${a.damage})` : `Roll damage (${a.damage})`, run: () => rollDamage(a.name, a.damage, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, false)) },
+        ...(a.versatile ? [{ label: crit ? `Crit, two hands (${a.versatile})` : `Two hands (${a.versatile})`, run: () => rollDamage(`${a.name} (two hands)`, a.versatile!, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, true)) }] : []),
+      ],
     );
-    if (crit) setCritFor({ name: a.name, versatile });
+    if (crit) setCritFor({ name: a.name, versatile: false });
     setCritHit(crit ? { used: [] } : undefined);
   };
 
@@ -3627,7 +3630,7 @@ export default function Sheet() {
         <div className="castmenu dmgpick" role="menu" aria-label={`Choose the damage type for ${dmgPick.title}`} style={{ left: dmgPick.x, top: dmgPick.y }}>
           <div className="dmgpickhd">{dmgPick.title}: damage type</div>
           {dmgPick.types.map((t) => (
-            <button key={t} role="menuitem" className={lastDmgType.current.get(dmgPick.title) === t ? "on" : ""} data-ex={`t:Rolls ${dmgPick.title}’s damage as ${damageName(t)} damage.`} onClick={() => dmgPick.go(t)}>
+            <button key={t} role="menuitem" className={lastDmgType.current.get(dmgPick.title.replace(/ \(two hands\)$/, "")) === t ? "on" : ""} data-ex={`t:Rolls ${dmgPick.title}’s damage as ${damageName(t)} damage.`} onClick={() => dmgPick.go(t)}>
               <b><span className="dmgdot" style={{ background: (document.documentElement.dataset.theme === "light" ? DAMAGE_COLOR_LIGHT : DAMAGE_COLOR)[t] }} />{damageName(t)}</b>
             </button>
           ))}
@@ -3850,14 +3853,18 @@ export default function Sheet() {
                             <div className="rowbtn">
                               <button className="sbtn sm" title={HOW.attack} onClick={() => attack(a)}>Attack</button>
                               {(() => {
-                                const c = critFor?.name === a.name ? critFor : undefined;
-                                const dmg = c?.versatile && a.versatile ? a.versatile : a.damage;
+                                const c = critFor?.name === a.name;
+                                const type = a.extra ? `${a.type}, plus ${a.extra}` : a.type;
                                 return (
-                                  <button className={`sbtn sm ${c ? "critbtn" : "ghost"}`} title={c ? "Your last roll with this attack was a Critical Hit: this rolls its damage dice twice." : HOW.dmg}
-                                    onClick={() => rollDamage(a.name, dmg, !!c, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, !!c?.versatile))}>{c ? "Crit damage" : "Damage"}</button>
+                                  <>
+                                    <button className={`sbtn sm ${c ? "critbtn" : "ghost"}`} title={c ? "Your last roll with this attack was a Critical Hit: this rolls its damage dice twice." : HOW.dmg}
+                                      onClick={() => rollDamage(a.name, a.damage, c, type, false, dmgMods(a, false))}>{c ? "Crit damage" : "Damage"}</button>
+                                    {/* Versatile: the attack roll is the same either way; held in two hands it deals more damage */}
+                                    {a.versatile && <button className={`sbtn sm ${c ? "critbtn" : "ghost"}`} title={`${c ? "Your last roll with this attack was a Critical Hit: this rolls the two-handed damage dice twice. " : ""}Rolls ${a.name}’s damage held in two hands (Versatile): ${a.versatile} instead of ${a.damage}, and adds it to the Game Log.`}
+                                      onClick={() => rollDamage(`${a.name} (two hands)`, a.versatile!, c, type, false, dmgMods(a, true))}>{c ? "Crit, two hands" : "Two hands"}</button>}
+                                  </>
                                 );
                               })()}
-                              {a.versatile && <button className="sbtn sm ghost" title={`Attacks with ${a.name} held in two hands (Versatile), which deals ${a.versatile} damage instead of ${a.damage}. ${HOW.attack}`} onClick={() => attack(a, true)}>Two hands</button>}
                             </div>
                           </td>
                         </tr>
