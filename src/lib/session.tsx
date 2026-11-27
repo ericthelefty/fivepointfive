@@ -18,6 +18,10 @@ export interface Campaign {
   id: string;
   name: string;
   created_at?: string;
+  /** What the campaign is about, read by everyone in it (Markdown). */
+  description?: string;
+  /** The GM's notes for everyone in the campaign (Markdown). */
+  public_notes?: string;
 }
 export interface CampaignMember {
   campaign_id: string;
@@ -97,7 +101,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     const [{ data: cs }, { data: cms }] = await Promise.all([
-      supabase.from("campaigns").select("id, name, created_at").order("name"),
+      supabase.from("campaigns").select("*").order("name"),
       supabase.from("campaign_members").select("campaign_id, user_id, role"),
     ]);
     const clist = (cs || []) as Campaign[];

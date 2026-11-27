@@ -330,3 +330,22 @@ label.radio input { margin-top: 3px; }
 .campsel select { max-width: 240px; }
 .camptbl { width: 100%; border-collapse: collapse; }
 .camptbl td { padding: 6px 4px; border-top: 1px solid var(--line, #3a333d); vertical-align: middle; }
+/* the campaign list: a card per campaign; a campaign's page: its members and characters */
+.campgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.campcard { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 18px 16px; }
+.campcard h2 { margin: 4px 0 0; }
+.campfaces { display: flex; justify-content: center; }
+.campface { width: 34px; height: 34px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 13px; font-weight: 700; color: var(--accent, #e3b25e); background: var(--panel2, #2a2329); border: 2px solid var(--panel, #1d191f); margin-left: -6px; flex: none; }
+.campface:first-child { margin-left: 0; }
+.campface.big { width: 44px; height: 44px; font-size: 15px; margin: 0; }
+.campcount { display: flex; flex-direction: column; align-items: center; line-height: 1.1; margin: 6px 0; }
+.campcount b { font: 700 28px/1 var(--serif, Georgia, serif); }
+.campcount span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.camprole { font-size: 13px; color: var(--muted); }
+.campbtns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line, #3a333d); width: 100%; }
+.camphead { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+.memgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.memcard { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line, #3a333d); border-radius: 10px; background: var(--panel2, rgba(255,255,255,.02)); }
+.privnote { border-style: dashed; }
+.campnotes > :first-child { margin-top: 0; }
+.campnotes > :last-child { margin-bottom: 0; }
