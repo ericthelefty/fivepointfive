@@ -388,6 +388,27 @@ label.radio input { margin-top: 3px; }
 .maprail { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; padding: 5px; border-radius: 12px; background: rgba(12, 10, 14, .55); backdrop-filter: blur(4px); }
 .maprail hr { width: 100%; border: 0; border-top: 1px solid rgba(255, 255, 255, .15); margin: 2px 0; }
 .maphint { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(12, 10, 14, .85); color: #f2eadf; padding: 6px 12px; border-radius: 999px; font-size: 13px; pointer-events: none; white-space: nowrap; max-width: calc(100% - 80px); overflow: hidden; text-overflow: ellipsis; }
+/* viewing a map: it fills the window, with a slim bar of controls along the top; dark in both themes, like a table */
+body.mapopen { overflow: hidden; }
+.mapfull { position: fixed; inset: 0; z-index: 800; display: flex; flex-direction: column; background: #1b1820; color: #f2eadf; }
+.mapfull .mapstage { flex: 1; height: auto; min-height: 0; }
+.mapfull .mapboard { border-radius: 0; }
+.maptop { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 10px; background: #141116; border-bottom: 1px solid rgba(255, 255, 255, .1); }
+.maptop .mchk { color: #f2eadf; font-size: 14px; }
+.maptop select { background: #2a2430; color: #f2eadf; border: 1px solid rgba(255, 255, 255, .18); border-radius: 8px; min-height: 34px; padding: 0 8px; max-width: 46vw; }
+.mtgrow { flex: 1; }
+.mttitle { font-family: var(--serif, Georgia, serif); font-size: 17px; }
+.mtinfo { font-size: 13px; color: #c9bfb6; }
+.mtbtn.mtbtn { min-height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .18); background: #2a2430; color: #f2eadf; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+.mtbtn.mtbtn:hover:not(:disabled) { border-color: rgba(255, 255, 255, .45); }
+.mtbtn.mtbtn.on { background: #e3b25e; border-color: #e3b25e; color: #141114; }
+.mtbtn.mtbtn:disabled { opacity: .5; cursor: default; }
+.mapfloat { position: absolute; left: 10px; bottom: 10px; width: 300px; max-width: calc(100% - 70px); max-height: calc(100% - 20px); overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.mfcard { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: rgba(20, 17, 22, .92); border: 1px solid rgba(255, 255, 255, .12); color: #f2eadf; font-size: 14px; backdrop-filter: blur(4px); }
+.mfcard .mchk { color: #f2eadf; }
+.maphint.bad { top: auto; bottom: 54px; background: rgba(110, 30, 24, .92); white-space: normal; text-align: center; }
+.mapfoot { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); font-size: 12px; color: #c9bfb6; background: rgba(12, 10, 14, .7); padding: 4px 10px; border-radius: 999px; pointer-events: none; white-space: nowrap; }
+@media (max-width: 640px) { .mapfoot { display: none; } .mapfloat { width: auto; right: 60px; max-height: 45%; } }
 .mapstage { position: relative; height: min(72vh, 760px); min-height: 360px; }
 .mapstage.full { height: calc(100vh - 210px); min-height: 360px; }
 .mapplay { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; align-items: start; }

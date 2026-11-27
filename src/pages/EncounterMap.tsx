@@ -15,6 +15,15 @@ import {
 
 type Info = (c: Combatant) => { name: string; size: number; out: boolean };
 
+/** Stop the page behind a full-window map scrolling while it's open. */
+function useFullWindow(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    document.body.classList.add("mapopen");
+    return () => document.body.classList.remove("mapopen");
+  }, [on]);
+}
+
 /** A colour for someone's pings and measurements. */
 const colorOf = (id = "") => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h} 75% 60%)`; };
 
@@ -115,7 +124,7 @@ const TOOLS: { id: MapTool; label: string; icon: string; tip: string }[] = [
 ];
 
 /** The GM's Map tab. */
-export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
+export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState; onExit?: () => void }) {
   const session = useSession();
   const { em, maps, update, start } = st;
   const map = em?.mapId ? maps.find((m) => m.id === em.mapId) : undefined;
@@ -147,6 +156,7 @@ export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
   const [undo, setUndo] = useState<MapFog[]>([]);
   const [pings, addPing] = usePings();
   const me = colorOf(session.user?.id);
+  useFullWindow(!!(e.campaignId && em && map && !editing));
 
   useEffect(() => {
     if (!st.campaignId) return;
@@ -208,76 +218,79 @@ export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
     }) }));
   };
 
+  const fogTool = tool === "reveal" || tool === "cover";
   return (
-    <div className="stack" style={{ gap: 10 }}>
-      <div className="mapbar">
+    <div className="mapfull" role="dialog" aria-label={`Map: ${e.name}`}>
+      <div className="maptop">
+        {onExit && <button className="mtbtn" onClick={onExit} title="Back to the encounter">← {e.name}</button>}
         {picker}
         <label className="mchk" title="Players in the campaign see the map, without hidden tokens or anything under the fog, and can move their own token">
           <input type="checkbox" checked={em.shown} onChange={(ev) => update((m) => ({ ...m, shown: ev.target.checked }))} /> Show to players
         </label>
-        {em.shown && <Link className="btn small" to={`/map/${e.id}`} target="_blank">Players’ view</Link>}
-        <span style={{ flex: 1 }} />
+        {em.shown && <Link className="mtbtn" to={`/map/${e.id}`} target="_blank">Players’ view</Link>}
         <label className="mchk" title="Cover the map with fog; uncover what the players can see">
           <input type="checkbox" checked={em.fog.on} onChange={(ev) => update((m) => ({ ...m, fog: { ...m.fog, on: ev.target.checked } }))} /> Fog
         </label>
-        <button className="sbtn ghost" onClick={() => setEditing("edit")}>Edit map and grid</button>
-        {uploader}
+        <span className="mtgrow" />
+        {e.round > 0 && <span className="mtinfo">Round {e.round}{em.tokens.find((t) => t.uid === em.turn) ? ` · ${em.tokens.find((t) => t.uid === em.turn)!.name}` : ""}</span>}
+        <button className="mtbtn" onClick={() => setEditing("edit")}>Edit map and grid</button>
+        <input ref={file} type="file" accept="image/*" hidden onChange={(ev) => upload(ev.target.files?.[0])} />
+        <button className="mtbtn" disabled={uploading} onClick={() => file.current?.click()}>{uploading ? "Uploading…" : "Upload a map"}</button>
       </div>
-      {st.error && <p className="note">{st.error}</p>}
-      <div className="mapplay">
-        <div className="mapstage">
-          <MapBoard url={url} width={map.width} height={map.height} grid={g} tokens={em.tokens} fog={em.fog} gm tool={tool} brush={brush} turn={em.turn} selected={sel}
-            color={me} pings={pings} canDrag={() => true}
-            onMove={(uid, x, y) => place(uid, x, y)}
-            onSelect={(uid) => { setSel(uid); setPick(null); }}
-            onCell={(x, y) => { if (pick) { place(pick, x, y); setPick(null); } }}
-            onFog={(cells, reveal) => fogDo((f) => paintFog(f, cells, reveal))}
-            onPing={(px, py) => { addPing(px, py, me); announceMap(st.campaignId, { encounterId: e.id, ping: { px, py, who: session.user?.id || "" } }); }} />
-          <div className="maprail" role="toolbar" aria-label="Map tools">
-            {TOOLS.filter((t) => em.fog.on || (t.id !== "reveal" && t.id !== "cover")).map((t) => (
-              <button key={t.id} className={`mrbtn ${tool === t.id ? "on" : ""}`} title={`${t.label}: ${t.tip}`} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}>{t.icon}</button>
-            ))}
-            {em.fog.on && <>
-              <hr />
-              <button className="mrbtn" title="Undo the last fog change" aria-label="Undo fog" disabled={!undo.length} onClick={() => { const last = undo[undo.length - 1]; setUndo((u) => u.slice(0, -1)); update((m) => ({ ...m, fog: last })); }}>↶</button>
-            </>}
-          </div>
-          {pick && <div className="maphint">Click a square to put {em.tokens.find((t) => t.uid === pick)?.name} there.</div>}
+      <div className="mapstage">
+        <MapBoard url={url} width={map.width} height={map.height} grid={g} tokens={em.tokens} fog={em.fog} gm tool={tool} brush={brush} turn={em.turn} selected={sel}
+          color={me} pings={pings} canDrag={() => true}
+          onMove={(uid, x, y) => place(uid, x, y)}
+          onSelect={(uid) => { setSel(uid); setPick(null); }}
+          onCell={(x, y) => { if (pick) { place(pick, x, y); setPick(null); } }}
+          onFog={(cells, reveal) => fogDo((f) => paintFog(f, cells, reveal))}
+          onPing={(px, py) => { addPing(px, py, me); announceMap(st.campaignId, { encounterId: e.id, ping: { px, py, who: session.user?.id || "" } }); }} />
+        <div className="maprail" role="toolbar" aria-label="Map tools">
+          {TOOLS.filter((t) => em.fog.on || (t.id !== "reveal" && t.id !== "cover")).map((t) => (
+            <button key={t.id} className={`mrbtn ${tool === t.id ? "on" : ""}`} title={`${t.label}: ${t.tip}`} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}>{t.icon}</button>
+          ))}
+          {em.fog.on && <>
+            <hr />
+            <button className="mrbtn" title="Undo the last fog change" aria-label="Undo fog" disabled={!undo.length} onClick={() => { const last = undo[undo.length - 1]; setUndo((u) => u.slice(0, -1)); update((m) => ({ ...m, fog: last })); }}>↶</button>
+          </>}
         </div>
-        <aside className="mapside stack">
-          {(tool === "reveal" || tool === "cover") && (
-            <div className="spanel stack">
-              <b>{tool === "reveal" ? "Reveal" : "Cover"}</b>
-              <div className="chipsrow" style={{ margin: 0 }}>
-                {([0, 1, 2, "box"] as const).map((b) => <button key={b} className={brush === b ? "on" : ""} onClick={() => setBrush(b)}>{b === "box" ? "Box" : `${b * 2 + 1} sq`}</button>)}
+        {pick && <div className="maphint">Click a square to put {em.tokens.find((t) => t.uid === pick)?.name} there.</div>}
+        {st.error && <div className="maphint bad">{st.error}</div>}
+        {(fogTool || selTok || tray.length > 0) && (
+          <div className="mapfloat">
+            {fogTool && (
+              <div className="mfcard">
+                <b>{tool === "reveal" ? "Reveal" : "Cover"}</b>
+                <div className="maprow">
+                  {([0, 1, 2, "box"] as const).map((b) => <button key={b} className={`mtbtn ${brush === b ? "on" : ""}`} onClick={() => setBrush(b)}>{b === "box" ? "Box" : `${b * 2 + 1} sq`}</button>)}
+                </div>
+                <div className="maprow">
+                  <button className="mtbtn" onClick={() => fogDo((f) => ({ ...f, cells: allCells(g, map.width, map.height) }))}>Reveal all</button>
+                  <button className="mtbtn" onClick={() => fogDo((f) => ({ ...f, cells: [] }))}>Cover all</button>
+                </div>
               </div>
-              <div className="maprow">
-                <button className="sbtn ghost" onClick={() => fogDo((f) => ({ ...f, cells: allCells(g, map.width, map.height) }))}>Reveal all</button>
-                <button className="sbtn ghost" onClick={() => fogDo((f) => ({ ...f, cells: [] }))}>Cover all</button>
+            )}
+            {selTok && (
+              <div className="mfcard">
+                <div className="maprow"><b style={{ flex: 1 }}>{selTok.name}</b><button className="mtbtn" aria-label="Close" onClick={() => setSel(null)}>×</button></div>
+                <label className="mchk"><input type="checkbox" checked={!!selTok.hidden} onChange={(ev) => setTok(selTok.uid, { hidden: ev.target.checked })} /> Hidden from players</label>
+                <div className="maprow">
+                  <span>Size</span>
+                  {[1, 2, 3, 4].map((n) => <button key={n} className={`mtbtn ${selTok.size === n ? "on" : ""}`} onClick={() => setTok(selTok.uid, { size: n, sized: true })}>{n}×{n}</button>)}
+                </div>
+                <button className="mtbtn" onClick={() => { setTok(selTok.uid, { x: undefined, y: undefined }); setSel(null); }}>Take off the map</button>
               </div>
-            </div>
-          )}
-          {selTok && (
-            <div className="spanel stack">
-              <b>{selTok.name}</b>
-              <label className="mchk"><input type="checkbox" checked={!!selTok.hidden} onChange={(ev) => setTok(selTok.uid, { hidden: ev.target.checked })} /> Hidden from players</label>
-              <div className="maprow">
-                <span className="note">Size</span>
-                {[1, 2, 3, 4].map((n) => <button key={n} className={`sbtn ${selTok.size === n ? "gold" : "ghost"}`} onClick={() => setTok(selTok.uid, { size: n, sized: true })}>{n}×{n}</button>)}
-              </div>
-              <button className="sbtn ghost" onClick={() => { setTok(selTok.uid, { x: undefined, y: undefined }); setSel(null); }}>Take off the map</button>
-            </div>
-          )}
-          <div className="spanel stack">
-            <div className="maprow"><b style={{ flex: 1 }}>Not on the map</b>{tray.length > 1 && <button className="sbtn ghost" onClick={placeAll}>Place all</button>}</div>
-            {tray.length === 0 ? <p className="note" style={{ margin: 0 }}>{em.tokens.length ? "Everyone’s on the map." : "Nobody’s in this fight yet. Add monsters and characters on the Build tab."}</p> : (
-              <div className="maptray">
-                {tray.map((t) => <button key={t.uid} className={`mtray k-${t.kind} ${pick === t.uid ? "on" : ""}`} onClick={() => { setPick(pick === t.uid ? null : t.uid); setTool("move"); }} title="Pick, then click a square on the map">{t.name}</button>)}
+            )}
+            {tray.length > 0 && (
+              <div className="mfcard">
+                <div className="maprow"><b style={{ flex: 1 }}>Not on the map</b>{tray.length > 1 && <button className="mtbtn" onClick={placeAll}>Place all</button>}</div>
+                <div className="maptray">
+                  {tray.map((t) => <button key={t.uid} className={`mtray k-${t.kind} ${pick === t.uid ? "on" : ""}`} onClick={() => { setPick(pick === t.uid ? null : t.uid); setTool("move"); }} title="Pick, then click a square on the map">{t.name}</button>)}
+                </div>
               </div>
             )}
           </div>
-          <p className="note" style={{ margin: 0 }}>{em.shown ? "Players can see this map and move their own tokens." : "Players can’t see this map yet."} Hidden tokens{em.fog.on ? " and monsters under the fog" : ""} never reach their screens.</p>
-        </aside>
+        )}
       </div>
     </div>
   );
@@ -293,6 +306,7 @@ export function PlayerMap() {
   const [pings, addPing] = usePings();
   const url = useMapImage(v?.map?.path);
   const me = colorOf(session.user?.id);
+  useFullWindow(!!v?.map);
 
   const load = useCallback(() => { if (id) viewEncounterMap(id).then(setV, (e) => setErr(e.message)); }, [id]);
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, [load]);
@@ -320,16 +334,16 @@ export function PlayerMap() {
   const turnName = v.tokens.find((t) => t.uid === v.turn)?.name;
 
   return (
-    <div className="stack" style={{ gap: 10 }}>
-      <div className="mapbar">
-        <h1 style={{ margin: 0, fontSize: 22 }}>{v.title || "Map"}</h1>
-        <span className="faint">{v.round ? `Round ${v.round}` : ""}{turnName ? ` · ${turnName}’s turn` : ""}</span>
-        <span style={{ flex: 1 }} />
-        {v.gm && <span className="faint">This is what your players see.</span>}
-        {v.gm && <Link className="btn small" to={`/encounters/${v.encounterId}?tab=map`}>Open in Encounters</Link>}
+    <div className="mapfull" role="dialog" aria-label={`Map: ${v.title || "Map"}`}>
+      <div className="maptop">
+        <Link className="mtbtn" to="/" title="Back to your characters">←</Link>
+        <b className="mttitle">{v.title || "Map"}</b>
+        {(v.round > 0 || turnName) && <span className="mtinfo">{v.round ? `Round ${v.round}` : ""}{turnName ? ` · ${turnName}’s turn` : ""}</span>}
+        <span className="mtgrow" />
+        {v.gm && <span className="mtinfo">What your players see</span>}
+        {v.gm && <Link className="mtbtn" to={`/encounters/${v.encounterId}?tab=map`}>Open in Encounters</Link>}
       </div>
-      {err && <p className="faint">{err}</p>}
-      <div className="mapstage full">
+      <div className="mapstage">
         <MapBoard url={url} width={map.width} height={map.height} grid={map.grid} tokens={tokens} fog={v.fog} gm={false} tool={tool} turn={v.turn} color={me} pings={pings}
           canDrag={canDrag}
           onMove={async (uid, x, y) => {
@@ -347,8 +361,9 @@ export function PlayerMap() {
             <button key={t.id} className={`mrbtn ${tool === t.id ? "on" : ""}`} title={`${t.label}: ${t.id === "move" ? "Drag your token; drag the map to pan" : t.tip}`} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}>{t.icon}</button>
           ))}
         </div>
+        {err && <div className="maphint bad">{err}</div>}
+        <div className="mapfoot">Drag your token to move it · every square is {map.grid.feet} feet, diagonals too</div>
       </div>
-      <p className="faint" style={{ margin: 0, fontSize: 13 }}>Drag your character’s token to move it. Every square is {map.grid.feet} feet, diagonals too.</p>
     </div>
   );
 }

@@ -896,7 +896,7 @@ export function EncounterView() {
         </div>
       </div>
       {enc.error && <div className="spanel warnline">{enc.error}</div>}
-      {tab === "build" ? buildTab : tab === "loot" ? lootTab : tab === "map" ? <EncounterMapTab e={e} st={mapState} /> : runTab}
+      {tab === "build" ? buildTab : tab === "loot" ? lootTab : tab === "map" ? <EncounterMapTab e={e} st={mapState} onExit={() => setTab("run")} /> : runTab}
     </div>
   );
 }
