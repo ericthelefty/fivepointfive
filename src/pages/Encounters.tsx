@@ -205,6 +205,8 @@ export function EncounterView() {
       name: cb.kind === "pc" ? chars.get(cb.ref)?.c.name || cb.name || "Unnamed" : cb.name,
       size: sizeSquares(st?.size),
       out: cb.kind === "monster" ? cb.hp != null && cb.hp <= 0 : cb.kind === "other" && cb.maxHp != null && (cb.hp ?? 1) <= 0,
+      // a character's conditions are on their sheet; everyone else's are in the encounter
+      conds: cb.kind === "pc" ? (() => { const row = chars.get(cb.ref); return row ? playOf(row.c).conditions : []; })() : cb.conditions || [],
     };
   });
   // the characters of the encounter's campaign (an encounter in no campaign, admins only: every character)
@@ -896,7 +898,7 @@ export function EncounterView() {
         </div>
       </div>
       {enc.error && <div className="spanel warnline">{enc.error}</div>}
-      {tab === "build" ? buildTab : tab === "loot" ? lootTab : tab === "map" ? <EncounterMapTab e={e} st={mapState} onExit={() => setTab("run")} /> : runTab}
+      {tab === "build" ? buildTab : tab === "loot" ? lootTab : tab === "map" ? <EncounterMapTab e={e} st={mapState} onExit={() => setTab("run")} onCondition={(uid, k) => { const cb = e.combatants.find((c) => c.uid === uid); if (cb) toggleCond(cb, k); }} /> : runTab}
     </div>
   );
 }

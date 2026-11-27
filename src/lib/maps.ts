@@ -63,7 +63,17 @@ export interface MapToken {
   note?: string;
   /** Only the GM sees the text (the database leaves it out for players). */
   noteGm?: boolean;
+  /** Conditions it has (the encounter's, or a character's from their sheet), each shown as a coloured ring. */
+  conds?: string[];
 }
+
+/** A colour for each condition's ring on the map. */
+export const COND_COLORS: Record<string, string> = {
+  Blinded: "#9aa3ad", Charmed: "#e05aa8", Deafened: "#8d7bb5", Frightened: "#9b6fe0", Grappled: "#c98a3b",
+  Incapacitated: "#d9604f", Invisible: "#bfe7ff", Paralyzed: "#f2d544", Petrified: "#8c8579", Poisoned: "#6cbf4a",
+  Prone: "#c9a36b", Restrained: "#e08a3c", Stunned: "#ffe680", Unconscious: "#4a6fd6",
+};
+export const condColor = (c: string) => COND_COLORS[c] || "#e8e2d6";
 
 /** The longest text a token carries. */
 export const NOTE_MAX = 40;
@@ -250,7 +260,7 @@ export function tokenSeen(t: MapToken, fog: MapFog): boolean {
  * The encounter's tokens from its combatants: everyone in the fight gets one, keeping where it stood and whether the GM
  * hid it; anyone taken out of the encounter loses theirs.
  */
-export function syncTokens(prev: MapToken[], combatants: Combatant[], info: (c: Combatant) => { name: string; size: number; out: boolean }): MapToken[] {
+export function syncTokens(prev: MapToken[], combatants: Combatant[], info: (c: Combatant) => { name: string; size: number; out: boolean; conds?: string[] }): MapToken[] {
   const old = new Map(prev.map((t) => [t.uid, t]));
   return combatants.map((c) => {
     const o = old.get(c.uid);
@@ -261,6 +271,7 @@ export function syncTokens(prev: MapToken[], combatants: Combatant[], info: (c: 
     if (o?.x != null && o.y != null) { t.x = o.x; t.y = o.y; }
     if (o?.hidden) t.hidden = true;
     if (o?.note) { t.note = o.note; if (o.noteGm) t.noteGm = true; }
+    if (i.conds?.length) t.conds = [...i.conds];
     if (i.out || c.out || c.surrendered) t.out = true;
     return t;
   });
@@ -374,6 +385,14 @@ export async function moveToken(encounterId: string, uid: string, x: number, y: 
   return !!data;
 }
 
+/** Put a label on a token: a player on their own character's, the GM on any. */
+export async function setTokenNote(encounterId: string, uid: string, note: string): Promise<boolean> {
+  if (!supabase) return false;
+  const { data, error } = await supabase.rpc("set_token_note", { eid: encounterId, tuid: uid, p_note: note });
+  if (error) throw new Error(error.message);
+  return !!data;
+}
+
 /** The maps the GM is showing in a campaign now. */
 export async function liveMaps(campaignId: string): Promise<{ encounterId: string; title: string }[]> {
   if (!supabase) return [];
@@ -393,6 +412,8 @@ export interface MapPing {
   ping?: { px: number; py: number; who: string };
   /** Someone showed, changed or hid an area of effect. */
   areas?: boolean;
+  /** A player labelled their token (already saved). */
+  note?: { uid: string; note?: string };
 }
 
 /** Listen for map changes in a campaign. Returns the function that stops listening. */

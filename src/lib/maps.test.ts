@@ -105,7 +105,7 @@ describe("tokens", () => {
     { uid: "m1", kind: "monster", ref: "ogre", name: "Ogre 1", hp: 0 },
     { uid: "m2", kind: "monster", ref: "goblin", name: "Goblin 1", surrendered: true },
   ];
-  const info = (c: Combatant) => ({ name: c.kind === "pc" ? "Sera" : c.name, size: c.ref === "ogre" ? 2 : 1, out: c.kind === "monster" && c.hp != null && c.hp <= 0 });
+  const info = (c: Combatant) => ({ name: c.kind === "pc" ? "Sera" : c.name, size: c.ref === "ogre" ? 2 : 1, out: c.kind === "monster" && c.hp != null && c.hp <= 0, conds: c.kind === "pc" ? ["Prone", "Poisoned"] : [] });
   it("gives everyone in the fight a token, keeping where it stood and the GM's choices", () => {
     const prev: MapToken[] = [
       { uid: "p1", name: "old", kind: "pc", size: 1, x: 4, y: 2 },
@@ -114,7 +114,8 @@ describe("tokens", () => {
     ];
     const out = syncTokens(prev, cbs, info);
     expect(out.map((t) => t.uid)).toEqual(["p1", "m1", "m2"]);
-    expect(out[0]).toEqual({ uid: "p1", name: "Sera", kind: "pc", size: 1, char: "char1", x: 4, y: 2 });
+    expect(out[0]).toEqual({ uid: "p1", name: "Sera", kind: "pc", size: 1, char: "char1", x: 4, y: 2, conds: ["Prone", "Poisoned"] });
+    expect(out[1].conds).toBeUndefined();
     expect(out[1]).toMatchObject({ size: 2, out: true });
     expect(out[1].x).toBeUndefined();
     expect(out[2]).toMatchObject({ size: 3, sized: true, hidden: true, out: true, x: 1, y: 1, note: "Leader", noteGm: true });

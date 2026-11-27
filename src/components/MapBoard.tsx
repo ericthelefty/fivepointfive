@@ -6,9 +6,9 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { MapIcon } from "./MapIcons.tsx";
 import { AIMED, aimPoint, areaOutline, areaSquares, areaTokens, inArea, snapCenter, type Area, type AreaKind } from "../lib/areas.ts";
-import { brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, normBlock, rectCells, sizeH, tokenLabel, type FogBlock, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
+import { condColor, brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, normBlock, rectCells, sizeH, tokenLabel, type FogBlock, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
 
-export type MapTool = "select" | "move" | "fog" | "aoe" | "measure" | "ping" | "align";
+export type MapTool = "move" | "fog" | "aoe" | "measure" | "ping" | "align";
 export interface Ping { id: number; px: number; py: number; color: string }
 
 interface Props {
@@ -155,11 +155,6 @@ export default function MapBoard(p: Props) {
     const c = cellAt(g, px, py);
     const tokEl = (e.target as Element).closest?.("[data-token]");
     const tok = tokEl ? p.tokens.find((t) => t.uid === tokEl.getAttribute("data-token")) : undefined;
-    if (p.tool === "select" && tok) {
-      // the cursor picks a token without moving it (dragging the map still pans)
-      p.onSelect?.(tok.uid);
-      return;
-    }
     if (p.tool === "move" && tok && tok.x != null && tok.y != null) {
       p.onSelect?.(tok.uid);
       if (p.canDrag(tok)) {
@@ -240,7 +235,7 @@ export default function MapBoard(p: Props) {
       return;
     }
     if (!tok) p.onSelect?.(null);
-    if (p.onCell && (p.tool === "move" || p.tool === "select") && px >= 0 && py >= 0 && px <= W && py <= H) p.onCell(c.x, c.y);
+    if (p.onCell && p.tool === "move" && px >= 0 && py >= 0 && px <= W && py <= H) p.onCell(c.x, c.y);
     gesture.current = { kind: "pan", sx: e.clientX, sy: e.clientY, tx: view.tx, ty: view.ty };
   };
 
@@ -424,12 +419,13 @@ export default function MapBoard(p: Props) {
             return (
               <g key={t.uid} data-token={t.uid} className={`mtok ${hits.length ? "hit" : ""} ${p.canDrag(t) ? "can" : ""} ${t.out ? "out" : ""} ${t.hidden ? "hid" : ""} ${drag?.uid === t.uid ? "drag" : ""}`}>
                 {(turn || sel) && <circle cx={cx} cy={cy} r={rad + u * 0.07} fill="none" stroke={turn ? "#f2cd85" : "#fff"} strokeWidth={u * 0.06} strokeDasharray={sel && !turn ? `${u * 0.12} ${u * 0.08}` : undefined} />}
-                {hits.map((h, i) => <circle key={i} cx={cx} cy={cy} r={rad + u * (0.12 + i * 0.09)} fill="none" stroke={h.color} strokeWidth={u * 0.07} strokeDasharray={h.shown ? undefined : `${u * 0.1} ${u * 0.07}`} pointerEvents="none" />)}
+                {(t.conds || []).map((k, i) => <circle key={k} cx={cx} cy={cy} r={rad + u * (0.075 + i * 0.075)} fill="none" stroke={condColor(k)} strokeWidth={u * 0.06} pointerEvents="none"><title>{k}</title></circle>)}
+                {hits.map((h, i) => <circle key={i} cx={cx} cy={cy} r={rad + u * (0.12 + ((t.conds?.length || 0) + i) * 0.09)} fill="none" stroke={h.color} strokeWidth={u * 0.07} strokeDasharray={h.shown ? undefined : `${u * 0.1} ${u * 0.07}`} pointerEvents="none" />)}
                 <circle cx={cx} cy={cy} r={rad} fill={KIND_FILL[t.kind]} stroke="#0b090d" strokeWidth={u * 0.04} />
                 <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.min(rad * 0.82, u * 0.36 * Math.min(t.size, 2))} fill="#fff8ea" fontWeight={700}>{tokenLabel(t.name)}</text>
                 {t.out && <path d={`M ${cx - rad * 0.6} ${cy - rad * 0.6} L ${cx + rad * 0.6} ${cy + rad * 0.6} M ${cx + rad * 0.6} ${cy - rad * 0.6} L ${cx - rad * 0.6} ${cy + rad * 0.6}`} stroke="#0b090d" strokeWidth={u * 0.08} strokeLinecap="round" />}
                 {t.note && <text x={cx} y={r.top + r.h + u * 0.24} textAnchor="middle" dominantBaseline="hanging" className={`mlabel mnote ${t.noteGm ? "gm" : ""}`} fontSize={u * 0.26} strokeWidth={u * 0.06}>{t.note.length > 28 ? `${t.note.slice(0, 27)}…` : t.note}</text>}
-                <title>{t.name}{hits.length ? " (in an area of effect)" : ""}{t.note ? ` — ${t.note}${t.noteGm ? " (GM only)" : ""}` : ""}{t.hidden ? " (hidden from players)" : ""}{t.out ? " (out of the fight)" : ""}</title>
+                <title>{t.name}{t.conds?.length ? ` — ${t.conds.join(", ")}` : ""}{hits.length ? " (in an area of effect)" : ""}{t.note ? ` — ${t.note}${t.noteGm ? " (GM only)" : ""}` : ""}{t.hidden ? " (hidden from players)" : ""}{t.out ? " (out of the fight)" : ""}</title>
               </g>
             );
           })}

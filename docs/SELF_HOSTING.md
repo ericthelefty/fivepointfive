@@ -26,6 +26,7 @@ You need free accounts on [GitHub](https://github.com), [Vercel](https://vercel.
    - [`0014_maps.sql`](../supabase/migrations/0014_maps.sql): battle maps. A campaign's GM uploads maps (into a private Storage bucket) and sets their grids; an encounter's map keeps its tokens and fog. Players see it only while the GM shows it, without hidden tokens or monsters under the fog, and can move only their own character's token.
    - [`0015_token_notes.sql`](../supabase/migrations/0015_token_notes.sql): text on map tokens. Players see it unless the GM marks it GM only, which the database leaves out of what players receive.
    - [`0016_map_areas.sql`](../supabase/migrations/0016_map_areas.sql): areas of effect on battle maps. An area stays on its owner’s screen until they show it; shown areas are kept here so everyone on the map sees them, until the owner hides them. The owner changes or removes their own; the GM can remove anyone’s.
+   - [`0017_player_token_notes.sql`](../supabase/migrations/0017_player_token_notes.sql): players label their own character's token on a map the GM is showing (the GM can label any).
 3. Go to **Project Settings → Data API** (or **API**) and add `fivepointfive` to **Exposed schemas**. Save.
 
 ## 2. Set up sign-in

@@ -9,12 +9,13 @@ import MapBoard, { type MapTool, type Ping } from "../components/MapBoard.tsx";
 import { MapIcon } from "../components/MapIcons.tsx";
 import { AreaPanel, defaultAreaSettings, newArea, type AreaSettings } from "../components/AreaPanel.tsx";
 import { useAreas } from "../lib/areas.ts";
+import { CONDITION_EFFECTS } from "../lib/play.ts";
 import { useSession } from "../lib/session.tsx";
 import { useMedia } from "../lib/useMedia.ts";
 import type { Combatant, Encounter } from "../lib/encounter.ts";
 import {
   addMap, allCells, announceMap, normBlock, setBlocks, withFog, deleteMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
-  NOTE_MAX, tokenSeen, useMapImage, viewEncounterMap, type CampaignMap, type EncounterMap, type MapFog, type MapToken, type MapView,
+  NOTE_MAX, condColor, setTokenNote, tokenSeen, useMapImage, viewEncounterMap, type CampaignMap, type EncounterMap, type MapFog, type MapToken, type MapView,
 } from "../lib/maps.ts";
 
 type Info = (c: Combatant) => { name: string; size: number; out: boolean };
@@ -107,10 +108,12 @@ export function useEncounterMap(e: Encounter | undefined, info: Info) {
   useEffect(() => {
     if (!cid || !eid) return;
     return onMapChange(cid, (p) => {
-      if (p.encounterId !== eid || !p.move) return;
-      const mv = p.move;
+      if (p.encounterId !== eid) return;
       const cur = latest.current;
-      if (cur) { latest.current = { ...cur, tokens: cur.tokens.map((t) => (t.uid === mv.uid ? { ...t, x: mv.x, y: mv.y } : t)) }; setEm(latest.current); }
+      if (!cur) return;
+      if (p.move) { const mv = p.move; latest.current = { ...cur, tokens: cur.tokens.map((t) => (t.uid === mv.uid ? { ...t, x: mv.x, y: mv.y } : t)) }; setEm(latest.current); }
+      // a player labelled their token: show it at once (it's already saved)
+      if (p.note) { const nt = p.note; latest.current = { ...cur, tokens: cur.tokens.map((t) => (t.uid === nt.uid ? { ...t, note: nt.note || undefined, noteGm: undefined } : t)) }; setEm(latest.current); }
     });
   }, [cid, eid]);
 
@@ -120,8 +123,7 @@ export function useEncounterMap(e: Encounter | undefined, info: Info) {
 type MapState = ReturnType<typeof useEncounterMap>;
 
 const TOOLS: { id: MapTool; label: string; tip: string }[] = [
-  { id: "select", label: "Cursor", tip: "Click a token to select it, and add text to it; drag the map to pan" },
-  { id: "move", label: "Move", tip: "Drag tokens; drag the map to pan" },
+  { id: "move", label: "Move", tip: "Drag tokens, or click one to label it; drag the map to pan" },
   { id: "fog", label: "Fog", tip: "Uncover or cover the map, or draw blocks of fog (hold Alt to do the opposite)" },
   { id: "aoe", label: "Area of effect", tip: "Lay out a spell's area to try it; only you see it until you show it" },
   { id: "measure", label: "Measure", tip: "Drag from one square to another" },
@@ -129,7 +131,21 @@ const TOOLS: { id: MapTool; label: string; tip: string }[] = [
 ];
 
 /** The GM's Map tab. */
-export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState; onExit?: () => void }) {
+/** The conditions a token can have (the 2024 rules' list), each with its ring colour. */
+const CONDITIONS = Object.keys(CONDITION_EFFECTS);
+
+/** A token's conditions, as chips: the GM turns them on and off; everyone else just sees them. */
+function CondChips({ conds, onToggle }: { conds: string[]; onToggle?: (k: string) => void }) {
+  const list = onToggle ? CONDITIONS : conds;
+  if (!list.length) return null;
+  return (
+    <div className="mconds" role="group" aria-label="Conditions">
+      {list.map((k) => <button key={k} className={`mcond ${conds.includes(k) ? "on" : ""}`} style={{ "--cc": condColor(k) } as React.CSSProperties} aria-pressed={conds.includes(k)} disabled={!onToggle} onClick={() => onToggle?.(k)}>{k}</button>)}
+    </div>
+  );
+}
+
+export function EncounterMapTab({ e, st, onExit, onCondition }: { e: Encounter; st: MapState; onExit?: () => void; onCondition?: (uid: string, k: string) => void }) {
   const session = useSession();
   const { em, maps, update, start } = st;
   const map = em?.mapId ? maps.find((m) => m.id === em.mapId) : undefined;
@@ -156,7 +172,7 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
     <button className="sbtn gold" disabled={uploading} onClick={() => file.current?.click()}>{uploading ? "Uploading…" : "Upload a map"}</button>
   </>;
   const url = useMapImage(map?.path);
-  const [tool, setTool] = useState<MapTool>("select");
+  const [tool, setTool] = useState<MapTool>("move");
   const [brush, setBrush] = useState<number | "box">(1);
   const [fogReveal, setFogReveal] = useState(true);
   const [selBlock, setSelBlock] = useState<string | null>(null);
@@ -341,6 +357,8 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
                   <input type="text" maxLength={NOTE_MAX} value={selTok.note || ""} placeholder="Blessed, Leader, Prone…" onChange={(ev) => setTok(selTok.uid, { note: ev.target.value || undefined })} />
                 </label>
                 {selTok.note && <label className="mchk"><input type="checkbox" checked={!!selTok.noteGm} onChange={(ev) => setTok(selTok.uid, { noteGm: ev.target.checked || undefined })} /> Only the GM sees the text</label>}
+                <span className="mfhint">Conditions{selTok.kind === "pc" ? " (on their sheet too)" : ""}</span>
+                <CondChips conds={selTok.conds || []} onToggle={onCondition ? (k) => onCondition(selTok.uid, k) : undefined} />
                 <label className="mchk"><input type="checkbox" checked={!!selTok.hidden} onChange={(ev) => setTok(selTok.uid, { hidden: ev.target.checked })} /> Hidden from players</label>
                 <div className="maprow">
                   <span>Size</span>
@@ -353,7 +371,7 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
               <div className="mfcard">
                 <div className="maprow"><b style={{ flex: 1 }}>Not on the map</b>{tray.length > 1 && <button className="mtbtn" onClick={placeAll}>Place all</button>}</div>
                 <div className="maptray">
-                  {tray.map((t) => <button key={t.uid} className={`mtray k-${t.kind} ${pick === t.uid ? "on" : ""}`} onClick={() => { setPick(pick === t.uid ? null : t.uid); if (tool !== "select") setTool("move"); }} title="Pick, then click a square on the map">{t.name}</button>)}
+                  {tray.map((t) => <button key={t.uid} className={`mtray k-${t.kind} ${pick === t.uid ? "on" : ""}`} onClick={() => { setPick(pick === t.uid ? null : t.uid); setTool("move"); }} title="Pick, then click a square on the map">{t.name}</button>)}
                 </div>
               </div>
             )}
@@ -379,6 +397,8 @@ export function PlayerMap() {
   const [areaSet, setAreaSet] = useState<AreaSettings>(defaultAreaSettings);
   const [selArea, setSelArea] = useState<string | null>(null);
   const [areaHint, setAreaHint] = useState("");
+  const [selTok, setSelTok] = useState<string | null>(null);
+  const noteTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const load = useCallback(() => { if (id) viewEncounterMap(id).then(setV, (e) => setErr(e.message)); }, [id]);
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, [load]);
@@ -405,6 +425,7 @@ export function PlayerMap() {
   const tokens = v.gm ? v.tokens.filter((t) => tokenSeen(t, v.fog)) : v.tokens;
   const canDrag = (t: MapToken) => v.gm || (t.kind === "pc" && !!t.char && mine.has(t.char) && !t.out);
   const turnName = v.tokens.find((t) => t.uid === v.turn)?.name;
+  const picked = tokens.find((t) => t.uid === selTok);
 
   return (
     <div className="mapfull" role="dialog" aria-label={`Map: ${v.title || "Map"}`}>
@@ -418,7 +439,7 @@ export function PlayerMap() {
       </div>
       <div className="mapstage">
         <MapBoard url={url} width={map.width} height={map.height} grid={map.grid} tokens={tokens} fog={v.fog} gm={false} tool={tool} turn={v.turn} color={me} pings={pings}
-          canDrag={canDrag}
+          canDrag={canDrag} selected={selTok} onSelect={setSelTok}
           onMove={async (uid, x, y) => {
             const before = v.tokens;
             setV((cur) => cur && { ...cur, tokens: cur.tokens.map((t) => (t.uid === uid ? { ...t, x, y } : t)) });
@@ -431,6 +452,31 @@ export function PlayerMap() {
           onPing={(px, py) => { addPing(px, py, me); announceMap(v.campaignId, { encounterId: v.encounterId, ping: { px, py, who: session.user?.id || "" } }); }}
           areas={areas.all.map((a) => ({ a, mine: areas.mine(a), shown: areas.isShown(a.id) }))} selArea={selArea} onAreaSelect={(i) => { setSelArea(i); setAreaHint(""); }}
           areaNew={newArea(areaSet)} onAreaAdd={(a) => { areas.add(a); setAreaHint(""); }} onAreaChange={areas.change} onAreaHint={setAreaHint} />
+        {tool === "move" && picked && (
+          <div className="mapfloat">
+            <div className="mfcard">
+              <div className="maprow"><b style={{ flex: 1 }}>{picked.name}</b><button className="mtbtn" aria-label="Close" onClick={() => setSelTok(null)}>×</button></div>
+              {canDrag(picked) ? (
+                <label className="mfield"><span>Text on your token</span>
+                  <input type="text" maxLength={NOTE_MAX} value={picked.note || ""} placeholder="Raging, Hidden, Concentrating…" onChange={(ev) => {
+                    const note = ev.target.value;
+                    setV((cur) => cur && { ...cur, tokens: cur.tokens.map((t) => (t.uid === picked.uid ? { ...t, note: note || undefined } : t)) });
+                    clearTimeout(noteTimer.current);
+                    noteTimer.current = setTimeout(async () => {
+                      try {
+                        if (!(await setTokenNote(v.encounterId, picked.uid, note))) throw new Error("The GM has stopped showing this map.");
+                        announceMap(v.campaignId, { encounterId: v.encounterId, note: { uid: picked.uid, note: note.trim() || undefined } });
+                        setErr("");
+                      } catch (e) { setErr((e as Error).message); }
+                    }, 400);
+                  }} />
+                </label>
+              ) : picked.note ? <span>{picked.note}</span> : null}
+              {(picked.conds?.length || 0) > 0 && <><span className="mfhint">Conditions</span><CondChips conds={picked.conds!} /></>}
+              {!canDrag(picked) && !picked.note && !picked.conds?.length && <span className="mfhint">Nothing on this token.</span>}
+            </div>
+          </div>
+        )}
         {tool === "aoe" && (
           <div className="mapfloat">
             <AreaPanel st={areas} settings={areaSet} setSettings={setAreaSet} selected={selArea} setSelected={setSelArea}
