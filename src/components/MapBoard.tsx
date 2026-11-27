@@ -5,7 +5,7 @@
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { MapIcon } from "./MapIcons.tsx";
-import { AIMED, aimPoint, areaOutline, areaSquares, areaTokens, snapCenter, type Area, type AreaKind } from "../lib/areas.ts";
+import { AIMED, aimPoint, areaOutline, areaSquares, areaTokens, inArea, snapCenter, type Area, type AreaKind } from "../lib/areas.ts";
 import { brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, normBlock, rectCells, sizeH, tokenLabel, type FogBlock, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
 
 export type MapTool = "select" | "move" | "fog" | "aoe" | "measure" | "ping" | "align";
@@ -172,8 +172,12 @@ export default function MapBoard(p: Props) {
     if (p.tool === "aoe") {
       const at = toSq(px, py), free = false; // a point of origin is always the middle of a square
       const aim = (e.target as Element).closest?.("[data-aim]")?.getAttribute("data-aim");
-      const hit = aim || (e.target as Element).closest?.("[data-area]")?.getAttribute("data-area");
-      const own = hit ? p.areas?.find((x) => x.a.id === hit && x.mine)?.a : undefined;
+      // grab one of your areas wherever you press inside it, even on a token standing in it (the chosen one first)
+      const actx = { feet: g.feet, tokens: p.tokens, bounds };
+      const mineList = (p.areas || []).filter((x) => x.mine).map((x) => x.a).sort((a, b) => (a.id === p.selArea ? -1 : b.id === p.selArea ? 1 : 0));
+      // (Ctrl or ⌘ places a new area on top instead)
+      const inside = e.ctrlKey || e.metaKey ? undefined : mineList.find((a) => Math.hypot(at.x - a.x, at.y - a.y) < 0.5 || inArea(a, at, actx));
+      const own = aim ? mineList.find((a) => a.id === aim) : inside;
       if (own) {
         p.onAreaSelect?.(own.id);
         // an Emanation moves with its creature, so it can't be dragged
