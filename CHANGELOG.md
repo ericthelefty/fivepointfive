@@ -6,6 +6,7 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- An encounter can be moved to another campaign, from its row on the Encounters page or under its name on the encounter page. A GM can move it to another campaign they run; an admin to any campaign, or to none (only admins see it then). Characters already in the fight stay; from then on only the new campaign's characters can be added.
 - A campaign's page has a Description and GM notes (public) that everyone in the campaign reads, and GM notes (private) that only its GM and admins see. The GM writes all three, in Markdown. Empty boxes don't show to players.
 - **Database:** `supabase/migrations/0013_campaign_notes.sql`.
 - The Campaigns page shows a card for each of your campaigns: its members, how many players it has, your role and its GM. View campaign opens the campaign's own page, where everyone in it (admin, GM or player) sees all its members with their role and characters, and its active characters with their level, species, classes and player, each with View (and Edit or Remove for those who can). The admin and the campaign's GM add members from there.

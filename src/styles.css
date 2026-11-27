@@ -349,3 +349,5 @@ label.radio input { margin-top: 3px; }
 .privnote { border-style: dashed; }
 .campnotes > :first-child { margin-top: 0; }
 .campnotes > :last-child { margin-bottom: 0; }
+.enccamp { display: inline-flex; gap: 6px; align-items: center; margin-top: 4px; }
+.enccamp select { font-size: 13px; padding: 2px 6px; max-width: 220px; }

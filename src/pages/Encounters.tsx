@@ -61,6 +61,36 @@ function summary(e: Encounter, name: (c: Combatant) => string): string {
   return [mons || "No monsters yet", pcs ? `${pcs} character${pcs > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ");
 }
 
+/**
+ * Which campaign an encounter is for: its GM runs it and its characters fight in it. The GM can move it to another
+ * campaign they run; an admin to any campaign, or to none.
+ */
+function EncounterCampaign({ e, compact }: { e: Encounter; compact?: boolean }) {
+  const session = useSession();
+  const enc = useEncounters();
+  if (!cloud || !session.campaigns.length) return null;
+  const choices = session.isAdmin ? session.campaigns : session.campaigns.filter((c) => session.isGm(c.id));
+  const current = e.campaignId ? session.campaignName(e.campaignId) : "No campaign";
+  const canMove = choices.length > 1 || session.isAdmin || (choices.length === 1 && choices[0].id !== e.campaignId);
+  if (!canMove) return compact ? null : <div className="note">Campaign: {current}</div>;
+  return (
+    <label className="note enccamp" title="The campaign this encounter is for: its GM runs it and its characters can join the fight.">
+      Campaign:{" "}
+      <select value={e.campaignId || ""} aria-label={`Campaign for ${e.name || "this encounter"}`}
+        onChange={(x) => {
+          const to = x.target.value || null;
+          const pcs = e.combatants.filter((c) => c.kind === "pc").length;
+          if (pcs && !confirm(`Move ${e.name || "this encounter"} to ${to ? session.campaignName(to) : "no campaign"}? Its ${pcs} character${pcs > 1 ? "s stay" : " stays"} in the fight, but only that campaign’s characters can be added from now on.`)) return;
+          enc.setCampaign(e.id, to);
+        }}>
+        {e.campaignId && !choices.some((c) => c.id === e.campaignId) && <option value={e.campaignId}>{current}</option>}
+        {choices.map((c) => <option key={c.id} value={c.id}>{c.name || "Unnamed campaign"}</option>)}
+        {session.isAdmin && <option value="">No campaign (only admins see it)</option>}
+      </select>
+    </label>
+  );
+}
+
 // ===================================================================== the list
 export function EncounterList() {
   const enc = useEncounters();
@@ -103,7 +133,8 @@ export function EncounterList() {
             <div key={e.id} className="panel" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", margin: 0 }}>
               <div>
                 <Link to={`/encounters/${e.id}`}><b style={{ fontSize: 17 }}>{e.name || "Untitled encounter"}</b></Link>
-                <div className="faint">{summary(e, monsterName)}{e.round > 0 ? ` · running, round ${e.round}` : ""}{cloud && !session.campaignId && e.campaignId ? ` · ${session.campaignName(e.campaignId)}` : ""}</div>
+                <div className="faint">{summary(e, monsterName)}{e.round > 0 ? ` · running, round ${e.round}` : ""}</div>
+                <EncounterCampaign e={e} compact />
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <Link className="btn small" to={`/encounters/${e.id}?tab=run`}>Run</Link>
@@ -835,6 +866,7 @@ export function EncounterView() {
           <Link to="/encounters" className="note">← Encounters</Link>
           <input className="encname disp" value={e.name} aria-label="Encounter name" onChange={(x) => put({ name: x.target.value })} onBlur={(x) => { if (!x.target.value.trim()) put({ name: "Untitled encounter" }); }} />
           <div className="note">{summary(e, (c) => stOf(c)?.name || c.name)}{diff.label ? ` · ${diff.label} difficulty` : ""}</div>
+          <EncounterCampaign e={e} />
         </div>
         {tab === "build" && (
           <div className="encsave">

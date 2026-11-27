@@ -40,6 +40,8 @@ interface EncState {
   revert: (id: string) => Promise<void>;
   create: (e: Encounter) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /** Move an encounter to another campaign (one you're the GM of; admins: any, or none). */
+  setCampaign: (id: string, campaignId: string | null) => Promise<boolean>;
   error?: string;
 }
 
@@ -181,7 +183,20 @@ export function EncountersProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  return <Ctx.Provider value={{ ready, allowed, list, get: (id) => list.find((x) => x.id === id), save, update, dirty, commit, revert, create, remove, error }}>{children}</Ctx.Provider>;
+  const setCampaign = async (id: string, campaignId: string | null) => {
+    const before = list.find((x) => x.id === id)?.campaignId ?? null;
+    setList((prev) => prev.map((x) => (x.id === id ? { ...x, campaignId } : x)));
+    if (!cloud || !supabase) return true;
+    const { data, error: err } = await supabase.from("encounters").update({ campaign_id: campaignId }).eq("id", id).select("id");
+    if (err || !data?.length) {
+      setError(`Couldn’t move the encounter: ${err?.message || "you can only move it to a campaign you’re the GM of"}`);
+      setList((prev) => prev.map((x) => (x.id === id ? { ...x, campaignId: before } : x)));
+      return false;
+    }
+    return true;
+  };
+
+  return <Ctx.Provider value={{ ready, allowed, list, get: (id) => list.find((x) => x.id === id), save, update, dirty, commit, revert, create, remove, setCampaign, error }}>{children}</Ctx.Provider>;
 }
 
 export function useEncounters(): EncState {
