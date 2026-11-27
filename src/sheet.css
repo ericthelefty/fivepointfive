@@ -1022,8 +1022,11 @@
 .sheetv .ddial .seg.on .icon{animation:dd-iconin .45s var(--d) cubic-bezier(.3,1.6,.5,1) both;filter:drop-shadow(0 0 7px var(--c))}
 @keyframes dd-iconin{from{opacity:.38;transform:scale(.6)}to{opacity:1;transform:scale(1.32)}}
 @keyframes dd-fadein{from{opacity:.4}to{opacity:1}}
-.sheetv .ddial .seg .wtot{font:700 38px var(--serif, Georgia, serif);fill:var(--s-gold);opacity:0;transform-box:fill-box;transform-origin:center;paint-order:stroke;stroke:var(--bg, #120f13);stroke-width:4px}
-.sheetv .ddial .seg.on .wtot{animation:dd-totin .4s calc(var(--d) + .3s) cubic-bezier(.3,1.6,.5,1) both;filter:drop-shadow(0 2px 6px var(--bg, #120f13))}
+.sheetv .ddial .seg .wtot{font:700 38px var(--serif, Georgia, serif);fill:var(--s-gold);opacity:0;transform-box:fill-box;transform-origin:center;paint-order:stroke;stroke:var(--bg, #120f13);stroke-width:8px;stroke-linejoin:round}
+/* once the number is up, the icon steps back behind it (its idle loop keeps going) */
+.sheetv .ddial .seg.on .fade{animation:dd-back .4s calc(var(--d) + .4s) ease both}
+@keyframes dd-back{to{opacity:.38}}
+.sheetv .ddial .seg.on .wtot{animation:dd-totin .4s calc(var(--d) + .3s) cubic-bezier(.3,1.6,.5,1) both;filter:drop-shadow(0 2px 8px var(--bg, #120f13)) drop-shadow(0 0 3px var(--bg, #120f13))}
 @keyframes dd-totin{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:none}}
 .sheetv .ddial .on.t-fire .inner{animation:dd-flick .5s calc(var(--d) + .25s) ease-in-out 3}
 @keyframes dd-flick{50%{transform:scale(.92,1.12) translateY(-1px)}}
@@ -1080,7 +1083,8 @@
 @keyframes dd-i-nudge{50%{transform:translateX(2.4px)}}
 .sheetv .ddial .on.t-bludgeoning .idle{animation-name:dd-i-bounce;animation-duration:1.6s;transform-origin:50% 100%}
 @keyframes dd-i-bounce{0%,60%,100%{transform:none}25%{transform:translateY(-2.5px)}45%{transform:scale(1.05,.94)}}
-@media (prefers-reduced-motion: reduce) { .sheetv .ddial, .sheetv .ddial * { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .sheetv .ddial, .sheetv .ddial * { animation: none !important; }
+  .sheetv .ddial .seg.on .icon { opacity: 1; } .sheetv .ddial .seg.on .fade { opacity: .38; } .sheetv .ddial .seg.on .wtot { opacity: 1; } }
 /* the Background Image button sits at the bottom of the page, under Explainer Mode; its menu opens upward */
 .sheetv .bgbar { grid-column: 1 / -1; display: flex; justify-content: center; margin: 4px auto 16px; order: 1000; }
 .sheetv .bgbar .bgmenu { top: auto; bottom: calc(100% + 6px); right: auto; left: 50%; transform: translateX(-50%); }
