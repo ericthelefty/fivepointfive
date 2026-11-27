@@ -15,13 +15,15 @@ import {
   type Character,
   intro,
 } from "../lib/rules.ts";
-import { combineModes, d20 as d20Dice, describeRolled, roll as rollDice, type Mode, type Rolled } from "../lib/dice.ts";
+import { combineModes, d20 as d20Dice, describeRolled, parseExpr, roll as rollDice, type Mode, type Rolled } from "../lib/dice.ts";
 import {
   CONDITION_EFFECTS, attackFor, avgDice, conditionMods, esc, playOf, type Weapon,
   timeNow, unarmedStrike, weaponTable, type Attack, type LogEntry,
   type ActiveEffect, type Companion, type PlayState, type RollContext,
 } from "../lib/play.ts";
 import { baseOf, catalog, inventoryOf, isActive, itemTitle, magicInfo, newItemId, type Coins, type Item } from "../lib/inventory.ts";
+import { DamageDial, DIAL_STAGGER } from "../components/DamageDial.tsx";
+import { damageTypeOf, type DamageType } from "../lib/damageDial.ts";
 import InventoryPanel from "./InventoryPanel.tsx";
 import { DetailsForm } from "../components/DetailsForm.tsx";
 import { ScrollRow } from "../components/ScrollRow.tsx";
@@ -336,7 +338,7 @@ export default function Sheet() {
   }, [critFx]);
   /** Dice tumbling onto the sheet after a roll (the "3D dice" toggle). */
   const [dice3d, setDice3dState] = useState(dice3dOn);
-  const [diceFx, setDiceFx] = useState<{ key: string; dice: { sides: number; value: number; kept: boolean }[]; crit: boolean; mod: number; tilt: number }>();
+  const [diceFx, setDiceFx] = useState<{ key: string; dice: { sides: number; value: number; kept: boolean }[]; crit: boolean; mod: number; tilt: number; dial?: { type: DamageType; total: number }[]; hold?: number; ms?: number }>();
   const diceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   /** The newest roll, while its 3D dice and modifier are still landing: its total stays hidden so the dice reveal it. */
   const [rolling, setRolling] = useState<string>();
@@ -683,7 +685,7 @@ export default function Sheet() {
       });
     };
 
-  const log = (e: Omit<LogEntry, "id" | "t">, acts?: CardAction[]) => {
+  const log = (e: Omit<LogEntry, "id" | "t">, acts?: CardAction[], dial?: { type: DamageType; total: number }[]) => {
     const entry: LogEntry = { ...e, id: Math.random().toString(36).slice(2, 9), t: timeNow() };
     // any roll after a critical hit ends it: the Damage button goes back to normal damage
     if (["test", "atk", "crit", "fumble", "dmg", "heal", "roll"].includes(entry.cls)) setCritFor(undefined);
@@ -710,9 +712,13 @@ export default function Sheet() {
           const total = parseInt(entry.total.replace("−", "-"), 10);
           const mod = Number.isFinite(total) ? total - dice.filter((x) => x.kept).reduce((n, x) => n + x.value, 0) : 0;
           const tilt = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 10);
-          setDiceFx({ key: entry.id, dice, crit: entry.cls === "crit", mod, tilt });
+          // a damage roll's dice stay a little longer, while the damage dial lights up its types one after another
+          const lit = dial?.length ? new Set(dial.map((x) => x.type)).size : 0;
+          const land = dice.length * 60 + 450;
+          const ms = lit ? land + (lit - 1) * DIAL_STAGGER + 1500 : 1700;
+          setDiceFx({ key: entry.id, dice, crit: entry.cls === "crit", mod, tilt, dial: lit ? dial : undefined, hold: land, ms });
           clearTimeout(diceTimer.current);
-          diceTimer.current = setTimeout(() => setDiceFx(undefined), 1700);
+          diceTimer.current = setTimeout(() => setDiceFx(undefined), ms);
           // keep the total out of the log until the modifier appears beside the dice (the same moment)
           if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
             shown = true;
@@ -797,7 +803,33 @@ export default function Sheet() {
     const dice = r.parts.filter((x) => x.rolls).reduce((n, x) => n + x.value, 0);
     return eqHtml(dice, r.total - dice);
   };
-  const rollDamage = (title: string, expr: string, crit: boolean, type = "", heal = false, mods: { minDie?: number; maximize?: string; floorSource?: string } = {}) => {
+  /**
+   * Each damage type's share of a roll, for the damage dial. `pieces` (the expression of each type, in order) when the
+   * caller knows them; otherwise worked out from the type: "Slashing", or a weapon's "Slashing, plus 2d6 Fire".
+   */
+  const damageShares = (r: Rolled, type: string, pieces?: { expr: string; type: string }[]) => {
+    let ps = pieces;
+    if (!ps) {
+      const m = type.match(/^(.*?),\s*plus\s+(.*)$/i);
+      if (m) {
+        const extras = m[2].split(/\s*(?:\+|,|\band\b)\s*(?=\d)/).map((x) => x.trim().match(/^(\d*d\d+(?:\s*[+-]\s*\d+)?)\s+(.*)$/)).filter(Boolean) as RegExpMatchArray[];
+        const extraTerms = extras.reduce((n, x) => n + (parseExpr(x[1])?.length || 0), 0);
+        const all = parseExpr(r.expr)?.length || 0;
+        ps = [{ expr: `${"1+".repeat(Math.max(0, all - extraTerms - 1))}1`, type: m[1] }, ...extras.map((x) => ({ expr: x[1], type: x[2] }))];
+      } else ps = [{ expr: r.expr, type }];
+    }
+    const out: { type: DamageType; total: number }[] = [];
+    let i = 0;
+    ps.forEach((x, n) => {
+      const len = n === ps!.length - 1 ? r.parts.length - i : parseExpr(x.expr)?.length || 0;
+      const total = r.parts.slice(i, i + len).reduce((a, b) => a + b.value, 0);
+      i += len;
+      const t = damageTypeOf(x.type);
+      if (t) out.push({ type: t, total: Math.max(0, total) });
+    });
+    return out;
+  };
+  const rollDamage = (title: string, expr: string, crit: boolean, type = "", heal = false, mods: { minDie?: number; maximize?: string; floorSource?: string } = {}, pieces?: { expr: string; type: string }[]) => {
     const r = roll(expr, { doubleDice: crit, minDie: mods.minDie, maximize: !!mods.maximize });
     if (!r) return;
     const why = [
@@ -809,7 +841,7 @@ export default function Sheet() {
       total: String(Math.max(0, r.total)),
       cls: heal ? "heal" : "dmg",
       detail: `${eqOf(r)}${esc(describeRolled(r))}${type ? ` · ${esc(type)}` : ""}${why.length ? `<div>${esc(why.join(" · "))}</div>` : ""}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}`,
-    });
+    }, undefined, heal ? undefined : damageShares(r, type, pieces));
   };
 
   // ---------------------------------------------------- conversions (convert blocks)
@@ -1589,7 +1621,7 @@ export default function Sheet() {
       <div className="rowbtn">
         {a.toHit !== undefined && <button className="sbtn sm" onClick={() => (companion ? companionAttack : attack)(creatureAttack(cr, a))}>{fmt(a.toHit)} to hit</button>}
         {a.save && <span className="tag plain">DC {a.save.dc} {a.save.ability.slice(0, 3)}</span>}
-        {a.damage.length > 0 && <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(`${a.name} (${cr.name})`, a.damage.map((x) => x.expr).join("+"), false, a.damage.map((x) => x.type).join(" + "))}>{a.damage.map((x) => x.expr).join(" + ")}</button>}
+        {a.damage.length > 0 && <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(`${a.name} (${cr.name})`, a.damage.map((x) => x.expr).join("+"), false, a.damage.map((x) => x.type).join(" + "), false, {}, a.damage.map((x) => ({ expr: x.expr, type: x.type })))}>{a.damage.map((x) => x.expr).join(" + ")}</button>}
       </div>
     </div>
   );
@@ -1885,7 +1917,7 @@ export default function Sheet() {
             <div className="rowbtn">
               {r.lvl > 0 && !r.g?.atWill && <Btn data-ex={`do:sp:${st.label === "Free" ? "free" : st.label === "At will" ? "atwill" : "cast"}:${r.sp.id}`} className="sbtn sm ghost" disabled={!st.ok} why={st.why} title={`Spend ${st.label === "Free" ? "the free use" : "a spell slot"} to cast it, then roll each attack.`} onClick={() => castRow(r)}>{st.label === "Free" ? "Cast free" : "Cast"}</Btn>}
               <button className="sbtn sm" title={`${HOW.attack}${pl.attack.count > 1 ? ` Roll once for each of the ${pl.attack.count} beams or attacks.` : ""}`} onClick={() => attack({ name: r.sp.name, toHit: n.atk, damage: dmg, type, note: "" })}>Attack</button>
-              <button className={`sbtn sm ${critFor?.name === r.sp.name ? "critbtn" : "ghost"}`} title={critFor?.name === r.sp.name ? "Your last roll with this spell was a Critical Hit: this rolls its damage dice twice." : `${HOW.dmg}${pl.attack.count > 1 ? " This is one beam's or attack's damage." : ""}`} onClick={() => rollDamage(r.sp.name, dmg, critFor?.name === r.sp.name, type)}>{critFor?.name === r.sp.name ? "Crit damage" : "Damage"}</button>
+              <button className={`sbtn sm ${critFor?.name === r.sp.name ? "critbtn" : "ghost"}`} title={critFor?.name === r.sp.name ? "Your last roll with this spell was a Critical Hit: this rolls its damage dice twice." : `${HOW.dmg}${pl.attack.count > 1 ? " This is one beam's or attack's damage." : ""}`} onClick={() => rollDamage(r.sp.name, dmg, critFor?.name === r.sp.name, type, false, {}, pl.damage.map((x) => ({ expr: x.dice, type: x.type })))}>{critFor?.name === r.sp.name ? "Crit damage" : "Damage"}</button>
             </div>
           </td>
         </tr>
@@ -2130,7 +2162,7 @@ export default function Sheet() {
                         <td>{shortTime(r.sp.fields["casting time"] || "")}</td>
                         <td>{stripMd(r.sp.fields["range"] || "").replace(/ feet/, " ft.")}</td>
                         <td>{pl?.attack ? fmt(n.atk) : pl?.save ? `${pl.save.ability.slice(0, 3).toUpperCase()} ${n.dc}` : "—"}</td>
-                        <td>{dmg ? <button className="sbtn sm ghost" title={`Rolls ${r.sp.name}’s ${dmg} and adds it to the Game Log. It doesn’t spend a slot: use Cast for that.`} onClick={() => rollDamage(r.sp.name, dmg, isSmite(r.sp) && takeCrit(`spell:${r.sp.id}`), pl!.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{dmg}{pl?.attack && pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</button> : pl?.heal ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>{pl.heal} heal</button> : pl?.tempHp ? <span className="effkind">{pl.tempHp} temp HP</span> : pl?.conditions.length ? <Tip tip={`Targets can end up ${pl.conditions.join(" or ")}.`}><span className="effkind cond">{pl.conditions.join(", ")}</span></Tip> : <span className="effkind">{pl?.kind || "—"}</span>}</td>
+                        <td>{dmg ? <button className="sbtn sm ghost" title={`Rolls ${r.sp.name}’s ${dmg} and adds it to the Game Log. It doesn’t spend a slot: use Cast for that.`} onClick={() => rollDamage(r.sp.name, dmg, isSmite(r.sp) && takeCrit(`spell:${r.sp.id}`), pl!.damage.map((x) => x.type).filter(Boolean).join(" + "), false, {}, pl!.damage.map((x) => ({ expr: x.dice, type: x.type })))}>{dmg}{pl?.attack && pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</button> : pl?.heal ? <button className="sbtn sm ghost" onClick={() => rollDamage(r.sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>{pl.heal} heal</button> : pl?.tempHp ? <span className="effkind">{pl.tempHp} temp HP</span> : pl?.conditions.length ? <Tip tip={`Targets can end up ${pl.conditions.join(" or ")}.`}><span className="effkind cond">{pl.conditions.join(", ")}</span></Tip> : <span className="effkind">{pl?.kind || "—"}</span>}</td>
                         <td className="note">{spellNotes(r.sp, pl)}</td>
                       </tr>
                     );
@@ -2316,7 +2348,7 @@ export default function Sheet() {
             <div className="drsum">
               {pl.attack && <span>Spell attack <b>{fmt(n.atk)}</b>{pl.attack.count > 1 ? ` ×${pl.attack.count}` : ""}</span>}
               {pl.save && <span>{pl.save.ability} save DC <b>{n.dc}</b>{pl.save.success === "half" ? " (half on a success)" : ""}</span>}
-              {pl.damage.length > 0 && <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(sp.name, pl.damage.map((x) => x.dice).join("+"), isSmite(sp) && takeCrit(`spell:${sp.id}`), pl.damage.map((x) => x.type).filter(Boolean).join(" + "))}>{pl.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}</button>}
+              {pl.damage.length > 0 && <button className="sbtn sm ghost" title={HOW.dmg} onClick={() => rollDamage(sp.name, pl.damage.map((x) => x.dice).join("+"), isSmite(sp) && takeCrit(`spell:${sp.id}`), pl.damage.map((x) => x.type).filter(Boolean).join(" + "), false, {}, pl.damage.map((x) => ({ expr: x.dice, type: x.type })))}>{pl.damage.map((x) => `${x.dice} ${x.type}`).join(" + ")}</button>}
               {pl.heal && <button className="sbtn sm ghost" title={`Rolls the healing (${pl.heal}) and adds it to the Game Log, to give to whoever you healed.`} onClick={() => rollDamage(sp.name, pl.heal!, false, "", true, { maximize: fx.maxHealing })}>Heal {pl.heal}</button>}
             </div>
           )}
@@ -2918,7 +2950,7 @@ export default function Sheet() {
       const dmgExpr = plan.damage.map((x) => x.dice).join("+");
       const dmgType = plan.damage.map((x) => x.type).filter(Boolean).join(" + ");
       if (plan.attack) acts.push({ label: `Spell attack (${fmt(spellAtk)})${plan.attack.count > 1 ? ` ×${plan.attack.count}` : ""}`, run: () => attack({ name: s.name, toHit: spellAtk, damage: dmgExpr || "0", type: dmgType, note: "" }) });
-      if (dmg && !plan.attack) acts.push({ label: `Roll damage (${dmgExpr})`, run: () => rollDamage(s.name, dmgExpr, isSmite(s) && takeCrit(`spell:${s.id}`), dmgType) });
+      if (dmg && !plan.attack) acts.push({ label: `Roll damage (${dmgExpr})`, run: () => rollDamage(s.name, dmgExpr, isSmite(s) && takeCrit(`spell:${s.id}`), dmgType, false, {}, plan.damage.map((x) => ({ expr: x.dice, type: x.type }))) });
       if (plan.heal) acts.push({ label: `Roll healing (${plan.heal})`, run: () => rollDamage(s.name, plan.heal!, false, "", true, { maximize: fx.maxHealing }) });
       if (plan.tempHp) lines.push(`Temporary HP: ${plan.tempHp}`);
       if (plan.save) lines.push(`${plan.save.ability} save DC <b>${spellDC}</b>${plan.save.success === "half" ? " (half on a success)" : ""}`);
@@ -3544,8 +3576,9 @@ export default function Sheet() {
       {backdropUrl && <div className="sheetbg" aria-hidden="true" style={{ backgroundImage: `url("${backdropUrl}")` }} />}
       {drawerPanel()}
       {diceFx && (
-        <div key={diceFx.key} className={`dice3d ${critFx === "out" || critFx === "back" ? "critd" : ""}`} aria-hidden="true">
+        <div key={diceFx.key} className={`dice3d ${critFx === "out" || critFx === "back" ? "critd" : ""}`} aria-hidden="true" style={diceFx.ms && diceFx.ms !== 1700 ? { animationDuration: `${diceFx.ms}ms` } : undefined}>
           {diceFx.crit && <div className="critlab">Critical Hit</div>}
+          {diceFx.dial && <DamageDial parts={diceFx.dial} delay={diceFx.hold || 0} />}
           {diceFx.dice.map((x, i) => (
             <div key={i} className="diewrap" style={{ animationDelay: `${i * 60}ms` }}>
             <div className={`die3d d${[4, 6, 8, 10, 12, 20].includes(x.sides) ? x.sides : "x"} ${x.kept ? "" : "dropped"} ${diceFx.crit && x.sides === 20 && x.kept ? "crit" : ""}`}
