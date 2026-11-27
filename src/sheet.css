@@ -1022,8 +1022,8 @@
 .sheetv .ddial .seg.on .icon{animation:dd-iconin .45s var(--d) cubic-bezier(.3,1.6,.5,1) both;filter:drop-shadow(0 0 7px var(--c))}
 @keyframes dd-iconin{from{opacity:.38;transform:scale(.6)}to{opacity:1;transform:scale(1.32)}}
 @keyframes dd-fadein{from{opacity:.4}to{opacity:1}}
-.sheetv .ddial .seg .wtot{font:700 23px var(--serif, Georgia, serif);opacity:0;transform-box:fill-box;transform-origin:center;paint-order:stroke;stroke:var(--bg, #120f13);stroke-width:3px}
-.sheetv .ddial .seg.on .wtot{animation:dd-totin .4s calc(var(--d) + .3s) cubic-bezier(.3,1.6,.5,1) both;filter:drop-shadow(0 0 6px var(--c))}
+.sheetv .ddial .seg .wtot{font:700 23px var(--serif, Georgia, serif);fill:var(--s-gold);opacity:0;transform-box:fill-box;transform-origin:center;paint-order:stroke;stroke:var(--bg, #120f13);stroke-width:3px}
+.sheetv .ddial .seg.on .wtot{animation:dd-totin .4s calc(var(--d) + .3s) cubic-bezier(.3,1.6,.5,1) both;filter:drop-shadow(0 2px 6px var(--bg, #120f13))}
 @keyframes dd-totin{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:none}}
 .sheetv .ddial .on.t-fire .inner{animation:dd-flick .5s calc(var(--d) + .25s) ease-in-out 3}
 @keyframes dd-flick{50%{transform:scale(.92,1.12) translateY(-1px)}}
