@@ -431,10 +431,18 @@ export default function MapBoard(p: Props) {
                   </>
                 ) : <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={Math.min(rad * 0.82, u * 0.36 * Math.min(t.size, 2))} fill="#fff8ea" fontWeight={700}>{tokenLabel(t.name)}</text>}
                 {t.out && <path d={`M ${cx - rad * 0.6} ${cy - rad * 0.6} L ${cx + rad * 0.6} ${cy + rad * 0.6} M ${cx + rad * 0.6} ${cy - rad * 0.6} L ${cx - rad * 0.6} ${cy + rad * 0.6}`} stroke="#0b090d" strokeWidth={u * 0.08} strokeLinecap="round" />}
-                {t.note && <text x={cx} y={cy + rad + u * 0.05 + (t.conds?.length ? u * (0.075 * t.conds.length + 0.03) : 0) + (hits.length ? u * (0.09 * hits.length + 0.06) : 0)} textAnchor="middle" dominantBaseline="hanging" className={`mlabel mnote ${t.noteGm ? "gm" : ""}`} fontSize={u * 0.26} strokeWidth={u * 0.06}>{t.note.length > 28 ? `${t.note.slice(0, 27)}…` : t.note}</text>}
                 <title>{t.name}{t.conds?.length ? ` — ${t.conds.join(", ")}` : ""}{hits.length ? " (in an area of effect)" : ""}{t.note ? ` — ${t.note}${t.noteGm ? " (GM only)" : ""}` : ""}{t.hidden ? " (hidden from players)" : ""}{t.out ? " (out of the fight)" : ""}</title>
               </g>
             );
+          })}
+          {/* token labels, above every token so a neighbour never covers one */}
+          {placed.filter((t) => t.note).map((t) => {
+            const r = tokFor(t);
+            const cx = r.left + r.w / 2, cy = r.top + r.h / 2, rad = Math.min(r.w, r.h) * 0.44;
+            const hits = caughtBy.get(t.uid) || [], note = t.note || "";
+            return <g key={`note-${t.uid}`} pointerEvents="none" opacity={t.out || t.hidden ? 0.6 : 1}>
+              <text x={cx} y={cy + rad + u * 0.05 + (t.conds?.length ? u * (0.075 * t.conds.length + 0.03) : 0) + (hits.length ? u * (0.09 * hits.length + 0.06) : 0)} textAnchor="middle" dominantBaseline="hanging" className={`mlabel mnote ${t.noteGm ? "gm" : ""}`} fontSize={u * 0.26} strokeWidth={u * 0.06}>{note.length > 28 ? `${note.slice(0, 27)}…` : note}</text>
+            </g>;
           })}
           {/* areas of effect, and their names, on top of everything */}
           {(() => {
