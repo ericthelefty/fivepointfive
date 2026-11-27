@@ -134,13 +134,24 @@ const TOOLS: { id: MapTool; label: string; tip: string }[] = [
 /** The conditions a token can have (the 2024 rules' list), each with its ring colour. */
 const CONDITIONS = Object.keys(CONDITION_EFFECTS);
 
-/** A token's conditions, as chips: the GM turns them on and off; everyone else just sees them. */
+/** A token's conditions: coloured tags; the GM removes one with its × and adds others from a menu. */
 function CondChips({ conds, onToggle }: { conds: string[]; onToggle?: (k: string) => void }) {
-  const list = onToggle ? CONDITIONS : conds;
-  if (!list.length) return null;
+  if (!conds.length && !onToggle) return null;
+  const left = CONDITIONS.filter((k) => !conds.includes(k));
   return (
     <div className="mconds" role="group" aria-label="Conditions">
-      {list.map((k) => <button key={k} className={`mcond ${conds.includes(k) ? "on" : ""}`} style={{ "--cc": condColor(k) } as React.CSSProperties} aria-pressed={conds.includes(k)} disabled={!onToggle} onClick={() => onToggle?.(k)}>{k}</button>)}
+      {conds.map((k) => (
+        <span key={k} className="mcond on" style={{ "--cc": condColor(k) } as React.CSSProperties}>
+          {k}
+          {onToggle && <button className="mcondx" aria-label={`Remove ${k}`} title={`Remove ${k}`} onClick={() => onToggle(k)}>×</button>}
+        </span>
+      ))}
+      {onToggle && left.length > 0 && (
+        <select className="mcondadd" value="" aria-label="Add a condition" onChange={(ev) => { if (ev.target.value) onToggle(ev.target.value); }}>
+          <option value="">Add a condition…</option>
+          {left.map((k) => <option key={k} value={k}>{k}</option>)}
+        </select>
+      )}
     </div>
   );
 }

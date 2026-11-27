@@ -427,11 +427,10 @@ body.mapopen { overflow: hidden; }
 .mapboard .marea.can { cursor: move; }
 .mapboard .maim { cursor: grab; }
 .mconds { display: flex; flex-wrap: wrap; gap: 4px; }
-.mcond.mcond { min-height: 28px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 2px solid var(--cc); background: transparent; color: #f2eadf; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
-.mcond.mcond::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--cc); }
-.mcond.mcond.on { background: var(--cc); color: #141114; }
-.mcond.mcond.on::before { background: #141114; }
-.mcond.mcond:disabled { cursor: default; }
+.mcond { min-height: 26px; padding: 0 4px 0 9px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 2px solid var(--cc); background: var(--cc); color: #141114; display: inline-flex; align-items: center; gap: 2px; }
+.mcondx.mcondx { width: 20px; height: 20px; border: 0; border-radius: 50%; background: rgba(20, 17, 22, .18); color: #141114; font: 700 14px/1 Inter, system-ui, sans-serif; cursor: pointer; padding: 0; display: grid; place-items: center; }
+.mcondx.mcondx:hover { background: rgba(20, 17, 22, .35); }
+.mcondadd { background: #2a2430; color: #f2eadf; border: 1px solid rgba(255, 255, 255, .18); border-radius: 999px; min-height: 28px; padding: 0 8px; font-size: 12px; }
 .mfsub { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 9px; background: rgba(255, 255, 255, .05); }
 .mapboard .mblock { cursor: move; }
 .mapboard .mbdel { cursor: pointer; }
