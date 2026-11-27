@@ -19,7 +19,6 @@ import Library from "./pages/Library.tsx";
 import Content from "./pages/Content.tsx";
 import Guide from "./pages/Guide.tsx";
 import { EncounterList, EncounterView } from "./pages/Encounters.tsx";
-import { MapEditor } from "./pages/Maps.tsx";
 import { PlayerMap } from "./pages/EncounterMap.tsx";
 
 export const ATTRIBUTION =
@@ -129,7 +128,6 @@ function Shell() {
             <Route path="/loot/:id" element={<LootPage />} />
             <Route path="/campaigns" element={cloud ? <Campaigns /> : <div className="panel">Campaigns divide the players of a shared instance. This copy runs in local-only mode, so there’s just you.</div>} />
             <Route path="/campaigns/:id" element={cloud ? <CampaignPage /> : <div className="panel">Campaigns need a shared instance.</div>} />
-            <Route path="/campaigns/:id/maps/:mapId" element={cloud ? <MapEditor /> : <div className="panel">Maps need a shared instance.</div>} />
             <Route path="/map/:id" element={cloud ? <PlayerMap /> : <div className="panel">Maps need a shared instance.</div>} />
             <Route path="/encounters" element={<EncounterList />} />
             <Route path="/encounters/:id" element={<EncounterView />} />

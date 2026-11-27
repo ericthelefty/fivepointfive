@@ -4,11 +4,12 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { GridEditor } from "./Maps.tsx";
 import MapBoard, { type MapTool, type Ping } from "../components/MapBoard.tsx";
 import { useSession } from "../lib/session.tsx";
 import type { Combatant, Encounter } from "../lib/encounter.ts";
 import {
-  allCells, announceMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
+  addMap, allCells, announceMap, deleteMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
   tokenSeen, useMapImage, viewEncounterMap, type CampaignMap, type EncounterMap, type MapFog, type MapToken, type MapView,
 } from "../lib/maps.ts";
 
@@ -100,7 +101,7 @@ export function useEncounterMap(e: Encounter | undefined, info: Info) {
     });
   }, [cid, eid]);
 
-  return { em, maps, error, update, start, campaignId: cid };
+  return { em, maps, setMaps, error, setError, update, start, campaignId: cid };
 }
 
 type MapState = ReturnType<typeof useEncounterMap>;
@@ -118,6 +119,26 @@ export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
   const session = useSession();
   const { em, maps, update, start } = st;
   const map = em?.mapId ? maps.find((m) => m.id === em.mapId) : undefined;
+  const [editing, setEditing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const file = useRef<HTMLInputElement>(null);
+  // a new map for this encounter: upload it, use it, then set its grid
+  const upload = async (f?: File) => {
+    if (!f || !e.campaignId) return;
+    setUploading(true);
+    try {
+      const m = await addMap(e.campaignId, f, e.name);
+      st.setMaps((l) => [m, ...l]);
+      start(m.id);
+      setEditing(true);
+      st.setError("");
+    } catch (err) { st.setError((err as Error).message); }
+    finally { setUploading(false); if (file.current) file.current.value = ""; }
+  };
+  const uploader = <>
+    <input ref={file} type="file" accept="image/*" hidden onChange={(ev) => upload(ev.target.files?.[0])} />
+    <button className="sbtn gold" disabled={uploading} onClick={() => file.current?.click()}>{uploading ? "Uploading…" : "Upload a map"}</button>
+  </>;
   const url = useMapImage(map?.path);
   const [tool, setTool] = useState<MapTool>("move");
   const [brush, setBrush] = useState<number | "box">(1);
@@ -132,22 +153,33 @@ export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
     return onMapChange(st.campaignId, (p) => { if (p.encounterId === e.id && p.ping) addPing(p.ping.px, p.ping.py, colorOf(p.ping.who)); });
   }, [st.campaignId, e.id, addPing]);
 
-  if (!e.campaignId) return <div className="spanel"><p className="note" style={{ margin: 0 }}>Maps belong to a campaign. Put this encounter in a campaign (at the top of the page) to give it a map.</p></div>;
+  if (!e.campaignId) return <div className="spanel"><p className="note" style={{ margin: 0 }}>Put this encounter in a campaign (at the top of the page) to give it a map: the map is shown to that campaign’s players.</p></div>;
   if (em === undefined) return <div className="spanel"><p className="note" style={{ margin: 0 }}>Loading…</p></div>;
 
   const picker = (
     <select value={em?.mapId || ""} aria-label="Map" onChange={(ev) => start(ev.target.value || null)}>
-      <option value="">{maps.length ? "No map" : "No maps in this campaign yet"}</option>
+      <option value="">{maps.length ? "Use a map you’ve uploaded…" : "No maps uploaded yet"}</option>
       {maps.map((m) => <option key={m.id} value={m.id}>{m.name || "Unnamed map"}</option>)}
     </select>
   );
   if (!em || !map) {
     return (
       <div className="spanel stack">
-        <p className="note" style={{ margin: 0 }}>Pick a battle map for this encounter. Everyone in the fight gets a token you can place on it.</p>
-        <div className="maprow">{picker}<Link className="btn small" to={`/campaigns/${e.campaignId}`}>Upload or edit maps</Link></div>
+        <p className="note" style={{ margin: 0 }}>Upload a battle map for this encounter, then set its grid. Everyone in the fight gets a token you can place on it. A map you upload can be used again in this campaign’s other encounters.</p>
+        <div className="maprow">{uploader}{maps.length > 0 && picker}</div>
         {st.error && <p className="note">{st.error}</p>}
       </div>
+    );
+  }
+
+  if (editing) {
+    return (
+      <GridEditor key={map.id} map={map} onClose={() => setEditing(false)}
+        onSaved={(m) => { st.setMaps((l) => l.map((x) => (x.id === m.id ? m : x))); announceMap(st.campaignId, { encounterId: e.id }); }}
+        onDelete={async () => {
+          try { await deleteMap(map); st.setMaps((l) => l.filter((x) => x.id !== map.id)); update((m) => ({ ...m, mapId: null, shown: false })); setEditing(false); }
+          catch (err) { st.setError((err as Error).message); }
+        }} />
     );
   }
 
@@ -188,7 +220,8 @@ export function EncounterMapTab({ e, st }: { e: Encounter; st: MapState }) {
         <label className="mchk" title="Cover the map with fog; uncover what the players can see">
           <input type="checkbox" checked={em.fog.on} onChange={(ev) => update((m) => ({ ...m, fog: { ...m.fog, on: ev.target.checked } }))} /> Fog
         </label>
-        <Link className="btn small" to={`/campaigns/${e.campaignId}/maps/${map.id}`}>Edit grid</Link>
+        <button className="sbtn ghost" onClick={() => setEditing(true)}>Edit map and grid</button>
+        {uploader}
       </div>
       {st.error && <p className="note">{st.error}</p>}
       <div className="mapplay">

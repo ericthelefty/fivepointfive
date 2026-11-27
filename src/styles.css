@@ -389,11 +389,10 @@ label.radio input { margin-top: 3px; }
 .maphint { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(12, 10, 14, .85); color: #f2eadf; padding: 6px 12px; border-radius: 999px; font-size: 13px; pointer-events: none; white-space: nowrap; max-width: calc(100% - 80px); overflow: hidden; text-overflow: ellipsis; }
 .mapstage { position: relative; height: min(72vh, 760px); min-height: 360px; }
 .mapstage.full { height: calc(100vh - 210px); min-height: 360px; }
-.mapplay, .mapedit { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; align-items: start; }
+.mapplay { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; align-items: start; }
 .mapside { gap: 10px; }
 .mapbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .maprow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.maprow.nudge .btn { min-width: 44px; }
 .maprow input[type="number"], .mfield .maprow input[type="number"] { width: 90px; flex: 0 0 auto; }
 .mfield { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 .mfield input:not([type="range"]):not([type="color"]) { width: 100%; }
@@ -405,17 +404,12 @@ label.radio input { margin-top: 3px; }
 .mtray.k-monster { background: #9a2f25; }
 .mtray.k-other { background: #5b5560; }
 .mtray.on { border-color: #f2cd85; box-shadow: 0 0 0 2px rgba(242, 205, 133, .35); }
-.mapgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-.mapcard { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel-2, #18151a); }
-.mapcard-b { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 0; }
-.mapcard-b:last-child { padding-bottom: 10px; }
-.mapthumb { display: block; aspect-ratio: 16 / 10; background: #1b1820 center / cover no-repeat; }
 .livemaps { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--ok-line, #3c6b48); background: var(--ok-bg, #1d3324); border-radius: 10px; color: var(--ink); }
 .livedot { width: 9px; height: 9px; border-radius: 50%; background: #6cbf7d; box-shadow: 0 0 0 0 rgba(108, 191, 125, .6); animation: livedot 1.6s infinite; }
 @keyframes livedot { 70% { box-shadow: 0 0 0 8px rgba(108, 191, 125, 0); } 100% { box-shadow: 0 0 0 0 rgba(108, 191, 125, 0); } }
 @media (prefers-reduced-motion: reduce) { .livedot { animation: none; } }
 @media (max-width: 860px) {
-  .mapplay, .mapedit { grid-template-columns: 1fr; }
+  .mapplay { grid-template-columns: 1fr; }
   .mapstage { height: 62vh; }
   .mapstage.full { height: calc(100vh - 190px); }
 }

@@ -17,7 +17,6 @@ import { useContent } from "../lib/store.tsx";
 import { classInfos, classLabel } from "../lib/multiclass.ts";
 import { useCharacterBackdrop } from "../lib/backgrounds.ts";
 import type { CharRow } from "../lib/characters.tsx";
-import { CampaignMaps } from "./Maps.tsx";
 
 type Run = (what: string, f: () => PromiseLike<{ error: { message: string } | null }>) => Promise<boolean>;
 
@@ -173,8 +172,6 @@ export function CampaignPage() {
       <NotesBox title="GM notes (public)" hint="Notes from the GM that everyone in the campaign can read: session recaps, reminders, what’s next." empty="No notes yet."
         text={c.public_notes || ""} canEdit={gm} onSave={(t) => run("save the notes", () => db.rpc("set_campaign_notes", { cid: c.id, p_description: null, p_public_notes: t }))} />
       {gm && <PrivateNotes campaignId={c.id} setMsg={setMsg} />}
-
-      <CampaignMaps campaignId={c.id} gm={gm} />
 
       <section className="panel stack">
         <h2 style={{ margin: 0 }}>Members</h2>
