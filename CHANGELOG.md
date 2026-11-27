@@ -6,7 +6,7 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
-- On a campaign's page, each character's box shows the image behind its sheet, darkened on the left so its name and details read.
+- On a campaign's page, each character's box shows the image behind its sheet, darkened on the left so its name, details and buttons read in both themes.
 - An encounter can be moved to another campaign, from its row on the Encounters page or under its name on the encounter page. A GM can move it to another campaign they run; an admin to any campaign, or to none (only admins see it then). Characters already in the fight stay; from then on only the new campaign's characters can be added.
 - A campaign's page has a Description and GM notes (public) that everyone in the campaign reads, and GM notes (private) that only its GM and admins see. The GM writes all three, in Markdown. Empty boxes don't show to players.
 - **Database:** `supabase/migrations/0013_campaign_notes.sql`.

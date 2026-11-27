@@ -357,3 +357,6 @@ label.radio input { margin-top: 3px; }
 .memcard.charbox.hasbg { color: #f2eadf; border-color: rgba(255, 255, 255, .14); }
 .memcard.charbox .cbsub { font-size: 13px; color: var(--muted); }
 .memcard.charbox.hasbg .cbsub { color: rgba(242, 234, 223, .78); }
+/* over the darkened image its buttons stay light in both themes (the light theme's dark button text vanished on it) */
+.memcard.charbox.hasbg .btn:not(.primary), :root[data-theme="light"] .memcard.charbox.hasbg .btn:not(.primary) { color: #f2eadf; background: rgba(14, 11, 15, .55); border-color: rgba(242, 234, 223, .35); }
+.memcard.charbox.hasbg .btn:not(.primary):hover, :root[data-theme="light"] .memcard.charbox.hasbg .btn:not(.primary):hover { background: rgba(14, 11, 15, .75); border-color: rgba(242, 234, 223, .6); }
