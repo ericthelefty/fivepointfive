@@ -207,6 +207,7 @@ label.radio input { margin-top: 3px; }
 :root[data-theme="light"] .btn.primary, :root[data-theme="light"] .btn.primary:hover, :root[data-theme="light"] .tag.need { color: #fff8ea; }
 :root[data-theme="light"] .tag.plain { background: #efe5cf; }
 :root[data-theme="light"] .steps button.on { background: #f1e2bf; }
+:root[data-theme="light"] .steps button.on .n { color: #fff8ea; }
 :root[data-theme="light"] .drop { border-color: #c3b18c; }
 :root[data-theme="light"] .tipbox { background: #2a2118; color: #fbf6ea; border-color: #8a5a12; }
 :root[data-theme="light"] .tipbox::after { border-top-color: #2a2118; }
@@ -239,7 +240,9 @@ label.radio input { margin-top: 3px; }
 .sccard table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .sccard td { padding: 3px 0; border-top: 1px solid var(--line-2); }
 .sccard td:last-child { text-align: right; white-space: nowrap; padding-left: 8px; }
-.assignrow select { font-size: 13px; padding: 2px 6px; min-height: 30px; max-width: 70%; }
+/* Player and Campaign on a character card: one line each */
+.assignrow { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.assignrow select { font-size: 13px; padding: 2px 6px; min-height: 30px; max-width: 70%; flex: 0 1 auto; min-width: 0; }
 .demobar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 8px 16px; background: var(--accent-bg); border-bottom: 1px solid var(--accent); font-size: 13.5px; text-align: center; }
 .tipbox.shifted::after { display: none; }
 
@@ -335,7 +338,7 @@ label.radio input { margin-top: 3px; }
 .campcard { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 18px 16px; }
 .campcard h2 { margin: 4px 0 0; }
 .campfaces { display: flex; justify-content: center; }
-.campface { width: 34px; height: 34px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 13px; font-weight: 700; color: var(--accent, #e3b25e); background: var(--panel2, #2a2329); border: 2px solid var(--panel, #1d191f); margin-left: -6px; flex: none; }
+.campface { width: 34px; height: 34px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 13px; font-weight: 700; color: var(--accent-ink, #f2cd85); background: var(--chip, #2f2932); border: 2px solid var(--panel, #1d191f); margin-left: -6px; flex: none; }
 .campface:first-child { margin-left: 0; }
 .campface.big { width: 44px; height: 44px; font-size: 15px; margin: 0; }
 .campcount { display: flex; flex-direction: column; align-items: center; line-height: 1.1; margin: 6px 0; }
@@ -345,7 +348,7 @@ label.radio input { margin-top: 3px; }
 .campbtns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line, #3a333d); width: 100%; }
 .camphead { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
 .memgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.memcard { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line, #3a333d); border-radius: 10px; background: var(--panel2, rgba(255,255,255,.02)); }
+.memcard { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line, #3a333d); border-radius: 10px; background: var(--panel-2, #18151a); }
 .privnote { border-style: dashed; }
 .campnotes > :first-child { margin-top: 0; }
 .campnotes > :last-child { margin-bottom: 0; }

@@ -415,6 +415,8 @@
 .sheetv .chipsrow { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .sheetv .chipsrow button { background: var(--s-panel3); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .sheetv .chipsrow button.on { background: var(--s-gold); color: #1d1408; border-color: var(--s-gold); }
+:root[data-theme="light"] .sheetv .chipsrow button.on { color: #fff8ea; }
+:root[data-theme="light"] .sheetv .mbadge { background: var(--s-panel); }
 .sheetv .spgroup { margin-top: 10px; }
 .sheetv .spgh { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px solid var(--s-gold2); color: var(--s-gold); text-transform: uppercase; letter-spacing: .06em; font-size: 12.5px; }
 .sheetv .spslots { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; text-transform: none; }
@@ -956,11 +958,12 @@
 .hidl { color: #b9a2e0 !important; }
 .invhidh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .invhidh label { margin-left: auto; }
-.invhidh select, .tier input, .invadd input, .inved .coins input { background: var(--s-inset, #151217); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; }
+.invhidh select, .tier input, .invadd input, .inved .coins input { background: var(--s-well, #151217); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; }
 .invhidh select { height: 28px; }
 .pills { display: flex; gap: 6px; flex-wrap: wrap; }
-.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 4px 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--s-inset, #2a2430); }
-.pill button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 11px; }
+/* (scoped to .pills: a bare .pill rule here restyled the Characters and Builder pill buttons on every page) */
+.pills .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 4px 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--s-panel3, #2a2430); }
+.pills .pill button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 11px; }
 .invadd { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .invadd input { height: 30px; padding: 0 10px; flex: 1; min-width: 160px; font-size: 13px; }
 .invmatch { display: flex; gap: 4px; flex-wrap: wrap; flex-basis: 100%; }
@@ -981,7 +984,7 @@
 .sheetv .inved .coins { margin-left: 0; }
 .custf { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; font-size: 12px; color: var(--muted); }
 .custf label { display: inline-flex; gap: 4px; align-items: center; }
-.custf input { width: 64px; height: 26px; min-height: 0; padding: 0 6px; text-align: right; background: var(--s-inset, #151217); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; }
+.custf input { width: 64px; height: 26px; min-height: 0; padding: 0 6px; text-align: right; background: var(--s-well, #151217); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; }
 .custrow { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 13px; }
 .custnote { margin: 6px 0 0; }
 .custstar { color: var(--muted); margin-left: 1px; }

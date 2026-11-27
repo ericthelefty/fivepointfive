@@ -6,6 +6,8 @@ If you run your own instance, check the **Database** line of each version: when 
 
 ## Unreleased
 
+- Light mode: pill buttons are readable again. The Characters page's Everyone and Mine, the Builder's choices and class tabs, and the Library and Format guide filters were drawn dark on dark, because a style meant for the encounter inventory editor applied to every pill button. The sheet's selected spell-level filter (All, 1st…), the Builder's current step number and the phone menu's count badge have light text or a light background against the gold.
+- On a character card, Player and Campaign are on separate lines.
 - On a campaign's page, each character's box shows the image behind its sheet, darkened on the left so its name, details and buttons read in both themes.
 - An encounter can be moved to another campaign, from its row on the Encounters page or under its name on the encounter page. A GM can move it to another campaign they run; an admin to any campaign, or to none (only admins see it then). Characters already in the fight stay; from then on only the new campaign's characters can be added.
 - A campaign's page has a Description and GM notes (public) that everyone in the campaign reads, and GM notes (private) that only its GM and admins see. The GM writes all three, in Markdown. Empty boxes don't show to players.
