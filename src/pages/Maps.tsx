@@ -35,6 +35,22 @@ export function LiveMapLinks({ campaignId, label }: { campaignId?: string | null
   );
 }
 
+/**
+ * A number box you can clear and type into freely: what you type stays while you type it, a number in range takes effect
+ * at once, and leaving the box empty (or out of range) puts back the current value.
+ */
+function NumBox({ value, onValue, min, max, step }: { value: number; onValue: (n: number) => void; min: number; max: number; step?: number }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const ok = (n: number) => Number.isFinite(n) && n >= min && n <= max;
+  return (
+    <input type="number" inputMode="decimal" min={min} max={max} step={step} value={draft ?? String(value)}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => { setDraft(e.target.value); const n = e.target.value === "" ? NaN : Number(e.target.value); if (ok(n)) onValue(n); }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+  );
+}
+
 /** The grid editor, in place of the map on an encounter's Map tab. */
 export function GridEditor({ map, onSaved, onDelete, onClose, detectFirst }: {
   map: CampaignMap;
@@ -68,7 +84,7 @@ export function GridEditor({ map, onSaved, onDelete, onClose, detectFirst }: {
       const next = normGrid({ ...grid, size, sizeY, ox: snap(f.ox, size), oy: snap(f.oy, sizeY), show: false });
       setGrid(next); setSaved(false);
       const c = gridCount(next, map.width, map.height);
-      setMsg(`Found a printed grid: ${c.cols} × ${c.rows} squares. Its lines aren’t drawn over (the map has its own); the blue lines show where the squares are while you edit. Nudge them if they’re off.`);
+      setMsg(`Found a printed grid: ${c.cols} squares wide × ${c.rows} long. Its lines aren’t drawn over (the map has its own); the blue lines show where the squares are while you edit. Nudge them if they’re off.`);
     } catch (e) { setMsg(`Couldn’t look for a grid: ${(e as Error).message}`); }
     finally { setFinding(false); }
   };
@@ -90,7 +106,6 @@ export function GridEditor({ map, onSaved, onDelete, onClose, detectFirst }: {
       else { setMsg("Saved."); setTimeout(() => setMsg(""), 1500); }
     } catch (e) { setMsg((e as Error).message); }
   };
-  const num = (v: string) => (v === "" ? NaN : Number(v));
 
   return (
     <div className="mapplay">
@@ -108,13 +123,13 @@ export function GridEditor({ map, onSaved, onDelete, onClose, detectFirst }: {
         {msg && !msg.startsWith("Saved") && <div className="note" role="status">{msg}</div>}
 
         <b style={{ marginTop: 6 }}>Line it up</b>
-        <p className="note" style={{ margin: 0 }}>Detect the grid printed on the map, or set how many columns and rows of squares it has, then nudge the grid until its lines sit on the map’s.</p>
+        <p className="note" style={{ margin: 0 }}>Detect the grid printed on the map, or set how many squares wide and long it is, then nudge the grid until its lines sit on the map’s.</p>
         <div className="maprow">
-          <label className="mfield" style={{ flex: 1 }}><span>Columns</span>
-            <input type="number" min={1} max={300} value={count.cols} onChange={(e) => { const n = num(e.target.value); if (n >= 1) set(gridAcross(grid, map.width, n)); }} />
+          <label className="mfield" style={{ flex: 1 }}><span>Width (squares)</span>
+            <NumBox min={1} max={300} value={count.cols} onValue={(n) => set(gridAcross(grid, map.width, n))} />
           </label>
-          <label className="mfield" style={{ flex: 1 }}><span>Rows</span>
-            <input type="number" min={1} max={300} value={count.rows} onChange={(e) => { const n = num(e.target.value); if (n >= 1) set(gridDown(grid, map.height, n)); }} />
+          <label className="mfield" style={{ flex: 1 }}><span>Length (squares)</span>
+            <NumBox min={1} max={300} value={count.rows} onValue={(n) => set(gridDown(grid, map.height, n))} />
           </label>
         </div>
         <div className="maprow">
@@ -133,8 +148,8 @@ export function GridEditor({ map, onSaved, onDelete, onClose, detectFirst }: {
           <div className="maprow">
             <button className="sbtn ghost" title="Narrower squares" onClick={() => set({ size: grid.size - step / 4, sizeY: h })}>↔ −</button>
             <button className="sbtn ghost" title="Wider squares" onClick={() => set({ size: grid.size + step / 4, sizeY: h })}>↔ +</button>
-            <button className="sbtn ghost" title="Shorter squares" onClick={() => set({ sizeY: h - step / 4 })}>↕ −</button>
-            <button className="sbtn ghost" title="Taller squares" onClick={() => set({ sizeY: h + step / 4 })}>↕ +</button>
+            <button className="sbtn ghost" title="Shorter squares (less long)" onClick={() => set({ sizeY: h - step / 4 })}>↕ −</button>
+            <button className="sbtn ghost" title="Longer squares" onClick={() => set({ sizeY: h + step / 4 })}>↕ +</button>
           </div>
         </div>
         <div className="chipsrow" style={{ margin: 0 }} role="group" aria-label="Step">
@@ -142,21 +157,21 @@ export function GridEditor({ map, onSaved, onDelete, onClose, detectFirst }: {
         </div>
         <div className="maprow">
           <label className="mfield" style={{ flex: 1 }}><span>Square width (px)</span>
-            <input type="number" step={0.25} min={8} value={r2(grid.size)} onChange={(e) => { const n = num(e.target.value); if (n >= 8) set({ size: n, sizeY: h }); }} />
+            <NumBox step={0.25} min={8} max={1000} value={r2(grid.size)} onValue={(n) => set({ size: n, sizeY: h })} />
           </label>
-          <label className="mfield" style={{ flex: 1 }}><span>Height (px)</span>
-            <input type="number" step={0.25} min={8} value={r2(h)} onChange={(e) => { const n = num(e.target.value); if (n >= 8) set({ sizeY: n }); }} />
+          <label className="mfield" style={{ flex: 1 }}><span>Square length (px)</span>
+            <NumBox step={0.25} min={8} max={1000} value={r2(h)} onValue={(n) => set({ sizeY: n })} />
           </label>
         </div>
         {grid.sizeY != null && <button className="sbtn ghost" onClick={() => set({ sizeY: grid.size })}>Make the squares square</button>}
-        <p className="note" style={{ margin: 0 }}>{across} × {down} squares · {across * grid.feet} × {down * grid.feet} feet</p>
+        <p className="note" style={{ margin: 0 }}>{across} squares wide × {down} long · {across * grid.feet} × {down * grid.feet} feet</p>
 
         <b style={{ marginTop: 6 }}>Look</b>
         <div className="maprow">
           <label className="mfield" style={{ flex: "0 0 auto" }}><span>Colour</span><input type="color" value={grid.color} onChange={(e) => set({ color: e.target.value })} /></label>
           <label className="mfield" style={{ flex: 1 }}><span>Strength</span><input type="range" min={0.05} max={1} step={0.05} value={grid.opacity} onChange={(e) => set({ opacity: Number(e.target.value) })} /></label>
         </div>
-        <label className="mfield"><span>Feet per square</span><input type="number" min={1} max={100} value={grid.feet} onChange={(e) => { const n = num(e.target.value); if (n >= 1) set({ feet: n }); }} /></label>
+        <label className="mfield"><span>Feet per square</span><NumBox min={1} max={100} value={grid.feet} onValue={(n) => set({ feet: n })} /></label>
 
         <div className="maprow" style={{ marginTop: 8 }}>
           <button className="sbtn gold" onClick={() => save(true)}>{saved ? "Done" : "Save and close"}</button>
