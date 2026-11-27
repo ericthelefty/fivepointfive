@@ -221,6 +221,7 @@ label.radio input { margin-top: 3px; }
 .detailsform legend { padding: 0 6px; font-weight: 600; color: var(--accent-ink); }
 .detailsform .dfs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .detailsform .dfl { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.detailsform .dfs + .dfl { margin-top: 10px; }
 .detailsform textarea { min-height: 0; }
 .detailsview section + section { margin-top: 12px; }
 .detailsview h4 { margin: 0 0 6px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-ink); }

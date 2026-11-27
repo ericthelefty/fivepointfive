@@ -80,6 +80,7 @@ export const DETAIL_GROUPS: { title: string; fields: { key: string; label: strin
   { title: "Physical characteristics", fields: [
     { key: "hair", label: "Hair" }, { key: "skin", label: "Skin" }, { key: "eyes", label: "Eyes" },
     { key: "height", label: "Height" }, { key: "weight", label: "Weight" }, { key: "age", label: "Age" }, { key: "gender", label: "Gender" },
+    { key: "appearance", label: "Appearance", long: true },
   ] },
   { title: "Personal characteristics", fields: [
     { key: "traits", label: "Personality traits", long: true }, { key: "ideals", label: "Ideals", long: true },
@@ -90,7 +91,7 @@ export const DETAIL_GROUPS: { title: string; fields: { key: string; label: strin
     { key: "enemies", label: "Enemies", long: true }, { key: "backstory", label: "Backstory", long: true },
   ] },
 ];
-export type DetailKey = "alignment" | "faith" | "lifestyle" | "hair" | "skin" | "eyes" | "height" | "weight" | "age" | "gender" | "traits" | "ideals" | "bonds" | "flaws" | "organizations" | "allies" | "enemies" | "backstory";
+export type DetailKey = "alignment" | "faith" | "lifestyle" | "hair" | "skin" | "eyes" | "height" | "weight" | "age" | "gender" | "appearance" | "traits" | "ideals" | "bonds" | "flaws" | "organizations" | "allies" | "enemies" | "backstory";
 
 export function newCharacter(): Character {
   return {

@@ -1248,4 +1248,9 @@ body.sheetbg-on { background: transparent !important; }
 .sheetv button.stoken { cursor: pointer; }
 .sheetv button.stoken:hover { border-color: var(--s-gold); }
 .sheetv .stoken.empty { border-style: dashed; font-size: 24px; }
-.sheetv .stoken.sm { width: 40px; height: 40px; font-size: 15px; }
+.sheetv .stoken.sm { width: 56px; height: 56px; font-size: 18px; }
+.sheetv .stoken.lg { width: 88px; height: 88px; font-size: 28px; border-width: 4px; }
+.sheetv .stoken.lg.empty { font-size: 34px; }
+/* the token on the left, the name and the level, species and class line to its right */
+.sheetv .identname { display: flex; gap: 16px; align-items: center; min-width: 0; }
+.sheetv .identname > div { min-width: 0; }

@@ -3690,9 +3690,10 @@ export default function Sheet() {
         {phoneTop}
         <section className="ident" {...bo("ident")}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-            <div>
+            <div className="identname">
+              {tokenFace("lg")}
+              <div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                {tokenFace("")}
                 <h1 className="disp">{c.name || "Unnamed character"}</h1>
                 {editable && <Link className="sbtn ghost sm" title="Change your species, class, ability scores, feats and other choices in the character builder." to={`/build/${c.id}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Edit in builder</Link>}
                 {editable && (() => {
@@ -3709,6 +3710,7 @@ export default function Sheet() {
                 Level {c.level} {sp?.name}{c.speciesChoice ? ` (${c.speciesChoice})` : ""}{" "}
                 {infos.length > 1 ? classLabel(infos) : cls?.name}
                 {infos.filter((i) => i.sub).map((i) => ` · ${i.sub!.name}`).join("")}{bg ? ` · ${bg.name}` : ""}
+              </div>
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>

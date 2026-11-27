@@ -30,23 +30,26 @@ export function DetailsForm({ c, onChange, readOnly }: { c: Character; onChange?
       {DETAIL_GROUPS.map((g) => (
         <fieldset key={g.title}>
           <legend>{g.title}</legend>
-          <div className={g.fields.some((f) => f.long) ? "dfl" : "dfs"}>
-            {g.fields.map((f) => (
-              <label key={f.key} className="field">
-                {f.label}
-                {f.options ? (
-                  <select value={det[f.key as DetailKey] || ""} onChange={(e) => set(f.key, e.target.value)}>
-                    <option value="">—</option>
-                    {f.options.map((o) => <option key={o}>{o}</option>)}
-                  </select>
-                ) : f.long ? (
-                  <textarea rows={f.key === "backstory" ? 6 : 2} value={det[f.key as DetailKey] || ""} onChange={(e) => set(f.key, e.target.value)} />
-                ) : (
-                  <input type="text" value={det[f.key as DetailKey] || ""} onChange={(e) => set(f.key, e.target.value)} />
-                )}
-              </label>
-            ))}
-          </div>
+          {/* short boxes side by side, then the long ones underneath (a group can have both, like looks and Appearance) */}
+          {[g.fields.filter((f) => !f.long), g.fields.filter((f) => f.long)].filter((fs) => fs.length).map((fs, i) => (
+            <div key={i} className={fs[0].long ? "dfl" : "dfs"}>
+              {fs.map((f) => (
+                <label key={f.key} className="field">
+                  {f.label}
+                  {f.options ? (
+                    <select value={det[f.key as DetailKey] || ""} onChange={(e) => set(f.key, e.target.value)}>
+                      <option value="">—</option>
+                      {f.options.map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  ) : f.long ? (
+                    <textarea rows={f.key === "backstory" || f.key === "appearance" ? 6 : 2} value={det[f.key as DetailKey] || ""} onChange={(e) => set(f.key, e.target.value)} />
+                  ) : (
+                    <input type="text" value={det[f.key as DetailKey] || ""} onChange={(e) => set(f.key, e.target.value)} />
+                  )}
+                </label>
+              ))}
+            </div>
+          ))}
         </fieldset>
       ))}
     </div>
