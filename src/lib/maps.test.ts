@@ -94,7 +94,7 @@ describe("tokens", () => {
   it("gives everyone in the fight a token, keeping where it stood and the GM's choices", () => {
     const prev: MapToken[] = [
       { uid: "p1", name: "old", kind: "pc", size: 1, x: 4, y: 2 },
-      { uid: "m2", name: "Goblin 1", kind: "monster", size: 3, sized: true, hidden: true, x: 1, y: 1 },
+      { uid: "m2", name: "Goblin 1", kind: "monster", size: 3, sized: true, hidden: true, x: 1, y: 1, note: "Leader", noteGm: true },
       { uid: "gone", name: "Wolf", kind: "monster", size: 1, x: 0, y: 0 },
     ];
     const out = syncTokens(prev, cbs, info);
@@ -102,7 +102,7 @@ describe("tokens", () => {
     expect(out[0]).toEqual({ uid: "p1", name: "Sera", kind: "pc", size: 1, char: "char1", x: 4, y: 2 });
     expect(out[1]).toMatchObject({ size: 2, out: true });
     expect(out[1].x).toBeUndefined();
-    expect(out[2]).toMatchObject({ size: 3, sized: true, hidden: true, out: true, x: 1, y: 1 });
+    expect(out[2]).toMatchObject({ size: 3, sized: true, hidden: true, out: true, x: 1, y: 1, note: "Leader", noteGm: true });
   });
   it("labels tokens briefly", () => {
     expect(tokenLabel("Goblin Warrior 2")).toBe("GW2");

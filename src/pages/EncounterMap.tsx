@@ -7,10 +7,11 @@ import { Link, useParams } from "react-router-dom";
 import { GridEditor } from "./Maps.tsx";
 import MapBoard, { type MapTool, type Ping } from "../components/MapBoard.tsx";
 import { useSession } from "../lib/session.tsx";
+import { useMedia } from "../lib/useMedia.ts";
 import type { Combatant, Encounter } from "../lib/encounter.ts";
 import {
   addMap, allCells, announceMap, deleteMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
-  tokenSeen, useMapImage, viewEncounterMap, type CampaignMap, type EncounterMap, type MapFog, type MapToken, type MapView,
+  NOTE_MAX, tokenSeen, useMapImage, viewEncounterMap, type CampaignMap, type EncounterMap, type MapFog, type MapToken, type MapView,
 } from "../lib/maps.ts";
 
 type Info = (c: Combatant) => { name: string; size: number; out: boolean };
@@ -116,6 +117,7 @@ export function useEncounterMap(e: Encounter | undefined, info: Info) {
 type MapState = ReturnType<typeof useEncounterMap>;
 
 const TOOLS: { id: MapTool; label: string; icon: string; tip: string }[] = [
+  { id: "select", label: "Cursor", icon: "↖", tip: "Click a token to select it, and add text to it; drag the map to pan" },
   { id: "move", label: "Move", icon: "✋", tip: "Drag tokens; drag the map to pan" },
   { id: "reveal", label: "Reveal", icon: "☀", tip: "Uncover fog" },
   { id: "cover", label: "Cover", icon: "☁", tip: "Cover with fog" },
@@ -128,6 +130,8 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
   const session = useSession();
   const { em, maps, update, start } = st;
   const map = em?.mapId ? maps.find((m) => m.id === em.mapId) : undefined;
+  // the map editor needs a mouse (a computer); players can still open the map on a phone
+  const desktop = useMedia("(hover: hover) and (pointer: fine)");
   const [editing, setEditing] = useState<false | "new" | "edit">(false);
   const [uploading, setUploading] = useState(false);
   const file = useRef<HTMLInputElement>(null);
@@ -149,20 +153,28 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
     <button className="sbtn gold" disabled={uploading} onClick={() => file.current?.click()}>{uploading ? "Uploading…" : "Upload a map"}</button>
   </>;
   const url = useMapImage(map?.path);
-  const [tool, setTool] = useState<MapTool>("move");
+  const [tool, setTool] = useState<MapTool>("select");
   const [brush, setBrush] = useState<number | "box">(1);
   const [sel, setSel] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
   const [undo, setUndo] = useState<MapFog[]>([]);
   const [pings, addPing] = usePings();
   const me = colorOf(session.user?.id);
-  useFullWindow(!!(e.campaignId && em && map && !editing));
+  useFullWindow(!!(desktop && e.campaignId && em && map && !editing));
 
   useEffect(() => {
     if (!st.campaignId) return;
     return onMapChange(st.campaignId, (p) => { if (p.encounterId === e.id && p.ping) addPing(p.ping.px, p.ping.py, colorOf(p.ping.who)); });
   }, [st.campaignId, e.id, addPing]);
 
+  if (!desktop) {
+    return (
+      <div className="spanel stack">
+        <p className="note" style={{ margin: 0 }}>The map editor works on a computer with a mouse. Open this encounter there to upload a map, set its grid, place tokens and lift the fog.</p>
+        {em?.shown && map && <div><Link className="sbtn ghost" to={`/map/${e.id}`}>See what your players see</Link></div>}
+      </div>
+    );
+  }
   if (!e.campaignId) return <div className="spanel"><p className="note" style={{ margin: 0 }}>Put this encounter in a campaign (at the top of the page) to give it a map: the map is shown to that campaign’s players.</p></div>;
   if (em === undefined) return <div className="spanel"><p className="note" style={{ margin: 0 }}>Loading…</p></div>;
 
@@ -273,6 +285,10 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
             {selTok && (
               <div className="mfcard">
                 <div className="maprow"><b style={{ flex: 1 }}>{selTok.name}</b><button className="mtbtn" aria-label="Close" onClick={() => setSel(null)}>×</button></div>
+                <label className="mfield"><span>Text on the token</span>
+                  <input type="text" maxLength={NOTE_MAX} value={selTok.note || ""} placeholder="Blessed, Leader, Prone…" onChange={(ev) => setTok(selTok.uid, { note: ev.target.value || undefined })} />
+                </label>
+                {selTok.note && <label className="mchk"><input type="checkbox" checked={!!selTok.noteGm} onChange={(ev) => setTok(selTok.uid, { noteGm: ev.target.checked || undefined })} /> Only the GM sees the text</label>}
                 <label className="mchk"><input type="checkbox" checked={!!selTok.hidden} onChange={(ev) => setTok(selTok.uid, { hidden: ev.target.checked })} /> Hidden from players</label>
                 <div className="maprow">
                   <span>Size</span>
@@ -285,7 +301,7 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
               <div className="mfcard">
                 <div className="maprow"><b style={{ flex: 1 }}>Not on the map</b>{tray.length > 1 && <button className="mtbtn" onClick={placeAll}>Place all</button>}</div>
                 <div className="maptray">
-                  {tray.map((t) => <button key={t.uid} className={`mtray k-${t.kind} ${pick === t.uid ? "on" : ""}`} onClick={() => { setPick(pick === t.uid ? null : t.uid); setTool("move"); }} title="Pick, then click a square on the map">{t.name}</button>)}
+                  {tray.map((t) => <button key={t.uid} className={`mtray k-${t.kind} ${pick === t.uid ? "on" : ""}`} onClick={() => { setPick(pick === t.uid ? null : t.uid); if (tool !== "select") setTool("move"); }} title="Pick, then click a square on the map">{t.name}</button>)}
                 </div>
               </div>
             )}

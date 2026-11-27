@@ -375,6 +375,12 @@ label.radio input { margin-top: 3px; }
 .mapboard .mtok.drag { opacity: .85; }
 .mapboard .mtok.out { opacity: .5; }
 .mapboard .mtok.hid { opacity: .55; }
+.mapboard.tool-select { cursor: default; }
+.mapboard.tool-select .mtok { cursor: pointer; }
+.mapboard .mnote { font-weight: 600; }
+.mapboard .mnote.gm { fill: #d9c8ff; font-style: italic; }
+.mfcard .mfield { color: #c9bfb6; }
+.mfcard .mfield input { background: #2a2430; color: #f2eadf; border: 1px solid rgba(255, 255, 255, .18); border-radius: 8px; min-height: 34px; padding: 0 8px; }
 .mapboard .mlabel { fill: #fff8ea; stroke: #0b090d; paint-order: stroke; font-weight: 700; pointer-events: none; }
 .mapboard .mping { animation: mping 2.2s ease-out forwards; transform-box: fill-box; transform-origin: center; }
 @keyframes mping { 0% { opacity: 0; transform: scale(.4); } 12% { opacity: 1; transform: scale(1.15); } 25% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }

@@ -14,7 +14,9 @@ If you run your own instance, check the **Database** line of each version: when 
 - A map fills the whole window, for the GM on the Map tab and for players, with a slim bar of controls along the top (the GM's ← button goes back to the encounter). The GM's tray of tokens, fog brush and chosen token float over the map's corner.
 - The map sits on a dark grid that carries on its own squares, the same size and lined up with them. The map's buttons stay dark in both themes.
 - The campaign page no longer has an Encounters button.
-- **Database:** run [`0014_maps.sql`](supabase/migrations/0014_maps.sql).
+- The map editor (the GM's Map tab and grid editor) works on a computer with a mouse; on a phone or tablet it says so, and players can still open the map there.
+- A **cursor** tool (↖, the GM's first tool) picks a token without moving it. A chosen token's card has **Text on the token** ("Blessed", "Leader", "Prone"), shown under it on the map for everyone, or only for the GM with **Only the GM sees the text** (the database leaves it out of what players receive).
+- **Database:** run [`0014_maps.sql`](supabase/migrations/0014_maps.sql), then [`0015_token_notes.sql`](supabase/migrations/0015_token_notes.sql).
 - Light mode: pill buttons are readable again. The Characters page's Everyone and Mine, the Builder's choices and class tabs, and the Library and Format guide filters were drawn dark on dark, because a style meant for the encounter inventory editor applied to every pill button. The sheet's selected spell-level filter (All, 1st…), the Builder's current step number and the phone menu's count badge have light text or a light background against the gold.
 - On a character card, Player and Campaign are on separate lines.
 - On a campaign's page, each character's box shows the image behind its sheet, darkened on the left so its name, details and buttons read in both themes.

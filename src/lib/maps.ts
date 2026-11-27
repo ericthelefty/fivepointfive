@@ -59,7 +59,14 @@ export interface MapToken {
   hidden?: boolean;
   /** Out of the fight (dead, fled, gave up). */
   out?: boolean;
+  /** A line of text the GM put on the token ("Blessed", "Leader"). */
+  note?: string;
+  /** Only the GM sees the text (the database leaves it out for players). */
+  noteGm?: boolean;
 }
+
+/** The longest text a token carries. */
+export const NOTE_MAX = 40;
 
 export interface MapFog {
   on: boolean;
@@ -223,6 +230,7 @@ export function syncTokens(prev: MapToken[], combatants: Combatant[], info: (c: 
     if (c.kind === "pc" && c.ref) t.char = c.ref;
     if (o?.x != null && o.y != null) { t.x = o.x; t.y = o.y; }
     if (o?.hidden) t.hidden = true;
+    if (o?.note) { t.note = o.note; if (o.noteGm) t.noteGm = true; }
     if (i.out || c.out || c.surrendered) t.out = true;
     return t;
   });
