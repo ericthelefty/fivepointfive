@@ -15,6 +15,8 @@ import { useSession, type Campaign } from "../lib/session.tsx";
 import { useCharacters } from "../lib/characters.tsx";
 import { useContent } from "../lib/store.tsx";
 import { classInfos, classLabel } from "../lib/multiclass.ts";
+import { useCharacterBackdrop } from "../lib/backgrounds.ts";
+import type { CharRow } from "../lib/characters.tsx";
 
 type Run = (what: string, f: () => PromiseLike<{ error: { message: string } | null }>) => Promise<boolean>;
 
@@ -122,7 +124,6 @@ export function CampaignPage() {
   const { id } = useParams();
   const session = useSession();
   const chars = useCharacters();
-  const { byId } = useContent();
   const [msg, setMsg] = useState("");
   const run = useRun(setMsg);
   const [rename, setRename] = useState<string>();
@@ -217,28 +218,7 @@ export function CampaignPage() {
         <p className="faint" style={{ margin: 0 }}>These characters are in this campaign{gm ? "; hidden ones show to you as its GM" : ", except any their players have hidden"}.</p>
         {rows.length === 0 ? <p className="muted" style={{ margin: 0 }}>No characters in this campaign yet. A player can move one in from the Characters page.</p> : (
           <div className="memgrid">
-            {rows.map(({ c: ch, owner, hidden }) => {
-              const infos = classInfos(ch, byId);
-              const level = infos.reduce((n, i) => n + (i.level || 0), 0);
-              const subs = classLabel(infos, true);
-              return (
-                <div key={ch.id} className={`memcard ${hidden ? "charhidden" : ""}`}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: "var(--serif)", fontSize: 18, fontWeight: 600 }}>{ch.name || "Unnamed character"} {hidden && <span className="tag warn">Hidden</span>}</div>
-                    <div className="faint" style={{ fontSize: 13 }}>{[level ? `Level ${level}` : "", byId(ch.speciesId)?.name, subs].filter(Boolean).join(" · ") || "Not started"}</div>
-                    <div className="faint" style={{ fontSize: 13 }}>Player: {owner ? nameOf(owner) : "—"}</div>
-                    <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                      <Link className="btn small primary" to={`/sheet/${ch.id}`}>View</Link>
-                      {chars.canEdit(ch.id) && <Link className="btn small" to={`/build/${ch.id}`}>Edit</Link>}
-                      {gm && owner !== session.user?.id && (
-                        <button className="btn small" title="Take this character out of the campaign. It stays with its player, in no campaign."
-                          onClick={() => confirm(`Take ${ch.name || "this character"} out of ${c.name}? It stays with its player.`) && (admin ? chars.setCampaign(ch.id, null) : chars.removeFromCampaign(ch.id))}>Remove</button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {rows.map((r) => <CharBox key={r.c.id} row={r} campaignName={c.name} gm={gm} nameOf={nameOf} />)}
           </div>
         )}
       </section>
@@ -293,6 +273,34 @@ function PrivateNotes({ campaignId, setMsg }: { campaignId: string; setMsg: (m: 
         setText(t);
         return true;
       }} />
+  );
+}
+
+/** A character in the campaign, over the image behind its sheet (darkened so the text reads). */
+function CharBox({ row, campaignName, gm, nameOf }: { row: CharRow; campaignName: string; gm: boolean; nameOf: (uid: string) => string }) {
+  const session = useSession();
+  const chars = useCharacters();
+  const { byId } = useContent();
+  const { c: ch, owner, hidden } = row;
+  const backdrop = useCharacterBackdrop(ch, session.settings.hidden_backgrounds || []);
+  const infos = classInfos(ch, byId);
+  const level = infos.reduce((n, i) => n + (i.level || 0), 0);
+  return (
+    <div className={`memcard charbox ${hidden ? "charhidden" : ""} ${backdrop ? "hasbg" : ""}`} style={backdrop ? { backgroundImage: `url("${backdrop}")` } : undefined}>
+      <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+        <div style={{ fontFamily: "var(--serif)", fontSize: 18, fontWeight: 600 }}>{ch.name || "Unnamed character"} {hidden && <span className="tag warn">Hidden</span>}</div>
+        <div className="cbsub">{[level ? `Level ${level}` : "", byId(ch.speciesId)?.name, classLabel(infos, true)].filter(Boolean).join(" · ") || "Not started"}</div>
+        <div className="cbsub">Player: {owner ? nameOf(owner) : "—"}</div>
+        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+          <Link className="btn small primary" to={`/sheet/${ch.id}`}>View</Link>
+          {chars.canEdit(ch.id) && <Link className="btn small" to={`/build/${ch.id}`}>Edit</Link>}
+          {gm && owner !== session.user?.id && (
+            <button className="btn small" title="Take this character out of the campaign. It stays with its player, in no campaign."
+              onClick={() => confirm(`Take ${ch.name || "this character"} out of ${campaignName}? It stays with its player.`) && (session.isAdmin ? chars.setCampaign(ch.id, null) : chars.removeFromCampaign(ch.id))}>Remove</button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

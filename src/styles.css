@@ -351,3 +351,9 @@ label.radio input { margin-top: 3px; }
 .campnotes > :last-child { margin-bottom: 0; }
 .enccamp { display: inline-flex; gap: 6px; align-items: center; margin-top: 4px; }
 .enccamp select { font-size: 13px; padding: 2px 6px; max-width: 220px; }
+/* a character box on a campaign page, over the image behind that character's sheet */
+.memcard.charbox { position: relative; overflow: hidden; background-size: cover; background-position: center; min-height: 118px; }
+.memcard.charbox.hasbg::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(14, 11, 15, .88) 0%, rgba(14, 11, 15, .72) 55%, rgba(14, 11, 15, .45) 100%); }
+.memcard.charbox.hasbg { color: #f2eadf; border-color: rgba(255, 255, 255, .14); }
+.memcard.charbox .cbsub { font-size: 13px; color: var(--muted); }
+.memcard.charbox.hasbg .cbsub { color: rgba(242, 234, 223, .78); }

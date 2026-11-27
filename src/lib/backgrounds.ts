@@ -233,3 +233,18 @@ export async function listUploadedFiles(): Promise<StoredFile[]> {
   }));
   return lists.flat();
 }
+
+/**
+ * The image behind a character's sheet, for showing it elsewhere too (the campaign page's character boxes): its own
+ * upload, an image from the instance's library, or a built-in one (undefined if none, or while it loads).
+ */
+export function useCharacterBackdrop(c: { sheetBackground?: string; customBackground?: string } | undefined, hidden: string[] = []): string | undefined {
+  const list = useLibraryBackgrounds();
+  const custom = useStoredImage(c?.sheetBackground === CUSTOM_BACKGROUND ? c?.customBackground : undefined);
+  const lib = libraryBackground(c?.sheetBackground, list);
+  const libUrl = useStoredImage(lib ? `storage:${lib.path}` : undefined);
+  if (c?.sheetBackground === CUSTOM_BACKGROUND) return custom;
+  if (lib) return libUrl;
+  return sheetBackground(c?.sheetBackground, hidden)?.image;
+}
+
