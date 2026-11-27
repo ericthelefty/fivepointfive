@@ -60,7 +60,12 @@ export function GridEditor({ map, onSaved, onDelete, onClose, detectFirst }: {
     try {
       const f = await detectGrid(url, map.width, map.height);
       if (!f) { setMsg("Couldn’t find a printed grid on this map. Set the columns and rows yourself."); return; }
-      const next = normGrid({ ...grid, size: f.size, sizeY: f.sizeY, ox: f.ox, oy: f.oy, show: false });
+      // measuring is good to a pixel or so: a grid that starts a hair from the corner starts at it, and squares a hair
+      // from square are square
+      let size = f.size, sizeY = f.sizeY;
+      if (Math.abs(size - sizeY) / Math.max(size, sizeY) < 0.015) size = sizeY = Math.round(((size + sizeY) / 2) * 100) / 100;
+      const snap = (o: number, n: number) => { const m = ((o % n) + n) % n; return m < 2 || n - m < 2 ? 0 : m; };
+      const next = normGrid({ ...grid, size, sizeY, ox: snap(f.ox, size), oy: snap(f.oy, sizeY), show: false });
       setGrid(next); setSaved(false);
       const c = gridCount(next, map.width, map.height);
       setMsg(`Found a printed grid: ${c.cols} × ${c.rows} squares. Its lines aren’t drawn over (the map has its own); the blue lines show where the squares are while you edit. Nudge them if they’re off.`);
