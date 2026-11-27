@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { GridEditor } from "./Maps.tsx";
 import MapBoard, { type MapTool, type Ping } from "../components/MapBoard.tsx";
+import { MapIcon } from "../components/MapIcons.tsx";
 import { useSession } from "../lib/session.tsx";
 import { useMedia } from "../lib/useMedia.ts";
 import type { Combatant, Encounter } from "../lib/encounter.ts";
@@ -116,13 +117,13 @@ export function useEncounterMap(e: Encounter | undefined, info: Info) {
 
 type MapState = ReturnType<typeof useEncounterMap>;
 
-const TOOLS: { id: MapTool; label: string; icon: string; tip: string }[] = [
-  { id: "select", label: "Cursor", icon: "↖", tip: "Click a token to select it, and add text to it; drag the map to pan" },
-  { id: "move", label: "Move", icon: "✋", tip: "Drag tokens; drag the map to pan" },
-  { id: "reveal", label: "Reveal", icon: "☀", tip: "Uncover fog" },
-  { id: "cover", label: "Cover", icon: "☁", tip: "Cover with fog" },
-  { id: "measure", label: "Measure", icon: "📏", tip: "Drag from one square to another" },
-  { id: "ping", label: "Point", icon: "◎", tip: "Point at a spot for everyone" },
+const TOOLS: { id: MapTool; label: string; tip: string }[] = [
+  { id: "select", label: "Cursor", tip: "Click a token to select it, and add text to it; drag the map to pan" },
+  { id: "move", label: "Move", tip: "Drag tokens; drag the map to pan" },
+  { id: "reveal", label: "Reveal", tip: "Uncover fog" },
+  { id: "cover", label: "Cover", tip: "Cover with fog" },
+  { id: "measure", label: "Measure", tip: "Drag from one square to another" },
+  { id: "ping", label: "Point", tip: "Point at a spot for everyone" },
 ];
 
 /** The GM's Map tab. */
@@ -259,11 +260,11 @@ export function EncounterMapTab({ e, st, onExit }: { e: Encounter; st: MapState;
           onPing={(px, py) => { addPing(px, py, me); announceMap(st.campaignId, { encounterId: e.id, ping: { px, py, who: session.user?.id || "" } }); }} />
         <div className="maprail" role="toolbar" aria-label="Map tools">
           {TOOLS.filter((t) => em.fog.on || (t.id !== "reveal" && t.id !== "cover")).map((t) => (
-            <button key={t.id} className={`mrbtn ${tool === t.id ? "on" : ""}`} title={`${t.label}: ${t.tip}`} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}>{t.icon}</button>
+            <button key={t.id} className={`mrbtn ${tool === t.id ? "on" : ""}`} title={`${t.label}: ${t.tip}`} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><MapIcon name={t.id} /></button>
           ))}
           {em.fog.on && <>
             <hr />
-            <button className="mrbtn" title="Undo the last fog change" aria-label="Undo fog" disabled={!undo.length} onClick={() => { const last = undo[undo.length - 1]; setUndo((u) => u.slice(0, -1)); update((m) => ({ ...m, fog: last })); }}>↶</button>
+            <button className="mrbtn" title="Undo the last fog change" aria-label="Undo fog" disabled={!undo.length} onClick={() => { const last = undo[undo.length - 1]; setUndo((u) => u.slice(0, -1)); update((m) => ({ ...m, fog: last })); }}><MapIcon name="undo" /></button>
           </>}
         </div>
         {pick && <div className="maphint">Click a square to put {em.tokens.find((t) => t.uid === pick)?.name} there.</div>}
@@ -374,7 +375,7 @@ export function PlayerMap() {
           onPing={(px, py) => { addPing(px, py, me); announceMap(v.campaignId, { encounterId: v.encounterId, ping: { px, py, who: session.user?.id || "" } }); }} />
         <div className="maprail" role="toolbar" aria-label="Map tools">
           {TOOLS.filter((t) => t.id === "move" || t.id === "measure" || t.id === "ping").map((t) => (
-            <button key={t.id} className={`mrbtn ${tool === t.id ? "on" : ""}`} title={`${t.label}: ${t.id === "move" ? "Drag your token; drag the map to pan" : t.tip}`} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}>{t.icon}</button>
+            <button key={t.id} className={`mrbtn ${tool === t.id ? "on" : ""}`} title={`${t.label}: ${t.id === "move" ? "Drag your token; drag the map to pan" : t.tip}`} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)}><MapIcon name={t.id} /></button>
           ))}
         </div>
         {err && <div className="maphint bad">{err}</div>}

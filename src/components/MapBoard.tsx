@@ -4,6 +4,7 @@
  * fog, measure, or point at a spot for everyone.
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import { MapIcon } from "./MapIcons.tsx";
 import { brushCells, cellAt, cellKey, cellRect, clampCell, feetBetween, gridBounds, rectCells, sizeH, tokenLabel, type MapFog, type MapGrid, type MapToken } from "../lib/maps.ts";
 
 export type MapTool = "select" | "move" | "reveal" | "cover" | "measure" | "ping" | "align";
@@ -299,9 +300,9 @@ export default function MapBoard(p: Props) {
         </g>
       </svg>
       <div className="mapzoom" onPointerDown={(e) => e.stopPropagation()}>
-        <button className="mrbtn" aria-label="Zoom in" onClick={() => { const r = wrap.current!.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.25); }}>+</button>
-        <button className="mrbtn" aria-label="Zoom out" onClick={() => { const r = wrap.current!.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 0.8); }}>−</button>
-        <button className="mrbtn" aria-label="Fit the map" title="Fit the map" onClick={fit}>⤢</button>
+        <button className="mrbtn" aria-label="Zoom in" onClick={() => { const r = wrap.current!.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.25); }}><MapIcon name="plus" /></button>
+        <button className="mrbtn" aria-label="Zoom out" onClick={() => { const r = wrap.current!.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 0.8); }}><MapIcon name="minus" /></button>
+        <button className="mrbtn" aria-label="Fit the map" title="Fit the map" onClick={fit}><MapIcon name="fit" /></button>
       </div>
     </div>
   );
