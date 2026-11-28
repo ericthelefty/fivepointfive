@@ -512,7 +512,7 @@ body.mapopen { overflow: hidden; }
 .btn.danger:disabled { opacity: .45; cursor: default; }
 .ctoken.sm { width: 42px; height: 42px; font-size: 14px; border-width: 2px; }
 /* the characters in a campaign, as tokens on its card; each opens its sheet */
-.camptokens { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 100%; padding: 0 30px; }
+.camptokens { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line, #3a333d); }
 .camptokens a { border-radius: 50%; text-decoration: none; transition: transform .12s; }
 .camptokens a:hover { transform: translateY(-2px); }
 .camptokens a:hover .ctoken { border-color: var(--accent, #e3b25e); }

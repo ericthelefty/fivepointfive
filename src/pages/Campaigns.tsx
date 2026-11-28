@@ -111,13 +111,7 @@ function CampaignCard({ c, run }: { c: Campaign; run: Run }) {
         </button>
       )}
       {deleting && <DeleteCampaign c={c} onClose={() => setDeleting(false)} onDelete={() => { setDeleting(false); run("delete the campaign", () => db.from("campaigns").delete().eq("id", c.id)); }} />}
-      {campChars.length > 0
-        ? <div className="camptokens">{campChars.map((r) => (
-            <Link key={r.c.id} to={`/sheet/${r.c.id}`} title={`${r.c.name || "Unnamed"}: open their sheet`} aria-label={`${r.c.name || "Unnamed"}: open their sheet`}>
-              <CharToken name={r.c.name} stored={r.c.tokenImage} className="sm" />
-            </Link>
-          ))}</div>
-        : <div className="campfaces" aria-hidden="true">{inIt.slice(0, 6).map((m) => <span key={m.user_id} className="campface">{initials(session.nameOf(m.user_id))}</span>)}</div>}
+      <div className="campfaces" aria-hidden="true">{inIt.slice(0, 6).map((m) => <span key={m.user_id} className="campface">{initials(session.nameOf(m.user_id))}</span>)}</div>
       <h2>{c.name || "Unnamed campaign"}</h2>
       {started(c) && <div className="faint">Campaign started {started(c)}</div>}
       <div className="campcounts">
@@ -134,6 +128,13 @@ function CampaignCard({ c, run }: { c: Campaign; run: Run }) {
           ? <button className="linkish" onClick={() => session.setCampaignId(c.id)} title="Show this campaign’s characters and encounters on those pages">Show its characters</button>
           : <span className="faint" title="The Characters and Encounters pages show this campaign">Showing its characters</span>}</li>
       </ul>
+      {campChars.length > 0 && (
+        <div className="camptokens">{campChars.map((r) => (
+          <Link key={r.c.id} to={`/sheet/${r.c.id}`} title={`${r.c.name || "Unnamed"}: open their sheet`} aria-label={`${r.c.name || "Unnamed"}: open their sheet`}>
+            <CharToken name={r.c.name} stored={r.c.tokenImage} className="sm" />
+          </Link>
+        ))}</div>
+      )}
     </section>
   );
 }
