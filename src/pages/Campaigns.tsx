@@ -328,6 +328,9 @@ function CharBox({ row, campaignName, gm, nameOf }: { row: CharRow; campaignName
   const level = infos.reduce((n, i) => n + (i.level || 0), 0);
   return (
     <div className={`memcard charbox ${hidden ? "charhidden" : ""} ${backdrop ? "hasbg" : ""}`} style={backdrop ? { backgroundImage: `url("${backdrop}")` } : undefined}>
+      <Link to={`/sheet/${ch.id}`} className="cbtoken" title={`${ch.name || "Unnamed"}: open their sheet`} aria-label={`${ch.name || "Unnamed"}: open their sheet`}>
+        <CharToken name={ch.name} stored={ch.tokenImage} />
+      </Link>
       <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
         <div style={{ fontFamily: "var(--serif)", fontSize: 18, fontWeight: 600 }}>{ch.name || "Unnamed character"} {hidden && <span className="tag warn">Hidden</span>}</div>
         <div className="cbsub">{[level ? `Level ${level}` : "", byId(ch.speciesId)?.name, classLabel(infos, true)].filter(Boolean).join(" · ") || "Not started"}</div>

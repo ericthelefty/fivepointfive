@@ -517,3 +517,7 @@ body.mapopen { overflow: hidden; }
 .camptokens a:hover { transform: translateY(-2px); }
 .camptokens a:hover .ctoken { border-color: var(--accent, #e3b25e); }
 .campcard h2 { padding: 0 34px; } /* clear of the trash icon in the corner */
+/* a character's token on their box on the campaign page */
+.memcard.charbox .cbtoken { position: relative; align-self: center; border-radius: 50%; text-decoration: none; flex: 0 0 auto; }
+.memcard.charbox .cbtoken .ctoken { width: 64px; height: 64px; font-size: 20px; }
+.memcard.charbox.hasbg .cbtoken .ctoken.none { color: #f2eadf; background: rgba(14, 11, 15, .55); border-color: rgba(242, 234, 223, .45); }
