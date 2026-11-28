@@ -671,11 +671,12 @@ function AbilityStep({ c, update }: StepProps) {
    */
   const rollTotal = (d: number[]) => d.reduce((n, x) => n + x, 0) - Math.min(...d);
   const rolls = c.rolls?.length === 6 ? c.rolls : undefined;
+  // a new roll only records the six rolls: the player then chooses where each goes (abilities sit at 10 meanwhile)
   const rollScores = () => {
     const sets = ABILITIES.map(() => [die(6), die(6), die(6), die(6)]);
-    const rollPick = Object.fromEntries(ABILITIES.map((a, i) => [a, i]));
-    update({ method: "manual", rolls: sets, rollPick, base: Object.fromEntries(ABILITIES.map((a, i) => [a, rollTotal(sets[i])])) });
+    update({ method: "manual", rolls: sets, rollPick: {}, base: Object.fromEntries(ABILITIES.map((a) => [a, 10])) });
   };
+  const unpicked = c.method === "manual" && rolls ? ABILITIES.filter((a) => c.rollPick?.[a] == null) : [];
   const pickRoll = (a: string, i: number) => {
     if (!rolls) return;
     update({ rollPick: { ...(c.rollPick || {}), [a]: i }, base: { ...c.base, [a]: rollTotal(rolls[i]) } });
@@ -731,7 +732,7 @@ function AbilityStep({ c, update }: StepProps) {
           {c.method === "standard" && `Assign 15, 14, 13, 12, 10, 8.${cls && SUGGESTED[cls.name] ? ` Starts from the suggested ${cls.name} array.` : ""}`}
           {c.method === "pointbuy" && `27 points; scores 8–15. Used: ${pointBuyUsed(c.base)} / 27.`}
           {c.method === "manual" && (rolls
-            ? `Your rolls: ${rolls.map(rollTotal).join(", ")} (four d6, highest three kept, six times). Pick which roll each ability uses; use each once. Press Reroll to roll all six again.`
+            ? `Your rolls: ${rolls.map(rollTotal).join(", ")} (four d6, highest three kept, six times). ${unpicked.length ? `Choose which roll each ability uses (${unpicked.length} still to choose); use each once.` : "Use each once."} Press Reroll to roll all six again.`
             : "Press the dice to roll your scores: four d6, keep the highest three, six times. Then pick which roll each ability uses.")}
         </p>
         <div className="grid6" style={{ marginTop: 14 }}>
@@ -753,7 +754,10 @@ function AbilityStep({ c, update }: StepProps) {
               {c.method === "manual" && rolls && (
                 <select aria-label={`${a} score`} value={c.rollPick?.[a] ?? ""} onChange={(e) => pickRoll(a, +e.target.value)} style={{ marginTop: 6 }}>
                   {c.rollPick?.[a] == null && <option value="">—</option>}
-                  {rolls.map((d, i) => <option key={i} value={i}>{rollTotal(d)}{(rollUses.get(i) || 0) > 1 && c.rollPick?.[a] === i ? " (dup)" : ""}</option>)}
+                  {rolls.map((d, i) => {
+                    const by = ABILITIES.find((b) => b !== a && c.rollPick?.[b] === i);
+                    return <option key={i} value={i}>{rollTotal(d)}{by ? ` (${ABBR[by]})` : ""}{(rollUses.get(i) || 0) > 1 && c.rollPick?.[a] === i ? " (dup)" : ""}</option>;
+                  })}
                 </select>
               )}
               {c.method === "manual" && !rolls && (
@@ -764,8 +768,10 @@ function AbilityStep({ c, update }: StepProps) {
                 const d = rolls[c.rollPick[a]], low = d.indexOf(Math.min(...d));
                 return <div className="rolldice" title="The four d6 rolled; the lowest is dropped">{d.map((x, i) => <span key={i} className={i === low ? "rolldrop" : ""}>{x}</span>)}</div>;
               })()}
-              <div className="v">{finals[a]}</div>
-              <div className="m">{fmt(mod(finals[a]))}</div>
+              {unpicked.includes(a) ? <><div className="v faint">—</div><div className="m faint">pick a roll</div></> : <>
+                <div className="v">{finals[a]}</div>
+                <div className="m">{fmt(mod(finals[a]))}</div>
+              </>}
               {c.method === "pointbuy" && <div className="faint">cost {POINT_COST[c.base[a]]}</div>}
             </div>
           ))}
