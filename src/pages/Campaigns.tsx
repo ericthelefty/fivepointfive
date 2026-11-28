@@ -73,9 +73,9 @@ export default function Campaigns() {
       {msg && <div className="inset" role="status">{msg}</div>}
       {admin && (
         <form className="panel" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", padding: 14 }} onSubmit={(e) => { e.preventDefault(); create(); }}>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", flex: "1 1 260px" }}>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span className="muted">New campaign</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" style={{ flex: 1 }} />
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" maxLength={80} style={{ width: "min(320px, 60vw)" }} />
           </label>
           <button className="btn primary" disabled={!name.trim()}>Create campaign</button>
         </form>
@@ -90,6 +90,8 @@ export default function Campaigns() {
 
 function CampaignCard({ c, run }: { c: Campaign; run: Run }) {
   const session = useSession();
+  const chars = useCharacters();
+  const characters = chars.rows.filter((r) => r.campaignId === c.id).length;
   const db = supabase!;
   const inIt = session.campaignMembers.filter((m) => m.campaign_id === c.id);
   const me = inIt.find((m) => m.user_id === session.user?.id);
@@ -101,20 +103,23 @@ function CampaignCard({ c, run }: { c: Campaign; run: Run }) {
       <div className="campfaces" aria-hidden="true">{inIt.slice(0, 6).map((m) => <span key={m.user_id} className="campface">{initials(session.nameOf(m.user_id))}</span>)}</div>
       <h2>{c.name || "Unnamed campaign"}</h2>
       {started(c) && <div className="faint">Campaign started {started(c)}</div>}
-      <div className="campcount"><b>{players}</b><span>Player{players === 1 ? "" : "s"}</span></div>
+      <div className="campcounts">
+        <div className="campcount"><b>{characters}</b><span>Character{characters === 1 ? "" : "s"}</span></div>
+        <div className="campcount"><b>{players}</b><span>Player{players === 1 ? "" : "s"}</span></div>
+      </div>
       <div className="camprole">
         {role && <>Your role: <b>{role}</b></>}
         {gms.length > 0 && (me?.role !== "gm" || gms.length > 1) && <> · GM: {gms.map((g) => (g.user_id === session.user?.id ? "you" : session.nameOf(g.user_id))).join(", ")}</>}
       </div>
-      <div className="campbtns">
-        <Link className="btn small primary" to={`/campaigns/${c.id}`}>View campaign</Link>
-        {session.campaignId !== c.id
-          ? <button className="btn small" onClick={() => session.setCampaignId(c.id)} title="Show this campaign’s characters and encounters on those pages">Show its characters</button>
-          : <span className="tag ok" title="The Characters and Encounters pages show this campaign">Showing</span>}
-        {session.isAdmin && <button className="btn small" onClick={() => {
+      <ul className="camplinks">
+        <li><Link to={`/campaigns/${c.id}`}>View campaign</Link></li>
+        <li>{session.campaignId !== c.id
+          ? <button className="linkish" onClick={() => session.setCampaignId(c.id)} title="Show this campaign’s characters and encounters on those pages">Show its characters</button>
+          : <span className="faint" title="The Characters and Encounters pages show this campaign">Showing its characters</span>}</li>
+        {session.isAdmin && <li><button className="linkish danger" onClick={() => {
           if (confirm(`Delete the campaign ${c.name || ""}? Its encounters, loot and shared rolls go with it. Its characters stay with their players, in no campaign.`)) run("delete the campaign", () => db.from("campaigns").delete().eq("id", c.id));
-        }}>Delete</button>}
-      </div>
+        }}>Delete campaign</button></li>}
+      </ul>
     </section>
   );
 }
@@ -148,7 +153,7 @@ export function CampaignPage() {
       <div className="camphead">
         {rename !== undefined ? (
           <form style={{ display: "flex", gap: 6, flex: 1 }} onSubmit={(e) => { e.preventDefault(); const n = rename.trim(); setRename(undefined); if (n && n !== c.name) run("rename the campaign", () => db.from("campaigns").update({ name: n }).eq("id", c.id)); }}>
-            <input autoFocus value={rename} onChange={(e) => setRename(e.target.value)} aria-label="Campaign name" style={{ flex: 1 }} />
+            <input type="text" autoFocus value={rename} onChange={(e) => setRename(e.target.value)} aria-label="Campaign name" style={{ flex: 1 }} />
             <button className="btn small primary">Save</button>
             <button type="button" className="btn small" onClick={() => setRename(undefined)}>Cancel</button>
           </form>
