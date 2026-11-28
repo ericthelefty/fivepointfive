@@ -732,7 +732,7 @@ function AbilityStep({ c, update }: StepProps) {
           {c.method === "standard" && `Assign 15, 14, 13, 12, 10, 8.${cls && SUGGESTED[cls.name] ? ` Starts from the suggested ${cls.name} array.` : ""}`}
           {c.method === "pointbuy" && `27 points; scores 8–15. Used: ${pointBuyUsed(c.base)} / 27.`}
           {c.method === "manual" && (rolls
-            ? `Your rolls: ${rolls.map(rollTotal).join(", ")} (four d6, highest three kept, six times). ${unpicked.length ? `Choose which roll each ability uses (${unpicked.length} still to choose); use each once.` : "Use each once."} Press Reroll to roll all six again.`
+            ? <>Your rolls: <span className="rollnums">{rolls.map((d, i) => <b key={i}>{rollTotal(d)}</b>)}</span> (four d6, highest three kept, six times). {unpicked.length ? `Choose which roll each ability uses (${unpicked.length} still to choose); use each once.` : "Use each once."} Press Reroll to roll all six again.</>
             : "Press the dice to roll your scores: four d6, keep the highest three, six times. Then pick which roll each ability uses.")}
         </p>
         <div className="grid6" style={{ marginTop: 14 }}>
