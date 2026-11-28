@@ -4,7 +4,6 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { detectGrid } from "../lib/gridDetect.ts";
-import { Link } from "react-router-dom";
 import MapBoard, { type MapTool } from "../components/MapBoard.tsx";
 import { gridAcross, gridBounds, gridCount, gridDown, gridFromBox, liveMaps, sizeH, normGrid, onMapChange, saveMap, useMapImage, type CampaignMap, type MapGrid } from "../lib/maps.ts";
 
@@ -22,7 +21,7 @@ export function useLiveMaps(campaignId?: string | null) {
   return live;
 }
 
-/** "The GM is showing a map" links, on the Characters page. */
+/** "The GM is showing a map" links, on the Characters page and a character's sheet; each opens the map in a new tab. */
 export function LiveMapLinks({ campaignId, label }: { campaignId?: string | null; label?: string }) {
   const live = useLiveMaps(campaignId);
   if (!live.length) return null;
@@ -30,7 +29,8 @@ export function LiveMapLinks({ campaignId, label }: { campaignId?: string | null
     <div className="livemaps" role="status">
       <span className="livedot" aria-hidden="true" />
       <span>{label || "The GM is showing a map:"}</span>
-      {live.map((m) => <Link key={m.encounterId} className="btn small primary" to={`/map/${m.encounterId}`}>{m.title || "Map"}</Link>)}
+      {/* in a new tab, so players can go back and forth between their sheet and the map */}
+      {live.map((m) => <a key={m.encounterId} className="btn small primary" href={`/map/${m.encounterId}`} target="_blank" rel="noopener" title="Opens in a new tab">{m.title || "Map"} ↗</a>)}
     </div>
   );
 }

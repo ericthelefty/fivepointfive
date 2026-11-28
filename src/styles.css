@@ -522,3 +522,10 @@ body.mapopen { overflow: hidden; }
 .memcard.charbox .cbtoken { position: relative; align-self: center; border-radius: 50%; text-decoration: none; flex: 0 0 auto; }
 .memcard.charbox .cbtoken .ctoken { width: 64px; height: 64px; font-size: 20px; }
 .memcard.charbox.hasbg .cbtoken .ctoken.none { color: #f2eadf; background: rgba(14, 11, 15, .55); border-color: rgba(242, 234, 223, .45); }
+/* the builder's dice button for rolling ability scores, and the dice behind each rolled score */
+.rollscores { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px 0 8px; border-radius: 999px; border: 1px solid var(--accent, #e3b25e); background: transparent; color: var(--accent-ink, #f2cd85); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.rollscores:hover { background: var(--accent-bg, rgba(227, 178, 94, .14)); }
+.rollscores:active svg { transform: rotate(25deg); }
+.rolldice { display: flex; justify-content: center; gap: 3px; margin-top: 4px; font-size: 11px; color: var(--muted); }
+.rolldice span { min-width: 15px; border: 1px solid var(--line-3, #4a3f4d); border-radius: 4px; line-height: 15px; }
+.rolldice span.drop { opacity: .45; text-decoration: line-through; }

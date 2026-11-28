@@ -30,6 +30,7 @@ import { ScrollRow } from "../components/ScrollRow.tsx";
 import { NARROW, useMedia } from "../lib/useMedia.ts";
 import { CUSTOM_BACKGROUND, LIBRARY_PREFIX, SHEET_BACKGROUNDS, StoredThumb, libraryBackground, removeBackground, sheetBackground, uploadBackground, uploadToken, useLibraryBackgrounds, useStoredImage } from "../lib/backgrounds.ts";
 import { TokenMaker } from "../components/TokenMaker.tsx";
+import { LiveMapLinks } from "./Maps.tsx";
 import {
   advantageFor, computeModif, type ScrollUse, disadvantageFor, spellcastingOf, spellMinutes, spellPlan as basePlan, statusOf, treatRoll, weaponFits, weaponProficient,
   type ModifConvert, type ConvertSide, type WeaponInfo,
@@ -3687,6 +3688,7 @@ export default function Sheet() {
         </div>
       )}
       <div className="smain">
+        {cloud && sheetCampaign && <LiveMapLinks campaignId={sheetCampaign} label="The GM is showing a map. Open it:" />}
         {phoneTop}
         <section className="ident" {...bo("ident")}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
