@@ -604,7 +604,7 @@ export default function Sheet() {
   ];
   // Modif attack and damage bonuses: the item's own (+1 weapon), weapon kind (Archery), ability (Rage)
   function withBonuses(a: Attack, ranged: boolean): Attack {
-    const r = withFlatBonuses(a, ranged);
+    const r = { ...withFlatBonuses(a, ranged), ranged };
     // damage that every hit adds by itself (Radiant Strikes, a Flame Tongue's fire): rolled with the attack's damage
     const unarmed = /^unarmed strike/i.test(a.name);
     const always = fx.triggers.filter((t) => t.onHit && t.damage?.length && (t.onHit.itemId ? t.onHit.itemId === a.itemId : ranged ? t.onHit.ranged : unarmed ? t.onHit.unarmed : t.onHit.melee));
@@ -1099,6 +1099,40 @@ export default function Sheet() {
   const dmgMods = (a: Attack, versatile: boolean) => ({
     minDie: a.dieFloor && (!a.dieFloor.twoHands || versatile) ? a.dieFloor.min : undefined, floorSource: a.dieFloor?.source, maximize: a.maximize,
   });
+  /** Roll an "on a hit" extra's damage: spend its use, double its dice for a Critical Hit you just scored, and log it. */
+  const rollRider = (t: (typeof fx.triggers)[number]) => {
+    const { res, left, ok } = costInfo(t.cost);
+    if (t.cost && !ok) { log({ title: t.name, total: "", cls: "info", detail: esc(whyNot(t.cost, t.name) || "No uses left.") }); return; }
+    const expr = (t.damage || []).map((x) => x.dice).filter(Boolean).join("+");
+    if (!expr) return;
+    const crit = takeCrit(`rider:${t.key}`);
+    const r = roll(expr, { doubleDice: crit });
+    if (!r) return;
+    if (t.cost) setPlay((cur) => pay(t.cost, cur));
+    const type = t.damage![0].type;
+    log({ title: `${t.name} damage`, total: String(r.total), cls: "dmg", detail: `${eqOf(r)}${esc(describeRolled(r))}${type && type !== "weapon" ? ` · ${esc(type)}` : " · the weapon’s damage type"}${res && t.cost ? `<div>${left - t.cost.amount} of ${res.max} ${esc(res.name)} left</div>` : ""}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}` });
+  };
+  /**
+   * What an attack's Game Log entry offers to add if it hits: your "on a hit" extra damage that fits the attack and
+   * still has a use left (Dreadful Strike, Sneak Attack, Divine Strike), and smite spells you can cast now (Divine Smite).
+   */
+  const hitExtras = (a: Attack): CardAction[] => {
+    const unarmed = /^unarmed strike/i.test(a.name);
+    const fits = (sc?: { melee?: boolean; ranged?: boolean; unarmed?: boolean; itemId?: string }) => !!sc && (sc.itemId ? sc.itemId === a.itemId : a.ranged ? !!sc.ranged : unarmed ? !!sc.unarmed : !!sc.melee);
+    const riders = fx.triggers.filter((t) => t.damage?.length && !t.auto && !t.reaction && fits(t.hitScope) && !/^dice\(cost\./.test(t.damage[0].dice.replace(/\s+/g, "")) && costInfo(t.cost).ok);
+    const out: CardAction[] = riders.map((t) => {
+      const dice = t.damage!.map((x) => `${x.dice}${x.type && x.type !== "weapon" ? ` ${x.type}` : ""}`).join(" + ");
+      return { label: `${t.name} (+${dice})`, run: () => rollRider(t) };
+    });
+    // smites follow a melee weapon hit or an Unarmed Strike (Divine Smite, Searing Smite), never a ranged attack
+    if (!a.ranged && content.loaded.has("spells")) {
+      for (const r0 of spellRows().filter((x) => isSmite(x.sp))) {
+        const st = rowCastState(r0);
+        if (st.ok && !out.some((x) => x.label.startsWith(`Cast ${r0.sp.name}`))) out.push({ label: `Cast ${r0.sp.name}${st.label === "Free" ? " (free)" : ""}`, run: () => castRow(r0) });
+      }
+    }
+    return out;
+  };
   /** The attack roll, which is the same however the weapon is held; its card offers the damage one- and two-handed. */
   const attack = (a: Attack) => {
     const cm = conditionMods(p, { kind: "attack" });
@@ -1124,6 +1158,8 @@ export default function Sheet() {
       [
         { label: crit ? `Roll crit damage (${a.damage})` : `Roll damage (${a.damage})`, run: () => rollDamage(a.name, a.damage, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, false)) },
         ...(a.versatile ? [{ label: crit ? `Crit, two hands (${a.versatile})` : `Two hands (${a.versatile})`, run: () => rollDamage(`${a.name} (two hands)`, a.versatile!, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, true)) }] : []),
+        // what you can add when it hits: extra damage from your features (Dreadful Strike) and smite spells
+        ...(r.fumble ? [] : hitExtras(a)),
       ],
     );
     if (crit) setCritFor({ name: a.name, versatile: false });
@@ -1771,9 +1807,11 @@ export default function Sheet() {
                 const extra = t.damage!.slice(1).map((x) => x.dice).join("+");
                 const expr = [dice, extra].filter(Boolean).join("+");
                 if (expr) {
+                  if (!perUnit && t.cost && !costInfo(t.cost).ok) { log({ title: t.name, total: "", cls: "info", detail: esc(whyNot(t.cost, t.name) || "No uses left.") }); return; }
                   const crit = takeCrit(`rider:${t.key}`);
                   const r = roll(expr, { doubleDice: crit });
                   if (perUnit && payRes && payN) setPlay((cur) => ({ resUsed: { ...cur.resUsed, [payRes.key]: Math.min(payRes.max, (cur.resUsed[payRes.key] || 0) + payN) } }));
+                  else if (r && t.cost) setPlay((cur) => pay(t.cost, cur));
                   if (r) log({ title: `${t.name} damage`, total: String(r.total), cls: "dmg", detail: `${eqOf(r)}${esc(describeRolled(r))}${main.type && main.type !== "weapon" ? ` · ${esc(main.type)}` : " · the weapon’s damage type"}${spent ? `<div>Traded ${spent}d${dm?.[2]} for the effects below.</div>` : ""}${lines}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}` });
                 } else log({ title: t.name, total: "", cls: "event", detail: `All its dice traded for effects.${lines}` });
                 setRiderPick((m) => ({ ...m, [t.key]: [] }));

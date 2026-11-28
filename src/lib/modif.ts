@@ -539,6 +539,8 @@ export interface ModifTrigger {
   damage?: { dice: string; type: string }[];
   /** For a hit that always adds damage (Radiant Strikes): which attacks it adds to. Left out when it isn't that simple. */
   onHit?: { melee?: boolean; ranged?: boolean; unarmed?: boolean; itemId?: string };
+  /** Which attacks an "on a hit" option can follow, automatic or not (for offering it after an attack roll). */
+  hitScope?: { melee?: boolean; ranged?: boolean; unarmed?: boolean; itemId?: string };
   /** Effects to pick from when it happens, up to `pick` of them (Cunning Strike, Brutal Strike). */
   options?: { id: string; label: string; diceCost?: number; save?: string; text: string }[];
   pick?: number;
@@ -2510,6 +2512,7 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         text: offerText(v.offer, env) || shortText(), cost: costOf(v.offer?.cost ?? v.cost, a) ?? perRest(v, a, fname), auto: !!v.auto, reaction: !!v.reaction,
         ...triggerRiders(v, env),
         onHit: autoHitScope(ev, v, a.item?.id),
+        hitScope: hitScopeOf(ev, v, a.item?.id),
       });
       return true;
     }
@@ -2777,6 +2780,19 @@ function autoHitScope(ev: Val, v: Val, itemId?: string): ModifTrigger["onHit"] {
   if (sc === '{"weapon":{}}') return { melee: true, ranged: true }; // any weapon (Divine Favor)
   const out = { melee: /"kind":"melee"/.test(sc), ranged: /"kind":"ranged"/.test(sc), unarmed: /"unarmed":true/.test(sc) };
   return out.melee || out.ranged || out.unarmed ? out : undefined;
+}
+
+/** Which attacks any "on a hit" option can follow (Dreadful Strike: weapons; Divine Strike: weapons; Sneak Attack:
+ *  Finesse or ranged weapons, read here as any weapon). Spell-only options and other events have none. */
+function hitScopeOf(ev: Val, v: Val, itemId?: string): ModifTrigger["hitScope"] {
+  if (ev !== "hit") return undefined;
+  const sc = JSON.stringify(v.scope ?? {});
+  if (/"id":"self"/.test(sc)) return itemId ? { itemId } : undefined;
+  if (/"spell"/.test(sc) && !/"weapon"/.test(sc)) return undefined;
+  if (sc === "{}") return { melee: true, ranged: true, unarmed: true };
+  const out = { melee: /"kind":"melee"/.test(sc), ranged: /"kind":"ranged"/.test(sc), unarmed: /"unarmed":true/.test(sc) };
+  // a weapon of any kind (or a finesse one, or only against some targets: the player knows when it applies)
+  return out.melee || out.ranged || out.unarmed ? out : { melee: true, ranged: true };
 }
 
 /** An action's area as the rules write it: { shape: cone, size: 15 } → "15-ft. Cone"; a line's width is added. */

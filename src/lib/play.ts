@@ -213,6 +213,8 @@ export interface Attack {
   ability?: string;
   /** The inventory item it comes from (for that item's own bonuses). */
   itemId?: string;
+  /** A ranged attack (for "on a hit" options that only follow melee or ranged attacks). */
+  ranged?: boolean;
   toHit: number;
   damage: string; // dice expression including modifier
   type: string;
