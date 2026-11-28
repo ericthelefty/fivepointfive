@@ -664,21 +664,28 @@ function AbilityStep({ c, update }: StepProps) {
   const finals = mf.scores;
   const breakdown = scoreBreakdown(c, mf.scoreSteps, bg?.name);
 
-  // the dice behind each rolled score (this visit only), to show how it came out
-  const [rolled, setRolled] = useState<Record<string, number[]>>({});
   /**
-   * Random generation (SRD 5.2.1): roll four d6s and keep the highest three, six times, in order from Strength to
-   * Charisma; the player types over any score to swap them. Pressing again rolls all six again.
+   * Rolled scores (SRD 5.2.1 random generation): roll four d6s and keep the highest three, six times. The six rolls are
+   * kept with the character, and the player picks which roll each ability uses (each one once). Pressing again rolls
+   * all six again.
    */
+  const rollTotal = (d: number[]) => d.reduce((n, x) => n + x, 0) - Math.min(...d);
+  const rolls = c.rolls?.length === 6 ? c.rolls : undefined;
   const rollScores = () => {
-    const total = (d: number[]) => d.reduce((n, x) => n + x, 0) - Math.min(...d);
-    const base: Record<string, number> = {}, dice: Record<string, number[]> = {};
-    for (const a of ABILITIES) { const d = [die(6), die(6), die(6), die(6)]; base[a] = total(d); dice[a] = d; }
-    setRolled(dice);
-    update({ method: "manual", base: { ...c.base, ...base } });
+    const sets = ABILITIES.map(() => [die(6), die(6), die(6), die(6)]);
+    const rollPick = Object.fromEntries(ABILITIES.map((a, i) => [a, i]));
+    update({ method: "manual", rolls: sets, rollPick, base: Object.fromEntries(ABILITIES.map((a, i) => [a, rollTotal(sets[i])])) });
   };
+  const pickRoll = (a: string, i: number) => {
+    if (!rolls) return;
+    update({ rollPick: { ...(c.rollPick || {}), [a]: i }, base: { ...c.base, [a]: rollTotal(rolls[i]) } });
+  };
+  const rollUses = new Map<number, number>();
+  if (c.method === "manual" && rolls) for (const a of ABILITIES) { const i = c.rollPick?.[a]; if (i != null) rollUses.set(i, (rollUses.get(i) || 0) + 1); }
   const setMethod = (method: Character["method"]) => {
-    const base = Object.fromEntries(ABILITIES.map((a, i) => [a, method === "standard" ? (SUGGESTED[cls?.name || ""] || STANDARD_ARRAY)[i] : method === "pointbuy" ? 8 : c.base[a] ?? 10]));
+    // back to Rolled: the rolls the player picked
+    const picked = (a: string) => (rolls && c.rollPick?.[a] != null ? rollTotal(rolls[c.rollPick[a]]) : undefined);
+    const base = Object.fromEntries(ABILITIES.map((a, i) => [a, method === "standard" ? (SUGGESTED[cls?.name || ""] || STANDARD_ARRAY)[i] : method === "pointbuy" ? 8 : picked(a) ?? c.base[a] ?? 10]));
     update({ method, base });
   };
   const used = new Map<number, number>();
@@ -706,26 +713,26 @@ function AbilityStep({ c, update }: StepProps) {
           <div role="group" aria-label="Method" style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             {(["standard", "pointbuy", "manual"] as const).map((m) => (
               <button key={m} className="pill" aria-pressed={c.method === m} onClick={() => setMethod(m)}>
-                {{ standard: "Standard Array", pointbuy: "Point Cost", manual: "Random / manual" }[m]}
+                {{ standard: "Standard Array", pointbuy: "Point Cost", manual: "Rolled" }[m]}
               </button>
             ))}
-            <button className="rollscores" onClick={rollScores} title={Object.keys(rolled).length ? "Roll all six scores again" : "Roll your scores: four d6, keep the highest three, six times"} aria-label={Object.keys(rolled).length ? "Roll all six scores again" : "Roll the ability scores"}>
+            <button className="rollscores" onClick={rollScores} title={rolls ? "Roll all six scores again" : "Roll your scores: four d6, keep the highest three, six times"} aria-label={rolls ? "Roll all six scores again" : "Roll the ability scores"}>
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
                 <rect x="3.5" y="3.5" width="17" height="17" rx="3.5" />
                 <circle cx="8.3" cy="8.3" r="1.35" fill="currentColor" stroke="none" /><circle cx="15.7" cy="8.3" r="1.35" fill="currentColor" stroke="none" />
                 <circle cx="12" cy="12" r="1.35" fill="currentColor" stroke="none" />
                 <circle cx="8.3" cy="15.7" r="1.35" fill="currentColor" stroke="none" /><circle cx="15.7" cy="15.7" r="1.35" fill="currentColor" stroke="none" />
               </svg>
-              <span>{Object.keys(rolled).length ? "Reroll" : "Roll"}</span>
+              <span>{rolls ? "Reroll" : "Roll"}</span>
             </button>
           </div>
         </div>
         <p className="faint" style={{ margin: "8px 0 0" }}>
           {c.method === "standard" && `Assign 15, 14, 13, 12, 10, 8.${cls && SUGGESTED[cls.name] ? ` Starts from the suggested ${cls.name} array.` : ""}`}
           {c.method === "pointbuy" && `27 points; scores 8–15. Used: ${pointBuyUsed(c.base)} / 27.`}
-          {c.method === "manual" && (Object.keys(rolled).length
-            ? "Rolled: four d6, highest three kept, six times. Type over any score to put them where you want, or roll again."
-            : "Roll four d6 and keep the highest three, six times (or press the dice), then type your results.")}
+          {c.method === "manual" && (rolls
+            ? `Your rolls: ${rolls.map(rollTotal).join(", ")} (four d6, highest three kept, six times). Pick which roll each ability uses; use each once. Press Reroll to roll all six again.`
+            : "Press the dice to roll your scores: four d6, keep the highest three, six times. Then pick which roll each ability uses.")}
         </p>
         <div className="grid6" style={{ marginTop: 14 }}>
           {ABILITIES.map((a) => (
@@ -743,11 +750,18 @@ function AbilityStep({ c, update }: StepProps) {
                   <button className="btn small" aria-label={`Raise ${a}`} disabled={c.base[a] >= 15 || pointBuyUsed({ ...c.base, [a]: c.base[a] + 1 }) > 27} onClick={() => update({ base: { ...c.base, [a]: c.base[a] + 1 } })}>+</button>
                 </div>
               )}
-              {c.method === "manual" && (
-                <input type="number" min={3} max={20} aria-label={`${a} score`} value={c.base[a]} onChange={(e) => { setRolled((r) => { const { [a]: _gone, ...rest } = r; return rest; }); update({ base: { ...c.base, [a]: Math.max(1, Math.min(20, +e.target.value || 0)) } }); }} style={{ width: 70, marginTop: 6 }} />
+              {c.method === "manual" && rolls && (
+                <select aria-label={`${a} score`} value={c.rollPick?.[a] ?? ""} onChange={(e) => pickRoll(a, +e.target.value)} style={{ marginTop: 6 }}>
+                  {c.rollPick?.[a] == null && <option value="">—</option>}
+                  {rolls.map((d, i) => <option key={i} value={i}>{rollTotal(d)}{(rollUses.get(i) || 0) > 1 && c.rollPick?.[a] === i ? " (dup)" : ""}</option>)}
+                </select>
               )}
-              {c.method === "manual" && rolled[a] && (() => {
-                const d = rolled[a], low = d.indexOf(Math.min(...d));
+              {c.method === "manual" && !rolls && (
+                // scores from before rolling here (or imported): typed in, until the player rolls
+                <input type="number" min={3} max={20} aria-label={`${a} score`} value={c.base[a]} onChange={(e) => update({ base: { ...c.base, [a]: Math.max(1, Math.min(20, +e.target.value || 0)) } })} style={{ width: 70, marginTop: 6 }} />
+              )}
+              {c.method === "manual" && rolls && c.rollPick?.[a] != null && (() => {
+                const d = rolls[c.rollPick[a]], low = d.indexOf(Math.min(...d));
                 return <div className="rolldice" title="The four d6 rolled; the lowest is dropped">{d.map((x, i) => <span key={i} className={i === low ? "rolldrop" : ""}>{x}</span>)}</div>;
               })()}
               <div className="v">{finals[a]}</div>
@@ -757,6 +771,7 @@ function AbilityStep({ c, update }: StepProps) {
           ))}
         </div>
         {c.method === "standard" && [...used.values()].some((n) => n > 1) && <p className="faint" style={{ color: "var(--warn)" }}>Each value in the array should be used once.</p>}
+        {c.method === "manual" && rolls && [...rollUses.values()].some((n) => n > 1) && <p className="faint" style={{ color: "var(--warn)" }}>Each roll should be used once.</p>}
         <p className="faint" style={{ marginBottom: 0 }}>Totals include your background increase and any feats below.</p>
         <details className="scorecalc">
           <summary>Score calculations</summary>

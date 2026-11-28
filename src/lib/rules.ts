@@ -32,6 +32,10 @@ export interface Character {
   speciesChoice?: string;
   backgroundId?: string;
   method: "standard" | "pointbuy" | "manual";
+  /** Rolled scores ("manual" method): the four d6 of each of the six rolls (the lowest is dropped). */
+  rolls?: number[][];
+  /** Which roll (its index in `rolls`) each ability uses. */
+  rollPick?: Record<string, number>;
   base: Scores;
   bonusMode: "2-1" | "1-1-1";
   bonus: Scores;
