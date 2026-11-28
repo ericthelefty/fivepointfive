@@ -6,7 +6,7 @@ import type { Item } from "./inventory.ts";
 import { armorTable, classTable, derive, newCharacter, traits, intro, type Character } from "./rules.ts";
 import { classInfos } from "./multiclass.ts";
 import { CUSTOM_HANDLERS } from "./custom/index.ts";
-import { advantageFor, computeModif, weaponFits, weaponProficient, setSlotFeat, spellPlan, type ModifCtx, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
+import { advantageFor, combineSenses, computeModif, weaponFits, weaponProficient, setSlotFeat, spellPlan, type ModifCtx, evalAmount, evalNumber, readBlocks, treatRoll, type Env, type ModifResult } from "./modif.ts";
 
 const SRD = join(__dirname, "../../content/srd-5.2.1");
 const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : f.endsWith(".md") ? [join(d, f)] : []));
@@ -629,5 +629,27 @@ describe("the Modif cookbook", () => {
       expect(r.problems, y).toEqual([]);
       expect(r.blocks.length, y).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("senses from several sources", () => {
+  const grant = (type: string, range: number, from: string) => ({ type, range, source: from, from });
+  it("the longest range wins, and sources with it are listed", () => {
+    expect(combineSenses([grant("darkvision", 60, "Elf"), grant("darkvision", 120, "Robe of Eyes"), grant("truesight", 120, "Robe of Eyes")]))
+      .toEqual([{ text: "Darkvision 120 ft", source: "Robe of Eyes" }, { text: "Truesight 120 ft", source: "Robe of Eyes" }]);
+  });
+  it("Umbral Sight adds 60 ft only when something else already grants Darkvision", () => {
+    const umbral = [grant("darkvision", 60, "Umbral Sight"), { ...grant("darkvision", 60, "Umbral Sight"), bonus: true, ifHas: true }];
+    expect(combineSenses(umbral)).toEqual([{ text: "Darkvision 60 ft", source: "Umbral Sight" }]);
+    expect(combineSenses([grant("darkvision", 60, "Wood Elf"), ...umbral])).toEqual([{ text: "Darkvision 120 ft", source: "Wood Elf, Umbral Sight" }]);
+  });
+  it("Goggles of Night's or-add stacks on a species' Darkvision", () => {
+    const c = champion(1, { speciesId: "srd:species/elf" });
+    const goggles = byId("srd:magic-item/goggles-of-night")!;
+    const before = sheet(c).fx.senses.find((x) => /Darkvision/.test(x.text));
+    expect(before?.text).toBe("Darkvision 60 ft");
+    const it = { id: "g1", ref: goggles.id, name: goggles.name, kind: "magic", qty: 1, equipped: true } as Item;
+    const after = sheet({ ...c, inventory: [it] }, { items: [{ item: it, entry: goggles, active: true }] }).fx.senses.find((x) => /Darkvision/.test(x.text));
+    expect(after?.text).toBe("Darkvision 120 ft");
   });
 });

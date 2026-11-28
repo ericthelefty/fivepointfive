@@ -585,6 +585,8 @@ export interface ModifResult {
   toolSources: Record<string, string[]>;
   /** Senses from features, species and items, in words, with where each comes from. */
   senses: { text: string; source: string }[];
+  /** Sense ranges and bonuses to them, combined into `senses` once every feature is read. */
+  senseParts: { type: string; range: number; source: string; from: string; bonus?: boolean; ifHas?: boolean }[];
   /** Languages from features, species and items (origin languages are the character's own picks). */
   languages: { name: string; source: string }[];
   masteries: string[];
@@ -735,7 +737,7 @@ export function weaponFits(scope: Val, w: WeaponInfo, itemId?: string): boolean 
 
 export function emptyResult(): ModifResult {
   return {
-    encoded: new Set(), saves: new Set(), skills: new Set(), weapons: new Set(), armor: new Set(), tools: new Set(), toolSources: {}, senses: [], languages: [],
+    encoded: new Set(), saves: new Set(), skills: new Set(), weapons: new Set(), armor: new Set(), tools: new Set(), toolSources: {}, senses: [], senseParts: [], languages: [],
     masteries: [], defenses: [], feats: [], featPicks: [], scores: {}, scoreSteps: [], resources: [], actions: [], summons: [], summonOptions: [], toggles: [], triggers: [],
     activeSpells: [], grantedSpells: [], notes: [], expertise: new Set(), weaponFilters: [], acBonuses: [], acBases: [], bonuses: [], attackBonuses: [], damageBonuses: [], spellDamageBonuses: [], bookSpells: [],
     advantages: [], disadvantages: [], critRange: 20, attacksPerAction: 1, treatRolls: [], weaponRules: [], rollFloors: [], skillAbilities: [], converts: [], rollNotes: [], onLongRest: [], reminders: [], carrySize: 0, pending: [],
@@ -1200,6 +1202,7 @@ function runModif(ctx: ModifCtx, scores: Record<string, number>, prereqScores: R
       targetEffects: targetEffects && !selfRange, onSelf,
     });
   }
+  r.senses.unshift(...combineSenses(r.senseParts));
   // a feat you can take only once isn't offered again in another slot
   for (const p of r.pending) {
     if (p.level === undefined || !p.options) continue;
@@ -1767,6 +1770,26 @@ function offerText(o: Val, env?: Env): string {
 }
 
 /** One block in words, for the active effects list and reminders. Never throws: content can be anything. */
+/** One line per sense: the longest range anything grants, plus bonuses (some only when another source already grants that sense). */
+export function combineSenses(parts: ModifResult["senseParts"]): { text: string; source: string }[] {
+  const out: { text: string; source: string }[] = [];
+  for (const type of [...new Set(parts.map((p) => p.type))]) {
+    const base = parts.filter((p) => p.type === type && !p.bonus);
+    if (!base.length) continue;
+    let range = Math.max(...base.map((p) => p.range));
+    const sources = [...new Set(base.filter((p) => p.range === range).map((p) => p.source))];
+    for (const p of parts) {
+      if (p.type !== type || !p.bonus) continue;
+      // "if you already had it": another feature or item has to grant the sense too
+      if (p.ifHas && !base.some((g) => g.from !== p.from)) continue;
+      range += p.range;
+      if (!sources.includes(p.source)) sources.push(p.source);
+    }
+    out.push({ text: `${type === "devils-sight" ? "See in magical and nonmagical darkness" : titleCase(type)} ${range} ft`, source: sources.join(", ") });
+  }
+  return out;
+}
+
 export function describeBlock(b: Block, env?: Env): string {
   try {
     return describeInner(b, env);
@@ -2528,7 +2551,16 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         text: describeBlock(b, env), auto: false });
       return true;
     case "sense":
-      if (!(v && typeof v === "object" && v.when && whenEval(v.when, a) === false)) r.senses.push({ text: describeBlock(b, env), source: src });
+      if (!(v && typeof v === "object" && v.when && whenEval(v.when, a) === false)) {
+        const from = a.item ? `item:${a.item.id}` : e.id;
+        const keys = v && typeof v === "object" && !Array.isArray(v) ? Object.keys(v).filter((k) => k !== "when" && k !== "or-add") : [];
+        // plain ranges (Darkvision 60) are combined with other sources at the end; anything else stays as words
+        if (keys.length && keys.every((k) => typeof v[k] === "number") && (!v.when || whenEval(v.when, a) === true)) {
+          for (const k of keys) r.senseParts.push({ type: k, range: v[k], source: src, from });
+          // Goggles of Night: "or, if you already have it, its range increases by 60 ft"
+          if (typeof v["or-add"] === "number" && keys.length === 1) r.senseParts.push({ type: keys[0], range: v["or-add"], source: src, from, bonus: true, ifHas: true });
+        } else r.senses.push({ text: describeBlock(b, env), source: src });
+      }
       return note(describeBlock(b, env));
     case "language":
       for (const x of ([] as Val[]).concat(v)) if (typeof x === "string") r.languages.push({ name: titleCase(x.replace(/-/g, " ")).replace(/\bCant\b/, "Cant").replace(/^Thieves Cant$/, "Thieves’ Cant"), source: src });
@@ -2565,6 +2597,15 @@ function applyBlock(b: Block, a: ApplyCtx): boolean {
         if (whenKeys.every((k) => k === "armor" || k === "shield")) {
           const armor = when.armor === "none" ? undefined : when.armor ? [].concat(when.armor) : undefined;
           r.acBonuses.push({ value, armor, unarmored: when.armor === "none", noShield: when.shield === false, source: src });
+          return true;
+        }
+      }
+      // a bonus to a sense you already have from somewhere else (Umbral Sight: Darkvision +60 ft)
+      if (targets.length === 1 && targets[0].startsWith("sense:") && !v.scope) {
+        const type = targets[0].slice(6);
+        const onlyIfHas = whenKeys.length === 1 && (when["has-sense"] === type || (typeof when.player === "string" && new RegExp(`already ha(?:d|ve)\\s+(?:a\\s+)?${type}`, "i").test(when.player)));
+        if (onlyIfHas || !whenKeys.length) {
+          r.senseParts.push({ type, range: value, source: src, from: a.item ? `item:${a.item.id}` : e.id, bonus: true, ifHas: onlyIfHas || undefined });
           return true;
         }
       }

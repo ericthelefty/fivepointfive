@@ -25,7 +25,7 @@ import {
 } from "../lib/encounter.ts";
 import { StatBlock, type Roller } from "../components/StatBlock.tsx";
 import { EncounterMapTab, useEncounterMap } from "./EncounterMap.tsx";
-import { sizeSquares } from "../lib/maps.ts";
+import { carryMap, sizeSquares } from "../lib/maps.ts";
 
 const fmt = (n: number) => (n >= 0 ? `+${n}` : `−${-n}`);
 
@@ -83,7 +83,8 @@ function EncounterCampaign({ e, compact }: { e: Encounter; compact?: boolean }) 
           const to = x.target.value || null;
           const pcs = e.combatants.filter((c) => c.kind === "pc").length;
           if (pcs && !confirm(`Move ${e.name || "this encounter"} to ${to ? session.campaignName(to) : "no campaign"}? Its ${pcs} character${pcs > 1 ? "s stay" : " stays"} in the fight, but only that campaign’s characters can be added from now on.`)) return;
-          enc.setCampaign(e.id, to);
+          // its map comes along: copied into the new campaign's library so that campaign's players can see it
+          enc.setCampaign(e.id, to).then((ok) => { if (ok && to) carryMap(e.id, to).catch(() => {}); });
         }}>
         {e.campaignId && !choices.some((c) => c.id === e.campaignId) && <option value={e.campaignId}>{current}</option>}
         {choices.map((c) => <option key={c.id} value={c.id}>{c.name || "Unnamed campaign"}</option>)}

@@ -338,6 +338,55 @@ export async function addMap(campaignId: string, file: File, name: string): Prom
   return toMap(data);
 }
 
+/** Maps in other campaigns (for a GM to copy into this one). Only pass campaigns the signed-in member is GM of. */
+export async function listMapsIn(campaignIds: string[]): Promise<CampaignMap[]> {
+  if (!supabase || !campaignIds.length) return [];
+  const { data, error } = await supabase.from("maps").select("*").in("campaign_id", campaignIds).order("created_at", { ascending: false });
+  if (error) throw new Error(need(error.message));
+  return (data || []).map(toMap);
+}
+
+/**
+ * Copy a map (image, size and grid) into another campaign's library, so that campaign's players can see it.
+ * The GM has to run both campaigns (or be an admin).
+ */
+export async function copyMap(m: CampaignMap, campaignId: string): Promise<CampaignMap> {
+  if (!supabase) throw new Error("Maps need a shared instance.");
+  const id = newId();
+  const path = `${campaignId}/${id}.${m.path.split(".").pop() || "webp"}`;
+  const cp = await supabase.storage.from(MAP_BUCKET).copy(m.path, path);
+  if (cp.error) throw new Error(`Couldn’t copy the map: ${cp.error.message}`);
+  const { data, error } = await supabase.from("maps").insert({ id, campaign_id: campaignId, name: m.name, path, width: m.width, height: m.height, grid: normGrid(m.grid) }).select("*").single();
+  if (error) {
+    await supabase.storage.from(MAP_BUCKET).remove([path]);
+    throw new Error(need(error.message));
+  }
+  return toMap(data);
+}
+
+/**
+ * After an encounter moves to another campaign: if its map is in another campaign's library, copy the map into the
+ * new campaign and point the encounter at the copy (its tokens, fog and grid stay as they were). Returns the copy.
+ */
+const carrying = new Map<string, Promise<CampaignMap | null>>();
+/** Waits for a map being carried to a new campaign (so the Map tab reads the encounter after it's done). */
+export const afterCarry = (encounterId: string) => carrying.get(encounterId)?.catch(() => null) || Promise.resolve(null);
+export function carryMap(encounterId: string, campaignId: string): Promise<CampaignMap | null> {
+  const p = carryNow(encounterId, campaignId).finally(() => { if (carrying.get(encounterId) === p) carrying.delete(encounterId); });
+  carrying.set(encounterId, p);
+  return p;
+}
+async function carryNow(encounterId: string, campaignId: string): Promise<CampaignMap | null> {
+  const em = await getEncounterMap(encounterId);
+  if (!em?.mapId || !supabase) return null;
+  const m = await getMap(em.mapId);
+  if (!m || m.campaignId === campaignId) return null;
+  const copy = await copyMap(m, campaignId);
+  const { error } = await supabase.from("encounter_maps").update({ map_id: copy.id, shown: false }).eq("encounter_id", encounterId);
+  if (error) throw new Error(`Couldn’t move the map: ${error.message}`);
+  return copy;
+}
+
 export async function saveMap(m: Pick<CampaignMap, "id" | "name" | "grid">): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("maps").update({ name: m.name, grid: normGrid(m.grid), updated_at: new Date().toISOString() }).eq("id", m.id);

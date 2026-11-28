@@ -391,6 +391,7 @@ export default function Sheet() {
   const [dmgPick, setDmgPick] = useState<{ x: number; y: number; above: boolean; title: string; types: DamageType[]; go: (t: DamageType) => void }>();
   const lastDmgType = useRef(new Map<string, DamageType>());
   const lastPress = useRef<DOMRect | undefined>(undefined);
+  const hitExtrasNow = useRef<(a: Attack) => CardAction[]>(() => []);
   useEffect(() => {
     const press = (e: PointerEvent) => { const b = (e.target as HTMLElement).closest?.("button"); if (b && !b.closest(".dmgpick")) lastPress.current = b.getBoundingClientRect(); };
     window.addEventListener("pointerdown", press, true);
@@ -862,7 +863,8 @@ export default function Sheet() {
     });
     return out;
   };
-  type DmgMods = { minDie?: number; maximize?: string; floorSource?: string };
+  /** `hitOf`: the weapon attack this damage is for, so its entry can offer on-hit extras still available (Dreadful Strike, Divine Smite). */
+  type DmgMods = { minDie?: number; maximize?: string; floorSource?: string; hitOf?: Attack };
   /** Roll damage; when its type is a choice, open the damage type menu first and roll as the type picked. */
   const rollDamage = (title: string, expr: string, crit: boolean, type = "", heal = false, mods: DmgMods = {}, pieces?: { expr: string; type: string }[]) => {
     const choicePiece = pieces?.findIndex((x) => damageChoices(x.type).length > 1) ?? -1;
@@ -898,7 +900,7 @@ export default function Sheet() {
       total: String(Math.max(0, r.total)),
       cls: heal ? "heal" : "dmg",
       detail: `${eqOf(r)}${esc(describeRolled(r))}${type ? ` · ${esc(type)}` : ""}${why.length ? `<div>${esc(why.join(" · "))}</div>` : ""}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}`,
-    }, undefined, heal ? undefined : damageShares(r, type, pieces));
+    }, mods.hitOf ? hitExtrasNow.current(mods.hitOf) : undefined, heal ? undefined : damageShares(r, type, pieces));
   };
 
   // ---------------------------------------------------- conversions (convert blocks)
@@ -1113,7 +1115,7 @@ export default function Sheet() {
     log({ title: `${t.name} damage`, total: String(r.total), cls: "dmg", detail: `${eqOf(r)}${esc(describeRolled(r))}${type && type !== "weapon" ? ` · ${esc(type)}` : " · the weapon’s damage type"}${res && t.cost ? `<div>${left - t.cost.amount} of ${res.max} ${esc(res.name)} left</div>` : ""}${crit ? `<div class="vd crit">Critical hit: dice doubled</div>` : ""}` });
   };
   /**
-   * What an attack's Game Log entry offers to add if it hits: your "on a hit" extra damage that fits the attack and
+   * What a weapon damage roll's Game Log entry offers to add: your "on a hit" extra damage that fits the attack and
    * still has a use left (Dreadful Strike, Sneak Attack, Divine Strike), and smite spells you can cast now (Divine Smite).
    */
   const hitExtras = (a: Attack): CardAction[] => {
@@ -1133,6 +1135,8 @@ export default function Sheet() {
     }
     return out;
   };
+  // a damage button on an older log entry still sees what's available now
+  hitExtrasNow.current = hitExtras;
   /** The attack roll, which is the same however the weapon is held; its card offers the damage one- and two-handed. */
   const attack = (a: Attack) => {
     const cm = conditionMods(p, { kind: "attack" });
@@ -1156,10 +1160,8 @@ export default function Sheet() {
           (crit ? `<div class="vd crit">Critical hit!${critNote}</div>` : r.fumble ? `<div class="vd bad">Natural 1: miss</div>` : ""),
       },
       [
-        { label: crit ? `Roll crit damage (${a.damage})` : `Roll damage (${a.damage})`, run: () => rollDamage(a.name, a.damage, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, false)) },
-        ...(a.versatile ? [{ label: crit ? `Crit, two hands (${a.versatile})` : `Two hands (${a.versatile})`, run: () => rollDamage(`${a.name} (two hands)`, a.versatile!, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, dmgMods(a, true)) }] : []),
-        // what you can add when it hits: extra damage from your features (Dreadful Strike) and smite spells
-        ...(r.fumble ? [] : hitExtras(a)),
+        { label: crit ? `Roll crit damage (${a.damage})` : `Roll damage (${a.damage})`, run: () => rollDamage(a.name, a.damage, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, { ...dmgMods(a, false), hitOf: a }) },
+        ...(a.versatile ? [{ label: crit ? `Crit, two hands (${a.versatile})` : `Two hands (${a.versatile})`, run: () => rollDamage(`${a.name} (two hands)`, a.versatile!, crit, a.extra ? `${a.type}, plus ${a.extra}` : a.type, false, { ...dmgMods(a, true), hitOf: a }) }] : []),
       ],
     );
     if (crit) setCritFor({ name: a.name, versatile: false });
@@ -3929,10 +3931,10 @@ export default function Sheet() {
                                 return (
                                   <>
                                     <button className={`sbtn sm ${c ? "critbtn" : "ghost"}`} title={c ? "Your last roll with this attack was a Critical Hit: this rolls its damage dice twice." : HOW.dmg}
-                                      onClick={() => rollDamage(a.name, a.damage, c, type, false, dmgMods(a, false))}>{c ? "Crit damage" : "Damage"}</button>
+                                      onClick={() => rollDamage(a.name, a.damage, c, type, false, { ...dmgMods(a, false), hitOf: a })}>{c ? "Crit damage" : "Damage"}</button>
                                     {/* Versatile: the attack roll is the same either way; held in two hands it deals more damage */}
                                     {a.versatile && <button className={`sbtn sm ${c ? "critbtn" : "ghost"}`} title={`${c ? "Your last roll with this attack was a Critical Hit: this rolls the two-handed damage dice twice. " : ""}Rolls ${a.name}’s damage held in two hands (Versatile): ${a.versatile} instead of ${a.damage}, and adds it to the Game Log.`}
-                                      onClick={() => rollDamage(`${a.name} (two hands)`, a.versatile!, c, type, false, dmgMods(a, true))}>{c ? "Crit, two hands" : "Two hands"}</button>}
+                                      onClick={() => rollDamage(`${a.name} (two hands)`, a.versatile!, c, type, false, { ...dmgMods(a, true), hitOf: a })}>{c ? "Crit, two hands" : "Two hands"}</button>}
                                   </>
                                 );
                               })()}

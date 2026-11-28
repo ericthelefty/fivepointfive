@@ -24,7 +24,7 @@ function useTokenImages(tokens: MapToken[] | undefined) {
 }
 import type { Combatant, Encounter } from "../lib/encounter.ts";
 import {
-  addMap, allCells, announceMap, normBlock, setBlocks, withFog, deleteMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
+  addMap, afterCarry, copyMap, getMap, listMapsIn, allCells, announceMap, normBlock, setBlocks, withFog, deleteMap, clampCell, getEncounterMap, gridBounds, listMaps, moveToken, onMapChange, paintFog, sameTokens, saveEncounterMap, syncTokens,
   NOTE_MAX, condColor, setTokenNote, tokenSeen, useMapImage, viewEncounterMap, type CampaignMap, type EncounterMap, type MapFog, type MapToken, type MapView,
 } from "../lib/maps.ts";
 
@@ -59,6 +59,11 @@ function usePings() {
 export function useEncounterMap(e: Encounter | undefined, info: Info) {
   const [em, setEm] = useState<EncounterMap | null>();
   const [maps, setMaps] = useState<CampaignMap[]>([]);
+  /** Which campaign `maps` was read for (so a map missing from it is really missing). */
+  const [mapsFor, setMapsFor] = useState<string | null>(null);
+  /** Maps in the other campaigns this GM runs, to copy in. GMs and admins only. */
+  const [others, setOthers] = useState<CampaignMap[]>([]);
+  const session = useSession();
   const [error, setError] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latest = useRef<EncounterMap | null>(null);
@@ -69,13 +74,20 @@ export function useEncounterMap(e: Encounter | undefined, info: Info) {
     if (!eid) return;
     let alive = true;
     setEm(undefined);
-    getEncounterMap(eid).then((x) => { if (alive) { latest.current = x; setEm(x); } }, (err) => { if (alive) { setError(err.message); setEm(null); } });
+    // read again after the encounter moves campaign, once its map has been carried over
+    afterCarry(eid).then(() => getEncounterMap(eid)).then((x) => { if (alive) { latest.current = x; setEm(x); } }, (err) => { if (alive) { setError(err.message); setEm(null); } });
     return () => { alive = false; };
-  }, [eid]);
+  }, [eid, cid]);
+  const gmOf = session.campaigns.filter((c) => c.id !== cid && session.isGm(c.id)).map((c) => c.id).join(",");
   useEffect(() => {
+    setMapsFor(null);
     if (!cid) { setMaps([]); return; }
-    listMaps(cid).then(setMaps, (err) => setError(err.message));
+    listMaps(cid).then((l) => { setMaps(l); setMapsFor(cid); }, (err) => setError(err.message));
   }, [cid]);
+  useEffect(() => {
+    if (!cid || !gmOf || !session.isGm(cid)) { setOthers([]); return; }
+    listMapsIn(gmOf.split(",")).then(setOthers, () => setOthers([]));
+  }, [cid, gmOf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const flush = useCallback(async () => {
     const m = latest.current;
@@ -106,6 +118,21 @@ export function useEncounterMap(e: Encounter | undefined, info: Info) {
     flush();
   }, [e, flush]);
 
+  // the encounter's map is in another campaign's library (it moved): copy the map here so this campaign's players see it
+  const healed = useRef<string | null>(null);
+  useEffect(() => {
+    const id = em?.mapId;
+    if (!id || !cid || !eid || mapsFor !== cid || maps.some((m) => m.id === id) || healed.current === id || !session.isGm(cid)) return;
+    healed.current = id;
+    getMap(id).then(async (m) => {
+      if (!m) return;
+      if (m.campaignId === cid) { setMaps((l) => [m, ...l]); return; }
+      const copy = await copyMap(m, cid);
+      setMaps((l) => [copy, ...l]);
+      update((x) => (x.mapId === id ? { ...x, mapId: copy.id, shown: false } : x));
+    }).catch((err) => setError((err as Error).message));
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
   // keep the tokens, turn, round and title in step with the encounter
   const synced = em ? syncTokens(em.tokens, e?.combatants || [], info) : null;
   const want = em && e ? { title: e.name, turn: e.turn ?? null, round: e.round } : null;
@@ -127,7 +154,7 @@ export function useEncounterMap(e: Encounter | undefined, info: Info) {
     });
   }, [cid, eid]);
 
-  return { em, maps, setMaps, error, setError, update, start, campaignId: cid };
+  return { em, maps, setMaps, others, error, setError, update, start, campaignId: cid };
 }
 
 type MapState = ReturnType<typeof useEncounterMap>;
@@ -238,17 +265,39 @@ export function EncounterMapTab({ e, st, onExit, onCondition }: { e: Encounter; 
   if (!e.campaignId) return <div className="spanel"><p className="note" style={{ margin: 0 }}>Put this encounter in a campaign (at the top of the page) to give it a map: the map is shown to that campaign’s players.</p></div>;
   if (em === undefined) return <div className="spanel"><p className="note" style={{ margin: 0 }}>Loading…</p></div>;
 
+  // a map from another campaign you run is copied into this one first, so this campaign's players can see it
+  const pickMap = async (id: string) => {
+    const other = st.others.find((m) => m.id === id);
+    if (!other || !e.campaignId) return start(id || null);
+    setUploading(true);
+    try {
+      const copy = await copyMap(other, e.campaignId);
+      st.setMaps((l) => [copy, ...l]);
+      start(copy.id);
+      st.setError("");
+    } catch (err) { st.setError((err as Error).message); }
+    finally { setUploading(false); }
+  };
+  const campName = (cid: string) => session.campaignName(cid) || "Another campaign";
+  const otherCamps = [...new Set(st.others.map((m) => m.campaignId))];
   const picker = (
-    <select value={em?.mapId || ""} aria-label="Map" onChange={(ev) => start(ev.target.value || null)}>
-      <option value="">{maps.length ? "Use a map you’ve uploaded…" : "No maps uploaded yet"}</option>
-      {maps.map((m) => <option key={m.id} value={m.id}>{m.name || "Unnamed map"}</option>)}
+    <select value={em?.mapId || ""} aria-label="Map" disabled={uploading} onChange={(ev) => pickMap(ev.target.value)}>
+      <option value="">{maps.length || st.others.length ? "Use a map you’ve uploaded…" : "No maps uploaded yet"}</option>
+      {maps.length > 0 && st.others.length > 0
+        ? <optgroup label="This campaign">{maps.map((m) => <option key={m.id} value={m.id}>{m.name || "Unnamed map"}</option>)}</optgroup>
+        : maps.map((m) => <option key={m.id} value={m.id}>{m.name || "Unnamed map"}</option>)}
+      {otherCamps.map((cid) => (
+        <optgroup key={cid} label={`From ${campName(cid)} (copied here)`}>
+          {st.others.filter((m) => m.campaignId === cid).map((m) => <option key={m.id} value={m.id}>{m.name || "Unnamed map"}</option>)}
+        </optgroup>
+      ))}
     </select>
   );
   if (!em || !map) {
     return (
       <div className="spanel stack">
         <p className="note" style={{ margin: 0 }}>Upload a battle map for this encounter, then set its grid. Everyone in the fight gets a token you can place on it. A map you upload can be used again in this campaign’s other encounters.</p>
-        <div className="maprow">{uploader}{maps.length > 0 && picker}</div>
+        <div className="maprow">{uploader}{(maps.length > 0 || st.others.length > 0) && picker}</div>
         {st.error && <p className="note">{st.error}</p>}
       </div>
     );
