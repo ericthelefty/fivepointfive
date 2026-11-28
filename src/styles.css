@@ -516,3 +516,4 @@ body.mapopen { overflow: hidden; }
 .camptokens a { border-radius: 50%; text-decoration: none; transition: transform .12s; }
 .camptokens a:hover { transform: translateY(-2px); }
 .camptokens a:hover .ctoken { border-color: var(--accent, #e3b25e); }
+.campcard h2 { padding: 0 34px; } /* clear of the trash icon in the corner */

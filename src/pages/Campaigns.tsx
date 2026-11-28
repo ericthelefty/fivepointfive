@@ -111,7 +111,6 @@ function CampaignCard({ c, run }: { c: Campaign; run: Run }) {
         </button>
       )}
       {deleting && <DeleteCampaign c={c} onClose={() => setDeleting(false)} onDelete={() => { setDeleting(false); run("delete the campaign", () => db.from("campaigns").delete().eq("id", c.id)); }} />}
-      <div className="campfaces" aria-hidden="true">{inIt.slice(0, 6).map((m) => <span key={m.user_id} className="campface">{initials(session.nameOf(m.user_id))}</span>)}</div>
       <h2>{c.name || "Unnamed campaign"}</h2>
       {started(c) && <div className="faint">Campaign started {started(c)}</div>}
       <div className="campcounts">
@@ -124,9 +123,6 @@ function CampaignCard({ c, run }: { c: Campaign; run: Run }) {
       </div>
       <ul className="camplinks">
         <li><Link to={`/campaigns/${c.id}`}>View campaign</Link></li>
-        <li>{session.campaignId !== c.id
-          ? <button className="linkish" onClick={() => session.setCampaignId(c.id)} title="Show this campaign’s characters and encounters on those pages">Show its characters</button>
-          : <span className="faint" title="The Characters and Encounters pages show this campaign">Showing its characters</span>}</li>
       </ul>
       {campChars.length > 0 && (
         <div className="camptokens">{campChars.map((r) => (
