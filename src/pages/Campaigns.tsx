@@ -170,9 +170,7 @@ export function CampaignPage() {
           </form>
         ) : <h1 style={{ margin: 0 }}>{c.name || "Unnamed campaign"}</h1>}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {session.campaignId !== c.id
-            ? <button className="btn small" onClick={() => session.setCampaignId(c.id)} title="Show this campaign’s characters and encounters on those pages">Show its characters</button>
-            : <span className="tag ok">Showing on Characters{gm ? " and Encounters" : ""}</span>}
+          {session.campaignId !== c.id && <button className="btn small" onClick={() => session.setCampaignId(c.id)} title="Show this campaign’s characters and encounters on those pages">Show its characters</button>}
           {admin && rename === undefined && <button className="btn small" onClick={() => setRename(c.name)}>Rename</button>}
         </div>
       </div>
