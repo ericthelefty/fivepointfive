@@ -17,6 +17,7 @@ import { useContent } from "../lib/store.tsx";
 import { classInfos, classLabel } from "../lib/multiclass.ts";
 import { useCharacterBackdrop } from "../lib/backgrounds.ts";
 import type { CharRow } from "../lib/characters.tsx";
+import { CharToken } from "../components/CharToken.tsx";
 
 type Run = (what: string, f: () => PromiseLike<{ error: { message: string } | null }>) => Promise<boolean>;
 
@@ -91,16 +92,32 @@ export default function Campaigns() {
 function CampaignCard({ c, run }: { c: Campaign; run: Run }) {
   const session = useSession();
   const chars = useCharacters();
-  const characters = chars.rows.filter((r) => r.campaignId === c.id).length;
+  const campChars = chars.rows.filter((r) => r.campaignId === c.id).sort((a, b) => (a.c.name || "").localeCompare(b.c.name || ""));
+  const characters = campChars.length;
   const db = supabase!;
   const inIt = session.campaignMembers.filter((m) => m.campaign_id === c.id);
   const me = inIt.find((m) => m.user_id === session.user?.id);
   const gms = inIt.filter((m) => m.role === "gm");
   const players = inIt.filter((m) => m.role === "player").length;
   const role = me?.role === "gm" ? "GM" : me ? "Player" : session.isAdmin ? "Admin (not in it)" : "";
+  const [deleting, setDeleting] = useState(false);
   return (
     <section className="panel campcard">
-      <div className="campfaces" aria-hidden="true">{inIt.slice(0, 6).map((m) => <span key={m.user_id} className="campface">{initials(session.nameOf(m.user_id))}</span>)}</div>
+      {session.isAdmin && (
+        <button className="camptrash" aria-label={`Delete the campaign ${c.name || ""}`} title="Delete this campaign" onClick={() => setDeleting(true)}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+          </svg>
+        </button>
+      )}
+      {deleting && <DeleteCampaign c={c} onClose={() => setDeleting(false)} onDelete={() => { setDeleting(false); run("delete the campaign", () => db.from("campaigns").delete().eq("id", c.id)); }} />}
+      {campChars.length > 0
+        ? <div className="camptokens">{campChars.map((r) => (
+            <Link key={r.c.id} to={`/sheet/${r.c.id}`} title={`${r.c.name || "Unnamed"}: open their sheet`} aria-label={`${r.c.name || "Unnamed"}: open their sheet`}>
+              <CharToken name={r.c.name} stored={r.c.tokenImage} className="sm" />
+            </Link>
+          ))}</div>
+        : <div className="campfaces" aria-hidden="true">{inIt.slice(0, 6).map((m) => <span key={m.user_id} className="campface">{initials(session.nameOf(m.user_id))}</span>)}</div>}
       <h2>{c.name || "Unnamed campaign"}</h2>
       {started(c) && <div className="faint">Campaign started {started(c)}</div>}
       <div className="campcounts">
@@ -116,9 +133,6 @@ function CampaignCard({ c, run }: { c: Campaign; run: Run }) {
         <li>{session.campaignId !== c.id
           ? <button className="linkish" onClick={() => session.setCampaignId(c.id)} title="Show this campaign’s characters and encounters on those pages">Show its characters</button>
           : <span className="faint" title="The Characters and Encounters pages show this campaign">Showing its characters</span>}</li>
-        {session.isAdmin && <li><button className="linkish danger" onClick={() => {
-          if (confirm(`Delete the campaign ${c.name || ""}? Its encounters, loot and shared rolls go with it. Its characters stay with their players, in no campaign.`)) run("delete the campaign", () => db.from("campaigns").delete().eq("id", c.id));
-        }}>Delete campaign</button></li>}
       </ul>
     </section>
   );
@@ -226,6 +240,32 @@ export function CampaignPage() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+/** Deleting a campaign: says what goes with it, and only goes ahead once the admin types DELETE. */
+function DeleteCampaign({ c, onClose, onDelete }: { c: Campaign; onClose: () => void; onDelete: () => void }) {
+  const [typed, setTyped] = useState("");
+  const ok = typed === "DELETE";
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="confirmmodal" role="dialog" aria-modal="true" aria-label={`Delete ${c.name || "this campaign"}`} onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <form className="confirmbox" onSubmit={(e) => { e.preventDefault(); if (ok) onDelete(); }}>
+        <h2>Delete {c.name || "this campaign"}?</h2>
+        <p>Its encounters, maps, loot and shared rolls are deleted with it, and this can’t be undone. Its characters stay with their players, in no campaign.</p>
+        <label className="field">Type DELETE to confirm
+          <input type="text" autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" spellCheck={false} aria-label="Type DELETE to confirm" />
+        </label>
+        <div className="confirmbtns">
+          <button type="button" className="btn small" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn small danger" disabled={!ok}>Delete campaign</button>
+        </div>
+      </form>
     </div>
   );
 }

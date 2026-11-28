@@ -9,7 +9,7 @@ import { useSession } from "../lib/session.tsx";
 import { cloud } from "../lib/backend.ts";
 import { CampaignSelect, useCampaignChoices } from "../components/CampaignSelect.tsx";
 import { LiveMapLinks } from "./Maps.tsx";
-import { useStoredImage } from "../lib/backgrounds.ts";
+import { CharToken } from "../components/CharToken.tsx";
 import { newCharacter, type Character } from "../lib/rules.ts";
 
 export default function Home() {
@@ -216,11 +216,4 @@ function CampaignRow({ id, name, owner, campaignId, canMove }: { id: string; nam
       </select>
     </label>
   );
-}
-
-/** A character's token picture in a circle (or their initials), for their card. */
-function CharToken({ name, stored }: { name?: string; stored?: string }) {
-  const url = useStoredImage(stored);
-  const initials = (name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-  return <span className={`ctoken ${url ? "" : "none"}`} aria-hidden="true">{url ? <img src={url} alt="" /> : initials}</span>;
 }
