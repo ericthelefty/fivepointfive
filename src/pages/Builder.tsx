@@ -748,7 +748,7 @@ function AbilityStep({ c, update }: StepProps) {
               )}
               {c.method === "manual" && rolled[a] && (() => {
                 const d = rolled[a], low = d.indexOf(Math.min(...d));
-                return <div className="rolldice" title="The four d6 rolled; the lowest is dropped">{d.map((x, i) => <span key={i} className={i === low ? "drop" : ""}>{x}</span>)}</div>;
+                return <div className="rolldice" title="The four d6 rolled; the lowest is dropped">{d.map((x, i) => <span key={i} className={i === low ? "rolldrop" : ""}>{x}</span>)}</div>;
               })()}
               <div className="v">{finals[a]}</div>
               <div className="m">{fmt(mod(finals[a]))}</div>
